@@ -45,7 +45,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
 import { useFirestore, deleteDocumentNonBlocking } from "@/firebase";
@@ -59,7 +58,7 @@ export const getStatus = (member: any): 'active' | 'pending' | 'rejected' => {
     if (member.membershipStatus === 'active') return 'active';
     return member.status || 'pending';
 };
-export const isMinor = (birthDate: string | Date) => birthDate ? differenceInYears(new Date(), new Date(birthDate)) < 18 : false;
+export const isMinor = (birthDate: string | Date | undefined) => birthDate ? differenceInYears(new Date(), new Date(birthDate)) < 18 : false;
 export const formatDate = (dateString: any) => {
   if (!dateString) return 'N/A';
   if (dateString && typeof dateString.toDate === 'function') {
@@ -95,72 +94,57 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
   );
 };
 
-const MemberTableRow = ({ member }: { member: Member; }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const { toast } = useToast();
-  const firestore = useFirestore();
 
+const MemberTableRow = ({ member, onEdit, onDelete }: { member: Member; onEdit: () => void; onDelete: () => void; }) => {
   const status = getStatus(member);
   const memberIsMinor = isMinor(member.birthDate);
   const defaultFee = member.membershipFee ?? (isMinor(member.birthDate) ? 0 : 10);
-
-  const handleDelete = () => {
-    if (!firestore) return;
-    const currentStatus = getStatus(member);
-    const collectionName = currentStatus === 'active' ? 'members' : 'membership_requests';
-    const docRef = doc(firestore, collectionName, member.id);
-    
-    deleteDocumentNonBlocking(docRef);
-    toast({
-      title: "Membro rimosso",
-      description: `${getFullName(member)} è stato rimosso dalla lista.`,
-      variant: "destructive",
-    });
-  };
   
   return (
     <TableRow>
       <TableCell className="font-medium">
-         <Dialog>
-          <DialogTrigger asChild>
-            <div className="flex items-center gap-2 cursor-pointer group">
-              {member.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500" />}
-              <span className="group-hover:text-primary transition-colors">{getFullName(member)}</span>
-            </div>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-3"><User/> Dettagli Membro</DialogTitle>
-            </DialogHeader>
-            <div className="py-4 space-y-2 max-h-[70vh] overflow-y-auto p-1 pr-4">
-              <DetailRow icon={<User />} label="Nome Completo" value={getFullName(member)} />
-              <DetailRow icon={<Mail />} label="Email" value={member.email} />
-              <DetailRow icon={<Phone />} label="Telefono" value={member.phone} />
-              <DetailRow icon={<Home />} label="Indirizzo" value={`${member.address}, ${member.city} (${member.province}) ${member.postalCode}`} />
-              <DetailRow icon={<Hash />} label="Codice Fiscale" value={member.fiscalCode} />
-              <DetailRow icon={<Calendar />} label="Anno Associativo" value={member.membershipYear || new Date().getFullYear()} />
-              <DetailRow icon={<Euro />} label="Quota Versata" value={`€ ${defaultFee}`} />
-              {member.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
-              <DetailRow icon={<StickyNote />} label="Note" value={member.notes} />
-            </div>
-          </DialogContent>
-        </Dialog>
-        {memberIsMinor && (
-          <Dialog>
-            <DialogTrigger asChild>
-              <Badge onClick={(e) => { e.stopPropagation(); }} variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10 ml-2">Minore</Badge>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2"><ShieldCheck/> Dettagli Tutore</DialogTitle>
-              </DialogHeader>
-              <div className="py-4">
-                <DetailRow icon={<User />} label="Nome Tutore" value={`${member.guardianFirstName} ${member.guardianLastName}`} />
-                <DetailRow icon={<Calendar />} label="Data di Nascita Tutore" value={formatDate(member.guardianBirthDate)} />
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
+         <div className="flex items-center gap-3">
+              <Dialog>
+                 <DialogTrigger asChild>
+                   <div className="flex items-center gap-2 cursor-pointer group">
+                      {member.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500" />}
+                      <span className="group-hover:text-primary transition-colors">{getFullName(member)}</span>
+                   </div>
+                 </DialogTrigger>
+                 <DialogContent className="max-w-md">
+                   <DialogHeader>
+                     <DialogTitle className="flex items-center gap-3"><User/> Dettagli Membro</DialogTitle>
+                   </DialogHeader>
+                   <div className="py-4 space-y-2 max-h-[70vh] overflow-y-auto p-1 pr-4">
+                     <DetailRow icon={<User />} label="Nome Completo" value={getFullName(member)} />
+                     <DetailRow icon={<Mail />} label="Email" value={member.email} />
+                     <DetailRow icon={<Phone />} label="Telefono" value={member.phone} />
+                     <DetailRow icon={<Home />} label="Indirizzo" value={`${member.address}, ${member.city} (${member.province}) ${member.postalCode}`} />
+                     <DetailRow icon={<Hash />} label="Codice Fiscale" value={member.fiscalCode} />
+                     <DetailRow icon={<Calendar />} label="Anno Associativo" value={member.membershipYear || new Date().getFullYear()} />
+                     <DetailRow icon={<Euro />} label="Quota Versata" value={`€ ${defaultFee}`} />
+                     {member.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
+                     <DetailRow icon={<StickyNote />} label="Note" value={member.notes} />
+                   </div>
+                 </DialogContent>
+               </Dialog>
+               {memberIsMinor && (
+                 <Dialog>
+                   <DialogTrigger asChild>
+                     <Badge onClick={(e) => { e.stopPropagation(); }} variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10 ml-2">Minore</Badge>
+                   </DialogTrigger>
+                   <DialogContent>
+                     <DialogHeader>
+                       <DialogTitle className="flex items-center gap-2"><ShieldCheck/> Dettagli Tutore</DialogTitle>
+                     </DialogHeader>
+                     <div className="py-4">
+                       <DetailRow icon={<User />} label="Nome Tutore" value={`${member.guardianFirstName} ${member.guardianLastName}`} />
+                       <DetailRow icon={<Calendar />} label="Data di Nascita Tutore" value={formatDate(member.guardianBirthDate)} />
+                     </div>
+                   </DialogContent>
+                 </Dialog>
+               )}
+         </div>
       </TableCell>
       <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
         <div>{formatDate(member.birthDate)}</div>
@@ -179,55 +163,43 @@ const MemberTableRow = ({ member }: { member: Member; }) => {
         </Badge>
       </TableCell>
       <TableCell className="text-right">
-        <AlertDialog>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Apri menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-              <DropdownMenuItem onSelect={() => setIsEditing(true)}>
-                <Pencil className="mr-2 h-4 w-4" /> Modifica
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Apri menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Azioni</DropdownMenuLabel>
+            <DropdownMenuItem onSelect={onEdit}>
+              <Pencil className="mr-2 h-4 w-4" /> Modifica
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <AlertDialog>
               <AlertDialogTrigger asChild>
                 <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
                   <Trash2 className="mr-2 h-4 w-4" /> Elimina
                 </DropdownMenuItem>
               </AlertDialogTrigger>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Questa azione non può essere annullata. Questo rimuoverà permanentemente {getFullName(member)} dalla lista.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Annulla</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                Elimina
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Questa azione non può essere annullata. Questo rimuoverà permanentemente {getFullName(member)} dalla lista.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annulla</AlertDialogCancel>
+                  <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Elimina
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </TableCell>
-
-      <Sheet open={isEditing} onOpenChange={setIsEditing}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
-          <>
-            <SheetHeader>
-              <SheetTitle>Modifica Membro: {getFullName(member)}</SheetTitle>
-            </SheetHeader>
-            <EditMemberForm member={member} onClose={() => setIsEditing(false)} />
-          </>
-        </SheetContent>
-      </Sheet>
     </TableRow>
   );
 };
@@ -236,27 +208,58 @@ const MemberTableRow = ({ member }: { member: Member; }) => {
 export function MembersTable({ initialMembers, initialRequests }: { initialMembers: Member[], initialRequests: Member[] }) {
   const [filter, setFilter] = useState('');
   const [allItems, setAllItems] = useState<Member[]>([]);
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const firestore = useFirestore();
+  const { toast } = useToast();
 
   useEffect(() => {
     const combinedData: { [key: string]: Member } = {};
 
     (initialRequests || []).forEach(item => {
-      if (item && item.id) combinedData[item.id] = { ...item, _source: 'request' } as Member;
+      if (item && item.id) combinedData[item.id] = { ...item } as Member;
     });
     
     (initialMembers || []).forEach(item => {
-      if (item && item.id) combinedData[item.id] = { ...item, _source: 'member' } as Member;
+      if (item && item.id) combinedData[item.id] = { ...item } as Member;
     });
 
-    const sortedItems = Object.values(combinedData).sort((a,b) => (a.firstName || '').localeCompare(b.firstName || ''));
+    const sortedItems = Object.values(combinedData).sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
     setAllItems(sortedItems);
 
   }, [initialMembers, initialRequests]);
   
-  const filteredMembers = allItems.filter(member => {
+  const filteredMembers = useMemo(() => allItems.filter(member => {
     return getFullName(member).toLowerCase().includes(filter.toLowerCase()) ||
            (member.email && member.email.toLowerCase().includes(filter.toLowerCase()));
-  });
+  }), [allItems, filter]);
+
+  const handleUpdateMember = (updatedMember: Member, newStatus: string, originalStatus: string) => {
+    // Optimistic UI update
+    if (originalStatus !== newStatus) {
+      setAllItems(prev => prev.filter(m => m.id !== updatedMember.id));
+    } else {
+      setAllItems(prev => prev.map(m => m.id === updatedMember.id ? updatedMember : m));
+    }
+    setEditingMember(null);
+  };
+  
+  const handleDeleteMember = (memberToDelete: Member) => {
+    if (!firestore) return;
+    
+    // Optimistic UI update
+    setAllItems(prev => prev.filter(m => m.id !== memberToDelete.id));
+
+    const currentStatus = getStatus(memberToDelete);
+    const collectionName = currentStatus === 'active' ? 'members' : 'membership_requests';
+    const docRef = doc(firestore, collectionName, memberToDelete.id);
+    
+    deleteDocumentNonBlocking(docRef);
+    toast({
+      title: "Membro rimosso",
+      description: `${getFullName(memberToDelete)} è stato rimosso dalla lista.`,
+      variant: "destructive",
+    });
+  };
 
   return (
     <div>
@@ -286,7 +289,9 @@ export function MembersTable({ initialMembers, initialRequests }: { initialMembe
               filteredMembers.map((member) => (
                 <MemberTableRow 
                   key={member.id} 
-                  member={member} 
+                  member={member}
+                  onEdit={() => setEditingMember(member)}
+                  onDelete={() => handleDeleteMember(member)}
                 />
               ))
             ) : (
@@ -299,6 +304,22 @@ export function MembersTable({ initialMembers, initialRequests }: { initialMembe
           </TableBody>
         </Table>
       </div>
+      <Sheet open={!!editingMember} onOpenChange={(isOpen) => !isOpen && setEditingMember(null)}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+          {editingMember && (
+            <>
+              <SheetHeader>
+                <SheetTitle>Modifica Membro: {getFullName(editingMember)}</SheetTitle>
+              </SheetHeader>
+              <EditMemberForm 
+                member={editingMember} 
+                onClose={() => setEditingMember(null)}
+                onUpdate={handleUpdateMember}
+              />
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

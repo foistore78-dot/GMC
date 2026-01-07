@@ -51,9 +51,10 @@ const formSchema = z.object({
 type EditMemberFormProps = {
     member: Member;
     onClose: () => void;
+    onUpdate: (updatedMember: Member, newStatus: string, originalStatus: string) => void;
 };
 
-export function EditMemberForm({ member, onClose }: EditMemberFormProps) {
+export function EditMemberForm({ member, onClose, onUpdate }: EditMemberFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firestore = useFirestore();
@@ -80,6 +81,15 @@ export function EditMemberForm({ member, onClose }: EditMemberFormProps) {
 
     const newStatus = values.status;
     const { status, ...dataToSave } = values;
+
+    const finalMemberData: Member = {
+      ...member,
+      ...dataToSave,
+      id: member.id,
+      membershipStatus: newStatus === 'active' ? 'active' : 'pending', // adjust as per your logic
+      // other status related fields need to be handled here
+    };
+
 
     try {
         if (originalStatus !== newStatus) {
@@ -116,20 +126,27 @@ export function EditMemberForm({ member, onClose }: EditMemberFormProps) {
             // 3. Perform batch write: delete old, create new
             batch.delete(oldDocRef);
             batch.set(newDocRef, finalData, { merge: true });
-            await batch.commit();
+            
+            // Non-blocking commit
+            batch.commit().then(() => {
+                onUpdate(finalMemberData as Member, newStatus, originalStatus);
+            }).catch(error => {
+                console.error("Error committing batch:", error);
+                toast({ title: "Errore", description: "Si è verificato un problema durante l'aggiornamento.", variant: "destructive" });
+            });
 
         } else {
             // Status has not changed, just update the existing document
             const collectionName = newStatus === 'active' ? 'members' : 'membership_requests';
             const docRef = doc(firestore, collectionName, member.id);
             setDocumentNonBlocking(docRef, dataToSave, { merge: true });
+            onUpdate(finalMemberData as Member, newStatus, originalStatus);
         }
 
         toast({
             title: "Membro aggiornato!",
             description: `I dati di ${getFullName(values)} sono stati aggiornati.`,
         });
-        onClose();
 
     } catch (error) {
         console.error("Error updating member:", error);
@@ -226,6 +243,7 @@ export function EditMemberForm({ member, onClose }: EditMemberFormProps) {
             </div>
         </div>
         <div className="flex justify-end pt-4">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>Annulla</Button>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Salva Modifiche
