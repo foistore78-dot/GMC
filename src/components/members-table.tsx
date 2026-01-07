@@ -48,8 +48,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
-import { useFirestore } from "@/firebase";
-import { doc, deleteDoc } from "firebase/firestore";
+import { useFirestore, deleteDocumentNonBlocking } from "@/firebase";
+import { doc } from "firebase/firestore";
 import { differenceInYears, format } from 'date-fns';
 import { EditMemberForm } from "./edit-member-form";
 
@@ -96,10 +96,33 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
 };
 
 
-const MemberTableRow = ({ member, onEdit, onDelete }: { member: any; onEdit: () => void; onDelete: () => void }) => {
+const MemberTableRow = ({ member }: { member: any; }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const { toast } = useToast();
+  const firestore = useFirestore();
+
   const status = getStatus(member);
   const memberIsMinor = isMinor(member.birthDate);
   const defaultFee = member.membershipFee ?? (isMinor(member.birthDate) ? 0 : 10);
+
+  const handleDelete = async () => {
+    if (!firestore) return;
+    const currentStatus = getStatus(member);
+    const collectionName = currentStatus === 'active' ? 'members' : 'membership_requests';
+    const docRef = doc(firestore, collectionName, member.id);
+    
+    try {
+      await deleteDocumentNonBlocking(docRef);
+      toast({
+        title: "Membro rimosso",
+        description: `${getFullName(member)} è stato rimosso dalla lista.`,
+        variant: "destructive",
+      });
+    } catch (error) {
+       console.error("Error deleting member:", error);
+       toast({ title: "Errore", description: "Impossibile eliminare il membro.", variant: "destructive" });
+    }
+  };
   
   return (
     <TableRow>
@@ -172,7 +195,7 @@ const MemberTableRow = ({ member, onEdit, onDelete }: { member: any; onEdit: () 
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-              <DropdownMenuItem onSelect={onEdit}>
+              <DropdownMenuItem onSelect={() => setIsEditing(true)}>
                 <Pencil className="mr-2 h-4 w-4" /> Modifica
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -193,13 +216,24 @@ const MemberTableRow = ({ member, onEdit, onDelete }: { member: any; onEdit: () 
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Annulla</AlertDialogCancel>
-              <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                 Elimina
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       </TableCell>
+
+      <Sheet open={isEditing} onOpenChange={setIsEditing}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+          <>
+            <SheetHeader>
+              <SheetTitle>Modifica Membro: {getFullName(member)}</SheetTitle>
+            </SheetHeader>
+            <EditMemberForm member={member} onClose={() => setIsEditing(false)} />
+          </>
+        </SheetContent>
+      </Sheet>
     </TableRow>
   );
 };
@@ -208,9 +242,6 @@ const MemberTableRow = ({ member, onEdit, onDelete }: { member: any; onEdit: () 
 export function MembersTable({ initialMembers, initialRequests }: { initialMembers: any[], initialRequests: any[] }) {
   const [filter, setFilter] = useState('');
   const [allItems, setAllItems] = useState<any[]>([]);
-  const [editingMember, setEditingMember] = useState<Member | null>(null);
-  const { toast } = useToast();
-  const firestore = useFirestore();
 
   useEffect(() => {
     const combinedData: { [key: string]: any } = {};
@@ -232,33 +263,6 @@ export function MembersTable({ initialMembers, initialRequests }: { initialMembe
     return getFullName(member).toLowerCase().includes(filter.toLowerCase()) ||
            (member.email && member.email.toLowerCase().includes(filter.toLowerCase()));
   });
-  
-  const handleEdit = (member: Member) => {
-    setEditingMember(member);
-  };
-
-  const handleCloseSheet = () => {
-    setEditingMember(null);
-  };
-
-  const handleDelete = async (memberToDelete: any) => {
-    if (!firestore) return;
-    const currentStatus = getStatus(memberToDelete);
-    const collectionName = currentStatus === 'active' ? 'members' : 'membership_requests';
-    const docRef = doc(firestore, collectionName, memberToDelete.id);
-    
-    try {
-      await deleteDoc(docRef);
-      toast({
-        title: "Membro rimosso",
-        description: `${getFullName(memberToDelete)} è stato rimosso dalla lista.`,
-        variant: "destructive",
-      });
-    } catch (error) {
-       console.error("Error deleting member:", error);
-       toast({ title: "Errore", description: "Impossibile eliminare il membro.", variant: "destructive" });
-    }
-  };
 
   return (
     <div>
@@ -289,8 +293,6 @@ export function MembersTable({ initialMembers, initialRequests }: { initialMembe
                 <MemberTableRow 
                   key={member.id} 
                   member={member} 
-                  onEdit={() => handleEdit(member)}
-                  onDelete={() => handleDelete(member)}
                 />
               ))
             ) : (
@@ -303,19 +305,6 @@ export function MembersTable({ initialMembers, initialRequests }: { initialMembe
           </TableBody>
         </Table>
       </div>
-
-      <Sheet open={!!editingMember} onOpenChange={(isOpen) => !isOpen && handleCloseSheet()}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
-          {editingMember && (
-            <>
-              <SheetHeader>
-                <SheetTitle>Modifica Membro: {getFullName(editingMember)}</SheetTitle>
-              </SheetHeader>
-              <EditMemberForm member={editingMember} onClose={handleCloseSheet} />
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }
