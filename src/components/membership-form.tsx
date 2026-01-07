@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { AnimatePresence, motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,58 +19,62 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { useFirestore, addDocumentNonBlocking } from "@/firebase";
 import { collection, serverTimestamp } from "firebase/firestore";
+import { Progress } from "@/components/ui/progress";
 
 const formSchema = z.object({
-  name: z.string().min(2, {
-    message: "Il nome deve contenere almeno 2 caratteri.",
-  }),
-  email: z.string().email({
-    message: "Inserisci un indirizzo email valido.",
-  }),
-  phone: z.string().min(10, {
-    message: "Inserisci un numero di telefono valido.",
-  }),
-  instruments: z.string().min(2, {
-    message: "Elenca almeno uno strumento.",
-  }),
-  isNotRobot: z.boolean().refine((val) => val === true, {
-    message: "Per favore, conferma di non essere un robot.",
-  }),
+  firstName: z.string().min(2, { message: "Il nome deve contenere almeno 2 caratteri." }),
+  lastName: z.string().min(2, { message: "Il cognome deve contenere almeno 2 caratteri." }),
+  email: z.string().email({ message: "Inserisci un indirizzo email valido." }),
+  phone: z.string().min(10, { message: "Inserisci un numero di telefono valido." }),
+  birthPlace: z.string().min(2, { message: "Inserisci un luogo di nascita valido." }),
+  birthDate: z.string().refine((date) => !isNaN(Date.parse(date)), { message: "Inserisci una data di nascita valida." }),
+  fiscalCode: z.string().length(16, { message: "Il codice fiscale deve essere di 16 caratteri." }),
+  instruments: z.string().min(2, { message: "Elenca almeno uno strumento." }),
+  isNotRobot: z.boolean().refine((val) => val === true, { message: "Per favore, conferma di non essere un robot." }),
 });
+
+type FormValues = z.infer<typeof formSchema>;
+
+const steps = [
+  { id: 1, fields: ["firstName", "lastName"] as const, title: "Come ti chiami?" },
+  { id: 2, fields: ["email", "phone"] as const, title: "Come possiamo contattarti?" },
+  { id: 3, fields: ["birthPlace", "birthDate", "fiscalCode"] as const, title: "Dati anagrafici" },
+  { id: 4, fields: ["instruments"] as const, title: "Parlaci del tuo talento" },
+  { id: 5, fields: ["isNotRobot"] as const, title: "Ultimo controllo" },
+];
 
 export function MembershipForm() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
   const firestore = useFirestore();
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
+      firstName: "",
+      lastName: "",
       email: "",
       phone: "",
+      birthPlace: "",
+      birthDate: "",
+      fiscalCode: "",
       instruments: "",
       isNotRobot: false,
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function processForm(values: FormValues) {
     setIsSubmitting(true);
     
     try {
-      const { name, ...rest } = values;
-      const nameParts = name.split(' ');
-      const firstName = nameParts[0];
-      const lastName = nameParts.slice(1).join(' ');
-
+      const { ...rest } = values;
       const membershipRequestData = {
         ...rest,
-        firstName,
-        lastName,
         requestDate: serverTimestamp(),
         status: 'pending',
       };
@@ -82,6 +87,7 @@ export function MembershipForm() {
         description: "Grazie per il tuo interesse. Ti contatteremo presto.",
       });
       form.reset();
+      setCurrentStep(0);
     } catch (error) {
       console.error("Error submitting application:", error);
       toast({
@@ -94,94 +100,192 @@ export function MembershipForm() {
     }
   }
 
+  type FieldName = keyof FormValues;
+
+  const nextStep = async () => {
+    const fields = steps[currentStep].fields;
+    const output = await form.trigger(fields as FieldName[], { shouldFocus: true });
+
+    if (!output) return;
+
+    if (currentStep < steps.length - 1) {
+      if (currentStep === steps.length - 2) {
+        await form.handleSubmit(processForm)();
+      } else {
+        setCurrentStep(step => step + 1);
+      }
+    }
+  };
+
+  const prevStep = () => {
+    if (currentStep > 0) {
+      setCurrentStep(step => step - 1);
+    }
+  };
+
+  const progress = ((currentStep + 1) / steps.length) * 100;
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nome e Cognome</FormLabel>
-              <FormControl>
-                <Input placeholder="Mario Rossi" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Indirizzo Email</FormLabel>
-              <FormControl>
-                <Input placeholder="tu@esempio.com" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="phone"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Numero di Telefono</FormLabel>
-              <FormControl>
-                <Input placeholder="(123) 456-7890" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="instruments"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Quali strumenti suoni?</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="es. Chitarra, Basso, Batteria, Voce..."
-                  {...field}
+      <form onSubmit={form.handleSubmit(processForm)} className="space-y-8">
+        <Progress value={progress} className="w-full" />
+        
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentStep}
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <h2 className="text-xl font-semibold mb-6 text-foreground">{steps[currentStep].title}</h2>
+
+            {currentStep === 0 && (
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome</FormLabel>
+                      <FormControl><Input placeholder="Mario" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </FormControl>
-              <FormDescription>
-                Parlaci dei tuoi talenti musicali.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="isNotRobot"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm bg-background">
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
+                <FormField
+                  control={form.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cognome</FormLabel>
+                      <FormControl><Input placeholder="Rossi" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </FormControl>
-              <div className="space-y-1 leading-none">
-                <FormLabel>
-                  Non sono un robot
-                </FormLabel>
-                <FormDescription>
-                    Un semplice CAPTCHA per prevenire lo spam.
-                </FormDescription>
-                 <FormMessage />
               </div>
-            </FormItem>
+            )}
+            
+            {currentStep === 1 && (
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Indirizzo Email</FormLabel>
+                      <FormControl><Input placeholder="tu@esempio.com" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Numero di Telefono</FormLabel>
+                      <FormControl><Input placeholder="+39 333 1234567" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+
+            {currentStep === 2 && (
+              <div className="space-y-4">
+                 <FormField
+                  control={form.control}
+                  name="birthPlace"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Luogo di Nascita</FormLabel>
+                      <FormControl><Input placeholder="Roma" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="birthDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Data di Nascita</FormLabel>
+                      <FormControl><Input type="date" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="fiscalCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Codice Fiscale</FormLabel>
+                      <FormControl><Input placeholder="RSSMRA80A01H501U" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+
+            {currentStep === 3 && (
+              <FormField
+                control={form.control}
+                name="instruments"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Quali strumenti suoni?</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="es. Chitarra, Basso, Batteria, Voce..." {...field} />
+                    </FormControl>
+                    <FormDescription>Elenca i tuoi talenti musicali.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {currentStep === 4 && (
+              <FormField
+                control={form.control}
+                name="isNotRobot"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm bg-background">
+                    <FormControl>
+                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Non sono un robot</FormLabel>
+                      <FormDescription>Un semplice CAPTCHA per prevenire lo spam.</FormDescription>
+                      <FormMessage />
+                    </div>
+                  </FormItem>
+                )}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        <div className="flex justify-between pt-4">
+          <Button type="button" onClick={prevStep} variant="outline" disabled={currentStep === 0 || isSubmitting}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Indietro
+          </Button>
+
+          {currentStep < steps.length - 1 ? (
+            <Button type="button" onClick={nextStep} disabled={isSubmitting}>
+              Avanti <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          ) : (
+            <Button type="submit" className="font-bold" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSubmitting ? "Invio in corso..." : "Invia Candidatura"}
+            </Button>
           )}
-        />
-        <Button type="submit" className="w-full text-lg font-bold py-6" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isSubmitting ? "Invio in corso..." : "Invia Candidatura"}
-        </Button>
+        </div>
       </form>
     </Form>
   );

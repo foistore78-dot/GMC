@@ -47,7 +47,7 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
   const { toast } = useToast();
   const firestore = useFirestore();
 
-  const handleStatusChange = async (id: string, status: Member["status"]) => {
+  const handleStatusChange = async (id: string, status: 'approved' | 'rejected') => {
     
     const memberToUpdate = members.find((m) => m.id === id);
     if (!memberToUpdate) return;
@@ -57,7 +57,7 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
         const { id: oldId, requestDate, ...memberData } = memberToUpdate;
         const newMemberData = {
           ...memberData,
-          status: 'approved',
+          membershipStatus: 'active', // or 'approved'
           joinDate: serverTimestamp(),
           expirationDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
         };
@@ -110,15 +110,16 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
   };
   
   const getFullName = (member: any) => {
-    if (member.name) return member.name;
     return `${member.firstName || ''} ${member.lastName || ''}`.trim();
   }
 
   const filteredMembers = members.filter(member => {
     const fullName = getFullName(member);
     return fullName.toLowerCase().includes(filter.toLowerCase()) ||
-           member.email.toLowerCase().includes(filter.toLowerCase())
+           (member.email && member.email.toLowerCase().includes(filter.toLowerCase()));
   });
+  
+  const getStatus = (member: any) => member.status || member.membershipStatus;
 
   return (
     <div>
@@ -140,13 +141,15 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
               <TableHead>Nome</TableHead>
               <TableHead className="hidden md:table-cell">Contatto</TableHead>
               <TableHead>Stato</TableHead>
-              <TableHead className="hidden lg:table-cell">Strumenti</TableHead>
+              <TableHead className="hidden lg:table-cell">Dettagli</TableHead>
               <TableHead className="text-right">Azioni</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredMembers.length > 0 ? (
-              filteredMembers.map((member) => (
+              filteredMembers.map((member) => {
+                const status = getStatus(member);
+                return (
                 <TableRow key={member.id}>
                   <TableCell className="font-medium">{getFullName(member)}</TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground">
@@ -156,23 +159,25 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                   <TableCell>
                     <Badge
                       variant={
-                        member.status === "approved"
+                        status === "active" || status === "approved"
                           ? "default"
-                          : member.status === "pending"
+                          : status === "pending"
                           ? "secondary"
                           : "destructive"
                       }
                       className={cn({
-                        "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30": member.status === "approved",
-                        "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30": member.status === "pending",
-                        "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30": member.status === "rejected",
-                        "text-primary-foreground": member.status === 'approved'
+                        "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30": status === "active" || status === "approved",
+                        "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30": status === "pending",
+                        "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30": status === "rejected",
                       })}
                     >
-                      {member.status === 'approved' ? 'approvato' : member.status === 'pending' ? 'in attesa' : 'rifiutato'}
+                      {status === 'active' || status === 'approved' ? 'approvato' : status === 'pending' ? 'in attesa' : 'rifiutato'}
                     </Badge>
                   </TableCell>
-                   <TableCell className="hidden lg:table-cell text-muted-foreground">{member.instruments}</TableCell>
+                   <TableCell className="hidden lg:table-cell text-muted-foreground text-xs">
+                     <div><span className="font-semibold">Strumenti:</span> {member.instruments}</div>
+                     {member.fiscalCode && <div><span className="font-semibold">CF:</span> {member.fiscalCode}</div>}
+                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -183,14 +188,14 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-                        {member.status !== 'approved' && (
+                        {status === 'pending' && (
                             <DropdownMenuItem
                             onClick={() => handleStatusChange(member.id, "approved")}
                             >
                             <Check className="mr-2 h-4 w-4" /> Approva
                             </DropdownMenuItem>
                         )}
-                        {member.status !== 'rejected' && (
+                        {status === 'pending' && (
                             <DropdownMenuItem
                             onClick={() => handleStatusChange(member.id, "rejected")}
                             >
@@ -226,7 +231,7 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))
+              )})
             ) : (
                 <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center">

@@ -1,0 +1,234 @@
+{
+  "entities": {
+    "Member": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Member",
+      "type": "object",
+      "description": "Represents a member of the Garage Music Club.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Member entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "First name of the member."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "Last name of the member."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the member.",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Phone number of the member."
+        },
+        "birthPlace": {
+          "type": "string",
+          "description": "Place of birth of the member."
+        },
+        "birthDate": {
+          "type": "string",
+          "description": "Date of birth of the member.",
+          "format": "date"
+        },
+        "fiscalCode": {
+          "type": "string",
+          "description": "Italian fiscal code of the member."
+        },
+        "instruments": {
+          "type": "string",
+          "description": "Musical instruments played by the member."
+        },
+        "membershipStatus": {
+          "type": "string",
+          "description": "Current membership status (e.g., active, pending, expired)."
+        },
+        "joinDate": {
+          "type": "string",
+          "description": "Date when the member joined the club.",
+          "format": "date-time"
+        },
+        "expirationDate": {
+          "type": "string",
+          "description": "Date when the membership expires.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "email",
+        "birthPlace",
+        "birthDate",
+        "fiscalCode",
+        "instruments",
+        "membershipStatus",
+        "joinDate",
+        "expirationDate"
+      ]
+    },
+    "MembershipRequest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MembershipRequest",
+      "type": "object",
+      "description": "Represents a membership request submitted by a potential member.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the MembershipRequest entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "First name of the applicant."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "Last name of the applicant."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the applicant.",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Phone number of the applicant."
+        },
+        "birthPlace": {
+          "type": "string",
+          "description": "Place of birth of the applicant."
+        },
+        "birthDate": {
+          "type": "string",
+          "description": "Date of birth of the applicant.",
+          "format": "date"
+        },
+        "fiscalCode": {
+          "type": "string",
+          "description": "Italian fiscal code of the applicant."
+        },
+        "instruments": {
+          "type": "string",
+          "description": "Musical instruments played by the applicant."
+        },
+        "requestDate": {
+          "type": "string",
+          "description": "Date when the membership request was submitted.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the membership request (e.g., pending, approved, rejected)."
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "email",
+        "birthPlace",
+        "birthDate",
+        "fiscalCode",
+        "instruments",
+        "requestDate",
+        "status"
+      ]
+    },
+    "AdminUser": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AdminUser",
+      "type": "object",
+      "description": "Represents an administrator user of the system.  Note: Passwords should be managed by an external authentication service and NOT stored directly.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the AdminUser entity."
+        },
+        "username": {
+          "type": "string",
+          "description": "Username of the administrator."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the administrator.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role of the administrator (e.g., superadmin, admin)."
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "email",
+        "role"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/membership_requests/{membershipRequestId}",
+        "definition": {
+          "entityName": "MembershipRequest",
+          "schema": {
+            "$ref": "#/backend/entities/MembershipRequest"
+          },
+          "description": "Stores membership requests submitted by potential members. No authentication required for creating these, but admin authentication is required to read or modify them.",
+          "params": [
+            {
+              "name": "membershipRequestId",
+              "description": "Unique identifier for the membership request."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/members/{memberId}",
+        "definition": {
+          "entityName": "Member",
+          "schema": {
+            "$ref": "#/backend/entities/Member"
+          },
+          "description": "Stores information about Garage Music Club members. Only accessible and modifiable by admins. Existence of a document in this collection implies active membership.",
+          "params": [
+            {
+              "name": "memberId",
+              "description": "Unique identifier for the member."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{adminId}",
+        "definition": {
+          "entityName": "AdminUser",
+          "schema": {
+            "$ref": "#/backend/entities/AdminUser"
+          },
+          "description": "Indicates admin role. The existence of a document at this path with the user's UID indicates admin privileges. Used for authentication within security rules.",
+          "params": [
+            {
+              "name": "adminId",
+              "description": "The Firebase UID of the administrator."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to manage members and membership requests for the Garage Music Club. It prioritizes security, scalability, and ease of debugging. Key design decisions include:\n\n1.  **Authorization Independence:** The structure avoids hierarchical authorization dependencies, crucial for atomic operations and debuggability. There are no `get()` calls in rules dependent on parent documents.\n2.  **Structural Segregation:** Public membership requests are stored separately from secure member data, enforcing distinct security requirements. Admin user roles are managed via document existence.\n3.  **Access Modeling:** Public membership requests don't need authentication. Secure member management is achieved through path-based ownership and global admin roles. Membership is reflected through existence in the `/members/{memberId}` collection.\n4.  **Data Clarity:** Each entity has a clear schema and status field.\n\n**QAPs (Rules are not Filters):** The segregated structure allows for secure `list` operations.  Membership requests can be listed publicly without authentication, while member data listing requires admin authentication, which is verified by checking the existence of their UID in `/roles_admin/{uid}`.\n\n**Denormalization:**  No explicit denormalization is required given the requirements and data model.  If collaborative features were added in the future (e.g., band projects), a membership map would be denormalized to subcollections to ensure authorization independence."
+  }
+}
