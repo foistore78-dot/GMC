@@ -66,6 +66,7 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
 
 export function MembersTable({ initialMembers }: MembersTableProps) {
   const [filter, setFilter] = useState('');
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { toast } = useToast();
   const firestore = useFirestore();
 
@@ -83,9 +84,11 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
 
     try {
         const membersCollection = collection(firestore, 'members');
-        const newMemberRef = await addDocumentNonBlocking(membersCollection, newMemberData);
+        // This is a non-blocking write. Firestore listeners will pick up the change.
+        await addDocumentNonBlocking(membersCollection, newMemberData);
         
         const requestRef = doc(firestore, "membership_requests", id);
+        // This is a non-blocking delete. Firestore listeners will pick up the change.
         await deleteDocumentNonBlocking(requestRef);
     
         toast({
@@ -107,6 +110,7 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
     if (!memberToUpdate || !firestore) return;
 
     const memberRef = doc(firestore, "membership_requests", id);
+    // Non-blocking write. Firestore listeners will pick up the change.
     setDocumentNonBlocking(memberRef, { status: 'rejected' }, { merge: true });
     
     toast({
@@ -122,6 +126,7 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
 
     const collectionName = getStatus(memberToDelete) === 'pending' ? 'membership_requests' : 'members';
     const docRef = doc(firestore, collectionName, id);
+    // Non-blocking delete. Firestore listeners will pick up the change.
     deleteDocumentNonBlocking(docRef);
 
     toast({
@@ -132,7 +137,9 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
   };
 
   const handleUpdateMember = (updatedMember: Member) => {
-     // No local state update needed, Firestore listener will handle it.
+     // This function is now just a placeholder. The state is managed by Firestore listeners.
+     // We close the dialog here.
+     setIsEditDialogOpen(false);
   };
   
   const getFullName = (member: any) => {
@@ -267,7 +274,7 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Dialog>
+                    <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">
@@ -324,7 +331,7 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                           <DialogHeader>
                             <DialogTitle>Modifica Membro: {getFullName(member)}</DialogTitle>
                           </DialogHeader>
-                          <EditMemberForm member={member} onUpdate={handleUpdateMember} />
+                          <EditMemberForm member={member} onUpdate={handleUpdateMember} onClose={() => setIsEditDialogOpen(false)} />
                       </DialogContent>
                     </Dialog>
                   </TableCell>
@@ -343,5 +350,3 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
     </div>
   );
 }
-
-    

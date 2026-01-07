@@ -47,9 +47,10 @@ const formSchema = z.object({
 type EditMemberFormProps = {
     member: Member;
     onUpdate: (updatedMember: Member) => void;
+    onClose: () => void;
 };
 
-export function EditMemberForm({ member, onUpdate }: EditMemberFormProps) {
+export function EditMemberForm({ member, onUpdate, onClose }: EditMemberFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firestore = useFirestore();
@@ -79,12 +80,11 @@ export function EditMemberForm({ member, onUpdate }: EditMemberFormProps) {
       const updatedData = { ...member, ...values };
       // Use non-blocking write for better UI experience
       setDocumentNonBlocking(memberRef, values, { merge: true });
-      onUpdate(updatedData);
       toast({
         title: "Membro aggiornato!",
         description: "I dati del membro sono stati aggiornati con successo.",
       });
-       // This will implicitly close the dialog via parent state
+      onClose(); // Close the dialog
     } catch (error) {
       console.error("Error updating member:", error);
       toast({
