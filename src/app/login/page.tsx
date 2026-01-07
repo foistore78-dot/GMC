@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -16,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth, useUser, useFirestore } from "@/firebase";
 import {
   signInWithEmailAndPassword,
@@ -33,6 +34,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("password");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (user && !isUserLoading) {
@@ -42,22 +44,18 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLoading || isUserLoading || user) return; // Previene invii multipli
+    if (isLoading || isUserLoading || user) return;
 
     setError("");
     setIsLoading(true);
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // Il useEffect gestirà il reindirizzamento
     } catch (err: any) {
       if (err.code === 'auth/user-not-found') {
-        // Se l'utente non esiste, crealo.
         try {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
           const newUser = userCredential.user;
-
-          // Crea il documento per il ruolo di amministratore in Firestore
           const adminRoleRef = doc(firestore, "roles_admin", newUser.uid);
           await setDoc(adminRoleRef, {
             email: newUser.email,
@@ -65,18 +63,19 @@ export default function LoginPage() {
             username: "admin_gmc",
             id: newUser.uid,
           });
-          // L'autenticazione è già avvenuta, il useEffect farà il reindirizzamento.
         } catch (creationError: any) {
-          setError("Errore durante la creazione dell'utente admin.");
-          console.error("Admin user creation error:", creationError);
+            if (creationError.code === 'auth/email-already-in-use') {
+                 setError("Credenziali non valide. Riprova.");
+            } else {
+                setError("Errore durante la creazione dell'utente admin.");
+                console.error("Admin user creation error:", creationError);
+            }
         }
       } else if (err.code === 'auth/invalid-credential') {
-          // L'utente esiste, ma la password è sbagliata.
           setError("Credenziali non valide. Riprova.");
       } else if (err.code === 'auth/too-many-requests') {
         setError("Troppi tentativi falliti. Il tuo account è stato temporaneamente bloccato. Riprova più tardi.");
       } else {
-        // Per tutti gli altri errori
         setError("Si è verificato un errore imprevisto. Riprova.");
         console.error("Login error:", err);
       }
@@ -124,15 +123,25 @@ export default function LoginPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  disabled={isLoading}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    disabled={isLoading}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
               </div>
               {error && (
                 <Alert variant="destructive">
