@@ -39,8 +39,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { AlertDialogTrigger } from "./ui/alert-dialog";
 import { Input } from "./ui/input";
 import { useFirestore, setDocumentNonBlocking, deleteDocumentNonBlocking, addDocumentNonBlocking } from "@/firebase";
 import { collection, doc, serverTimestamp } from "firebase/firestore";
@@ -66,43 +66,36 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
 
 export function MembersTable({ initialMembers }: MembersTableProps) {
   const [filter, setFilter] = useState('');
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { toast } = useToast();
   const firestore = useFirestore();
 
-  const handleApprove = async (id: string) => {
+  const handleApprove = (id: string) => {
     const memberToUpdate = initialMembers.find((m) => m.id === id);
     if (!memberToUpdate || !firestore) return;
   
     const { id: oldId, requestDate, status, ...memberData } = memberToUpdate;
+    
+    // Generate a new ID for the member document
+    const newMemberRef = doc(collection(firestore, 'members'));
+
     const newMemberData = {
       ...memberData,
+      id: newMemberRef.id,
       membershipStatus: 'active',
       joinDate: serverTimestamp(),
       expirationDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
     };
 
-    try {
-        const membersCollection = collection(firestore, 'members');
-        // This is a non-blocking write. Firestore listeners will pick up the change.
-        await addDocumentNonBlocking(membersCollection, newMemberData);
-        
-        const requestRef = doc(firestore, "membership_requests", id);
-        // This is a non-blocking delete. Firestore listeners will pick up the change.
-        await deleteDocumentNonBlocking(requestRef);
+    // Non-blocking write and delete. Firestore listeners will pick up the changes.
+    setDocumentNonBlocking(newMemberRef, newMemberData, {});
     
-        toast({
-            title: "Membro Approvato!",
-            description: `${memberToUpdate.firstName} è ora un membro del club.`,
-        });
-    } catch (error) {
-        console.error("Error approving member:", error);
-        toast({
-            title: "Errore di Approvazione",
-            description: "Si è verificato un problema durante l'approvazione.",
-            variant: "destructive",
-        });
-    }
+    const requestRef = doc(firestore, "membership_requests", id);
+    deleteDocumentNonBlocking(requestRef);
+
+    toast({
+        title: "Membro Approvato!",
+        description: `${memberToUpdate.firstName} è ora un membro del club.`,
+    });
   };
 
   const handleReject = async (id: string) => {
@@ -134,12 +127,6 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
       description: "Il membro è stato rimosso dalla lista.",
       variant: "destructive",
     });
-  };
-
-  const handleUpdateMember = (updatedMember: Member) => {
-     // This function is now just a placeholder. The state is managed by Firestore listeners.
-     // We close the dialog here.
-     setIsEditDialogOpen(false);
   };
   
   const getFullName = (member: any) => {
@@ -204,6 +191,7 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                 const status = getStatus(member);
                 const memberIsMinor = isMinor(member.birthDate);
                 const defaultFee = member.membershipFee ?? (memberIsMinor ? 0 : 10);
+                const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
                 return (
                 <TableRow key={member.id}>
@@ -331,7 +319,7 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                           <DialogHeader>
                             <DialogTitle>Modifica Membro: {getFullName(member)}</DialogTitle>
                           </DialogHeader>
-                          <EditMemberForm member={member} onUpdate={handleUpdateMember} onClose={() => setIsEditDialogOpen(false)} />
+                          <EditMemberForm member={member} onUpdate={() => {}} onClose={() => setIsEditDialogOpen(false)} />
                       </DialogContent>
                     </Dialog>
                   </TableCell>
