@@ -37,19 +37,16 @@ export default function LoginPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
 
-  // Redirect if user is already logged in and recognized
+  // Redirect if user is already logged in
   useEffect(() => {
     if (user && !isUserLoading) {
-      // Check if we are not already on the admin page to prevent loops
-      if (window.location.pathname !== '/admin') {
-        router.push("/admin");
-      }
+      router.push("/admin");
     }
   }, [user, isUserLoading, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLoading || isUserLoading || !auth || !firestore) return;
+    if (!auth || !firestore) return;
 
     setError("");
     setIsLoading(true);
@@ -93,7 +90,7 @@ export default function LoginPage() {
           role: 'admin',
           username: ADMIN_USERNAME,
           id: userCredential.user.uid,
-        }, { merge: true }); // Use merge to be safe
+        }, { merge: true });
         
         // Step 4: Manually redirect to the admin page ONLY after the role has been set.
         router.push("/admin");
@@ -101,13 +98,15 @@ export default function LoginPage() {
       } catch (roleError: any) {
         setError(`Impossibile impostare i permessi di amministratore: ${roleError.message}`);
       }
+    } else {
+        setError("Impossibile ottenere le credenziali dell'utente dopo il login/registrazione.");
     }
 
     setIsLoading(false);
   };
 
-  // Show a loader while the initial auth state is being determined.
-  if (isUserLoading) {
+  // Show a loader while the initial auth state is being determined or if we are redirecting.
+  if (isUserLoading || user) {
     return (
         <div className="flex flex-col min-h-screen bg-secondary">
             <Header />
@@ -118,21 +117,6 @@ export default function LoginPage() {
         </div>
     );
   }
-
-  // If the user is already logged in, they will be redirected by the useEffect. 
-  // We can render null or a loader here to prevent the form from flashing.
-  if (user) {
-     return (
-        <div className="flex flex-col min-h-screen bg-secondary">
-            <Header />
-            <main className="flex-grow flex items-center justify-center">
-                <Loader2 className="h-16 w-16 animate-spin text-primary" />
-            </main>
-            <Footer />
-        </div>
-    );
-  }
-
 
   return (
     <div className="flex flex-col min-h-screen bg-secondary">
