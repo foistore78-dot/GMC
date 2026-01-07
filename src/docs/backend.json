@@ -45,6 +45,22 @@
           "type": "string",
           "description": "Italian fiscal code of the member."
         },
+        "address": {
+          "type": "string",
+          "description": "Street address of the member."
+        },
+        "city": {
+          "type": "string",
+          "description": "City of residence of the member."
+        },
+        "province": {
+          "type": "string",
+          "description": "Province of residence of the member (2-letter code)."
+        },
+        "postalCode": {
+          "type": "string",
+          "description": "Postal code of the member."
+        },
         "instruments": {
           "type": "string",
           "description": "Musical instruments played by the member."
@@ -73,6 +89,10 @@
         "birthPlace",
         "birthDate",
         "fiscalCode",
+        "address",
+        "city",
+        "province",
+        "postalCode",
         "instruments",
         "membershipStatus",
         "joinDate",
@@ -124,6 +144,22 @@
           "type": "string",
           "description": "Italian fiscal code of the applicant."
         },
+        "address": {
+          "type": "string",
+          "description": "Street address of the applicant."
+        },
+        "city": {
+          "type": "string",
+          "description": "City of residence of the applicant."
+        },
+        "province": {
+          "type": "string",
+          "description": "Province of residence of the applicant (2-letter code)."
+        },
+        "postalCode": {
+          "type": "string",
+          "description": "Postal code of the applicant."
+        },
         "instruments": {
           "type": "string",
           "description": "Musical instruments played by the applicant."
@@ -147,6 +183,10 @@
         "birthPlace",
         "birthDate",
         "fiscalCode",
+        "address",
+        "city",
+        "province",
+        "postalCode",
         "instruments",
         "requestDate",
         "status"

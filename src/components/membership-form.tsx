@@ -37,6 +37,10 @@ const formSchema = z.object({
   birthPlace: z.string().min(2, { message: "Inserisci un luogo di nascita valido." }),
   birthDate: z.string().refine((date) => !isNaN(Date.parse(date)), { message: "Inserisci una data di nascita valida." }),
   fiscalCode: z.string().length(16, { message: "Il codice fiscale deve essere di 16 caratteri." }),
+  address: z.string().min(5, { message: "Inserisci un indirizzo valido." }),
+  city: z.string().min(2, { message: "Inserisci una città valida." }),
+  province: z.string().length(2, { message: "La sigla della provincia deve essere di 2 caratteri." }),
+  postalCode: z.string().length(5, { message: "Il CAP deve essere di 5 caratteri." }),
   instruments: z.string().min(2, { message: "Elenca almeno uno strumento." }),
   isNotRobot: z.boolean().refine((val) => val === true, { message: "Per favore, conferma di non essere un robot." }),
 });
@@ -48,9 +52,10 @@ const steps = [
   { id: 2, fields: ["firstName", "lastName"] as const, title: "Come ti chiami?" },
   { id: 3, fields: ["birthDate", "birthPlace"] as const, title: "Quando e dove sei nato/a?" },
   { id: 4, fields: ["fiscalCode"] as const, title: "Codice Fiscale" },
-  { id: 5, fields: ["email", "phone"] as const, title: "Come possiamo contattarti?" },
-  { id: 6, fields: ["instruments"] as const, title: "Parlaci del tuo talento" },
-  { id: 7, fields: ["isNotRobot"] as const, title: "Ultimo controllo" },
+  { id: 5, fields: ["address", "city", "province", "postalCode"] as const, title: "Indirizzo di Residenza" },
+  { id: 6, fields: ["email", "phone"] as const, title: "Come possiamo contattarti?" },
+  { id: 7, fields: ["instruments"] as const, title: "Parlaci del tuo talento" },
+  { id: 8, fields: ["isNotRobot"] as const, title: "Ultimo controllo" },
 ];
 
 export function MembershipForm() {
@@ -70,6 +75,10 @@ export function MembershipForm() {
       birthPlace: "",
       birthDate: "",
       fiscalCode: "",
+      address: "",
+      city: "",
+      province: "",
+      postalCode: "",
       instruments: "",
       isNotRobot: false,
     },
@@ -251,6 +260,57 @@ export function MembershipForm() {
 
             {currentStep === 4 && (
               <div className="space-y-4">
+                 <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Indirizzo</FormLabel>
+                      <FormControl><Input placeholder="Via Roma, 1" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="city"
+                      render={({ field }) => (
+                        <FormItem className="sm:col-span-2">
+                          <FormLabel>Città</FormLabel>
+                          <FormControl><Input placeholder="Roma" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="postalCode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CAP</FormLabel>
+                          <FormControl><Input placeholder="00100" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                 </div>
+                 <FormField
+                      control={form.control}
+                      name="province"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Provincia (sigla)</FormLabel>
+                          <FormControl><Input placeholder="RM" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+              </div>
+            )}
+
+            {currentStep === 5 && (
+              <div className="space-y-4">
                 <FormField
                   control={form.control}
                   name="email"
@@ -276,7 +336,7 @@ export function MembershipForm() {
               </div>
             )}
 
-            {currentStep === 5 && (
+            {currentStep === 6 && (
               <FormField
                 control={form.control}
                 name="instruments"
@@ -293,7 +353,7 @@ export function MembershipForm() {
               />
             )}
 
-            {currentStep === 6 && (
+            {currentStep === 7 && (
               <FormField
                 control={form.control}
                 name="isNotRobot"

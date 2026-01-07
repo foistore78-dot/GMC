@@ -8,6 +8,10 @@ export type Member = {
   birthPlace: string;
   birthDate: string;
   fiscalCode: string;
+  address: string;
+  city: string;
+  province: string;
+  postalCode: string;
   joinDate: string;
   membershipStatus: 'pending' | 'active' | 'rejected';
   instruments: string;
