@@ -27,7 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Check, MoreHorizontal, Pencil, Trash2, X, Filter, MessageCircle, Shield, User, Phone, Mail, Home, Calendar, MapPin, Hash, ShieldCheck } from "lucide-react";
+import { Check, MoreHorizontal, Pencil, Trash2, X, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -186,44 +186,44 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                 return (
                 <TableRow key={member.id}>
                   <TableCell className="font-medium">
-                    <Dialog>
-                       <DialogTrigger asChild>
-                         <div className="flex items-center gap-3 cursor-pointer group">
-                            <div className="flex items-center gap-2">
-                              {member.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500" />}
-                              <span className="group-hover:text-primary transition-colors">{getFullName(member)}</span>
-                            </div>
-                            {memberIsMinor && (
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                   <Badge variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10">Minore</Badge>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle className="flex items-center gap-2"><ShieldCheck/> Dettagli Tutore</DialogTitle>
-                                    </DialogHeader>
-                                    <div className="py-4">
-                                      <DetailRow icon={<User />} label="Nome Tutore" value={`${member.guardianFirstName} ${member.guardianLastName}`} />
-                                      <DetailRow icon={<Calendar />} label="Data di Nascita Tutore" value={formatDate(member.guardianBirthDate)} />
-                                    </div>
-                                </DialogContent>
-                              </Dialog>
-                            )}
-                         </div>
-                       </DialogTrigger>
-                       <DialogContent className="max-w-md">
-                          <DialogHeader>
-                            <DialogTitle className="flex items-center gap-3"><User/> Dettagli Membro</DialogTitle>
-                          </DialogHeader>
-                           <div className="py-4 space-y-2">
-                              <DetailRow icon={<User />} label="Nome Completo" value={getFullName(member)} />
-                              <DetailRow icon={<Mail />} label="Email" value={member.email} />
-                              <DetailRow icon={<Phone />} label="Telefono" value={member.phone} />
-                              <DetailRow icon={<Home />} label="Indirizzo" value={`${member.address}, ${member.city} (${member.province}) ${member.postalCode}`} />
-                              <DetailRow icon={<Hash />} label="Codice Fiscale" value={member.fiscalCode} />
-                           </div>
-                       </DialogContent>
-                    </Dialog>
+                    <div className="flex items-center gap-3">
+                        <Dialog>
+                           <DialogTrigger asChild>
+                             <div className="flex items-center gap-2 cursor-pointer group">
+                                {member.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500" />}
+                                <span className="group-hover:text-primary transition-colors">{getFullName(member)}</span>
+                             </div>
+                           </DialogTrigger>
+                           <DialogContent className="max-w-md">
+                              <DialogHeader>
+                                <DialogTitle className="flex items-center gap-3"><User/> Dettagli Membro</DialogTitle>
+                              </DialogHeader>
+                               <div className="py-4 space-y-2">
+                                  <DetailRow icon={<User />} label="Nome Completo" value={getFullName(member)} />
+                                  <DetailRow icon={<Mail />} label="Email" value={member.email} />
+                                  <DetailRow icon={<Phone />} label="Telefono" value={member.phone} />
+                                  <DetailRow icon={<Home />} label="Indirizzo" value={`${member.address}, ${member.city} (${member.province}) ${member.postalCode}`} />
+                                  <DetailRow icon={<Hash />} label="Codice Fiscale" value={member.fiscalCode} />
+                               </div>
+                           </DialogContent>
+                        </Dialog>
+                        {memberIsMinor && (
+                          <Dialog>
+                            <DialogTrigger asChild>
+                               <Badge variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10">Minore</Badge>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle className="flex items-center gap-2"><ShieldCheck/> Dettagli Tutore</DialogTitle>
+                                </DialogHeader>
+                                <div className="py-4">
+                                  <DetailRow icon={<User />} label="Nome Tutore" value={`${member.guardianFirstName} ${member.guardianLastName}`} />
+                                  <DetailRow icon={<Calendar />} label="Data di Nascita Tutore" value={formatDate(member.guardianBirthDate)} />
+                                </div>
+                            </DialogContent>
+                          </Dialog>
+                        )}
+                    </div>
                   </TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
                     <div>{formatDate(member.birthDate)}</div>
