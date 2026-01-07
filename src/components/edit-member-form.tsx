@@ -25,7 +25,7 @@ import { doc, writeBatch } from "firebase/firestore";
 import type { Member } from "@/lib/members-data";
 import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { getStatus, getFullName } from "./members-table";
+import { getStatus, getFullName, isMinor } from "./members-table";
 
 const formSchema = z.object({
   firstName: z.string().min(2, { message: "Il nome deve contenere almeno 2 caratteri." }),
@@ -45,6 +45,18 @@ const formSchema = z.object({
   membershipYear: z.string().optional(),
   membershipFee: z.coerce.number().optional(),
   status: z.enum(['active', 'pending', 'rejected']),
+  guardianFirstName: z.string().optional(),
+  guardianLastName: z.string().optional(),
+  guardianBirthDate: z.string().optional(),
+}).refine(data => {
+    const age = differenceInYears(new Date(), new Date(data.birthDate));
+    if (age < 18) {
+        return !!data.guardianFirstName && !!data.guardianLastName && !!data.guardianBirthDate;
+    }
+    return true;
+}, {
+    message: "Per i minorenni, tutti i dati del tutore sono obbligatori.",
+    path: ["guardianFirstName"],
 });
 
 type EditMemberFormProps = {
@@ -54,7 +66,6 @@ type EditMemberFormProps = {
     onMemberDelete: (memberId: string) => void;
 };
 
-// Calculate default values once, outside the component, to avoid re-computation
 const getDefaultValues = (member: Member) => {
     const originalStatus = getStatus(member);
     const defaultMembershipYear = member.membershipYear || new Date().getFullYear().toString();
@@ -67,6 +78,9 @@ const getDefaultValues = (member: Member) => {
         membershipFee: defaultMembershipFee,
         isVolunteer: member.isVolunteer || false,
         notes: member.notes || "",
+        guardianFirstName: member.guardianFirstName || "",
+        guardianLastName: member.guardianLastName || "",
+        guardianBirthDate: member.guardianBirthDate || "",
     };
 };
 
@@ -80,6 +94,8 @@ export function EditMemberForm({ member, onClose, onMemberUpdate, onMemberDelete
     resolver: zodResolver(formSchema),
     defaultValues: getDefaultValues(member),
   });
+
+  const isMemberMinor = isMinor(member.birthDate);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!firestore) {
@@ -135,11 +151,7 @@ export function EditMemberForm({ member, onClose, onMemberUpdate, onMemberDelete
           description: `I dati di ${getFullName(values)} sono stati salvati.`,
       });
       
-      if (newStatus === 'rejected') {
-        onMemberDelete(member.id);
-      } else {
-        onMemberUpdate(updatedMemberData);
-      }
+      onClose();
 
     } catch(error) {
         console.error("Error committing batch:", error);
@@ -217,6 +229,26 @@ export function EditMemberForm({ member, onClose, onMemberUpdate, onMemberDelete
                     <FormItem className="flex-1"><FormLabel>CAP</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )}/>
             </div>
+            
+            {isMemberMinor && (
+              <>
+                <div className="md:col-span-2 p-4 border border-yellow-500/30 rounded-lg bg-yellow-500/10">
+                    <h3 className="text-lg font-semibold mb-2 text-yellow-300">Dati del Tutore</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField control={form.control} name="guardianFirstName" render={({ field }) => (
+                            <FormItem><FormLabel>Nome Tutore</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <FormField control={form.control} name="guardianLastName" render={({ field }) => (
+                            <FormItem><FormLabel>Cognome Tutore</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <FormField control={form.control} name="guardianBirthDate" render={({ field }) => (
+                            <FormItem className="md:col-span-2"><FormLabel>Data di Nascita Tutore</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                    </div>
+                </div>
+              </>
+            )}
+
             <FormField control={form.control} name="membershipYear" render={({ field }) => (
                 <FormItem><FormLabel>Anno Associativo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
             )}/>

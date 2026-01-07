@@ -6,54 +6,36 @@
       "type": "object",
       "description": "Represents a member of the Garage Music Club.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Member entity."
-        },
-        "firstName": {
-          "type": "string",
-          "description": "First name of the member."
-        },
-        "lastName": {
-          "type": "string",
-          "description": "Last name of the member."
-        },
-        "email": {
-          "type": "string",
-          "description": "Email address of the member.",
-          "format": "email"
-        },
-        "phone": {
-          "type": "string",
-          "description": "Phone number of the member."
-        },
-        "address": {
-          "type": "string",
-          "description": "Address of the member."
-        },
-        "membershipStatus": {
-          "type": "string",
-          "description": "Current membership status (e.g., active, pending, expired)."
-        },
-        "joinDate": {
-          "type": "string",
-          "description": "Date when the member joined the club.",
-          "format": "date-time"
-        },
-        "expirationDate": {
-          "type": "string",
-          "description": "Date when the membership expires.",
-          "format": "date-time"
-        }
+        "id": { "type": "string", "description": "Unique identifier for the Member entity." },
+        "gender": { "type": "string", "description": "Gender of the member.", "enum": ["male", "female"] },
+        "firstName": { "type": "string", "description": "First name of the member." },
+        "lastName": { "type": "string", "description": "Last name of the member." },
+        "email": { "type": "string", "description": "Email address of the member.", "format": "email" },
+        "phone": { "type": "string", "description": "Phone number of the member." },
+        "birthPlace": { "type": "string", "description": "Place of birth of the member." },
+        "birthDate": { "type": "string", "description": "Date of birth of the member.", "format": "date" },
+        "fiscalCode": { "type": "string", "description": "Italian fiscal code of the member." },
+        "address": { "type": "string", "description": "Street address of the member." },
+        "city": { "type": "string", "description": "City of residence of the member." },
+        "province": { "type": "string", "description": "Province of residence of the member (2-letter code)." },
+        "postalCode": { "type": "string", "description": "Postal code of the member." },
+        "whatsappConsent": { "type": "boolean", "description": "Indicates if the member consents to be added to a WhatsApp group." },
+        "privacyConsent": { "type": "boolean", "description": "Indicates if the member has accepted the privacy policy." },
+        "guardianFirstName": { "type": "string", "description": "First name of the guardian, if the member is a minor." },
+        "guardianLastName": { "type": "string", "description": "Last name of the guardian, if the member is a minor." },
+        "guardianBirthDate": { "type": "string", "description": "Date of birth of the guardian, if the member is a minor.", "format": "date" },
+        "membershipStatus": { "type": "string", "description": "Current membership status (e.g., active, pending, expired)." },
+        "joinDate": { "type": "string", "description": "Date when the member joined the club.", "format": "date-time" },
+        "expirationDate": { "type": "string", "description": "Date when the membership expires.", "format": "date-time" },
+        "membershipYear": { "type": "string", "description": "The solar year of the membership." },
+        "notes": { "type": "string", "description": "Administrative notes about the member." },
+        "isVolunteer": { "type": "boolean", "description": "Indicates if the member is a volunteer." },
+        "membershipFee": { "type": "number", "description": "The membership fee paid by the member." }
       },
       "required": [
-        "id",
-        "firstName",
-        "lastName",
-        "email",
-        "membershipStatus",
-        "joinDate",
-        "expirationDate"
+        "id", "gender", "firstName", "lastName", "email", "birthPlace", "birthDate", "fiscalCode", "address",
+        "city", "province", "postalCode", "whatsappConsent", "privacyConsent", "membershipStatus",
+        "joinDate", "expirationDate"
       ]
     },
     "MembershipRequest": {
@@ -62,48 +44,30 @@
       "type": "object",
       "description": "Represents a membership request submitted by a potential member.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the MembershipRequest entity."
-        },
-        "firstName": {
-          "type": "string",
-          "description": "First name of the applicant."
-        },
-        "lastName": {
-          "type": "string",
-          "description": "Last name of the applicant."
-        },
-        "email": {
-          "type": "string",
-          "description": "Email address of the applicant.",
-          "format": "email"
-        },
-        "phone": {
-          "type": "string",
-          "description": "Phone number of the applicant."
-        },
-        "address": {
-          "type": "string",
-          "description": "Address of the applicant."
-        },
-        "requestDate": {
-          "type": "string",
-          "description": "Date when the membership request was submitted.",
-          "format": "date-time"
-        },
-        "status": {
-          "type": "string",
-          "description": "Status of the membership request (e.g., pending, approved, rejected)."
-        }
+        "id": { "type": "string", "description": "Unique identifier for the MembershipRequest entity." },
+        "gender": { "type": "string", "description": "Gender of the applicant.", "enum": ["male", "female"] },
+        "firstName": { "type": "string", "description": "First name of the applicant." },
+        "lastName": { "type": "string", "description": "Last name of the applicant." },
+        "email": { "type": "string", "description": "Email address of the applicant.", "format": "email" },
+        "phone": { "type": "string", "description": "Phone number of the applicant." },
+        "birthPlace": { "type": "string", "description": "Place of birth of the applicant." },
+        "birthDate": { "type": "string", "description": "Date of birth of the applicant.", "format": "date" },
+        "fiscalCode": { "type": "string", "description": "Italian fiscal code of the applicant." },
+        "address": { "type": "string", "description": "Street address of the applicant." },
+        "city": { "type": "string", "description": "City of residence of the applicant." },
+        "province": { "type": "string", "description": "Province of residence of the applicant (2-letter code)." },
+        "postalCode": { "type": "string", "description": "Postal code of the applicant." },
+        "whatsappConsent": { "type": "boolean", "description": "Indicates if the applicant consents to be added to a WhatsApp group." },
+        "privacyConsent": { "type": "boolean", "description": "Indicates if the applicant has accepted the privacy policy." },
+        "guardianFirstName": { "type": "string", "description": "First name of the guardian, if the applicant is a minor." },
+        "guardianLastName": { "type": "string", "description": "Last name of the guardian, if the applicant is a minor." },
+        "guardianBirthDate": { "type": "string", "description": "Date of birth of the guardian, if the applicant is a minor.", "format": "date" },
+        "requestDate": { "type": "string", "description": "Date when the membership request was submitted.", "format": "date-time" },
+        "status": { "type": "string", "description": "Status of the membership request (e.g., pending, approved, rejected)." }
       },
       "required": [
-        "id",
-        "firstName",
-        "lastName",
-        "email",
-        "requestDate",
-        "status"
+        "id", "gender", "firstName", "lastName", "email", "birthPlace", "birthDate", "fiscalCode", "address",
+        "city", "province", "postalCode", "whatsappConsent", "privacyConsent", "requestDate", "status"
       ]
     },
     "AdminUser": {
@@ -112,37 +76,17 @@
       "type": "object",
       "description": "Represents an administrator user of the system.  Note: Passwords should be managed by an external authentication service and NOT stored directly.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the AdminUser entity."
-        },
-        "username": {
-          "type": "string",
-          "description": "Username of the administrator."
-        },
-        "email": {
-          "type": "string",
-          "description": "Email address of the administrator.",
-          "format": "email"
-        },
-        "role": {
-          "type": "string",
-          "description": "Role of the administrator (e.g., superadmin, admin)."
-        }
+        "id": { "type": "string", "description": "Unique identifier for the AdminUser entity." },
+        "username": { "type": "string", "description": "Username of the administrator." },
+        "email": { "type": "string", "description": "Email address of the administrator.", "format": "email" },
+        "role": { "type": "string", "description": "Role of the administrator (e.g., superadmin, admin)." },
+        "birthDate": { "type": "string", "description": "Date of birth of the admin.", "format": "date" }
       },
-      "required": [
-        "id",
-        "username",
-        "email",
-        "role"
-      ]
+      "required": ["id", "username", "email", "role"]
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password", "anonymous"]
   },
   "firestore": {
     "structure": [
@@ -150,48 +94,27 @@
         "path": "/membership_requests/{membershipRequestId}",
         "definition": {
           "entityName": "MembershipRequest",
-          "schema": {
-            "$ref": "#/backend/entities/MembershipRequest"
-          },
+          "schema": { "$ref": "#/backend/entities/MembershipRequest" },
           "description": "Stores membership requests submitted by potential members. No authentication required for creating these, but admin authentication is required to read or modify them.",
-          "params": [
-            {
-              "name": "membershipRequestId",
-              "description": "Unique identifier for the membership request."
-            }
-          ]
+          "params": [{ "name": "membershipRequestId", "description": "Unique identifier for the membership request." }]
         }
       },
       {
         "path": "/members/{memberId}",
         "definition": {
           "entityName": "Member",
-          "schema": {
-            "$ref": "#/backend/entities/Member"
-          },
+          "schema": { "$ref": "#/backend/entities/Member" },
           "description": "Stores information about Garage Music Club members. Only accessible and modifiable by admins. Existence of a document in this collection implies active membership.",
-          "params": [
-            {
-              "name": "memberId",
-              "description": "Unique identifier for the member."
-            }
-          ]
+          "params": [{ "name": "memberId", "description": "Unique identifier for the member." }]
         }
       },
       {
         "path": "/roles_admin/{adminId}",
         "definition": {
           "entityName": "AdminUser",
-          "schema": {
-            "$ref": "#/backend/entities/AdminUser"
-          },
+          "schema": { "$ref": "#/backend/entities/AdminUser" },
           "description": "Indicates admin role. The existence of a document at this path with the user's UID indicates admin privileges. Used for authentication within security rules.",
-          "params": [
-            {
-              "name": "adminId",
-              "description": "The Firebase UID of the administrator."
-            }
-          ]
+          "params": [{ "name": "adminId", "description": "The Firebase UID of the administrator." }]
         }
       }
     ],
