@@ -51,8 +51,8 @@ export default function LoginPage() {
       await signInWithEmailAndPassword(auth, email, password);
       // Il useEffect gestirà il reindirizzamento
     } catch (err: any) {
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-        // Se l'utente non esiste o le credenziali sono errate, prova a crearlo.
+      if (err.code === 'auth/user-not-found') {
+        // Se l'utente non esiste, crealo.
         try {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
           const newUser = userCredential.user;
@@ -65,18 +65,14 @@ export default function LoginPage() {
             username: "admin_gmc",
             id: newUser.uid,
           });
-          // Dopo la creazione, l'ascoltatore onAuthStateChanged rileverà il nuovo utente
-          // e il useEffect reindirizzerà alla pagina /admin.
+          // L'autenticazione è già avvenuta, il useEffect farà il reindirizzamento.
         } catch (creationError: any) {
-           if (creationError.code === 'auth/email-already-in-use') {
-              // Questo caso si verifica se l'utente esiste ma la password usata per il login era sbagliata.
-              // A questo punto, l'utente dovrebbe riprovare con la password corretta.
-              setError("Credenziali non valide. Riprova.");
-           } else {
-              setError("Errore durante la creazione dell'utente admin.");
-              console.error("Admin user creation error:", creationError);
-           }
+          setError("Errore durante la creazione dell'utente admin.");
+          console.error("Admin user creation error:", creationError);
         }
+      } else if (err.code === 'auth/invalid-credential') {
+          // L'utente esiste, ma la password è sbagliata.
+          setError("Credenziali non valide. Riprova.");
       } else if (err.code === 'auth/too-many-requests') {
         setError("Troppi tentativi falliti. Il tuo account è stato temporaneamente bloccato. Riprova più tardi.");
       } else {
