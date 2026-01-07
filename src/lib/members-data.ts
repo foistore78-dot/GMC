@@ -16,6 +16,9 @@ export type Member = {
   membershipStatus: 'pending' | 'active' | 'rejected';
   whatsappConsent: boolean;
   privacyConsent: boolean;
+  guardianFirstName?: string;
+  guardianLastName?: string;
+  guardianBirthDate?: string;
 };
 
 // This data is now just for type reference and is not used in the application directly.

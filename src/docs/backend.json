@@ -69,6 +69,19 @@
           "type": "boolean",
           "description": "Indicates if the member has accepted the privacy policy."
         },
+        "guardianFirstName": {
+            "type": "string",
+            "description": "First name of the guardian, if the member is a minor."
+        },
+        "guardianLastName": {
+            "type": "string",
+            "description": "Last name of the guardian, if the member is a minor."
+        },
+        "guardianBirthDate": {
+            "type": "string",
+            "description": "Date of birth of the guardian, if the member is a minor.",
+            "format": "date"
+        },
         "membershipStatus": {
           "type": "string",
           "description": "Current membership status (e.g., active, pending, expired)."
@@ -172,6 +185,19 @@
         "privacyConsent": {
             "type": "boolean",
             "description": "Indicates if the applicant has accepted the privacy policy."
+        },
+        "guardianFirstName": {
+            "type": "string",
+            "description": "First name of the guardian, if the applicant is a minor."
+        },
+        "guardianLastName": {
+            "type": "string",
+            "description": "Last name of the guardian, if the applicant is a minor."
+        },
+        "guardianBirthDate": {
+            "type": "string",
+            "description": "Date of birth of the guardian, if the applicant is a minor.",
+            "format": "date"
         },
         "requestDate": {
           "type": "string",

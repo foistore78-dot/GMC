@@ -20,7 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Check, MoreHorizontal, Pencil, Trash2, X, Filter, MessageCircle } from "lucide-react";
+import { Check, MoreHorizontal, Pencil, Trash2, X, Filter, MessageCircle, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -36,6 +36,7 @@ import {
 import { Input } from "./ui/input";
 import { useFirestore, setDocumentNonBlocking, deleteDocumentNonBlocking, addDocumentNonBlocking } from "@/firebase";
 import { collection, doc, serverTimestamp } from "firebase/firestore";
+import { differenceInYears } from 'date-fns';
 
 type MembersTableProps = {
   initialMembers: any[];
@@ -120,6 +121,11 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
   });
   
   const getStatus = (member: any) => member.status || member.membershipStatus;
+  
+  const isMinor = (birthDate: string) => {
+    if (!birthDate) return false;
+    return differenceInYears(new Date(), new Date(birthDate)) < 18;
+  }
 
   return (
     <div>
@@ -151,7 +157,12 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                 const status = getStatus(member);
                 return (
                 <TableRow key={member.id}>
-                  <TableCell className="font-medium">{getFullName(member)}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                        {getFullName(member)}
+                        {isMinor(member.birthDate) && <Badge variant="outline" className="text-xs border-yellow-400 text-yellow-400">Minore</Badge>}
+                    </div>
+                  </TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground">
                     <div className="flex items-center gap-2">
                        {member.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500" />}
@@ -182,6 +193,16 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                    <TableCell className="hidden lg:table-cell text-muted-foreground text-xs">
                      {member.fiscalCode && <div><span className="font-semibold">CF:</span> {member.fiscalCode}</div>}
                      {member.address && <div><span className="font-semibold">Indirizzo:</span> {member.address}, {member.city}</div>}
+                     {member.guardianFirstName && (
+                        <div className="mt-2 pt-2 border-t border-dashed border-border flex items-start gap-2 text-yellow-400/80">
+                            <Shield className="w-4 h-4 mt-0.5 shrink-0"/>
+                            <div>
+                                <span className="font-semibold">Tutore:</span> {member.guardianFirstName} {member.guardianLastName}
+                                <br />
+                                <span className="font-semibold">Nato/a il:</span> {member.guardianBirthDate}
+                            </div>
+                        </div>
+                     )}
                    </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
