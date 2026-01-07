@@ -42,7 +42,7 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLoading) return; // Previene invii multipli
+    if (isLoading || isUserLoading || user) return; // Previene invii multipli
 
     setError("");
     setIsLoading(true);
@@ -51,8 +51,8 @@ export default function LoginPage() {
       await signInWithEmailAndPassword(auth, email, password);
       // Il useEffect gestirà il reindirizzamento
     } catch (err: any) {
-      // Se l'utente non esiste o le credenziali sono errate, crealo
       if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+        // Se l'utente non esiste o le credenziali sono errate, prova a crearlo.
         try {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
           const newUser = userCredential.user;
@@ -68,9 +68,9 @@ export default function LoginPage() {
           // Dopo la creazione, l'ascoltatore onAuthStateChanged rileverà il nuovo utente
           // e il useEffect reindirizzerà alla pagina /admin.
         } catch (creationError: any) {
-           // Se l'email è già in uso, significa che è stata creata da un altro processo
-           // ma la password usata per il login era sbagliata. L'utente dovrebbe riprovare.
            if (creationError.code === 'auth/email-already-in-use') {
+              // Questo caso si verifica se l'utente esiste ma la password usata per il login era sbagliata.
+              // A questo punto, l'utente dovrebbe riprovare con la password corretta.
               setError("Credenziali non valide. Riprova.");
            } else {
               setError("Errore durante la creazione dell'utente admin.");
@@ -78,7 +78,7 @@ export default function LoginPage() {
            }
         }
       } else if (err.code === 'auth/too-many-requests') {
-        setError("Troppi tentativi falliti. Riprova più tardi.");
+        setError("Troppi tentativi falliti. Il tuo account è stato temporaneamente bloccato. Riprova più tardi.");
       } else {
         // Per tutti gli altri errori
         setError("Si è verificato un errore imprevisto. Riprova.");
@@ -89,7 +89,6 @@ export default function LoginPage() {
     }
   };
 
-  // Mostra un caricatore a schermo intero se l'utente è già loggato o l'autenticazione è in corso
   if (isUserLoading || user) {
     return (
         <div className="flex flex-col min-h-screen bg-secondary">

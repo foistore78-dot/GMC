@@ -8,7 +8,6 @@ import { useAuth, useUser } from "@/firebase";
 import { signOut } from "firebase/auth";
 
 export function Header() {
-  const pathname = usePathname();
   const router = useRouter();
   const { user } = useUser();
   const auth = useAuth();
@@ -17,8 +16,6 @@ export function Header() {
     await signOut(auth);
     router.push("/");
   };
-
-  const isAdminRelatedPage = pathname.startsWith('/admin') || pathname.startsWith('/login');
 
   return (
     <header className="sticky top-0 z-20 bg-secondary/80 backdrop-blur-sm text-white p-4 border-b border-border">
