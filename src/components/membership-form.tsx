@@ -24,8 +24,12 @@ import { useState } from "react";
 import { useFirestore, addDocumentNonBlocking } from "@/firebase";
 import { collection, serverTimestamp } from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const formSchema = z.object({
+  gender: z.enum(["male", "female"], {
+    required_error: "Devi selezionare un sesso.",
+  }),
   firstName: z.string().min(2, { message: "Il nome deve contenere almeno 2 caratteri." }),
   lastName: z.string().min(2, { message: "Il cognome deve contenere almeno 2 caratteri." }),
   email: z.string().email({ message: "Inserisci un indirizzo email valido." }),
@@ -40,11 +44,12 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const steps = [
-  { id: 1, fields: ["firstName", "lastName"] as const, title: "Come ti chiami?" },
-  { id: 2, fields: ["email", "phone"] as const, title: "Come possiamo contattarti?" },
-  { id: 3, fields: ["birthPlace", "birthDate", "fiscalCode"] as const, title: "Dati anagrafici" },
-  { id: 4, fields: ["instruments"] as const, title: "Parlaci del tuo talento" },
-  { id: 5, fields: ["isNotRobot"] as const, title: "Ultimo controllo" },
+  { id: 1, fields: ["gender"] as const, title: "Sesso" },
+  { id: 2, fields: ["firstName", "lastName"] as const, title: "Come ti chiami?" },
+  { id: 3, fields: ["email", "phone"] as const, title: "Come possiamo contattarti?" },
+  { id: 4, fields: ["birthPlace", "birthDate", "fiscalCode"] as const, title: "Dati anagrafici" },
+  { id: 5, fields: ["instruments"] as const, title: "Parlaci del tuo talento" },
+  { id: 6, fields: ["isNotRobot"] as const, title: "Ultimo controllo" },
 ];
 
 export function MembershipForm() {
@@ -56,6 +61,7 @@ export function MembershipForm() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      gender: undefined,
       firstName: "",
       lastName: "",
       email: "",
@@ -141,6 +147,42 @@ export function MembershipForm() {
             <h2 className="text-xl font-semibold mb-6 text-foreground">{steps[currentStep].title}</h2>
 
             {currentStep === 0 && (
+               <FormField
+                control={form.control}
+                name="gender"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex flex-col space-y-1"
+                      >
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="male" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Maschio
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="female" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Femmina
+                          </FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {currentStep === 1 && (
               <div className="space-y-4">
                 <FormField
                   control={form.control}
@@ -167,7 +209,7 @@ export function MembershipForm() {
               </div>
             )}
             
-            {currentStep === 1 && (
+            {currentStep === 2 && (
               <div className="space-y-4">
                 <FormField
                   control={form.control}
@@ -194,7 +236,7 @@ export function MembershipForm() {
               </div>
             )}
 
-            {currentStep === 2 && (
+            {currentStep === 3 && (
               <div className="space-y-4">
                  <FormField
                   control={form.control}
@@ -232,7 +274,7 @@ export function MembershipForm() {
               </div>
             )}
 
-            {currentStep === 3 && (
+            {currentStep === 4 && (
               <FormField
                 control={form.control}
                 name="instruments"
@@ -249,7 +291,7 @@ export function MembershipForm() {
               />
             )}
 
-            {currentStep === 4 && (
+            {currentStep === 5 && (
               <FormField
                 control={form.control}
                 name="isNotRobot"

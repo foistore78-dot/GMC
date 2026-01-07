@@ -10,6 +10,11 @@
           "type": "string",
           "description": "Unique identifier for the Member entity."
         },
+        "gender": {
+          "type": "string",
+          "description": "Gender of the member.",
+          "enum": ["male", "female"]
+        },
         "firstName": {
           "type": "string",
           "description": "First name of the member."
@@ -61,6 +66,7 @@
       },
       "required": [
         "id",
+        "gender",
         "firstName",
         "lastName",
         "email",
@@ -82,6 +88,11 @@
         "id": {
           "type": "string",
           "description": "Unique identifier for the MembershipRequest entity."
+        },
+        "gender": {
+          "type": "string",
+          "description": "Gender of the applicant.",
+          "enum": ["male", "female"]
         },
         "firstName": {
           "type": "string",
@@ -129,6 +140,7 @@
       },
       "required": [
         "id",
+        "gender",
         "firstName",
         "lastName",
         "email",
