@@ -38,12 +38,18 @@ service cloud.firestore {
     }
 
     /**
-     * Checks if the user has an admin role.
-     * Admin status is granted by the existence of a document in the /roles_admin collection
-     * with the user's UID as the document ID.
+     * Checks if the authenticated user is the designated Super Admin.
+     */
+    function isSuperAdmin() {
+      return request.auth.token.email == 'fois.tore78@gmail.com';
+    }
+
+    /**
+     * Checks if the user has an admin role, either by being a Super Admin
+     * or by having a role document in the /roles_admin collection.
      */
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return isSignedIn() && (isSuperAdmin() || exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
     }
 
     // ----------------------------------------------------------------------
