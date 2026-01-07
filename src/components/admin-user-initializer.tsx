@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth, useFirestore, setDocumentNonBlocking } from "@/firebase";
 import {
   createUserWithEmailAndPassword,
@@ -13,12 +13,13 @@ import { doc, getDoc } from "firebase/firestore";
 export function AdminUserInitializer() {
   const auth = useAuth();
   const firestore = useFirestore();
+  const [isAdminInitialized, setIsAdminInitialized] = useState(false);
 
   useEffect(() => {
     const adminEmail = "garage.music.club2024@gmail.com";
     const adminPassword = "password";
 
-    if (!auth || !firestore) {
+    if (!auth || !firestore || isAdminInitialized) {
       return;
     }
 
@@ -57,8 +58,7 @@ export function AdminUserInitializer() {
 
           if (!adminRoleDoc.exists()) {
             // If the role doesn't exist, create it.
-            // Using setDocumentNonBlocking as we don't need to wait for this.
-            setDocumentNonBlocking(
+            await setDocumentNonBlocking(
               adminRoleRef,
               {
                 email: user.email,
@@ -68,21 +68,27 @@ export function AdminUserInitializer() {
               { merge: true }
             );
             console.log("Admin role created in Firestore.");
+            // Don't sign out immediately, let the user session begin
           }
         }
-        // Sign out after setup to not interfere with user flow
-        await auth.signOut();
       } catch (error) {
         // We can get auth/invalid-credential if the user is already signed-in
-        // this is fine.
+        // this is fine. We also might get it if the password is wrong during setup.
         if ((error as any).code !== 'auth/invalid-credential') {
             console.error("Error initializing admin user:", error);
+        }
+      } finally {
+        setIsAdminInitialized(true);
+        // Only sign out if no user is actually logged in, to clean up.
+        // This prevents signing out the user who just logged in.
+        if (!auth.currentUser) {
+            await auth.signOut();
         }
       }
     };
 
     initializeAdmin();
-  }, [auth, firestore]);
+  }, [auth, firestore, isAdminInitialized]);
 
   return null; // This component does not render anything
 }
