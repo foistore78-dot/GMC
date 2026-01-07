@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -24,6 +24,12 @@ export default function AdminPage() {
   const [allItems, setAllItems] = useState<Member[]>([]);
 
   useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push("/login");
+    }
+  }, [user, isUserLoading, router]);
+
+  useEffect(() => {
     const combinedData: { [key: string]: Member } = {};
 
     (membershipRequests || []).forEach(item => {
@@ -38,30 +44,6 @@ export default function AdminPage() {
     setAllItems(sortedItems);
 
   }, [members, membershipRequests]);
-
-  const handleUpdateLocally = useCallback((updatedMember: Member) => {
-    setAllItems(prevItems => {
-      const itemExists = prevItems.some(item => item.id === updatedMember.id);
-      let newItems;
-      if (itemExists) {
-        newItems = prevItems.map(item => item.id === updatedMember.id ? { ...item, ...updatedMember } : item);
-      } else {
-        newItems = [...prevItems, updatedMember];
-      }
-      return newItems.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
-    });
-  }, []);
-
-  const handleRemoveLocally = useCallback((memberId: string) => {
-    setAllItems(prevItems => prevItems.filter(item => item.id !== memberId));
-  }, []);
-
-
-  useEffect(() => {
-    if (!isUserLoading && !user) {
-      router.push("/login");
-    }
-  }, [user, isUserLoading, router]);
 
   if (isUserLoading || !user) {
     return (
@@ -92,11 +74,7 @@ export default function AdminPage() {
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
              </div>
           ) : (
-            <MembersTable 
-              members={allItems}
-              onMemberUpdate={handleUpdateLocally}
-              onMemberDelete={handleRemoveLocally}
-            />
+            <MembersTable members={allItems} />
           )}
         </div>
       </main>

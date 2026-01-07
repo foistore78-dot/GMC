@@ -26,7 +26,6 @@ import type { Member } from "@/lib/members-data";
 import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { getStatus, getFullName } from "./members-table";
-import { setDocumentNonBlocking } from "@/firebase";
 
 const formSchema = z.object({
   firstName: z.string().min(2, { message: "Il nome deve contenere almeno 2 caratteri." }),
@@ -51,10 +50,9 @@ const formSchema = z.object({
 type EditMemberFormProps = {
     member: Member;
     onClose: () => void;
-    onUpdate: (updatedMember: Member, newStatus: string, originalStatus: string) => void;
 };
 
-export function EditMemberForm({ member, onClose, onUpdate }: EditMemberFormProps) {
+export function EditMemberForm({ member, onClose }: EditMemberFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firestore = useFirestore();
@@ -81,71 +79,58 @@ export function EditMemberForm({ member, onClose, onUpdate }: EditMemberFormProp
 
     const newStatus = values.status;
     const { status, ...dataToSave } = values;
-
-    // Call the local update callback immediately for a responsive UI
-    onUpdate({ ...member, ...dataToSave, id: member.id } as Member, newStatus, originalStatus);
     
     const batch = writeBatch(firestore);
 
-    // Determine collections based on status change
-    const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
-    const newCollection = newStatus === 'active' ? 'members' : 'membership_requests';
-    
-    const oldDocRef = doc(firestore, oldCollection, member.id);
-    
-    // Non-blocking commit in the background
     try {
+        const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
+        const newCollection = newStatus === 'active' ? 'members' : 'membership_requests';
+        const oldDocRef = doc(firestore, oldCollection, member.id);
+
         if (originalStatus !== newStatus) {
-            // Status has changed: delete from old collection, add to new
-            const newDocRef = doc(firestore, newCollection, member.id);
-            
-            let finalData: any = { ...member, ...dataToSave, id: member.id };
-
-            if (newStatus === 'active') {
-                finalData.membershipStatus = 'active';
-                finalData.joinDate = member.joinDate || serverTimestamp();
-                finalData.expirationDate = member.expirationDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
-                delete finalData.status; // a member doesn't have 'status'
-            } else { // 'pending' or 'rejected'
-                finalData.status = newStatus;
-                finalData.requestDate = member.requestDate || serverTimestamp();
-                delete finalData.membershipStatus;
-                delete finalData.joinDate;
-                delete finalData.expirationDate;
-            }
-
-            // Delete the old document
             batch.delete(oldDocRef);
-            // Create/overwrite in the new location only if not rejected
+
             if (newStatus !== 'rejected') {
+                const newDocRef = doc(firestore, newCollection, member.id);
+                let finalData: any = { ...member, ...dataToSave, id: member.id };
+
+                if (newStatus === 'active') {
+                    finalData.membershipStatus = 'active';
+                    finalData.joinDate = member.joinDate || serverTimestamp();
+                    finalData.expirationDate = member.expirationDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
+                    delete finalData.status;
+                } else {
+                    finalData.status = newStatus;
+                    finalData.requestDate = member.requestDate || serverTimestamp();
+                    delete finalData.membershipStatus;
+                    delete finalData.joinDate;
+                    delete finalData.expirationDate;
+                }
                 batch.set(newDocRef, finalData, { merge: true });
             }
         } else if (newStatus !== 'rejected') {
-            // Status is the same and not rejected, just update the existing document
-            batch.set(oldDocRef, dataToSave, { merge: true });
-        } else { // newStatus is 'rejected' and originalStatus was also 'rejected'
-            // We just need to delete it.
+             batch.set(oldDocRef, dataToSave, { merge: true });
+        } else {
             batch.delete(oldDocRef);
         }
 
-        // Commit the batch non-blockingly
-        batch.commit().catch(error => {
+        batch.commit().then(() => {
+            toast({
+                title: "Membro aggiornato!",
+                description: `I dati di ${getFullName(values)} sono stati salvati.`,
+            });
+            onClose();
+        }).catch(error => {
             console.error("Error committing batch:", error);
-            // Optionally revert UI changes or show a specific error
             toast({ title: "Errore di Sincronizzazione", description: "L'aggiornamento sul server è fallito.", variant: "destructive" });
-        });
-
-        toast({
-            title: "Membro aggiornato!",
-            description: `I dati di ${getFullName(values)} sono stati salvati.`,
+        }).finally(() => {
+            setIsSubmitting(false);
         });
 
     } catch(error) {
         console.error("Error preparing batch for member update:", error);
         toast({ title: "Errore", description: "Si è verificato un problema durante la preparazione dell'aggiornamento.", variant: "destructive" });
-    } finally {
-        setIsSubmitting(false); // This will happen immediately
-        onClose(); // Close the form immediately
+        setIsSubmitting(false);
     }
 }
 
