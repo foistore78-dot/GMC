@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -21,7 +22,7 @@ import { useAuth, useFirestore, useUser } from "@/firebase";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, type UserCredential } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 
-const ADMIN_EMAIL = 'fois.tore78@gmail.com';
+const ADMIN_EMAIL = 'garage.music.club2024@gmail.com';
 const ADMIN_PASSWORD = 'password';
 const ADMIN_USERNAME = 'admin_gmc';
 
@@ -38,6 +39,7 @@ export default function LoginPage() {
   const { user, isUserLoading } = useUser();
 
   useEffect(() => {
+    // Redirect if the user is already logged in and not loading.
     if (user && !isUserLoading) {
       router.push("/admin");
     }
@@ -53,8 +55,10 @@ export default function LoginPage() {
     let userCredential: UserCredential | null = null;
 
     try {
+      // First, try to sign in.
       userCredential = await signInWithEmailAndPassword(auth, email, password);
     } catch (signInError: any) {
+      // If sign-in fails because the user is not found or credentials are bad, try to create a new user.
       if (signInError.code === 'auth/user-not-found' || signInError.code === 'auth/invalid-credential') {
         try {
           userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -64,15 +68,18 @@ export default function LoginPage() {
           return;
         }
       } else {
+        // Handle other sign-in errors.
         setError(`Errore di accesso: ${signInError.message}`);
         setIsLoading(false);
         return;
       }
     }
 
+    // If we have a user credential (either from sign-in or creation), set the admin role.
     if (userCredential && userCredential.user) {
       try {
         const adminRoleRef = doc(firestore, 'roles_admin', userCredential.user.uid);
+        // AWAIT this operation to ensure the role is set before proceeding.
         await setDoc(adminRoleRef, {
           email: userCredential.user.email,
           role: 'admin',
@@ -80,8 +87,7 @@ export default function LoginPage() {
           id: userCredential.user.uid,
         }, { merge: true });
         
-        // This manual push is critical to avoid race conditions.
-        // The useEffect hook for redirection is a backup.
+        // This manual push is critical. It ensures navigation happens *after* the role is set.
         router.push("/admin");
 
       } catch (roleError: any) {
@@ -91,9 +97,11 @@ export default function LoginPage() {
         setError("Impossibile ottenere le credenziali dell'utente dopo il login/registrazione.");
     }
 
+    // This will only be reached if there's an error in setting the role.
     setIsLoading(false);
   };
 
+  // While checking auth state or if user is already logged in, show a loader.
   if (isUserLoading || user) {
     return (
         <div className="flex flex-col min-h-screen bg-secondary">
@@ -106,6 +114,7 @@ export default function LoginPage() {
     );
   }
 
+  // If not loading and no user, show the login form.
   return (
     <div className="flex flex-col min-h-screen bg-secondary">
       <Header />
@@ -177,3 +186,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    

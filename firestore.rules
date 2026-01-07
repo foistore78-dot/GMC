@@ -1,3 +1,4 @@
+
 /**
  * Core Philosophy:
  * This ruleset implements a strict, role-based access control model centered around a global 'admin' role.
@@ -39,10 +40,10 @@ service cloud.firestore {
 
     /**
      * Checks if the user has an admin role by checking for a role document
-     * in the /roles_admin collection, or if they are the hardcoded super admin.
+     * in the /roles_admin collection.
      */
     function isAdmin() {
-      return isSignedIn() && (request.auth.uid == 'EOnzHUKenAVwKxm8ZVt6T3onclC2' || exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
     // ----------------------------------------------------------------------
@@ -95,3 +96,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
