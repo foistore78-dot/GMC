@@ -47,7 +47,7 @@ export default function AdminPage() {
 
   const handleCloseSheet = () => {
     setEditingMember(null);
-    router.refresh(); 
+    window.location.reload();
   };
   
   if (isUserLoading || !user) {
@@ -82,7 +82,7 @@ export default function AdminPage() {
             <MembersTable 
                 members={allMembers}
                 onEdit={setEditingMember}
-                onMemberDelete={() => router.refresh()}
+                onMemberDelete={() => window.location.reload()}
             />
           )}
         </div>
