@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import type { Member } from "@/lib/members-data";
 import {
   Table,
@@ -45,6 +45,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
 import { useFirestore, deleteDocumentNonBlocking } from "@/firebase";
@@ -206,8 +207,8 @@ const MemberTableRow = ({ member, onEdit, onDelete }: { member: Member; onEdit: 
 
 
 export function MembersTable({ initialMembers, initialRequests }: { initialMembers: Member[], initialRequests: Member[] }) {
-  const [filter, setFilter] = useState('');
   const [allItems, setAllItems] = useState<Member[]>([]);
+  const [filter, setFilter] = useState('');
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -233,27 +234,32 @@ export function MembersTable({ initialMembers, initialRequests }: { initialMembe
            (member.email && member.email.toLowerCase().includes(filter.toLowerCase()));
   }), [allItems, filter]);
 
-  const handleUpdateMember = (updatedMember: Member, newStatus: string, originalStatus: string) => {
-    // Optimistic UI update
-    if (originalStatus !== newStatus) {
-      setAllItems(prev => prev.filter(m => m.id !== updatedMember.id));
-    } else {
-      setAllItems(prev => prev.map(m => m.id === updatedMember.id ? updatedMember : m));
-    }
-    setEditingMember(null);
-  };
+  const handleUpdateMemberInList = useCallback((updatedMember: Member) => {
+    setAllItems(prevItems => {
+        const itemExists = prevItems.some(item => item.id === updatedMember.id);
+        if (itemExists) {
+            return prevItems.map(item => item.id === updatedMember.id ? updatedMember : item);
+        } else {
+            return [...prevItems, updatedMember].sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
+        }
+    });
+  }, []);
+
+  const handleDeleteMemberFromList = useCallback((memberId: string) => {
+    setAllItems(prevItems => prevItems.filter(item => item.id !== memberId));
+  }, []);
   
   const handleDeleteMember = (memberToDelete: Member) => {
     if (!firestore) return;
-    
-    // Optimistic UI update
-    setAllItems(prev => prev.filter(m => m.id !== memberToDelete.id));
 
+    handleDeleteMemberFromList(memberToDelete.id);
+    
     const currentStatus = getStatus(memberToDelete);
     const collectionName = currentStatus === 'active' ? 'members' : 'membership_requests';
     const docRef = doc(firestore, collectionName, memberToDelete.id);
     
     deleteDocumentNonBlocking(docRef);
+
     toast({
       title: "Membro rimosso",
       description: `${getFullName(memberToDelete)} è stato rimosso dalla lista.`,
@@ -314,7 +320,24 @@ export function MembersTable({ initialMembers, initialRequests }: { initialMembe
               <EditMemberForm 
                 member={editingMember} 
                 onClose={() => setEditingMember(null)}
-                onUpdate={handleUpdateMember}
+                onUpdate={(updatedData) => {
+                    // This callback now only updates the local state
+                    const originalStatus = getStatus(editingMember);
+                    const newStatus = updatedData.status;
+
+                    if (originalStatus !== newStatus) {
+                        // If status changes, one item is removed, another might be added (or not if rejected)
+                        handleDeleteMemberFromList(editingMember.id);
+                        if (newStatus !== 'rejected') {
+                             handleUpdateMemberInList({ ...editingMember, ...updatedData } as Member);
+                        }
+                    } else {
+                        // If status is the same, just update the item in the list
+                        handleUpdateMemberInList({ ...editingMember, ...updatedData } as Member);
+                    }
+                    
+                    setEditingMember(null); // Close sheet
+                }}
               />
             </>
           )}
