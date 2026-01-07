@@ -30,10 +30,8 @@ import {
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
 import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -47,8 +45,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { AlertDialogTrigger } from "./ui/alert-dialog";
 import { Input } from "./ui/input";
 import { useFirestore } from "@/firebase";
 import { doc, writeBatch } from "firebase/firestore";
@@ -136,41 +134,36 @@ const MemberActions = ({ member }: { member: any }) => {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-           <SheetTrigger asChild>
-            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+           <DropdownMenuItem onSelect={() => setIsSheetOpen(true)}>
               <Pencil className="mr-2 h-4 w-4" /> Modifica
             </DropdownMenuItem>
-          </SheetTrigger>
           <DropdownMenuSeparator />
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
-                <Trash2 className="mr-2 h-4 w-4" /> Elimina
-              </DropdownMenuItem>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Questa azione non può essere annullata. Questo rimuoverà permanentemente {getFullName(member)} dalla lista.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Annulla</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  Elimina
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <AlertDialogTrigger asChild>
+            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
+              <Trash2 className="mr-2 h-4 w-4" /> Elimina
+            </DropdownMenuItem>
+          </AlertDialogTrigger>
         </DropdownMenuContent>
       </DropdownMenu>
-      <SheetContent className="sm:max-w-xl w-full overflow-y-auto">
+      <AlertDialog>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Questa azione non può essere annullata. Questo rimuoverà permanentemente {getFullName(member)} dalla lista.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
           <SheetHeader>
             <SheetTitle>Modifica Membro: {getFullName(member)}</SheetTitle>
-            <SheetDescription>
-              Apporta le modifiche necessarie ai dati del membro. Clicca "Salva" per confermare.
-            </SheetDescription>
           </SheetHeader>
           <EditMemberForm member={member} onClose={() => setIsSheetOpen(false)} />
       </SheetContent>
@@ -252,22 +245,9 @@ const MemberTableRow = ({ member }: { member: any }) => {
   );
 };
 
-export function MembersTable({ initialMembers, initialRequests }: { initialMembers: any[], initialRequests: any[] }) {
+export function MembersTable({ allItems }: { allItems: any[] }) {
   const [filter, setFilter] = useState('');
   
-  const allItems = useMemo(() => {
-    const combinedData: { [key: string]: any } = {};
-    // Add requests first
-    initialRequests.forEach(item => {
-        if (item && item.id) combinedData[item.id] = item;
-    });
-    // Add members, overwriting any pending requests with the same ID
-    initialMembers.forEach(item => {
-        if (item && item.id) combinedData[item.id] = item;
-    });
-    return Object.values(combinedData).sort((a,b) => (a.firstName || '').localeCompare(b.firstName || ''));
-  }, [initialMembers, initialRequests]);
-
   const filteredMembers = allItems.filter(member => {
     return getFullName(member).toLowerCase().includes(filter.toLowerCase()) ||
            (member.email && member.email.toLowerCase().includes(filter.toLowerCase()));
