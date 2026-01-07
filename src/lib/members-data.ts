@@ -19,6 +19,10 @@ export type Member = {
   guardianFirstName?: string;
   guardianLastName?: string;
   guardianBirthDate?: string;
+  membershipYear?: string;
+  notes?: string;
+  isVolunteer?: boolean;
+  membershipFee?: number;
 };
 
 // This data is now just for type reference and is not used in the application directly.

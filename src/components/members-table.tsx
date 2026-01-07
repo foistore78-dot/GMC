@@ -27,7 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Check, MoreHorizontal, Pencil, Trash2, X, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, MapPin } from "lucide-react";
+import { Check, MoreHorizontal, Pencil, Trash2, X, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, MapPin, Euro, StickyNote, HandHeart, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -45,13 +45,14 @@ import { Input } from "./ui/input";
 import { useFirestore, setDocumentNonBlocking, deleteDocumentNonBlocking, addDocumentNonBlocking } from "@/firebase";
 import { collection, doc, serverTimestamp } from "firebase/firestore";
 import { differenceInYears, format } from 'date-fns';
+import { EditMemberForm } from "./edit-member-form";
 
 type MembersTableProps = {
   initialMembers: any[];
 };
 
-const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: string, value?: string | null }) => {
-  if (!value) return null;
+const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: string, value?: string | number | null }) => {
+  if (!value && typeof value !== 'number') return null;
   return (
     <div className="flex items-start gap-3 py-2 border-b border-secondary">
       <div className="text-primary mt-1">{icon}</div>
@@ -127,6 +128,10 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
       variant: "destructive",
     });
   };
+
+  const handleUpdateMember = (updatedMember: Member) => {
+    setMembers(prev => prev.map(m => m.id === updatedMember.id ? updatedMember : m));
+  };
   
   const getFullName = (member: any) => {
     return `${member.firstName || ''} ${member.lastName || ''}`.trim();
@@ -145,8 +150,17 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
     return differenceInYears(new Date(), new Date(birthDate)) < 18;
   }
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: any) => {
     if (!dateString) return 'N/A';
+    // Handle Firestore Timestamp objects
+    if (dateString.toDate) {
+      try {
+        return format(dateString.toDate(), 'dd/MM/yyyy');
+      } catch {
+        return 'Data non valida';
+      }
+    }
+    // Handle string dates
     try {
       return format(new Date(dateString), 'dd/MM/yyyy');
     } catch {
@@ -204,13 +218,17 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                                   <DetailRow icon={<Phone />} label="Telefono" value={member.phone} />
                                   <DetailRow icon={<Home />} label="Indirizzo" value={`${member.address}, ${member.city} (${member.province}) ${member.postalCode}`} />
                                   <DetailRow icon={<Hash />} label="Codice Fiscale" value={member.fiscalCode} />
+                                  <DetailRow icon={<Calendar />} label="Anno Associativo" value={member.membershipYear} />
+                                  <DetailRow icon={<Euro />} label="Quota Versata" value={member.membershipFee ? `€ ${member.membershipFee}` : '€ 0'} />
+                                  {member.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
+                                  <DetailRow icon={<StickyNote />} label="Note" value={member.notes} />
                                </div>
                            </DialogContent>
                         </Dialog>
                         {memberIsMinor && (
                           <Dialog>
                             <DialogTrigger asChild>
-                               <Badge variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10">Minore</Badge>
+                               <Badge onClick={(e) => e.stopPropagation()} variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10">Minore</Badge>
                             </DialogTrigger>
                             <DialogContent>
                                 <DialogHeader>
@@ -248,56 +266,66 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Apri menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-                        {status === 'pending' && (
-                            <DropdownMenuItem
-                            onClick={() => handleStatusChange(member.id, "approved")}
-                            >
-                            <Check className="mr-2 h-4 w-4" /> Approva
+                    <Dialog>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Apri menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Azioni</DropdownMenuLabel>
+                          {status === 'pending' && (
+                              <DropdownMenuItem
+                              onClick={() => handleStatusChange(member.id, "approved")}
+                              >
+                              <Check className="mr-2 h-4 w-4" /> Approva
+                              </DropdownMenuItem>
+                          )}
+                          {status === 'pending' && (
+                              <DropdownMenuItem
+                              onClick={() => handleStatusChange(member.id, "rejected")}
+                              >
+                              <X className="mr-2 h-4 w-4" /> Rifiuta
+                              </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DialogTrigger asChild>
+                            <DropdownMenuItem>
+                              <Pencil className="mr-2 h-4 w-4" /> Modifica
                             </DropdownMenuItem>
-                        )}
-                        {status === 'pending' && (
-                            <DropdownMenuItem
-                            onClick={() => handleStatusChange(member.id, "rejected")}
-                            >
-                            <X className="mr-2 h-4 w-4" /> Rifiuta
-                            </DropdownMenuItem>
-                        )}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => toast({title: "L'azione di modifica è in fase di sviluppo."})}>
-                          <Pencil className="mr-2 h-4 w-4" /> Modifica
-                        </DropdownMenuItem>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
-                              <Trash2 className="mr-2 h-4 w-4" /> Elimina
-                            </DropdownMenuItem>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Questa azione non può essere annullata. Questo rimuoverà permanentemente {getFullName(member)} dalla lista.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Annulla</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(member.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                Elimina
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          </DialogTrigger>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
+                                <Trash2 className="mr-2 h-4 w-4" /> Elimina
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Questa azione non può essere annullata. Questo rimuoverà permanentemente {getFullName(member)} dalla lista.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annulla</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDelete(member.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                  Elimina
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <DialogContent className="max-w-2xl">
+                          <DialogHeader>
+                            <DialogTitle>Modifica Membro: {getFullName(member)}</DialogTitle>
+                          </DialogHeader>
+                          <EditMemberForm member={member} onUpdate={handleUpdateMember} />
+                      </DialogContent>
+                    </Dialog>
                   </TableCell>
                 </TableRow>
               )})
