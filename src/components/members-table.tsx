@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import type { Member } from "@/lib/members-data";
 import {
   Table,
@@ -116,6 +116,10 @@ const MemberTableRow = ({
   const handleDelete = () => {
     if (!firestore) return;
 
+    // Optimistic UI update
+    onDelete(member.id);
+    setIsDeleting(false);
+
     const collectionName = status === 'active' ? 'members' : 'membership_requests';
     const docRef = doc(firestore, collectionName, member.id);
     
@@ -124,22 +128,20 @@ const MemberTableRow = ({
             title: "Membro rimosso",
             description: `${getFullName(member)} è stato rimosso dalla lista.`,
         });
-        onDelete(member.id);
     }).catch(error => {
         console.error("Error deleting member:", error);
         toast({
             title: "Errore",
-            description: "Non è stato possibile rimuovere il membro.",
+            description: "Non è stato possibile rimuovere il membro. L'elenco verrà aggiornato.",
             variant: "destructive"
         });
-    }).finally(() => {
-        setIsDeleting(false);
+        // Note: useCollection will automatically handle the revert on error
     });
   };
   
   return (
     <>
-      <TableRow>
+      <TableRow key={member.id}>
         <TableCell className="font-medium">
            <div className="flex items-center gap-3">
                 <Dialog>
@@ -257,39 +259,20 @@ const MemberTableRow = ({
 };
 
 interface MembersTableProps {
-  initialMembers: Member[];
-  initialRequests: Member[];
-  handleUpdateLocally: (member: Member) => void;
-  handleRemoveLocally: (id: string) => void;
+  members: Member[];
+  onMemberUpdate: (member: Member) => void;
+  onMemberDelete: (id: string) => void;
 }
 
-export function MembersTable({ initialMembers, initialRequests, handleUpdateLocally, handleRemoveLocally }: MembersTableProps) {
+export function MembersTable({ members, onMemberUpdate, onMemberDelete }: MembersTableProps) {
   const [filter, setFilter] = useState('');
-  const [allItems, setAllItems] = useState<Member[]>([]);
 
-  useEffect(() => {
-    const combinedData: { [key: string]: Member } = {};
-
-    (initialRequests || []).forEach(item => {
-      if (item && item.id) combinedData[item.id] = { ...item } as Member;
-    });
-    
-    (initialMembers || []).forEach(item => {
-      if (item && item.id) combinedData[item.id] = { ...item } as Member;
-    });
-
-    const sortedItems = Object.values(combinedData).sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
-    setAllItems(sortedItems);
-
-  }, [initialMembers, initialRequests]);
-
-
-  const filteredMembers = useMemo(() => allItems.filter(member => {
+  const filteredMembers = useMemo(() => members.filter(member => {
     const fullName = getFullName(member) || '';
     const email = member.email || '';
     return fullName.toLowerCase().includes(filter.toLowerCase()) ||
            email.toLowerCase().includes(filter.toLowerCase());
-  }), [allItems, filter]);
+  }), [members, filter]);
   
   return (
     <div>
@@ -320,8 +303,8 @@ export function MembersTable({ initialMembers, initialRequests, handleUpdateLoca
                 <MemberTableRow 
                   key={member.id} 
                   member={member}
-                  onUpdate={handleUpdateLocally}
-                  onDelete={handleRemoveLocally}
+                  onUpdate={onMemberUpdate}
+                  onDelete={onMemberDelete}
                 />
               ))
             ) : (

@@ -88,48 +88,56 @@ export function EditMemberForm({ member, onClose, onUpdate }: EditMemberFormProp
     const batch = writeBatch(firestore);
 
     try {
-        const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
-        const newCollection = newStatus === 'active' ? 'members' : 'membership_requests';
+      const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
+      const newCollection = newStatus === 'active' ? 'members' : 'membership_requests';
+      
+      if (originalStatus !== newStatus) {
+        // Status changed, so we might need to move the document
         const oldDocRef = doc(firestore, oldCollection, member.id);
+        batch.delete(oldDocRef);
 
-        if (originalStatus !== newStatus) {
-            batch.delete(oldDocRef);
+        if (newStatus !== 'rejected') {
+          const newDocRef = doc(firestore, newCollection, member.id);
+          let finalData: any = { ...member, ...dataToSave, id: member.id };
 
-            if (newStatus !== 'rejected') {
-                const newDocRef = doc(firestore, newCollection, member.id);
-                let finalData: any = { ...member, ...dataToSave, id: member.id };
-
-                if (newStatus === 'active') {
-                    finalData.membershipStatus = 'active';
-                    finalData.joinDate = member.joinDate || serverTimestamp();
-                    finalData.expirationDate = member.expirationDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
-                    delete finalData.status;
-                } else {
-                    finalData.status = newStatus;
-                    finalData.requestDate = member.requestDate || serverTimestamp();
-                    delete finalData.membershipStatus;
-                    delete finalData.joinDate;
-                    delete finalData.expirationDate;
-                }
-                batch.set(newDocRef, finalData, { merge: true });
-            }
-        } else if (newStatus !== 'rejected') {
-             batch.set(oldDocRef, dataToSave, { merge: true });
-        } else {
-            batch.delete(oldDocRef);
+          if (newStatus === 'active') {
+            finalData.membershipStatus = 'active';
+            finalData.joinDate = member.joinDate || serverTimestamp();
+            finalData.expirationDate = member.expirationDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
+            delete finalData.status;
+          } else { // pending
+            finalData.status = newStatus;
+            finalData.requestDate = member.requestDate || serverTimestamp();
+            delete finalData.membershipStatus;
+            delete finalData.joinDate;
+            delete finalData.expirationDate;
+          }
+          batch.set(newDocRef, finalData, { merge: true });
         }
+      } else if (newStatus !== 'rejected') {
+        // Status is the same, just update the document in place
+        const docRef = doc(firestore, newCollection, member.id);
+        batch.set(docRef, dataToSave, { merge: true });
+      } else { // newStatus is 'rejected' and original was also 'rejected' or something else
+        const oldDocRef = doc(firestore, oldCollection, member.id);
+        batch.delete(oldDocRef);
+      }
 
-        await batch.commit()
+      await batch.commit();
 
-        toast({
-            title: "Membro aggiornato!",
-            description: `I dati di ${getFullName(values)} sono stati salvati.`,
-        });
+      toast({
+          title: "Membro aggiornato!",
+          description: `I dati di ${getFullName(values)} sono stati salvati.`,
+      });
 
     } catch(error) {
         console.error("Error committing batch:", error);
-        toast({ title: "Errore di Sincronizzazione", description: "L'aggiornamento sul server è fallito. I dati locali verranno ripristinati.", variant: "destructive" });
-        // Revert UI if server update fails - although useCollection will do this automatically
+        toast({ 
+          title: "Errore di Sincronizzazione", 
+          description: "L'aggiornamento sul server è fallito. I dati verranno ripristinati automaticamente.", 
+          variant: "destructive" 
+        });
+        // On error, useCollection will automatically revert the optimistic update
     } finally {
         setIsSubmitting(false);
     }

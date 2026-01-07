@@ -8,7 +8,7 @@ import { MembersTable } from "@/components/members-table";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import { Loader2, Users } from "lucide-react";
-import { Member } from "@/lib/members-data";
+import type { Member } from "@/lib/members-data";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -91,10 +91,9 @@ export default function AdminPage() {
              </div>
           ) : (
             <MembersTable 
-                initialMembers={members || []}
-                initialRequests={membershipRequests || []}
-                handleUpdateLocally={handleUpdateLocally} 
-                handleRemoveLocally={handleRemoveLocally} 
+                members={allMembers}
+                onMemberUpdate={handleUpdateLocally}
+                onMemberDelete={handleRemoveLocally}
             />
           )}
         </div>
