@@ -32,11 +32,19 @@ export function AdminUserInitializer() {
         ).catch(async (error) => {
           // If user not found, create it
           if (error.code === "auth/user-not-found" || error.code === 'auth/invalid-credential') {
-            return await createUserWithEmailAndPassword(
-              auth,
-              adminEmail,
-              adminPassword
-            );
+            try {
+              return await createUserWithEmailAndPassword(
+                auth,
+                adminEmail,
+                adminPassword
+              );
+            } catch (creationError: any) {
+              // If creation fails because email is in use, sign in again.
+              if (creationError.code === 'auth/email-already-in-use') {
+                return await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+              }
+              throw creationError;
+            }
           }
           throw error;
         });
