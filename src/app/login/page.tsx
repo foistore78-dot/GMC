@@ -23,7 +23,6 @@ import {
   onAuthStateChanged,
   User,
 } from "firebase/auth";
-import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,7 +32,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("password");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
 
   useEffect(() => {
     if (user && !isUserLoading) {
@@ -48,11 +46,7 @@ export default function LoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      toast({
-        title: "Login Riuscito",
-        description: "Reindirizzamento alla dashboard...",
-      });
-      router.push("/admin");
+      // Let the useEffect handle redirection
     } catch (err: any) {
       setError("Credenziali non valide. Riprova.");
       console.error(err);

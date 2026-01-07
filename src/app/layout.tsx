@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 import { FirebaseClientProvider } from "@/firebase/client-provider";
+import { AdminUserInitializer } from "@/components/admin-user-initializer";
 
 export const metadata: Metadata = {
   title: "Manager del Garage Music Club",
@@ -24,7 +25,10 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased min-h-screen bg-background flex flex-col">
-        <FirebaseClientProvider>{children}</FirebaseClientProvider>
+        <FirebaseClientProvider>
+          <AdminUserInitializer />
+          {children}
+        </FirebaseClientProvider>
         <Toaster />
       </body>
     </html>
