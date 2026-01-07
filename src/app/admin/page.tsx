@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -17,7 +17,6 @@ export default function AdminPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
-  const [allMembers, setAllMembers] = useState<Member[]>([]);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   
   const membersCollection = useMemoFirebase(() => (firestore) ? collection(firestore, 'members') : null, [firestore]);
@@ -32,41 +31,34 @@ export default function AdminPage() {
     }
   }, [user, isUserLoading, router]);
 
-  useEffect(() => {
+  const allMembers = useMemo(() => {
     const combinedData: { [key: string]: Member } = {};
 
     (membershipRequests || []).forEach(item => {
-      if (item && item.id) combinedData[item.id] = { ...item } as Member;
-    });
-    
-    (members || []).forEach(item => {
-      if (item && item.id) combinedData[item.id] = { ...item } as Member;
+        if (item && item.id) combinedData[item.id] = { ...item } as Member;
     });
 
-    const sortedItems = Object.values(combinedData).sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
-    setAllMembers(sortedItems);
+    (members || []).forEach(item => {
+        if (item && item.id) combinedData[item.id] = { ...item } as Member;
+    });
+
+    return Object.values(combinedData).sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
   }, [members, membershipRequests]);
 
   const handleMemberUpdate = useCallback((updatedMember: Member) => {
-    setAllMembers(prevMembers => {
-      const index = prevMembers.findIndex(m => m.id === updatedMember.id);
-      if (index !== -1) {
-        const newMembers = [...prevMembers];
-        newMembers[index] = updatedMember;
-        return newMembers;
-      }
-      // If not found, it might be a new member (status change)
-      return [...prevMembers, updatedMember].sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
-    });
-     // Also update editing member if it's the one being edited
+    // This will be handled by the real-time listener, but we can optimistically update the form.
     if (editingMember && editingMember.id === updatedMember.id) {
-      setEditingMember(updatedMember);
+        setEditingMember(updatedMember);
     }
   }, [editingMember]);
 
   const handleMemberDelete = useCallback((memberId: string) => {
-    setAllMembers(prevMembers => prevMembers.filter(m => m.id !== memberId));
-  }, []);
+    // The real-time listener will automatically remove the member from the list.
+    // We just need to close the sheet if the deleted member was being edited.
+    if (editingMember && editingMember.id === memberId) {
+        setEditingMember(null);
+    }
+  }, [editingMember]);
   
 
   if (isUserLoading || !user) {
@@ -101,7 +93,7 @@ export default function AdminPage() {
             <MembersTable 
                 members={allMembers}
                 onEdit={setEditingMember}
-                onMemberDelete={handleMemberDelete}
+                onMemberDelete={handleMemberDelete} // Pass a stable delete handler
             />
           )}
         </div>
@@ -115,6 +107,7 @@ export default function AdminPage() {
                 <SheetTitle>Modifica Membro: {getFullName(editingMember)}</SheetTitle>
               </SheetHeader>
               <EditMemberForm 
+                key={editingMember.id} // Add a key to force re-mount on member change
                 member={editingMember} 
                 onClose={() => setEditingMember(null)}
                 onMemberUpdate={handleMemberUpdate}

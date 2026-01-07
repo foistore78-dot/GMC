@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, memo } from "react";
 import type { Member } from "@/lib/members-data";
 import {
   Table,
@@ -88,7 +88,7 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
   );
 };
 
-const MemberTableRow = ({ 
+const MemberTableRow = memo(({ 
   member,
   onEdit,
   onDelete,
@@ -106,15 +106,13 @@ const MemberTableRow = ({
 
   const handleDelete = () => {
     if (!firestore) return;
-
-    // Optimistic UI update
-    onDelete(member.id);
-
+    
     const collectionName = status === 'active' ? 'members' : 'membership_requests';
     const docRef = doc(firestore, collectionName, member.id);
     
     // Non-blocking delete
     deleteDoc(docRef).then(() => {
+        onDelete(member.id); // Notify parent to close sheet etc.
         toast({
             title: "Membro rimosso",
             description: `${getFullName(member)} è stato rimosso dalla lista.`,
@@ -231,7 +229,9 @@ const MemberTableRow = ({
         </TableCell>
       </TableRow>
   );
-};
+});
+MemberTableRow.displayName = 'MemberTableRow';
+
 
 interface MembersTableProps {
   members: Member[];

@@ -54,26 +54,31 @@ type EditMemberFormProps = {
     onMemberDelete: (memberId: string) => void;
 };
 
+// Calculate default values once, outside the component, to avoid re-computation
+const getDefaultValues = (member: Member) => {
+    const originalStatus = getStatus(member);
+    const defaultMembershipYear = member.membershipYear || new Date().getFullYear().toString();
+    const defaultMembershipFee = member.membershipFee ?? (differenceInYears(new Date(), member.birthDate || new Date()) < 18 ? 0 : 10);
+    return {
+        ...member,
+        phone: member.phone || '',
+        status: originalStatus,
+        membershipYear: defaultMembershipYear,
+        membershipFee: defaultMembershipFee,
+        isVolunteer: member.isVolunteer || false,
+        notes: member.notes || "",
+    };
+};
+
 export function EditMemberForm({ member, onClose, onMemberUpdate, onMemberDelete }: EditMemberFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firestore = useFirestore();
   const originalStatus = getStatus(member);
   
-  const defaultMembershipYear = member.membershipYear || new Date().getFullYear().toString();
-  const defaultMembershipFee = member.membershipFee ?? (differenceInYears(new Date(), member.birthDate || new Date()) < 18 ? 0 : 10);
-  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      ...member,
-      phone: member.phone || '',
-      status: originalStatus,
-      membershipYear: defaultMembershipYear,
-      membershipFee: defaultMembershipFee,
-      isVolunteer: member.isVolunteer || false,
-      notes: member.notes || "",
-    },
+    defaultValues: getDefaultValues(member),
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -87,14 +92,6 @@ export function EditMemberForm({ member, onClose, onMemberUpdate, onMemberDelete
     const { status, ...dataToSave } = values;
     const updatedMemberData = { ...member, ...values };
     
-    // Optimistically update the UI before closing
-    if (newStatus === 'rejected') {
-      onMemberDelete(member.id);
-    } else {
-      onMemberUpdate(updatedMemberData);
-    }
-    onClose();
-
     const batch = writeBatch(firestore);
 
     try {
@@ -102,7 +99,10 @@ export function EditMemberForm({ member, onClose, onMemberUpdate, onMemberDelete
         // Status changed: move the document or delete it
         const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
         const oldDocRef = doc(firestore, oldCollection, member.id);
-        batch.delete(oldDocRef);
+        
+        if (oldCollection === 'members' || oldCollection === 'membership_requests') {
+          batch.delete(oldDocRef);
+        }
 
         if (newStatus !== 'rejected') {
             const newCollection = newStatus === 'active' ? 'members' : 'membership_requests';
@@ -132,6 +132,15 @@ export function EditMemberForm({ member, onClose, onMemberUpdate, onMemberDelete
 
       await batch.commit();
 
+      // Notify parent about the update
+      onMemberUpdate(updatedMemberData);
+      
+      if (newStatus === 'rejected') {
+        onMemberDelete(member.id);
+      }
+      
+      onClose(); // Close the sheet after successful submission
+
       toast({
           title: "Membro aggiornato!",
           description: `I dati di ${getFullName(values)} sono stati salvati.`,
@@ -141,7 +150,7 @@ export function EditMemberForm({ member, onClose, onMemberUpdate, onMemberDelete
         console.error("Error committing batch:", error);
         toast({ 
           title: "Errore durante l'aggiornamento", 
-          description: `Impossibile salvare le modifiche per ${getFullName(values)}. Ricarica la pagina per vedere i dati corretti.`, 
+          description: `Impossibile salvare le modifiche per ${getFullName(values)}.`, 
           variant: "destructive" 
         });
     } finally {
