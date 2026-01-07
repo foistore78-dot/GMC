@@ -5,20 +5,20 @@ import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { MembersTable } from "@/components/members-table";
-import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useUser, useFirestore, useCollection, useMemoFirebase, FirebaseClientProvider } from "@/firebase";
 import { collection } from "firebase/firestore";
 import { Loader2, Users } from "lucide-react";
 import { Member } from "@/lib/members-data";
 
-export default function AdminPage() {
+function AdminDashboard() {
   const router = useRouter();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   
-  const membersCollection = useMemoFirebase(() => collection(firestore, 'members'), [firestore]);
+  const membersCollection = useMemoFirebase(() => firestore ? collection(firestore, 'members') : null, [firestore]);
   const { data: members, isLoading: isLoadingMembers } = useCollection<Member>(membersCollection);
 
-  const membershipRequestsCollection = useMemoFirebase(() => collection(firestore, 'membership_requests'), [firestore]);
+  const membershipRequestsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'membership_requests') : null, [firestore]);
   const { data: membershipRequests, isLoading: isLoadingRequests } = useCollection<any>(membershipRequestsCollection);
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export default function AdminPage() {
     }
   }, [user, isUserLoading, router]);
 
-  if (isUserLoading || !user) {
+  if (isUserLoading || !user || !firestore) {
     return (
       <div className="flex flex-col min-h-screen bg-secondary">
         <Header />
@@ -42,7 +42,7 @@ export default function AdminPage() {
   const allMembers = [
       ...(members || []), 
       ...(membershipRequests || []),
-    ].sort((a,b) => a.name?.localeCompare(b.name) || 0);
+    ].sort((a,b) => (a.firstName || '').localeCompare(b.firstName || ''));
 
   return (
     <div className="flex flex-col min-h-screen bg-secondary">
@@ -68,4 +68,13 @@ export default function AdminPage() {
       <Footer />
     </div>
   );
+}
+
+
+export default function AdminPage() {
+  return (
+    <FirebaseClientProvider>
+      <AdminDashboard />
+    </FirebaseClientProvider>
+  )
 }

@@ -17,23 +17,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
-import { useAuth, useUser, useFirestore } from "@/firebase";
+import { useAuth, useUser } from "@/firebase";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
+import { initializeFirebase } from "@/firebase";
 
 export default function LoginPage() {
   const router = useRouter();
-  const auth = useAuth();
-  const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
   const [email, setEmail] = useState("fois.tore78@gmail.com");
   const [password, setPassword] = useState("password");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  
+  const { auth, firestore } = initializeFirebase();
+  const { user, isUserLoading } = useUser();
 
   useEffect(() => {
     if (user && !isUserLoading) {
@@ -43,13 +44,14 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLoading || isUserLoading || user) return;
+    if (isLoading || isUserLoading) return;
 
     setError("");
     setIsLoading(true);
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      router.push('/admin');
     } catch (err: any) {
       if (err.code === 'auth/user-not-found') {
         try {
@@ -62,21 +64,16 @@ export default function LoginPage() {
             username: "admin_gmc",
             id: newUser.uid,
           });
+          router.push('/admin');
         } catch (creationError: any) {
-            if (creationError.code === 'auth/email-already-in-use') {
-                 setError("Credenziali non valide. Riprova.");
-            } else {
-                setError("Errore durante la creazione dell'utente admin.");
-                console.error("Admin user creation error:", creationError);
-            }
+          setError("Errore durante la creazione dell'utente admin.");
         }
       } else if (err.code === 'auth/invalid-credential') {
-          setError("Credenziali non valide. Riprova.");
+        setError("Credenziali non valide. Riprova.");
       } else if (err.code === 'auth/too-many-requests') {
         setError("Troppi tentativi falliti. Il tuo account è stato temporaneamente bloccato. Riprova più tardi.");
       } else {
         setError("Si è verificato un errore imprevisto. Riprova.");
-        console.error("Login error:", err);
       }
     } finally {
       setIsLoading(false);
