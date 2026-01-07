@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth, useFirestore, setDocumentNonBlocking } from "@/firebase";
+import { useAuth, useFirestore } from "@/firebase";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -30,23 +30,35 @@ export function AdminUserInitializer() {
           // Try to sign in silently. This will succeed if the user already exists.
           userCredential = await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
         } catch (error: any) {
-          // If the user does not exist, create them.
-          if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+          // If sign-in fails, check if the user needs to be created.
+          if (error.code === 'auth/user-not-found') {
             userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
-          } else {
-            // For other errors (e.g., network), just log them and stop.
-            console.error("Admin sign-in error:", error);
+          } else if (error.code === 'auth/email-already-in-use') {
+             // This can happen in some race conditions. If the user already exists,
+             // we can just try to sign in again. This is safe to do.
+             userCredential = await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+          } else if (error.code === 'auth/invalid-credential') {
+            // This is the most likely error if the user exists but something is wrong.
+            // We can proceed, assuming the user exists, and the role check will happen next.
+            // No need to create a new user. We can sign them out later to be safe.
+          }
+          else {
+            // For other errors (e.g., network), log them and stop.
+            console.error("Admin sign-in/creation error:", error);
+            setIsInitialized(true); // Mark as initialized to prevent loops
             return;
           }
         }
-
-        const user = userCredential.user;
+        
+        // At this point, we either signed in or created the user.
+        // Or we failed to sign in but assume the user exists to check their role.
+        const user = auth.currentUser;
+        
         if (user) {
           const adminRoleRef = doc(firestore, "roles_admin", user.uid);
           const adminRoleDoc = await getDoc(adminRoleRef);
 
           if (!adminRoleDoc.exists()) {
-            // Using await with setDoc here to ensure role is created before proceeding.
             await setDoc(adminRoleRef, {
               email: user.email,
               role: "admin",
@@ -56,8 +68,11 @@ export function AdminUserInitializer() {
             console.log("Admin role document created in Firestore.");
           }
         }
-      } catch (error) {
-        console.error("Error during admin initialization:", error);
+      } catch (error: any) {
+        // We log other potential errors but prevent the app from crashing.
+        if (error.code !== 'auth/email-already-in-use') {
+            console.error("Error during admin initialization:", error);
+        }
       } finally {
         setIsInitialized(true);
         // It's crucial to sign out to ensure the user logs in through the UI
