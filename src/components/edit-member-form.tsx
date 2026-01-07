@@ -46,11 +46,10 @@ const formSchema = z.object({
 
 type EditMemberFormProps = {
     member: Member;
-    onUpdate: (updatedMember: Member) => void;
     onClose: () => void;
 };
 
-export function EditMemberForm({ member, onUpdate, onClose }: EditMemberFormProps) {
+export function EditMemberForm({ member, onClose }: EditMemberFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firestore = useFirestore();
@@ -77,7 +76,6 @@ export function EditMemberForm({ member, onUpdate, onClose }: EditMemberFormProp
     const memberRef = doc(firestore, collectionName, member.id);
 
     try {
-      const updatedData = { ...member, ...values };
       // Use non-blocking write for better UI experience
       setDocumentNonBlocking(memberRef, values, { merge: true });
       toast({
