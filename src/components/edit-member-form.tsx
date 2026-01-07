@@ -31,7 +31,7 @@ const formSchema = z.object({
   firstName: z.string().min(2, { message: "Il nome deve contenere almeno 2 caratteri." }),
   lastName: z.string().min(2, { message: "Il cognome deve contenere almeno 2 caratteri." }),
   email: z.string().email({ message: "Inserisci un indirizzo email valido." }),
-  phone: z.string().min(10, { message: "Inserisci un numero di telefono valido." }),
+  phone: z.string().optional(),
   birthPlace: z.string().min(2, { message: "Inserisci un luogo di nascita valido." }),
   birthDate: z.string().refine((date) => !isNaN(Date.parse(date)), { message: "Inserisci una data di nascita valida." }),
   fiscalCode: z.string().length(16, { message: "Il codice fiscale deve essere di 16 caratteri." }),
@@ -51,15 +51,15 @@ type EditMemberFormProps = {
     member: Member;
     onClose: () => void;
     onMemberUpdate: (updatedMember: Member) => void;
+    onMemberDelete: (memberId: string) => void;
 };
 
-export function EditMemberForm({ member, onClose, onMemberUpdate }: EditMemberFormProps) {
+export function EditMemberForm({ member, onClose, onMemberUpdate, onMemberDelete }: EditMemberFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firestore = useFirestore();
   const originalStatus = getStatus(member);
   
-  // Calculate default values once, outside the useForm hook.
   const defaultMembershipYear = member.membershipYear || new Date().getFullYear().toString();
   const defaultMembershipFee = member.membershipFee ?? (differenceInYears(new Date(), member.birthDate || new Date()) < 18 ? 0 : 10);
   
@@ -67,6 +67,7 @@ export function EditMemberForm({ member, onClose, onMemberUpdate }: EditMemberFo
     resolver: zodResolver(formSchema),
     defaultValues: {
       ...member,
+      phone: member.phone || '',
       status: originalStatus,
       membershipYear: defaultMembershipYear,
       membershipFee: defaultMembershipFee,
@@ -82,17 +83,23 @@ export function EditMemberForm({ member, onClose, onMemberUpdate }: EditMemberFo
     }
     setIsSubmitting(true);
     
-    // Optimistic UI update
-    onMemberUpdate({ ...member, ...values });
+    const newStatus = values.status;
+    const { status, ...dataToSave } = values;
+    const updatedMemberData = { ...member, ...values };
+    
+    // Optimistically update the UI before closing
+    if (newStatus === 'rejected') {
+      onMemberDelete(member.id);
+    } else {
+      onMemberUpdate(updatedMemberData);
+    }
     onClose();
 
     const batch = writeBatch(firestore);
-    const newStatus = values.status;
-    const { status, ...dataToSave } = values;
 
     try {
       if (originalStatus !== newStatus) {
-        // Status changed: move the document
+        // Status changed: move the document or delete it
         const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
         const oldDocRef = doc(firestore, oldCollection, member.id);
         batch.delete(oldDocRef);
@@ -117,14 +124,10 @@ export function EditMemberForm({ member, onClose, onMemberUpdate }: EditMemberFo
             batch.set(newDocRef, finalData, { merge: true });
         }
       } else if (newStatus !== 'rejected') {
-        // Status is the same, just update
+        // Status is the same (and not 'rejected'), just update
         const collection = newStatus === 'active' ? 'members' : 'membership_requests';
         const docRef = doc(firestore, collection, member.id);
         batch.set(docRef, dataToSave, { merge: true });
-      } else { // newStatus is 'rejected'
-         const collection = originalStatus === 'active' ? 'members' : 'membership_requests';
-         const docRef = doc(firestore, collection, member.id);
-         batch.delete(docRef);
       }
 
       await batch.commit();
@@ -138,7 +141,7 @@ export function EditMemberForm({ member, onClose, onMemberUpdate }: EditMemberFo
         console.error("Error committing batch:", error);
         toast({ 
           title: "Errore durante l'aggiornamento", 
-          description: `Impossibile salvare le modifiche per ${getFullName(values)}. L'interfaccia potrebbe non essere sincronizzata.`, 
+          description: `Impossibile salvare le modifiche per ${getFullName(values)}. Ricarica la pagina per vedere i dati corretti.`, 
           variant: "destructive" 
         });
     } finally {
@@ -149,7 +152,7 @@ export function EditMemberForm({ member, onClose, onMemberUpdate }: EditMemberFo
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1 pr-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[85vh] overflow-y-auto p-1 pr-4 mt-4">
         
         <FormField
           control={form.control}
@@ -228,7 +231,7 @@ export function EditMemberForm({ member, onClose, onMemberUpdate }: EditMemberFo
                 )}/>
             </div>
         </div>
-        <div className="flex justify-end pt-4">
+        <div className="flex justify-end pt-4 sticky bottom-0 bg-background pb-4">
           <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>Annulla</Button>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

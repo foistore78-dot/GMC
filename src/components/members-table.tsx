@@ -97,7 +97,6 @@ const MemberTableRow = ({
   onEdit: (member: Member) => void;
   onDelete: (id: string) => void;
 }) => {
-  const [isDeleting, setIsDeleting] = useState(false);
   const firestore = useFirestore();
   const { toast } = useToast();
   
@@ -110,11 +109,11 @@ const MemberTableRow = ({
 
     // Optimistic UI update
     onDelete(member.id);
-    setIsDeleting(false);
 
     const collectionName = status === 'active' ? 'members' : 'membership_requests';
     const docRef = doc(firestore, collectionName, member.id);
     
+    // Non-blocking delete
     deleteDoc(docRef).then(() => {
         toast({
             title: "Membro rimosso",
@@ -124,14 +123,14 @@ const MemberTableRow = ({
         console.error("Error deleting member:", error);
         toast({
             title: "Errore",
-            description: "Non è stato possibile rimuovere il membro. L'elenco verrà aggiornato.",
+            description: "Non è stato possibile rimuovere il membro. Ricarica la pagina.",
             variant: "destructive"
         });
     });
   };
   
   return (
-    <TableRow key={member.id}>
+    <TableRow>
         <TableCell className="font-medium">
            <div className="flex items-center gap-3">
                 <Dialog>
@@ -206,7 +205,7 @@ const MemberTableRow = ({
                 <Pencil className="mr-2 h-4 w-4" /> Modifica
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <AlertDialog open={isDeleting} onOpenChange={setIsDeleting}>
+              <AlertDialog>
                   <AlertDialogTrigger asChild>
                      <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
                         <Trash2 className="mr-2 h-4 w-4" /> Elimina

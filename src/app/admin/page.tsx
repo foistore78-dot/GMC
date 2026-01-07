@@ -4,14 +4,13 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
-import { MembersTable } from "@/components/members-table";
+import { MembersTable, getFullName } from "@/components/members-table";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import { Loader2, Users } from "lucide-react";
 import type { Member } from "@/lib/members-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { EditMemberForm } from "@/components/edit-member-form";
-import { getFullName } from "@/components/members-table";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -56,9 +55,10 @@ export default function AdminPage() {
         newMembers[index] = updatedMember;
         return newMembers;
       }
-      return prevMembers; // Should not happen if updating
+      // If not found, it might be a new member (status change)
+      return [...prevMembers, updatedMember].sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
     });
-    // Also update editing member if it's the one being edited
+     // Also update editing member if it's the one being edited
     if (editingMember && editingMember.id === updatedMember.id) {
       setEditingMember(updatedMember);
     }
@@ -108,7 +108,7 @@ export default function AdminPage() {
       </main>
 
        <Sheet open={!!editingMember} onOpenChange={(isOpen) => !isOpen && setEditingMember(null)}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+        <SheetContent className="w-full overflow-y-auto sm:max-w-xl md:w-[50vw] lg:w-[40vw]">
           {editingMember && (
             <>
               <SheetHeader>
@@ -118,6 +118,7 @@ export default function AdminPage() {
                 member={editingMember} 
                 onClose={() => setEditingMember(null)}
                 onMemberUpdate={handleMemberUpdate}
+                onMemberDelete={handleMemberDelete}
               />
             </>
           )}

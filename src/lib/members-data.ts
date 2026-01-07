@@ -4,7 +4,7 @@ export type Member = {
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
+  phone?: string;
   birthPlace: string;
   birthDate: string;
   fiscalCode: string;
@@ -12,8 +12,11 @@ export type Member = {
   city: string;
   province: string;
   postalCode: string;
-  joinDate: string;
-  membershipStatus: 'pending' | 'active' | 'rejected';
+  joinDate?: string;
+  requestDate?: string;
+  expirationDate?: string;
+  membershipStatus?: 'pending' | 'active' | 'rejected';
+  status?: 'pending' | 'active' | 'rejected';
   whatsappConsent: boolean;
   privacyConsent: boolean;
   guardianFirstName?: string;
