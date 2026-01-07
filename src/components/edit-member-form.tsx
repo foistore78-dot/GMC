@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useFirestore } from "@/firebase";
-import { doc, serverTimestamp, writeBatch } from "firebase/firestore";
+import { doc, writeBatch } from "firebase/firestore";
 import type { Member } from "@/lib/members-data";
 import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -50,22 +50,26 @@ const formSchema = z.object({
 type EditMemberFormProps = {
     member: Member;
     onClose: () => void;
-    onUpdate: (updatedData: Member) => void;
+    onMemberUpdate: (updatedMember: Member) => void;
 };
 
-export function EditMemberForm({ member, onClose, onUpdate }: EditMemberFormProps) {
+export function EditMemberForm({ member, onClose, onMemberUpdate }: EditMemberFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firestore = useFirestore();
   const originalStatus = getStatus(member);
+  
+  // Calculate default values once, outside the useForm hook.
+  const defaultMembershipYear = member.membershipYear || new Date().getFullYear().toString();
+  const defaultMembershipFee = member.membershipFee ?? (differenceInYears(new Date(), member.birthDate || new Date()) < 18 ? 0 : 10);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       ...member,
       status: originalStatus,
-      membershipYear: member.membershipYear || new Date().getFullYear().toString(),
-      membershipFee: member.membershipFee ?? (differenceInYears(new Date(), member.birthDate || new Date()) < 18 ? 0 : 10),
+      membershipYear: defaultMembershipYear,
+      membershipFee: defaultMembershipFee,
       isVolunteer: member.isVolunteer || false,
       notes: member.notes || "",
     },
@@ -77,50 +81,50 @@ export function EditMemberForm({ member, onClose, onUpdate }: EditMemberFormProp
       return;
     }
     setIsSubmitting(true);
-
-    const newStatus = values.status;
-    const { status, ...dataToSave } = values;
     
     // Optimistic UI update
-    onUpdate({ ...member, ...dataToSave, status: newStatus });
+    onMemberUpdate({ ...member, ...values });
     onClose();
 
     const batch = writeBatch(firestore);
+    const newStatus = values.status;
+    const { status, ...dataToSave } = values;
 
     try {
-      const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
-      const newCollection = newStatus === 'active' ? 'members' : 'membership_requests';
-      
       if (originalStatus !== newStatus) {
-        // Status changed, so we might need to move the document
+        // Status changed: move the document
+        const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
         const oldDocRef = doc(firestore, oldCollection, member.id);
         batch.delete(oldDocRef);
 
         if (newStatus !== 'rejected') {
-          const newDocRef = doc(firestore, newCollection, member.id);
-          let finalData: any = { ...member, ...dataToSave, id: member.id };
+            const newCollection = newStatus === 'active' ? 'members' : 'membership_requests';
+            const newDocRef = doc(firestore, newCollection, member.id);
+            let finalData: any = { ...member, ...dataToSave, id: member.id };
 
-          if (newStatus === 'active') {
-            finalData.membershipStatus = 'active';
-            finalData.joinDate = member.joinDate || serverTimestamp();
-            finalData.expirationDate = member.expirationDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
-            delete finalData.status;
-          } else { // pending
-            finalData.status = newStatus;
-            finalData.requestDate = member.requestDate || serverTimestamp();
-            delete finalData.membershipStatus;
-            delete finalData.joinDate;
-            delete finalData.expirationDate;
-          }
-          batch.set(newDocRef, finalData, { merge: true });
+            if (newStatus === 'active') {
+                finalData.membershipStatus = 'active';
+                finalData.joinDate = member.joinDate || new Date().toISOString();
+                finalData.expirationDate = member.expirationDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
+                delete finalData.status;
+            } else { // pending
+                finalData.status = newStatus;
+                finalData.requestDate = member.requestDate || new Date().toISOString();
+                delete finalData.membershipStatus;
+                delete finalData.joinDate;
+                delete finalData.expirationDate;
+            }
+            batch.set(newDocRef, finalData, { merge: true });
         }
       } else if (newStatus !== 'rejected') {
-        // Status is the same, just update the document in place
-        const docRef = doc(firestore, newCollection, member.id);
+        // Status is the same, just update
+        const collection = newStatus === 'active' ? 'members' : 'membership_requests';
+        const docRef = doc(firestore, collection, member.id);
         batch.set(docRef, dataToSave, { merge: true });
-      } else { // newStatus is 'rejected' and original was also 'rejected' or something else
-        const oldDocRef = doc(firestore, oldCollection, member.id);
-        batch.delete(oldDocRef);
+      } else { // newStatus is 'rejected'
+         const collection = originalStatus === 'active' ? 'members' : 'membership_requests';
+         const docRef = doc(firestore, collection, member.id);
+         batch.delete(docRef);
       }
 
       await batch.commit();
@@ -133,11 +137,10 @@ export function EditMemberForm({ member, onClose, onUpdate }: EditMemberFormProp
     } catch(error) {
         console.error("Error committing batch:", error);
         toast({ 
-          title: "Errore di Sincronizzazione", 
-          description: "L'aggiornamento sul server è fallito. I dati verranno ripristinati automaticamente.", 
+          title: "Errore durante l'aggiornamento", 
+          description: `Impossibile salvare le modifiche per ${getFullName(values)}. L'interfaccia potrebbe non essere sincronizzata.`, 
           variant: "destructive" 
         });
-        // On error, useCollection will automatically revert the optimistic update
     } finally {
         setIsSubmitting(false);
     }
