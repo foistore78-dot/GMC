@@ -89,7 +89,6 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
         const requestRef = doc(firestore, "membership_requests", id);
         await deleteDocumentNonBlocking(requestRef);
         
-        // Correctly replace the old request with the new member data in the local state.
         setMembers((prev) => 
           prev.map(m => m.id === id ? { ...newMemberData, id: newMemberRef.id } : m)
         );
@@ -199,6 +198,7 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
               filteredMembers.map((member) => {
                 const status = getStatus(member);
                 const memberIsMinor = isMinor(member.birthDate);
+                const defaultFee = member.membershipFee ?? (isMinor(member.birthDate) ? 0 : 10);
 
                 return (
                 <TableRow key={member.id}>
@@ -222,7 +222,7 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                                   <DetailRow icon={<Home />} label="Indirizzo" value={`${member.address}, ${member.city} (${member.province}) ${member.postalCode}`} />
                                   <DetailRow icon={<Hash />} label="Codice Fiscale" value={member.fiscalCode} />
                                   <DetailRow icon={<Calendar />} label="Anno Associativo" value={member.membershipYear} />
-                                  <DetailRow icon={<Euro />} label="Quota Versata" value={member.membershipFee ? `€ ${member.membershipFee}` : '€ 0'} />
+                                  <DetailRow icon={<Euro />} label="Quota Versata" value={`€ ${defaultFee}`} />
                                   {member.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
                                   <DetailRow icon={<StickyNote />} label="Note" value={member.notes} />
                                </div>
@@ -231,7 +231,7 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                         {memberIsMinor && (
                           <Dialog>
                             <DialogTrigger asChild>
-                               <Badge onClick={(e) => e.stopPropagation()} variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10">Minore</Badge>
+                               <Badge onClick={(e) => { e.stopPropagation(); }} variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10">Minore</Badge>
                             </DialogTrigger>
                             <DialogContent>
                                 <DialogHeader>
