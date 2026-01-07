@@ -17,18 +17,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
-import { useAuth, useUser } from "@/firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { useAuth, useFirestore, useUser } from "@/firebase";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+
+const ADMIN_EMAIL = 'fois.tore78@gmail.com';
+const ADMIN_PASSWORD = 'password';
+const ADMIN_USERNAME = 'admin_gmc';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("fois.tore78@gmail.com");
-  const [password, setPassword] = useState("password");
+  const [email, setEmail] = useState(ADMIN_EMAIL);
+  const [password, setPassword] = useState(ADMIN_PASSWORD);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
 
   useEffect(() => {
@@ -39,16 +45,36 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLoading || isUserLoading || user) return;
+    if (isLoading || isUserLoading || user || !firestore) return;
 
     setError("");
     setIsLoading(true);
 
     try {
+      // 1. Try to sign in first
       await signInWithEmailAndPassword(auth, email, password);
       // Let the useEffect handle redirection
     } catch (err: any) {
-      if (err.code === 'auth/invalid-credential') {
+      if (err.code === 'auth/user-not-found') {
+        // 2. If user does not exist, create them AND their admin role
+        try {
+          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          if (userCredential.user) {
+            const adminRoleRef = doc(firestore, 'roles_admin', userCredential.user.uid);
+            await setDoc(adminRoleRef, {
+              email: userCredential.user.email,
+              role: 'admin',
+              username: ADMIN_USERNAME,
+              id: userCredential.user.uid,
+            });
+            // User created and role set, useEffect will redirect.
+          } else {
+            throw new Error("User creation failed.");
+          }
+        } catch (creationError: any) {
+          setError(`Errore durante la creazione dell'utente: ${creationError.message}`);
+        }
+      } else if (err.code === 'auth/invalid-credential') {
         setError("Credenziali non valide. Riprova.");
       } else if (err.code === 'auth/too-many-requests') {
         setError("Troppi tentativi falliti. Il tuo account è stato temporaneamente bloccato. Riprova più tardi.");
