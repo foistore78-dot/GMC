@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { Member } from "@/lib/members-data";
 import {
   Table,
@@ -95,7 +95,6 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
   );
 };
 
-
 const MemberTableRow = ({ member }: { member: Member; }) => {
   const [isEditing, setIsEditing] = useState(false);
   const { toast } = useToast();
@@ -105,29 +104,24 @@ const MemberTableRow = ({ member }: { member: Member; }) => {
   const memberIsMinor = isMinor(member.birthDate);
   const defaultFee = member.membershipFee ?? (isMinor(member.birthDate) ? 0 : 10);
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!firestore) return;
     const currentStatus = getStatus(member);
     const collectionName = currentStatus === 'active' ? 'members' : 'membership_requests';
     const docRef = doc(firestore, collectionName, member.id);
     
-    try {
-      await deleteDocumentNonBlocking(docRef);
-      toast({
-        title: "Membro rimosso",
-        description: `${getFullName(member)} è stato rimosso dalla lista.`,
-        variant: "destructive",
-      });
-    } catch (error) {
-       console.error("Error deleting member:", error);
-       toast({ title: "Errore", description: "Impossibile eliminare il membro.", variant: "destructive" });
-    }
+    deleteDocumentNonBlocking(docRef);
+    toast({
+      title: "Membro rimosso",
+      description: `${getFullName(member)} è stato rimosso dalla lista.`,
+      variant: "destructive",
+    });
   };
   
   return (
     <TableRow>
       <TableCell className="font-medium">
-        <Dialog>
+         <Dialog>
           <DialogTrigger asChild>
             <div className="flex items-center gap-2 cursor-pointer group">
               {member.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500" />}
