@@ -18,12 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth, useUser } from "@/firebase";
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-} from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { initializeFirebase } from "@/firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,8 +27,8 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  
-  const { auth, firestore } = initializeFirebase();
+
+  const auth = useAuth();
   const { user, isUserLoading } = useUser();
 
   useEffect(() => {
@@ -44,33 +39,16 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLoading || isUserLoading) return;
+    if (isLoading || isUserLoading || user) return;
 
     setError("");
     setIsLoading(true);
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      router.push('/admin');
+      // Let the useEffect handle redirection
     } catch (err: any) {
-      if (err.code === 'auth/user-not-found') {
-        try {
-          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          const newUser = userCredential.user;
-          // This is the critical step: create the admin role document.
-          const adminRoleRef = doc(firestore, "roles_admin", newUser.uid);
-          await setDoc(adminRolegmcRef, {
-            email: newUser.email,
-            role: "admin",
-            username: "admin_gmc",
-            id: newUser.uid,
-          });
-          // After successful creation and role assignment, redirect.
-          router.push('/admin');
-        } catch (creationError: any) {
-           setError("Errore durante la creazione dell'utente admin: " + creationError.message);
-        }
-      } else if (err.code === 'auth/invalid-credential') {
+      if (err.code === 'auth/invalid-credential') {
         setError("Credenziali non valide. Riprova.");
       } else if (err.code === 'auth/too-many-requests') {
         setError("Troppi tentativi falliti. Il tuo account è stato temporaneamente bloccato. Riprova più tardi.");

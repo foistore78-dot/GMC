@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { MembersTable } from "@/components/members-table";
-import { useUser, useFirestore, useCollection, useMemoFirebase, FirebaseClientProvider } from "@/firebase";
+import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import { Loader2, Users } from "lucide-react";
 import { Member } from "@/lib/members-data";
 
-function AdminDashboard() {
+export default function AdminPage() {
   const router = useRouter();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
@@ -68,13 +68,4 @@ function AdminDashboard() {
       <Footer />
     </div>
   );
-}
-
-
-export default function AdminPage() {
-  return (
-    <FirebaseClientProvider>
-      <AdminDashboard />
-    </FirebaseClientProvider>
-  )
 }
