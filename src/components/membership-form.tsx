@@ -16,7 +16,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowRight, ArrowLeft } from "lucide-react";
@@ -25,6 +24,7 @@ import { useFirestore, addDocumentNonBlocking } from "@/firebase";
 import { collection, serverTimestamp } from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import Link from "next/link";
 
 const formSchema = z.object({
   gender: z.enum(["male", "female"], {
@@ -41,8 +41,8 @@ const formSchema = z.object({
   city: z.string().min(2, { message: "Inserisci una città valida." }),
   province: z.string().length(2, { message: "La sigla della provincia deve essere di 2 caratteri." }),
   postalCode: z.string().length(5, { message: "Il CAP deve essere di 5 caratteri." }),
-  instruments: z.string().min(2, { message: "Elenca almeno uno strumento." }),
-  isNotRobot: z.boolean().refine((val) => val === true, { message: "Per favore, conferma di non essere un robot." }),
+  whatsappConsent: z.boolean().default(false),
+  privacyConsent: z.boolean().refine((val) => val === true, { message: "Devi accettare l'informativa sulla privacy per continuare." }),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -53,9 +53,8 @@ const steps = [
   { id: 3, fields: ["birthDate", "birthPlace"] as const, title: "Quando e dove sei nato/a?" },
   { id: 4, fields: ["fiscalCode"] as const, title: "Codice Fiscale" },
   { id: 5, fields: ["address", "city", "province", "postalCode"] as const, title: "Indirizzo di Residenza" },
-  { id: 6, fields: ["email", "phone"] as const, title: "Come possiamo contattarti?" },
-  { id: 7, fields: ["instruments"] as const, title: "Parlaci del tuo talento" },
-  { id: 8, fields: ["isNotRobot"] as const, title: "Ultimo controllo" },
+  { id: 6, fields: ["email", "phone", "whatsappConsent"] as const, title: "Come possiamo contattarti?" },
+  { id: 7, fields: ["privacyConsent"] as const, title: "Consenso al Trattamento dei Dati" },
 ];
 
 export function MembershipForm() {
@@ -79,8 +78,8 @@ export function MembershipForm() {
       city: "",
       province: "",
       postalCode: "",
-      instruments: "",
-      isNotRobot: false,
+      whatsappConsent: false,
+      privacyConsent: false,
     },
   });
 
@@ -88,9 +87,8 @@ export function MembershipForm() {
     setIsSubmitting(true);
     
     try {
-      const { isNotRobot, ...rest } = values;
       const membershipRequestData = {
-        ...rest,
+        ...values,
         requestDate: serverTimestamp(),
         status: 'pending',
       };
@@ -271,14 +269,25 @@ export function MembershipForm() {
                     </FormItem>
                   )}
                 />
-                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
                     <FormField
                       control={form.control}
                       name="city"
                       render={({ field }) => (
-                        <FormItem className="sm:col-span-2">
+                        <FormItem className="sm:col-span-7">
                           <FormLabel>Città</FormLabel>
                           <FormControl><Input placeholder="Roma" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                     <FormField
+                      control={form.control}
+                      name="province"
+                      render={({ field }) => (
+                        <FormItem  className="sm:col-span-2">
+                          <FormLabel>Prov.</FormLabel>
+                          <FormControl><Input placeholder="RM" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -287,7 +296,7 @@ export function MembershipForm() {
                       control={form.control}
                       name="postalCode"
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="sm:col-span-3">
                           <FormLabel>CAP</FormLabel>
                           <FormControl><Input placeholder="00100" {...field} /></FormControl>
                           <FormMessage />
@@ -295,22 +304,11 @@ export function MembershipForm() {
                       )}
                     />
                  </div>
-                 <FormField
-                      control={form.control}
-                      name="province"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Provincia (sigla)</FormLabel>
-                          <FormControl><Input placeholder="RM" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
               </div>
             )}
 
             {currentStep === 5 && (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <FormField
                   control={form.control}
                   name="email"
@@ -333,38 +331,48 @@ export function MembershipForm() {
                     </FormItem>
                   )}
                 />
+                 <FormField
+                  control={form.control}
+                  name="whatsappConsent"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm bg-background">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>
+                          Autorizzo l'uso del mio numero per il gruppo WhatsApp
+                        </FormLabel>
+                        <FormDescription>
+                          Sarai aggiunto al gruppo per ricevere comunicazioni sugli eventi e le attività del club.
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
               </div>
             )}
-
+            
             {currentStep === 6 && (
               <FormField
                 control={form.control}
-                name="instruments"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Quali strumenti suoni?</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="es. Chitarra, Basso, Batteria, Voce..." {...field} />
-                    </FormControl>
-                    <FormDescription>Elenca i tuoi talenti musicali.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-
-            {currentStep === 7 && (
-              <FormField
-                control={form.control}
-                name="isNotRobot"
+                name="privacyConsent"
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm bg-background">
                     <FormControl>
                       <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                     </FormControl>
                     <div className="space-y-1 leading-none">
-                      <FormLabel>Non sono un robot</FormLabel>
-                      <FormDescription>Un semplice CAPTCHA per prevenire lo spam.</FormDescription>
+                      <FormLabel>Accettazione dell'Informativa sulla Privacy</FormLabel>
+                      <FormDescription>
+                        Dichiaro di aver letto e accettato l'informativa sulla privacy. {" "}
+                        <Link href="/privacy" className="text-primary underline" target="_blank">
+                           Leggi l'informativa
+                        </Link>.
+                      </FormDescription>
                       <FormMessage />
                     </div>
                   </FormItem>

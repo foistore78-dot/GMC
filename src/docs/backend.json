@@ -61,9 +61,13 @@
           "type": "string",
           "description": "Postal code of the member."
         },
-        "instruments": {
-          "type": "string",
-          "description": "Musical instruments played by the member."
+        "whatsappConsent": {
+          "type": "boolean",
+          "description": "Indicates if the member consents to be added to a WhatsApp group."
+        },
+        "privacyConsent": {
+          "type": "boolean",
+          "description": "Indicates if the member has accepted the privacy policy."
         },
         "membershipStatus": {
           "type": "string",
@@ -93,7 +97,8 @@
         "city",
         "province",
         "postalCode",
-        "instruments",
+        "whatsappConsent",
+        "privacyConsent",
         "membershipStatus",
         "joinDate",
         "expirationDate"
@@ -160,9 +165,13 @@
           "type": "string",
           "description": "Postal code of the applicant."
         },
-        "instruments": {
-          "type": "string",
-          "description": "Musical instruments played by the applicant."
+        "whatsappConsent": {
+            "type": "boolean",
+            "description": "Indicates if the applicant consents to be added to a WhatsApp group."
+        },
+        "privacyConsent": {
+            "type": "boolean",
+            "description": "Indicates if the applicant has accepted the privacy policy."
         },
         "requestDate": {
           "type": "string",
@@ -187,7 +196,8 @@
         "city",
         "province",
         "postalCode",
-        "instruments",
+        "whatsappConsent",
+        "privacyConsent",
         "requestDate",
         "status"
       ]

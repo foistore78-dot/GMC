@@ -14,7 +14,8 @@ export type Member = {
   postalCode: string;
   joinDate: string;
   membershipStatus: 'pending' | 'active' | 'rejected';
-  instruments: string;
+  whatsappConsent: boolean;
+  privacyConsent: boolean;
 };
 
 // This data is now just for type reference and is not used in the application directly.

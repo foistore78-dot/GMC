@@ -20,7 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Check, MoreHorizontal, Pencil, Trash2, X, Filter } from "lucide-react";
+import { Check, MoreHorizontal, Pencil, Trash2, X, Filter, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -153,8 +153,13 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                 <TableRow key={member.id}>
                   <TableCell className="font-medium">{getFullName(member)}</TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground">
-                    <div>{member.email}</div>
-                    <div>{member.phone}</div>
+                    <div className="flex items-center gap-2">
+                       {member.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500" />}
+                       <div>
+                         <div>{member.email}</div>
+                         <div>{member.phone}</div>
+                       </div>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -175,8 +180,8 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                     </Badge>
                   </TableCell>
                    <TableCell className="hidden lg:table-cell text-muted-foreground text-xs">
-                     <div><span className="font-semibold">Strumenti:</span> {member.instruments}</div>
                      {member.fiscalCode && <div><span className="font-semibold">CF:</span> {member.fiscalCode}</div>}
+                     {member.address && <div><span className="font-semibold">Indirizzo:</span> {member.address}, {member.city}</div>}
                    </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
