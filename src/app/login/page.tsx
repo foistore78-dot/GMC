@@ -17,16 +17,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
-import { useAuth, useUser } from "@/firebase";
+import { useAuth, useUser, useFirestore } from "@/firebase";
 import {
   signInWithEmailAndPassword,
-  onAuthStateChanged,
-  User,
+  createUserWithEmailAndPassword,
 } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 
 export default function LoginPage() {
   const router = useRouter();
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const [email, setEmail] = useState("garage.music.club2024@gmail.com");
   const [password, setPassword] = useState("password");
@@ -48,8 +49,31 @@ export default function LoginPage() {
       await signInWithEmailAndPassword(auth, email, password);
       // Let the useEffect handle redirection
     } catch (err: any) {
-      setError("Credenziali non valide. Riprova.");
-      console.error(err);
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+        // If the admin user doesn't exist, create it.
+        try {
+          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          const newUser = userCredential.user;
+
+          // Also create the admin role document in Firestore
+          const adminRoleRef = doc(firestore, "roles_admin", newUser.uid);
+          await setDoc(adminRoleRef, {
+            email: newUser.email,
+            role: "admin",
+            username: "admin_gmc",
+            id: newUser.uid,
+          });
+          
+          // The onAuthStateChanged listener will automatically pick up the new user
+          // and the useEffect will redirect to /admin.
+        } catch (creationError: any) {
+          setError("Errore durante la creazione dell'utente admin.");
+          console.error("Admin user creation error:", creationError);
+        }
+      } else {
+        setError("Credenziali non valide. Riprova.");
+        console.error(err);
+      }
     } finally {
       setIsLoading(false);
     }
