@@ -16,7 +16,7 @@ export const membersData: Member[] = [
     phone: "111-222-3333",
     joinDate: "2023-10-28",
     status: "approved",
-    instruments: "Guitar, Vocals",
+    instruments: "Chitarra, Voce",
   },
   {
     id: "usr-002",
@@ -25,7 +25,7 @@ export const membersData: Member[] = [
     phone: "222-333-4444",
     joinDate: "2023-11-15",
     status: "approved",
-    instruments: "Bass Guitar",
+    instruments: "Basso",
   },
   {
     id: "usr-003",
@@ -34,7 +34,7 @@ export const membersData: Member[] = [
     phone: "333-444-5555",
     joinDate: "2024-01-05",
     status: "pending",
-    instruments: "Drums, Percussion",
+    instruments: "Batteria, Percussioni",
   },
   {
     id: "usr-004",
@@ -43,7 +43,7 @@ export const membersData: Member[] = [
     phone: "444-555-6666",
     joinDate: "2024-02-20",
     status: "pending",
-    instruments: "Keyboard, Synthesizer",
+    instruments: "Tastiera, Sintetizzatore",
   },
   {
     id: "usr-005",
@@ -52,7 +52,7 @@ export const membersData: Member[] = [
     phone: "555-666-7777",
     joinDate: "2023-09-10",
     status: "rejected",
-    instruments: "Violin",
+    instruments: "Violino",
   },
     {
     id: "usr-006",
@@ -61,7 +61,7 @@ export const membersData: Member[] = [
     phone: "666-777-8888",
     joinDate: "2024-03-12",
     status: "approved",
-    instruments: "Lead Guitar",
+    instruments: "Chitarra Solista",
   },
   {
     id: "usr-007",
@@ -70,6 +70,6 @@ export const membersData: Member[] = [
     phone: "777-888-9999",
     joinDate: "2024-04-01",
     status: "pending",
-    instruments: "Saxophone, Vocals",
+    instruments: "Sassofono, Voce",
   },
 ];

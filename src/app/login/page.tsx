@@ -29,13 +29,13 @@ export default function LoginPage() {
     setError("");
     setIsLoading(true);
 
-    // In a real app, this would be an API call to an authentication endpoint.
-    // For this example, we use a simple hardcoded password and a timeout to simulate a network request.
+    // In un'app reale, questa sarebbe una chiamata API a un endpoint di autenticazione.
+    // Per questo esempio, usiamo una semplice password hardcoded e un timeout per simulare una richiesta di rete.
     setTimeout(() => {
       if (password === "musiclover") {
         router.push("/admin");
       } else {
-        setError("Invalid password. Please try again.");
+        setError("Password non valida. Riprova.");
       }
       setIsLoading(false);
     }, 1000);
@@ -48,9 +48,9 @@ export default function LoginPage() {
         <Card className="w-full max-w-sm border-primary/20 bg-background">
           <form onSubmit={handleLogin}>
             <CardHeader className="text-center">
-              <CardTitle className="font-headline text-3xl text-primary">Admin Login</CardTitle>
+              <CardTitle className="font-headline text-3xl text-primary">Login Admin</CardTitle>
               <CardDescription>
-                Enter the password to access the member dashboard.
+                Inserisci la password per accedere alla dashboard dei membri.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -68,7 +68,7 @@ export default function LoginPage() {
               {error && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Login Failed</AlertTitle>
+                  <AlertTitle>Login Fallito</AlertTitle>
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
@@ -76,7 +76,7 @@ export default function LoginPage() {
             <CardFooter>
               <Button type="submit" className="w-full font-bold" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isLoading ? "Verifying..." : "Login"}
+                {isLoading ? "Verifica in corso..." : "Login"}
               </Button>
             </CardFooter>
           </form>

@@ -52,16 +52,16 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
       )
     );
     toast({
-      title: "Member status updated!",
-      description: `Member has been set to ${status}.`,
+      title: "Stato membro aggiornato!",
+      description: `Il membro è stato impostato su ${status}.`,
     });
   };
 
   const handleDelete = (id: string) => {
     setMembers((prevMembers) => prevMembers.filter((member) => member.id !== id));
     toast({
-      title: "Member removed",
-      description: "The member has been removed from the list.",
+      title: "Membro rimosso",
+      description: "Il membro è stato rimosso dalla lista.",
       variant: "destructive",
     });
   };
@@ -77,7 +77,7 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
             <div className="relative w-full max-w-sm">
                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                    placeholder="Filter by name or email..."
+                    placeholder="Filtra per nome o email..."
                     value={filter}
                     onChange={(event) => setFilter(event.target.value)}
                     className="pl-10"
@@ -88,11 +88,11 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead className="hidden md:table-cell">Contact</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="hidden lg:table-cell">Instruments</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>Nome</TableHead>
+              <TableHead className="hidden md:table-cell">Contatto</TableHead>
+              <TableHead>Stato</TableHead>
+              <TableHead className="hidden lg:table-cell">Strumenti</TableHead>
+              <TableHead className="text-right">Azioni</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -120,7 +120,7 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                         "text-primary-foreground": member.status === 'approved'
                       })}
                     >
-                      {member.status}
+                      {member.status === 'approved' ? 'approvato' : member.status === 'pending' ? 'in attesa' : 'rifiutato'}
                     </Badge>
                   </TableCell>
                    <TableCell className="hidden lg:table-cell text-muted-foreground">{member.instruments}</TableCell>
@@ -128,45 +128,45 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
+                          <span className="sr-only">Apri menu</span>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuLabel>Azioni</DropdownMenuLabel>
                         <DropdownMenuItem
                           onClick={() => handleStatusChange(member.id, "approved")}
                           disabled={member.status === 'approved'}
                         >
-                          <Check className="mr-2 h-4 w-4" /> Approve
+                          <Check className="mr-2 h-4 w-4" /> Approva
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => handleStatusChange(member.id, "rejected")}
                           disabled={member.status === 'rejected'}
                         >
-                          <X className="mr-2 h-4 w-4" /> Reject
+                          <X className="mr-2 h-4 w-4" /> Rifiuta
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => toast({title: "Edit action is a work in progress."})}>
-                          <Pencil className="mr-2 h-4 w-4" /> Edit
+                        <DropdownMenuItem onClick={() => toast({title: "L'azione di modifica è in fase di sviluppo."})}>
+                          <Pencil className="mr-2 h-4 w-4" /> Modifica
                         </DropdownMenuItem>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
-                              <Trash2 className="mr-2 h-4 w-4" /> Delete
+                              <Trash2 className="mr-2 h-4 w-4" /> Elimina
                             </DropdownMenuItem>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                This action cannot be undone. This will permanently remove {member.name} from the list.
+                                Questa azione non può essere annullata. Questo rimuoverà permanentemente {member.name} dalla lista.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogCancel>Annulla</AlertDialogCancel>
                               <AlertDialogAction onClick={() => handleDelete(member.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                Delete
+                                Elimina
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -179,7 +179,7 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
             ) : (
                 <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center">
-                    No members found.
+                    Nessun membro trovato.
                     </TableCell>
                 </TableRow>
             )}

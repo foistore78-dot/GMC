@@ -5,7 +5,7 @@ import { membersData } from "@/lib/members-data";
 import { Users } from "lucide-react";
 
 export default async function AdminPage() {
-  // In a real application, you would fetch this data from a database.
+  // In una applicazione reale, questi dati verrebbero recuperati da un database.
   const members = membersData;
 
   return (
@@ -15,7 +15,7 @@ export default async function AdminPage() {
         <div className="flex items-center gap-4 mb-8">
             <Users className="w-10 h-10 text-primary" />
             <h1 className="font-headline text-4xl md:text-5xl text-primary">
-                Member Management
+                Gestione Membri
             </h1>
         </div>
         

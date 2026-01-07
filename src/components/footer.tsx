@@ -9,7 +9,7 @@ export function Footer() {
             <p className="font-headline text-lg">Garage Music Club</p>
         </div>
         <p className="text-sm">
-          &copy; {new Date().getFullYear()} Garage Music Club. All Rights Reserved.
+          &copy; {new Date().getFullYear()} Garage Music Club. Tutti i diritti riservati.
         </p>
       </div>
     </footer>

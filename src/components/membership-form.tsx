@@ -23,19 +23,19 @@ import { useState } from "react";
 
 const formSchema = z.object({
   name: z.string().min(2, {
-    message: "Name must be at least 2 characters.",
+    message: "Il nome deve contenere almeno 2 caratteri.",
   }),
   email: z.string().email({
-    message: "Please enter a valid email address.",
+    message: "Inserisci un indirizzo email valido.",
   }),
   phone: z.string().min(10, {
-    message: "Please enter a valid phone number.",
+    message: "Inserisci un numero di telefono valido.",
   }),
   instruments: z.string().min(2, {
-    message: "Please list at least one instrument.",
+    message: "Elenca almeno uno strumento.",
   }),
   isNotRobot: z.boolean().refine((val) => val === true, {
-    message: "Please confirm you are not a robot.",
+    message: "Per favore, conferma di non essere un robot.",
   }),
 });
 
@@ -59,8 +59,8 @@ export function MembershipForm() {
     setTimeout(() => {
       console.log(values);
       toast({
-        title: "Application Submitted!",
-        description: "Thanks for your interest. We'll be in touch soon.",
+        title: "Domanda Inviata!",
+        description: "Grazie per il tuo interesse. Ti contatteremo presto.",
       });
       form.reset();
       setIsSubmitting(false);
@@ -75,9 +75,9 @@ export function MembershipForm() {
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Full Name</FormLabel>
+              <FormLabel>Nome e Cognome</FormLabel>
               <FormControl>
-                <Input placeholder="John Doe" {...field} />
+                <Input placeholder="Mario Rossi" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -88,9 +88,9 @@ export function MembershipForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email Address</FormLabel>
+              <FormLabel>Indirizzo Email</FormLabel>
               <FormControl>
-                <Input placeholder="you@example.com" {...field} />
+                <Input placeholder="tu@esempio.com" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -101,7 +101,7 @@ export function MembershipForm() {
           name="phone"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Phone Number</FormLabel>
+              <FormLabel>Numero di Telefono</FormLabel>
               <FormControl>
                 <Input placeholder="(123) 456-7890" {...field} />
               </FormControl>
@@ -114,15 +114,15 @@ export function MembershipForm() {
           name="instruments"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>What instruments do you play?</FormLabel>
+              <FormLabel>Quali strumenti suoni?</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="e.g., Guitar, Bass, Drums, Vocals..."
+                  placeholder="es. Chitarra, Basso, Batteria, Voce..."
                   {...field}
                 />
               </FormControl>
               <FormDescription>
-                Tell us about your musical talents.
+                Parlaci dei tuoi talenti musicali.
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -141,10 +141,10 @@ export function MembershipForm() {
               </FormControl>
               <div className="space-y-1 leading-none">
                 <FormLabel>
-                  I am not a robot
+                  Non sono un robot
                 </FormLabel>
                 <FormDescription>
-                    A simple CAPTCHA to prevent spam.
+                    Un semplice CAPTCHA per prevenire lo spam.
                 </FormDescription>
                  <FormMessage />
               </div>
@@ -153,7 +153,7 @@ export function MembershipForm() {
         />
         <Button type="submit" className="w-full text-lg font-bold py-6" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isSubmitting ? "Submitting..." : "Submit Application"}
+          {isSubmitting ? "Invio in corso..." : "Invia Candidatura"}
         </Button>
       </form>
     </Form>

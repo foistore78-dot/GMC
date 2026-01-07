@@ -22,11 +22,11 @@ export function Header() {
         <nav>
           {isAdminPage ? (
              <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary">
-                <Link href="/">Logout</Link>
+                <Link href="/">Esci</Link>
              </Button>
           ) : (
             <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary">
-              <Link href="/login">Admin Login</Link>
+              <Link href="/login">Login Admin</Link>
             </Button>
           )}
         </nav>

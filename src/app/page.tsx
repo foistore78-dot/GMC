@@ -14,18 +14,18 @@ export default function Home() {
   const features = [
     {
       icon: <Guitar className="w-10 h-10 text-primary" />,
-      title: "Jam Sessions",
-      description: "Weekly organized jam sessions to hone your skills and collaborate with others.",
+      title: "Jam Session",
+      description: "Jam session settimanali organizzate per affinare le tue abilità e collaborare con gli altri.",
     },
     {
       icon: <Mic className="w-10 h-10 text-primary" />,
-      title: "Live Gigs",
-      description: "Get opportunities to perform in front of a live audience at our exclusive events.",
+      title: "Concerti dal Vivo",
+      description: "Ottieni l'opportunità di esibirti di fronte a un pubblico dal vivo ai nostri eventi esclusivi.",
     },
     {
       icon: <Speaker className="w-10 h-10 text-primary" />,
-      title: "Pro Equipment",
-      description: "Access to professional-grade instruments, amps, and sound systems.",
+      title: "Attrezzatura Professionale",
+      description: "Accesso a strumenti, amplificatori e sistemi audio di livello professionale.",
     },
   ];
 
@@ -50,10 +50,10 @@ export default function Home() {
               Garage Music Club
             </h1>
             <p className="text-lg md:text-xl max-w-2xl mb-8 font-light">
-              Your journey into sound begins here. Join a community of passionate musicians and artists.
+              Il tuo viaggio nel suono inizia qui. Unisciti a una comunità di musicisti e artisti appassionati.
             </p>
             <Button asChild size="lg" className="font-bold text-lg px-10 py-6">
-              <Link href="#apply">Apply Now</Link>
+              <Link href="#apply">Iscriviti Ora</Link>
             </Button>
           </div>
         </section>
@@ -61,7 +61,7 @@ export default function Home() {
         <section className="py-16 md:py-24 bg-secondary">
           <div className="container mx-auto px-4">
             <h2 className="font-headline text-4xl md:text-5xl text-center mb-12 text-primary">
-              What We Offer
+              Cosa Offriamo
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {features.map((feature, index) => (
@@ -84,10 +84,10 @@ export default function Home() {
         <section id="apply" className="py-16 md:py-24">
           <div className="container mx-auto px-4">
             <h2 className="font-headline text-4xl md:text-5xl text-center mb-4 text-primary">
-              Join the Club
+              Unisciti al Club
             </h2>
             <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-              Ready to make some noise? Fill out the application form below. We review all applications and will get back to you soon.
+              Pronto a fare un po' di rumore? Compila il modulo di iscrizione qui sotto. Esaminiamo tutte le candidature e ti risponderemo presto.
             </p>
             <div className="max-w-2xl mx-auto">
               <Card className="bg-secondary border-primary/20">
