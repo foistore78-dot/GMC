@@ -37,7 +37,6 @@ export default function LoginPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
 
-  // Redirect if user is already logged in
   useEffect(() => {
     if (user && !isUserLoading) {
       router.push("/admin");
@@ -54,11 +53,9 @@ export default function LoginPage() {
     let userCredential: UserCredential | null = null;
 
     try {
-      // Step 1: Attempt to sign in
       userCredential = await signInWithEmailAndPassword(auth, email, password);
     } catch (signInError: any) {
-      // Step 2: If sign-in fails because the user doesn't exist, create the user
-      if (signInError.code === 'auth/user-not-found') {
+      if (signInError.code === 'auth/user-not-found' || signInError.code === 'auth/invalid-credential') {
         try {
           userCredential = await createUserWithEmailAndPassword(auth, email, password);
         } catch (creationError: any) {
@@ -66,22 +63,13 @@ export default function LoginPage() {
           setIsLoading(false);
           return;
         }
-      } else if (signInError.code === 'auth/invalid-credential' || signInError.code === 'auth/wrong-password') {
-        setError("Credenziali non valide. Riprova.");
-        setIsLoading(false);
-        return;
-      } else if (signInError.code === 'auth/too-many-requests') {
-        setError("Troppi tentativi falliti. L'accesso è temporaneamente bloccato.");
-        setIsLoading(false);
-        return;
       } else {
-        setError(`Si è verificato un errore imprevisto: ${signInError.message}`);
+        setError(`Errore di accesso: ${signInError.message}`);
         setIsLoading(false);
         return;
       }
     }
 
-    // Step 3: If we have a user (either from sign-in or creation), ensure their admin role exists.
     if (userCredential && userCredential.user) {
       try {
         const adminRoleRef = doc(firestore, 'roles_admin', userCredential.user.uid);
@@ -92,7 +80,8 @@ export default function LoginPage() {
           id: userCredential.user.uid,
         }, { merge: true });
         
-        // Step 4: Manually redirect to the admin page ONLY after the role has been set.
+        // This manual push is critical to avoid race conditions.
+        // The useEffect hook for redirection is a backup.
         router.push("/admin");
 
       } catch (roleError: any) {
@@ -105,7 +94,6 @@ export default function LoginPage() {
     setIsLoading(false);
   };
 
-  // Show a loader while the initial auth state is being determined or if we are redirecting.
   if (isUserLoading || user) {
     return (
         <div className="flex flex-col min-h-screen bg-secondary">
