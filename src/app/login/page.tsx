@@ -19,7 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth, useFirestore, useUser } from "@/firebase";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 
 const ADMIN_EMAIL = 'fois.tore78@gmail.com';
 const ADMIN_PASSWORD = 'password';
@@ -37,64 +37,73 @@ export default function LoginPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
 
+  // Redirect if user is already logged in
   useEffect(() => {
     if (user && !isUserLoading) {
       router.push("/admin");
     }
   }, [user, isUserLoading, router]);
 
+  // Ensure admin role exists after user logs in or is created
+  useEffect(() => {
+    const ensureAdminRole = async () => {
+      if (user && firestore) {
+        const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
+        const docSnap = await getDoc(adminRoleRef);
+        if (!docSnap.exists()) {
+          try {
+            await setDoc(adminRoleRef, {
+              email: user.email,
+              role: 'admin',
+              username: ADMIN_USERNAME,
+              id: user.uid,
+            });
+            // Role created, now we can safely redirect or the app will proceed
+            router.push('/admin');
+          } catch (e) {
+            console.error("Failed to create admin role:", e);
+            setError("Impossibile impostare i permessi di amministratore.");
+          }
+        }
+      }
+    };
+    ensureAdminRole();
+  }, [user, firestore, router]);
+
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLoading || isUserLoading || user || !firestore) return;
+    if (isLoading || isUserLoading || !auth || !firestore) return;
 
     setError("");
     setIsLoading(true);
 
     try {
-      // 1. Try to sign in first
+      // Step 1: Try to sign in.
       await signInWithEmailAndPassword(auth, email, password);
-      // Let the useEffect handle redirection
+      // On success, the useEffects will handle redirection and role creation.
     } catch (signInError: any) {
-      // 2. If sign-in fails, decide what to do
-      if (signInError.code === 'auth/user-not-found' || signInError.code === 'auth/invalid-credential') {
-        // If user doesn't exist OR password is wrong, we create (or effectively reset) the user.
-        // This is a robust way to ensure the admin user is always in a known state.
-        try {
-          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          if (userCredential.user) {
-            // CRITICAL: Set the admin role document in Firestore.
-            const adminRoleRef = doc(firestore, 'roles_admin', userCredential.user.uid);
-            await setDoc(adminRoleRef, {
-              email: userCredential.user.email,
-              role: 'admin',
-              username: ADMIN_USERNAME,
-              id: userCredential.user.uid,
-            });
-            // User created and role set, useEffect will now handle redirection.
-          } else {
-            throw new Error("User creation failed after sign-in attempt.");
-          }
-        } catch (creationError: any) {
-           if (creationError.code === 'auth/email-already-in-use') {
-             // This can happen in a race condition. If so, just try signing in again.
-             // It implies the user exists, but the previous signIn failed.
-             try {
-                await signInWithEmailAndPassword(auth, email, password);
-             } catch(finalSignInError: any) {
-                setError(`Errore imprevisto durante il login. Riprova. Dettagli: ${finalSignInError.message}`);
-             }
-           } else {
-             setError(`Errore durante la creazione dell'utente: ${creationError.message}`);
-           }
+        // Step 2: If sign-in fails, figure out why.
+        if (signInError.code === 'auth/user-not-found') {
+            // Step 2a: If user does not exist, create them.
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                // On success, the useEffects will handle redirection and role creation.
+                if (!userCredential.user) {
+                  throw new Error("La creazione dell'utente non è riuscita.");
+                }
+            } catch (creationError: any) {
+                setError(`Errore durante la creazione dell'account: ${creationError.message}`);
+            }
+        } else if (signInError.code === 'auth/invalid-credential' || signInError.code === 'auth/wrong-password') {
+            setError("Credenziali non valide. Riprova.");
+        } else if (signInError.code === 'auth/too-many-requests') {
+            setError("Troppi tentativi falliti. L'accesso è temporaneamente bloccato.");
+        } else {
+            setError(`Si è verificato un errore imprevisto: ${signInError.message}`);
         }
-      } else if (signInError.code === 'auth/too-many-requests') {
-        setError("Troppi tentativi falliti. Il tuo account è stato temporaneamente bloccato. Riprova più tardi.");
-      } else {
-        // Handle other unexpected errors
-        setError(`Si è verificato un errore imprevisto: ${signInError.message}`);
-      }
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
   };
 
