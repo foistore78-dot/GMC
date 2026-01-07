@@ -27,7 +27,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Check, MoreHorizontal, Pencil, Trash2, X, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -49,7 +57,7 @@ import { EditMemberForm } from "./edit-member-form";
 
 // Helper Functions
 export const getFullName = (member: any) => `${member.firstName || ''} ${member.lastName || ''}`.trim();
-export const getStatus = (member: any): 'active' | 'pending' | 'rejected' => member.membershipStatus || member.status;
+export const getStatus = (member: any): 'active' | 'pending' | 'rejected' => member.membershipStatus === 'active' ? 'active' : member.status;
 export const isMinor = (birthDate: string | Date) => birthDate ? differenceInYears(new Date(), new Date(birthDate)) < 18 : false;
 export const formatDate = (dateString: any) => {
   if (!dateString) return 'N/A';
@@ -89,12 +97,11 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
   );
 };
 
-
-// Dedicated component for actions to isolate state and logic
+// This component isolates the state and logic for all member actions
 const MemberActions = ({ member }: { member: any }) => {
   const { toast } = useToast();
   const firestore = useFirestore();
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   
   const handleDelete = async () => {
     if (!firestore) return;
@@ -119,7 +126,7 @@ const MemberActions = ({ member }: { member: any }) => {
   };
 
   return (
-    <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+    <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="h-8 w-8 p-0">
@@ -129,9 +136,11 @@ const MemberActions = ({ member }: { member: any }) => {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-          <DropdownMenuItem onSelect={() => setIsEditDialogOpen(true)}>
-            <Pencil className="mr-2 h-4 w-4" /> Modifica
-          </DropdownMenuItem>
+           <SheetTrigger asChild>
+            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+              <Pencil className="mr-2 h-4 w-4" /> Modifica
+            </DropdownMenuItem>
+          </SheetTrigger>
           <DropdownMenuSeparator />
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -156,16 +165,18 @@ const MemberActions = ({ member }: { member: any }) => {
           </AlertDialog>
         </DropdownMenuContent>
       </DropdownMenu>
-      <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Modifica Membro: {getFullName(member)}</DialogTitle>
-          </DialogHeader>
-          <EditMemberForm member={member} onClose={() => setIsEditDialogOpen(false)} />
-      </DialogContent>
-    </Dialog>
+      <SheetContent className="sm:max-w-xl w-full overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Modifica Membro: {getFullName(member)}</SheetTitle>
+            <SheetDescription>
+              Apporta le modifiche necessarie ai dati del membro. Clicca "Salva" per confermare.
+            </SheetDescription>
+          </SheetHeader>
+          <EditMemberForm member={member} onClose={() => setIsSheetOpen(false)} />
+      </SheetContent>
+    </Sheet>
   );
 };
-
 
 const MemberTableRow = ({ member }: { member: any }) => {
   const status = getStatus(member);
