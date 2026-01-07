@@ -73,7 +73,7 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
   const handleStatusChange = async (id: string, status: 'approved' | 'rejected') => {
     
     const memberToUpdate = members.find((m) => m.id === id);
-    if (!memberToUpdate) return;
+    if (!memberToUpdate || !firestore) return;
     
     if (status === "approved") {
         const { id: oldId, requestDate, ...memberData } = memberToUpdate;
@@ -88,8 +88,11 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
 
         const requestRef = doc(firestore, "membership_requests", id);
         await deleteDocumentNonBlocking(requestRef);
-
-        setMembers((prev) => [...prev.filter(m => m.id !== id), {...newMemberData, id: newMemberRef.id}]);
+        
+        // Correctly replace the old request with the new member data in the local state.
+        setMembers((prev) => 
+          prev.map(m => m.id === id ? { ...newMemberData, id: newMemberRef.id } : m)
+        );
 
          toast({
             title: "Membro Approvato!",
@@ -115,9 +118,9 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
 
   const handleDelete = async (id: string) => {
     const memberToDelete = members.find((m) => m.id === id);
-    if (!memberToDelete) return;
+    if (!memberToDelete || !firestore) return;
 
-    const collectionName = memberToDelete.status === 'pending' ? 'membership_requests' : 'members';
+    const collectionName = getStatus(memberToDelete) === 'pending' ? 'membership_requests' : 'members';
     const docRef = doc(firestore, collectionName, id);
     await deleteDocumentNonBlocking(docRef);
 
