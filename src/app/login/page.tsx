@@ -68,12 +68,18 @@ export default function LoginPage() {
           // The onAuthStateChanged listener will automatically pick up the new user
           // and the useEffect will redirect to /admin.
         } catch (creationError: any) {
-          setError("Errore durante la creazione dell'utente admin.");
-          console.error("Admin user creation error:", creationError);
+           if (creationError.code !== 'auth/email-already-in-use') {
+              setError("Errore durante la creazione dell'utente admin.");
+              console.error("Admin user creation error:", creationError);
+           }
+           // if email already in use, it means another process created it.
+           // we can just try to sign in again, the useEffect will redirect.
         }
-      } else {
+      } else if (err.code !== 'auth/too-many-requests') {
         setError("Credenziali non valide. Riprova.");
         console.error(err);
+      } else {
+        setError("Troppi tentativi falliti. Riprova più tardi.");
       }
     } finally {
       setIsLoading(false);
