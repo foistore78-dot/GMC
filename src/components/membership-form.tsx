@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, ArrowLeft, PartyPopper, Info } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, PartyPopper, Info, Home } from "lucide-react";
 import { useState } from "react";
 import { useFirestore, addDocumentNonBlocking } from "@/firebase";
 import { collection, serverTimestamp } from "firebase/firestore";
@@ -188,9 +188,14 @@ export function MembershipForm() {
                 Ti invitiamo a passare in sede per versare la quota associativa e finalizzare la tua iscrizione. Un nostro responsabile ti contatterà presto.
               </AlertDescription>
             </Alert>
-            <Button onClick={resetForm} className="mt-8">
-                Invia un'altra candidatura
-            </Button>
+            <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+                <Button onClick={resetForm} variant="outline">
+                    Invia un'altra candidatura
+                </Button>
+                <Button asChild>
+                    <Link href="/"><Home className="mr-2 h-4 w-4" /> Chiudi e torna alla Home</Link>
+                </Button>
+            </div>
         </div>
     )
   }
