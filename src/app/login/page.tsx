@@ -57,23 +57,25 @@ export default function LoginPage() {
         try {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
           const newUser = userCredential.user;
+          // This is the critical step: create the admin role document.
           const adminRoleRef = doc(firestore, "roles_admin", newUser.uid);
-          await setDoc(adminRoleRef, {
+          await setDoc(adminRolegmcRef, {
             email: newUser.email,
             role: "admin",
             username: "admin_gmc",
             id: newUser.uid,
           });
+          // After successful creation and role assignment, redirect.
           router.push('/admin');
         } catch (creationError: any) {
-          setError("Errore durante la creazione dell'utente admin.");
+           setError("Errore durante la creazione dell'utente admin: " + creationError.message);
         }
       } else if (err.code === 'auth/invalid-credential') {
         setError("Credenziali non valide. Riprova.");
       } else if (err.code === 'auth/too-many-requests') {
         setError("Troppi tentativi falliti. Il tuo account è stato temporaneamente bloccato. Riprova più tardi.");
       } else {
-        setError("Si è verificato un errore imprevisto. Riprova.");
+        setError(`Si è verificato un errore imprevisto: ${err.message}`);
       }
     } finally {
       setIsLoading(false);
