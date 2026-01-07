@@ -44,7 +44,7 @@ import {
 import { Input } from "./ui/input";
 import { useFirestore } from "@/firebase";
 import { doc, deleteDoc } from "firebase/firestore";
-import { differenceInYears, format } from 'date-fns';
+import { differenceInYears, format, parseISO } from 'date-fns';
 
 // Helper Functions
 export const getFullName = (member: any) => `${member.firstName || ''} ${member.lastName || ''}`.trim();
@@ -53,19 +53,24 @@ export const getStatus = (member: any): 'active' | 'pending' | 'rejected' => {
     return member.status || 'pending';
 };
 export const isMinor = (birthDate: string | Date | undefined) => birthDate ? differenceInYears(new Date(), new Date(birthDate)) < 18 : false;
-export const formatDate = (dateString: any) => {
+export const formatDate = (dateString: any, outputFormat: string = 'dd/MM/yyyy') => {
   if (!dateString) return 'N/A';
+  
+  let date;
   if (dateString && typeof dateString.toDate === 'function') {
-    try { 
-      return format(dateString.toDate(), 'dd/MM/yyyy'); 
-    } catch { 
-      return 'Data non valida'; 
+    date = dateString.toDate();
+  } else {
+    try {
+      date = typeof dateString === 'string' && dateString.includes('T') ? parseISO(dateString) : new Date(dateString);
+    } catch {
+      return String(dateString);
     }
   }
-  try { 
-    return format(new Date(dateString), 'dd/MM/yyyy'); 
-  } catch { 
-    return String(dateString);
+
+  try {
+    return format(date, outputFormat);
+  } catch {
+    return 'Data non valida';
   }
 };
 
@@ -149,6 +154,7 @@ const MemberTableRow = memo(({
                        <DetailRow icon={<Home />} label="Indirizzo" value={`${member.address}, ${member.city} (${member.province}) ${member.postalCode}`} />
                        <DetailRow icon={<Hash />} label="Codice Fiscale" value={member.fiscalCode} />
                        <DetailRow icon={<Calendar />} label="Anno Associativo" value={member.membershipYear || new Date().getFullYear()} />
+                       <DetailRow icon={<Calendar />} label="Data Richiesta" value={formatDate(member.requestDate)} />
                        <DetailRow icon={<Euro />} label="Quota Versata" value={`€ ${defaultFee}`} />
                        {member.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
                        <DetailRow icon={<StickyNote />} label="Note" value={member.notes} />

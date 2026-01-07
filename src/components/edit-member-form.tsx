@@ -25,7 +25,7 @@ import { doc, writeBatch } from "firebase/firestore";
 import type { Member } from "@/lib/members-data";
 import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { getStatus, getFullName, isMinor } from "./members-table";
+import { getStatus, getFullName, isMinor, formatDate } from "./members-table";
 
 const formSchema = z.object({
   firstName: z.string().min(2, { message: "Il nome deve contenere almeno 2 caratteri." }),
@@ -45,6 +45,7 @@ const formSchema = z.object({
   membershipYear: z.string().optional(),
   membershipFee: z.coerce.number().optional(),
   status: z.enum(['active', 'pending', 'rejected']),
+  requestDate: z.string().optional(),
   guardianFirstName: z.string().optional(),
   guardianLastName: z.string().optional(),
   guardianBirthDate: z.string().optional(),
@@ -70,6 +71,14 @@ const getDefaultValues = (member: Member) => {
     const originalStatus = getStatus(member);
     const defaultMembershipYear = member.membershipYear || new Date().getFullYear().toString();
     const defaultMembershipFee = member.membershipFee ?? (differenceInYears(new Date(), member.birthDate || new Date()) < 18 ? 0 : 10);
+    
+    let requestDateValue;
+    try {
+        requestDateValue = member.requestDate ? formatDate(member.requestDate, 'yyyy-MM-dd') : new Date().toISOString().split('T')[0];
+    } catch {
+        requestDateValue = new Date().toISOString().split('T')[0];
+    }
+
     return {
         ...member,
         phone: member.phone || '',
@@ -78,6 +87,7 @@ const getDefaultValues = (member: Member) => {
         membershipFee: defaultMembershipFee,
         isVolunteer: member.isVolunteer || false,
         notes: member.notes || "",
+        requestDate: requestDateValue,
         guardianFirstName: member.guardianFirstName || "",
         guardianLastName: member.guardianLastName || "",
         guardianBirthDate: member.guardianBirthDate || "",
@@ -131,7 +141,7 @@ export function EditMemberForm({ member, onClose, onMemberUpdate, onMemberDelete
                 delete finalData.status;
             } else { // pending
                 finalData.status = newStatus;
-                finalData.requestDate = member.requestDate || new Date().toISOString();
+                finalData.requestDate = values.requestDate ? new Date(values.requestDate).toISOString() : new Date().toISOString();
                 delete finalData.membershipStatus;
                 delete finalData.joinDate;
                 delete finalData.expirationDate;
@@ -141,7 +151,11 @@ export function EditMemberForm({ member, onClose, onMemberUpdate, onMemberDelete
       } else if (newStatus !== 'rejected') {
         const collection = newStatus === 'active' ? 'members' : 'membership_requests';
         const docRef = doc(firestore, collection, member.id);
-        batch.set(docRef, dataToSave, { merge: true });
+        let dataWithCorrectDate = {
+            ...dataToSave,
+            requestDate: values.requestDate ? new Date(values.requestDate).toISOString() : member.requestDate
+        };
+        batch.set(docRef, dataWithCorrectDate, { merge: true });
       }
 
       await batch.commit();
@@ -251,6 +265,9 @@ export function EditMemberForm({ member, onClose, onMemberUpdate, onMemberDelete
 
             <FormField control={form.control} name="membershipYear" render={({ field }) => (
                 <FormItem><FormLabel>Anno Associativo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+            )}/>
+            <FormField control={form.control} name="requestDate" render={({ field }) => (
+                <FormItem><FormLabel>Data Richiesta</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
             )}/>
             <FormField control={form.control} name="membershipFee" render={({ field }) => (
                 <FormItem><FormLabel>Quota Versata (€)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
