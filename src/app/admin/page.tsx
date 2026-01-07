@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -9,17 +9,52 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebas
 import { collection } from "firebase/firestore";
 import { Loader2, Users } from "lucide-react";
 import { Member } from "@/lib/members-data";
+import { getStatus } from "@/components/members-table";
 
 export default function AdminPage() {
   const router = useRouter();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
-  
+
   const membersCollection = useMemoFirebase(() => (firestore) ? collection(firestore, 'members') : null, [firestore]);
   const { data: members, isLoading: isLoadingMembers } = useCollection<Member>(membersCollection);
 
   const membershipRequestsCollection = useMemoFirebase(() => (firestore) ? collection(firestore, 'membership_requests') : null, [firestore]);
   const { data: membershipRequests, isLoading: isLoadingRequests } = useCollection<any>(membershipRequestsCollection);
+
+  const [allItems, setAllItems] = useState<Member[]>([]);
+
+  useEffect(() => {
+    const combinedData: { [key: string]: Member } = {};
+
+    (membershipRequests || []).forEach(item => {
+      if (item && item.id) combinedData[item.id] = { ...item } as Member;
+    });
+    
+    (members || []).forEach(item => {
+      if (item && item.id) combinedData[item.id] = { ...item } as Member;
+    });
+
+    const sortedItems = Object.values(combinedData).sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
+    setAllItems(sortedItems);
+
+  }, [members, membershipRequests]);
+
+  const handleUpdateLocally = useCallback((updatedMember: Member) => {
+    setAllItems(prevItems => {
+      const itemExists = prevItems.some(item => item.id === updatedMember.id);
+      if (itemExists) {
+        return prevItems.map(item => item.id === updatedMember.id ? { ...item, ...updatedMember } : item);
+      } else {
+        return [...prevItems, updatedMember].sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
+      }
+    });
+  }, []);
+
+  const handleRemoveLocally = useCallback((memberId: string) => {
+    setAllItems(prevItems => prevItems.filter(item => item.id !== memberId));
+  }, []);
+
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -56,7 +91,11 @@ export default function AdminPage() {
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
              </div>
           ) : (
-            <MembersTable initialMembers={members || []} initialRequests={membershipRequests || []} />
+            <MembersTable 
+              members={allItems}
+              onMemberUpdate={handleUpdateLocally}
+              onMemberDelete={handleRemoveLocally}
+            />
           )}
         </div>
       </main>

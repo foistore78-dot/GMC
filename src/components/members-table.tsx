@@ -96,7 +96,15 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
 };
 
 
-const MemberTableRow = ({ member, onEdit, onDelete }: { member: Member; onEdit: () => void; onDelete: () => void; }) => {
+const MemberTableRow = ({ 
+  member, 
+  onEdit, 
+  onDelete 
+}: { 
+  member: Member; 
+  onEdit: (member: Member) => void; 
+  onDelete: (member: Member) => void;
+}) => {
   const status = getStatus(member);
   const memberIsMinor = isMinor(member.birthDate);
   const defaultFee = member.membershipFee ?? (isMinor(member.birthDate) ? 0 : 10);
@@ -173,7 +181,7 @@ const MemberTableRow = ({ member, onEdit, onDelete }: { member: Member; onEdit: 
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-            <DropdownMenuItem onSelect={onEdit}>
+            <DropdownMenuItem onSelect={() => onEdit(member)}>
               <Pencil className="mr-2 h-4 w-4" /> Modifica
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -192,7 +200,7 @@ const MemberTableRow = ({ member, onEdit, onDelete }: { member: Member; onEdit: 
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Annulla</AlertDialogCancel>
-                  <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  <AlertDialogAction onClick={() => onDelete(member)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                     Elimina
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -206,58 +214,28 @@ const MemberTableRow = ({ member, onEdit, onDelete }: { member: Member; onEdit: 
 };
 
 
-export function MembersTable({ initialMembers, initialRequests }: { initialMembers: Member[], initialRequests: Member[] }) {
-  const [allItems, setAllItems] = useState<Member[]>([]);
+export function MembersTable({ members, onMemberUpdate, onMemberDelete }: { members: Member[], onMemberUpdate: (member: Member) => void, onMemberDelete: (id: string) => void }) {
   const [filter, setFilter] = useState('');
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  useEffect(() => {
-    const combinedData: { [key: string]: Member } = {};
-
-    (initialRequests || []).forEach(item => {
-      if (item && item.id) combinedData[item.id] = { ...item } as Member;
-    });
-    
-    (initialMembers || []).forEach(item => {
-      if (item && item.id) combinedData[item.id] = { ...item } as Member;
-    });
-
-    const sortedItems = Object.values(combinedData).sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
-    setAllItems(sortedItems);
-
-  }, [initialMembers, initialRequests]);
-  
-  const filteredMembers = useMemo(() => allItems.filter(member => {
+  const filteredMembers = useMemo(() => members.filter(member => {
     return getFullName(member).toLowerCase().includes(filter.toLowerCase()) ||
            (member.email && member.email.toLowerCase().includes(filter.toLowerCase()));
-  }), [allItems, filter]);
-
-  const handleUpdateMemberInList = useCallback((updatedMember: Member) => {
-    setAllItems(prevItems => {
-        const itemExists = prevItems.some(item => item.id === updatedMember.id);
-        if (itemExists) {
-            return prevItems.map(item => item.id === updatedMember.id ? updatedMember : item);
-        } else {
-            return [...prevItems, updatedMember].sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
-        }
-    });
-  }, []);
-
-  const handleDeleteMemberFromList = useCallback((memberId: string) => {
-    setAllItems(prevItems => prevItems.filter(item => item.id !== memberId));
-  }, []);
+  }), [members, filter]);
   
   const handleDeleteMember = (memberToDelete: Member) => {
     if (!firestore) return;
-
-    handleDeleteMemberFromList(memberToDelete.id);
+    
+    // Optimistically update UI
+    onMemberDelete(memberToDelete.id);
     
     const currentStatus = getStatus(memberToDelete);
     const collectionName = currentStatus === 'active' ? 'members' : 'membership_requests';
     const docRef = doc(firestore, collectionName, memberToDelete.id);
     
+    // Non-blocking delete in the background
     deleteDocumentNonBlocking(docRef);
 
     toast({
@@ -265,6 +243,14 @@ export function MembersTable({ initialMembers, initialRequests }: { initialMembe
       description: `${getFullName(memberToDelete)} è stato rimosso dalla lista.`,
       variant: "destructive",
     });
+  };
+
+  const handleEdit = (member: Member) => {
+    setEditingMember(member);
+  };
+  
+  const handleCloseSheet = () => {
+    setEditingMember(null);
   };
 
   return (
@@ -296,8 +282,8 @@ export function MembersTable({ initialMembers, initialRequests }: { initialMembe
                 <MemberTableRow 
                   key={member.id} 
                   member={member}
-                  onEdit={() => setEditingMember(member)}
-                  onDelete={() => handleDeleteMember(member)}
+                  onEdit={handleEdit}
+                  onDelete={handleDeleteMember}
                 />
               ))
             ) : (
@@ -310,7 +296,7 @@ export function MembersTable({ initialMembers, initialRequests }: { initialMembe
           </TableBody>
         </Table>
       </div>
-      <Sheet open={!!editingMember} onOpenChange={(isOpen) => !isOpen && setEditingMember(null)}>
+      <Sheet open={!!editingMember} onOpenChange={(isOpen) => !isOpen && handleCloseSheet()}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
           {editingMember && (
             <>
@@ -319,24 +305,18 @@ export function MembersTable({ initialMembers, initialRequests }: { initialMembe
               </SheetHeader>
               <EditMemberForm 
                 member={editingMember} 
-                onClose={() => setEditingMember(null)}
-                onUpdate={(updatedData) => {
+                onClose={handleCloseSheet}
+                onUpdate={(updatedData, newStatus, originalStatus) => {
                     // This callback now only updates the local state
-                    const originalStatus = getStatus(editingMember);
-                    const newStatus = updatedData.status;
-
                     if (originalStatus !== newStatus) {
-                        // If status changes, one item is removed, another might be added (or not if rejected)
-                        handleDeleteMemberFromList(editingMember.id);
+                        onMemberDelete(editingMember.id);
                         if (newStatus !== 'rejected') {
-                             handleUpdateMemberInList({ ...editingMember, ...updatedData } as Member);
+                             onMemberUpdate({ ...editingMember, ...updatedData } as Member);
                         }
                     } else {
-                        // If status is the same, just update the item in the list
-                        handleUpdateMemberInList({ ...editingMember, ...updatedData } as Member);
+                        onMemberUpdate({ ...editingMember, ...updatedData } as Member);
                     }
-                    
-                    setEditingMember(null); // Close sheet
+                    handleCloseSheet(); // Close sheet
                 }}
               />
             </>
