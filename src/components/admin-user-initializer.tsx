@@ -26,22 +26,31 @@ export function AdminUserInitializer() {
 
     const initializeAdmin = async () => {
       let user: User | null = null;
+      let userCredential;
 
       try {
-        // Try to sign in first.
-        const userCredential = await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+        // Try to sign in first. This is the normal case.
+        userCredential = await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
         user = userCredential.user;
       } catch (error: any) {
         // If sign-in fails because user not found or password is wrong, create the user.
-        // This effectively resets the password if it was wrong.
+        // This effectively creates the user or resets the password if it was wrong.
         if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
           try {
-            const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
+            userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
             user = userCredential.user;
           } catch (creationError: any) {
-            // If creation fails because the email is *already* in use (race condition),
-            // we can just ignore it and proceed. The user exists.
-            if (creationError.code !== 'auth/email-already-in-use') {
+            // This can happen in a race condition where another client created the user
+            // between our failed sign-in and our creation attempt.
+            if (creationError.code === 'auth/email-already-in-use') {
+               // The user now exists, so we can try signing in again to get the user object.
+               try {
+                   userCredential = await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+                   user = userCredential.user;
+               } catch (finalSignInError) {
+                   console.error("Admin final sign-in attempt failed:", finalSignInError);
+               }
+            } else {
                console.error("Admin user creation error:", creationError);
             }
           }
@@ -51,12 +60,6 @@ export function AdminUserInitializer() {
       }
 
       try {
-        // If we still don't have a user, try one last sign-in. This is needed if createUser failed with email-already-in-use.
-        if (!user) {
-           const finalSignIn = await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
-           user = finalSignIn.user;
-        }
-
         // If we have a user (from sign-in or creation), ensure their role exists in Firestore.
         if (user) {
           const adminRoleRef = doc(firestore, "roles_admin", user.uid);
@@ -72,15 +75,14 @@ export function AdminUserInitializer() {
             console.log("Admin role document created in Firestore.");
           }
         }
-      } catch(finalError) {
-        // Catch errors from the final sign-in or firestore operations
-        console.error("Error during final stage of admin initialization:", finalError);
+      } catch(firestoreError) {
+        console.error("Error during Firestore role initialization:", firestoreError);
       }
       finally {
         setIsInitialized(true);
         // CRITICAL: Always sign out after initialization.
-        // This forces the user to log in through the UI, which correctly
-        // sets up the application's auth state for the admin pages.
+        // This forces a clean state and requires the user to log in through the UI.
+        // By the time they log in, the Firestore role document will have been created.
         if (auth.currentUser) {
             await auth.signOut();
         }
