@@ -73,9 +73,9 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
   const handleApprove = async (id: string) => {
     const memberToUpdate = members.find((m) => m.id === id);
     if (!memberToUpdate || !firestore) return;
-
-    // 1. Create the new member document
-    const { id: oldId, requestDate, ...memberData } = memberToUpdate;
+  
+    // 1. Create the new member document from the request data
+    const { id: oldId, requestDate, status, ...memberData } = memberToUpdate;
     const newMemberData = {
       ...memberData,
       membershipStatus: 'active',
@@ -83,18 +83,23 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
       expirationDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
     };
     const membersCollection = collection(firestore, 'members');
-    // We await this to get the new ID for the state update
+    
+    // We await this to get the new document reference with its ID
     const newMemberRef = await addDocumentNonBlocking(membersCollection, newMemberData);
-
+  
     // 2. Delete the old membership request
     const requestRef = doc(firestore, "membership_requests", id);
     await deleteDocumentNonBlocking(requestRef);
     
-    // 3. Update the local state correctly
-    setMembers((prev) => 
-      prev.map(m => (m.id === id ? { ...newMemberData, id: newMemberRef.id } : m))
-    );
-
+    // 3. Correctly update the local state: remove the old request and add the new member
+    setMembers((prev) => {
+      // Filter out the old request by its original ID
+      const updatedList = prev.filter(m => m.id !== id);
+      // Add the new member with its new ID from Firestore
+      updatedList.push({ ...newMemberData, id: newMemberRef.id });
+      return updatedList;
+    });
+  
     toast({
         title: "Membro Approvato!",
         description: `${memberToUpdate.firstName} è ora un membro del club.`,
