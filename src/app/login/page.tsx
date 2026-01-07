@@ -29,7 +29,7 @@ export default function LoginPage() {
   const auth = useAuth();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
-  const [email, setEmail] = useState("garage.music.club2024@gmail.com");
+  const [email, setEmail] = useState("fois.tore78@gmail.com");
   const [password, setPassword] = useState("password");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
