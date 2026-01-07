@@ -32,32 +32,75 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
+import { useFirestore, setDocumentNonBlocking, deleteDocumentNonBlocking, addDocumentNonBlocking } from "@/firebase";
+import { collection, doc, serverTimestamp } from "firebase/firestore";
 
 type MembersTableProps = {
-  initialMembers: Member[];
+  initialMembers: any[];
 };
 
 export function MembersTable({ initialMembers }: MembersTableProps) {
-  const [members, setMembers] = useState<Member[]>(initialMembers);
+  const [members, setMembers] = useState<any[]>(initialMembers);
   const [filter, setFilter] = useState('');
   const { toast } = useToast();
+  const firestore = useFirestore();
 
-  const handleStatusChange = (id: string, status: Member["status"]) => {
-    setMembers((prevMembers) =>
-      prevMembers.map((member) =>
-        member.id === id ? { ...member, status } : member
-      )
-    );
-    toast({
-      title: "Stato membro aggiornato!",
-      description: `Il membro è stato impostato su ${status}.`,
-    });
+  const handleStatusChange = async (id: string, status: Member["status"]) => {
+    
+    const memberToUpdate = members.find((m) => m.id === id);
+    if (!memberToUpdate) return;
+    
+    if (status === "approved") {
+        // Move from requests to members
+        const { id: oldId, requestDate, ...memberData } = memberToUpdate;
+        const newMemberData = {
+          ...memberData,
+          status: 'approved',
+          joinDate: serverTimestamp(),
+          expirationDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
+        };
+        const membersCollection = collection(firestore, 'members');
+        const newMemberRef = await addDocumentNonBlocking(membersCollection, newMemberData);
+
+        // Delete from requests
+        const requestRef = doc(firestore, "membership_requests", id);
+        await deleteDocumentNonBlocking(requestRef);
+
+        setMembers((prev) => [...prev.filter(m => m.id !== id), {...newMemberData, id: newMemberRef.id}]);
+
+         toast({
+            title: "Membro Approvato!",
+            description: `${memberToUpdate.firstName} è ora un membro del club.`,
+        });
+
+    } else {
+        // Update status in place (for pending -> rejected)
+        const memberRef = doc(firestore, memberToUpdate.status === 'pending' ? "membership_requests" : "members", id);
+        await setDocumentNonBlocking(memberRef, { status }, { merge: true });
+        
+        setMembers((prevMembers) =>
+          prevMembers.map((member) =>
+            member.id === id ? { ...member, status } : member
+          )
+        );
+        toast({
+          title: "Stato membro aggiornato!",
+          description: `Il membro è stato impostato su ${status}.`,
+        });
+    }
+
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
+    const memberToDelete = members.find((m) => m.id === id);
+    if (!memberToDelete) return;
+
+    const collectionName = memberToDelete.status === 'pending' ? 'membership_requests' : 'members';
+    const docRef = doc(firestore, collectionName, id);
+    await deleteDocumentNonBlocking(docRef);
+
     setMembers((prevMembers) => prevMembers.filter((member) => member.id !== id));
     toast({
       title: "Membro rimosso",
@@ -66,10 +109,16 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
     });
   };
   
-  const filteredMembers = members.filter(member => 
-    member.name.toLowerCase().includes(filter.toLowerCase()) ||
-    member.email.toLowerCase().includes(filter.toLowerCase())
-  );
+  const getFullName = (member: any) => {
+    if (member.name) return member.name;
+    return `${member.firstName || ''} ${member.lastName || ''}`.trim();
+  }
+
+  const filteredMembers = members.filter(member => {
+    const fullName = getFullName(member);
+    return fullName.toLowerCase().includes(filter.toLowerCase()) ||
+           member.email.toLowerCase().includes(filter.toLowerCase())
+  });
 
   return (
     <div>
@@ -99,7 +148,7 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
             {filteredMembers.length > 0 ? (
               filteredMembers.map((member) => (
                 <TableRow key={member.id}>
-                  <TableCell className="font-medium">{member.name}</TableCell>
+                  <TableCell className="font-medium">{getFullName(member)}</TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground">
                     <div>{member.email}</div>
                     <div>{member.phone}</div>
@@ -134,18 +183,20 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-                        <DropdownMenuItem
-                          onClick={() => handleStatusChange(member.id, "approved")}
-                          disabled={member.status === 'approved'}
-                        >
-                          <Check className="mr-2 h-4 w-4" /> Approva
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleStatusChange(member.id, "rejected")}
-                          disabled={member.status === 'rejected'}
-                        >
-                          <X className="mr-2 h-4 w-4" /> Rifiuta
-                        </DropdownMenuItem>
+                        {member.status !== 'approved' && (
+                            <DropdownMenuItem
+                            onClick={() => handleStatusChange(member.id, "approved")}
+                            >
+                            <Check className="mr-2 h-4 w-4" /> Approva
+                            </DropdownMenuItem>
+                        )}
+                        {member.status !== 'rejected' && (
+                            <DropdownMenuItem
+                            onClick={() => handleStatusChange(member.id, "rejected")}
+                            >
+                            <X className="mr-2 h-4 w-4" /> Rifiuta
+                            </DropdownMenuItem>
+                        )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => toast({title: "L'azione di modifica è in fase di sviluppo."})}>
                           <Pencil className="mr-2 h-4 w-4" /> Modifica
@@ -160,7 +211,7 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Questa azione non può essere annullata. Questo rimuoverà permanentemente {member.name} dalla lista.
+                                Questa azione non può essere annullata. Questo rimuoverà permanentemente {getFullName(member)} dalla lista.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>

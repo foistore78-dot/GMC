@@ -20,6 +20,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
+import { useFirestore, addDocumentNonBlocking } from "@/firebase";
+import { collection, serverTimestamp } from "firebase/firestore";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -42,6 +44,8 @@ const formSchema = z.object({
 export function MembershipForm() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const firestore = useFirestore();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -53,18 +57,41 @@ export function MembershipForm() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
-    // Simulate API call
-    setTimeout(() => {
-      console.log(values);
+    
+    try {
+      const { name, ...rest } = values;
+      const nameParts = name.split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ');
+
+      const membershipRequestData = {
+        ...rest,
+        firstName,
+        lastName,
+        requestDate: serverTimestamp(),
+        status: 'pending',
+      };
+      
+      const requestsCollection = collection(firestore, 'membership_requests');
+      await addDocumentNonBlocking(requestsCollection, membershipRequestData);
+
       toast({
         title: "Domanda Inviata!",
         description: "Grazie per il tuo interesse. Ti contatteremo presto.",
       });
       form.reset();
+    } catch (error) {
+      console.error("Error submitting application:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un problema durante l'invio della domanda.",
+        variant: "destructive",
+      });
+    } finally {
       setIsSubmitting(false);
-    }, 1500);
+    }
   }
 
   return (

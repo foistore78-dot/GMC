@@ -1,14 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { usePathname, useRouter } from "next/navigation";
 import { GarageMusicClubLogo } from "./icons/garage-music-club-logo";
 import { Button } from "./ui/button";
+import { useAuth, useUser } from "@/firebase";
+import { signOut } from "firebase/auth";
 
 export function Header() {
   const pathname = usePathname();
-  const isAdminPage = pathname.startsWith('/admin');
+  const router = useRouter();
+  const { user } = useUser();
+  const auth = useAuth();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push("/login");
+  };
+
+  const isAdminRelatedPage = pathname.startsWith('/admin') || pathname.startsWith('/login');
 
   return (
     <header className="absolute top-0 left-0 w-full z-20 bg-transparent text-white p-4">
@@ -20,12 +30,12 @@ export function Header() {
           </span>
         </Link>
         <nav>
-          {isAdminPage ? (
-             <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary">
-                <Link href="/">Esci</Link>
-             </Button>
+          {user ? (
+            <Button onClick={handleLogout} variant="ghost" className="hover:bg-primary/10 hover:text-primary">
+              Logout
+            </Button>
           ) : (
-            <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary">
+             <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary">
               <Link href="/login">Login Admin</Link>
             </Button>
           )}

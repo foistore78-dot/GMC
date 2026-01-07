@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
+import { FirebaseClientProvider } from "@/firebase/client-provider";
 
 export const metadata: Metadata = {
   title: "Manager del Garage Music Club",
@@ -23,7 +24,7 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased min-h-screen bg-background flex flex-col">
-        {children}
+        <FirebaseClientProvider>{children}</FirebaseClientProvider>
         <Toaster />
       </body>
     </html>
