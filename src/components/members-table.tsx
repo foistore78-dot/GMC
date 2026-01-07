@@ -124,52 +124,55 @@ const MemberActions = ({ member }: { member: any }) => {
   };
 
   return (
-    <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
-            <span className="sr-only">Apri menu</span>
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-           <DropdownMenuItem onSelect={() => setIsSheetOpen(true)}>
-              <Pencil className="mr-2 h-4 w-4" /> Modifica
-            </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <AlertDialogTrigger asChild>
-            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
-              <Trash2 className="mr-2 h-4 w-4" /> Elimina
-            </DropdownMenuItem>
-          </AlertDialogTrigger>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <AlertDialog>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Questa azione non può essere annullata. Questo rimuoverà permanentemente {getFullName(member)} dalla lista.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annulla</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Elimina
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
-          <SheetHeader>
-            <SheetTitle>Modifica Membro: {getFullName(member)}</SheetTitle>
-          </SheetHeader>
-          <EditMemberForm member={member} onClose={() => setIsSheetOpen(false)} />
-      </SheetContent>
-    </Sheet>
+    <AlertDialog>
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Apri menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Azioni</DropdownMenuLabel>
+            <DropdownMenuItem onSelect={() => setIsSheetOpen(true)}>
+                <Pencil className="mr-2 h-4 w-4" /> Modifica
+              </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <AlertDialogTrigger asChild>
+              <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
+                <Trash2 className="mr-2 h-4 w-4" /> Elimina
+              </DropdownMenuItem>
+            </AlertDialogTrigger>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+            <SheetHeader>
+              <SheetTitle>Modifica Membro: {getFullName(member)}</SheetTitle>
+            </SheetHeader>
+            <EditMemberForm member={member} onClose={() => setIsSheetOpen(false)} />
+        </SheetContent>
+      </Sheet>
+      
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Questa azione non può essere annullata. Questo rimuoverà permanentemente {getFullName(member)} dalla lista.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annulla</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Elimina
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 };
+
 
 const MemberTableRow = ({ member }: { member: any }) => {
   const status = getStatus(member);
