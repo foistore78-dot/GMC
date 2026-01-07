@@ -29,7 +29,7 @@ export default function LoginPage() {
   const router = useRouter();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
-  const [email, setEmail] = useState("admin@music.com");
+  const [email, setEmail] = useState("garage.music.club2024@gmail.com");
   const [password, setPassword] = useState("password");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
