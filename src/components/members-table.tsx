@@ -104,27 +104,27 @@ const MemberTableRow = memo(({
   const memberIsMinor = isMinor(member.birthDate);
   const defaultFee = member.membershipFee ?? (isMinor(member.birthDate) ? 0 : 10);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!firestore) return;
     
     const collectionName = status === 'active' ? 'members' : 'membership_requests';
     const docRef = doc(firestore, collectionName, member.id);
     
-    // Non-blocking delete
-    deleteDoc(docRef).then(() => {
-        onDelete(member.id); // Notify parent to close sheet etc.
-        toast({
-            title: "Membro rimosso",
-            description: `${getFullName(member)} è stato rimosso dalla lista.`,
-        });
-    }).catch(error => {
+    try {
+      await deleteDoc(docRef);
+      toast({
+          title: "Membro rimosso",
+          description: `${getFullName(member)} è stato rimosso dalla lista.`,
+      });
+      onDelete(member.id);
+    } catch (error) {
         console.error("Error deleting member:", error);
         toast({
             title: "Errore",
-            description: "Non è stato possibile rimuovere il membro. Ricarica la pagina.",
+            description: "Non è stato possibile rimuovere il membro.",
             variant: "destructive"
         });
-    });
+    }
   };
   
   return (

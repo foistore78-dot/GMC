@@ -96,7 +96,6 @@ export function EditMemberForm({ member, onClose, onMemberUpdate, onMemberDelete
 
     try {
       if (originalStatus !== newStatus) {
-        // Status changed: move the document or delete it
         const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
         const oldDocRef = doc(firestore, oldCollection, member.id);
         
@@ -124,7 +123,6 @@ export function EditMemberForm({ member, onClose, onMemberUpdate, onMemberDelete
             batch.set(newDocRef, finalData, { merge: true });
         }
       } else if (newStatus !== 'rejected') {
-        // Status is the same (and not 'rejected'), just update
         const collection = newStatus === 'active' ? 'members' : 'membership_requests';
         const docRef = doc(firestore, collection, member.id);
         batch.set(docRef, dataToSave, { merge: true });
@@ -132,19 +130,16 @@ export function EditMemberForm({ member, onClose, onMemberUpdate, onMemberDelete
 
       await batch.commit();
 
-      // Notify parent about the update
-      onMemberUpdate(updatedMemberData);
-      
-      if (newStatus === 'rejected') {
-        onMemberDelete(member.id);
-      }
-      
-      onClose(); // Close the sheet after successful submission
-
       toast({
           title: "Membro aggiornato!",
           description: `I dati di ${getFullName(values)} sono stati salvati.`,
       });
+      
+      if (newStatus === 'rejected') {
+        onMemberDelete(member.id);
+      } else {
+        onMemberUpdate(updatedMemberData);
+      }
 
     } catch(error) {
         console.error("Error committing batch:", error);

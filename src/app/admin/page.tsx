@@ -45,22 +45,11 @@ export default function AdminPage() {
     return Object.values(combinedData).sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
   }, [members, membershipRequests]);
 
-  const handleMemberUpdate = useCallback((updatedMember: Member) => {
-    // This will be handled by the real-time listener, but we can optimistically update the form.
-    if (editingMember && editingMember.id === updatedMember.id) {
-        setEditingMember(updatedMember);
-    }
-  }, [editingMember]);
-
-  const handleMemberDelete = useCallback((memberId: string) => {
-    // The real-time listener will automatically remove the member from the list.
-    // We just need to close the sheet if the deleted member was being edited.
-    if (editingMember && editingMember.id === memberId) {
-        setEditingMember(null);
-    }
-  }, [editingMember]);
+  const handleCloseSheet = () => {
+    setEditingMember(null);
+    router.refresh(); 
+  };
   
-
   if (isUserLoading || !user) {
     return (
       <div className="flex flex-col min-h-screen bg-secondary">
@@ -93,13 +82,17 @@ export default function AdminPage() {
             <MembersTable 
                 members={allMembers}
                 onEdit={setEditingMember}
-                onMemberDelete={handleMemberDelete} // Pass a stable delete handler
+                onMemberDelete={() => router.refresh()}
             />
           )}
         </div>
       </main>
 
-       <Sheet open={!!editingMember} onOpenChange={(isOpen) => !isOpen && setEditingMember(null)}>
+       <Sheet open={!!editingMember} onOpenChange={(isOpen) => {
+           if (!isOpen) {
+             handleCloseSheet();
+           }
+       }}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-xl md:w-[50vw] lg:w-[40vw]">
           {editingMember && (
             <>
@@ -107,11 +100,11 @@ export default function AdminPage() {
                 <SheetTitle>Modifica Membro: {getFullName(editingMember)}</SheetTitle>
               </SheetHeader>
               <EditMemberForm 
-                key={editingMember.id} // Add a key to force re-mount on member change
+                key={editingMember.id}
                 member={editingMember} 
-                onClose={() => setEditingMember(null)}
-                onMemberUpdate={handleMemberUpdate}
-                onMemberDelete={handleMemberDelete}
+                onClose={handleCloseSheet}
+                onMemberUpdate={handleCloseSheet}
+                onMemberDelete={handleCloseSheet}
               />
             </>
           )}
