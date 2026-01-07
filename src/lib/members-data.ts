@@ -1,5 +1,6 @@
 export type Member = {
   id: string;
+  gender: 'male' | 'female';
   firstName: string;
   lastName: string;
   email: string;

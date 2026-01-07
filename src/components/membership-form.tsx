@@ -46,10 +46,11 @@ type FormValues = z.infer<typeof formSchema>;
 const steps = [
   { id: 1, fields: ["gender"] as const, title: "Sesso" },
   { id: 2, fields: ["firstName", "lastName"] as const, title: "Come ti chiami?" },
-  { id: 3, fields: ["email", "phone"] as const, title: "Come possiamo contattarti?" },
-  { id: 4, fields: ["birthPlace", "birthDate", "fiscalCode"] as const, title: "Dati anagrafici" },
-  { id: 5, fields: ["instruments"] as const, title: "Parlaci del tuo talento" },
-  { id: 6, fields: ["isNotRobot"] as const, title: "Ultimo controllo" },
+  { id: 3, fields: ["birthDate", "birthPlace"] as const, title: "Quando e dove sei nato/a?" },
+  { id: 4, fields: ["fiscalCode"] as const, title: "Codice Fiscale" },
+  { id: 5, fields: ["email", "phone"] as const, title: "Come possiamo contattarti?" },
+  { id: 6, fields: ["instruments"] as const, title: "Parlaci del tuo talento" },
+  { id: 7, fields: ["isNotRobot"] as const, title: "Ultimo controllo" },
 ];
 
 export function MembershipForm() {
@@ -78,7 +79,7 @@ export function MembershipForm() {
     setIsSubmitting(true);
     
     try {
-      const { ...rest } = values;
+      const { isNotRobot, ...rest } = values;
       const membershipRequestData = {
         ...rest,
         requestDate: serverTimestamp(),
@@ -115,11 +116,9 @@ export function MembershipForm() {
     if (!output) return;
 
     if (currentStep < steps.length - 1) {
-      if (currentStep === steps.length - 2) {
-        await form.handleSubmit(processForm)();
-      } else {
         setCurrentStep(step => step + 1);
-      }
+    } else {
+        await form.handleSubmit(processForm)();
     }
   };
 
@@ -208,8 +207,49 @@ export function MembershipForm() {
                 />
               </div>
             )}
-            
+
             {currentStep === 2 && (
+              <div className="space-y-4">
+                 <FormField
+                  control={form.control}
+                  name="birthDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Data di Nascita</FormLabel>
+                      <FormControl><Input type="date" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="birthPlace"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Luogo di Nascita</FormLabel>
+                      <FormControl><Input placeholder="Roma" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+            
+            {currentStep === 3 && (
+              <FormField
+                  control={form.control}
+                  name="fiscalCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Codice Fiscale</FormLabel>
+                      <FormControl><Input placeholder="RSSMRA80A01H501U" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+            )}
+
+            {currentStep === 4 && (
               <div className="space-y-4">
                 <FormField
                   control={form.control}
@@ -236,45 +276,7 @@ export function MembershipForm() {
               </div>
             )}
 
-            {currentStep === 3 && (
-              <div className="space-y-4">
-                 <FormField
-                  control={form.control}
-                  name="birthPlace"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Luogo di Nascita</FormLabel>
-                      <FormControl><Input placeholder="Roma" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="birthDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Data di Nascita</FormLabel>
-                      <FormControl><Input type="date" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="fiscalCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Codice Fiscale</FormLabel>
-                      <FormControl><Input placeholder="RSSMRA80A01H501U" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            )}
-
-            {currentStep === 4 && (
+            {currentStep === 5 && (
               <FormField
                 control={form.control}
                 name="instruments"
@@ -291,7 +293,7 @@ export function MembershipForm() {
               />
             )}
 
-            {currentStep === 5 && (
+            {currentStep === 6 && (
               <FormField
                 control={form.control}
                 name="isNotRobot"
