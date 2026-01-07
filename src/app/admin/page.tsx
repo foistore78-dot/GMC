@@ -9,6 +9,9 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebas
 import { collection } from "firebase/firestore";
 import { Loader2, Users } from "lucide-react";
 import type { Member } from "@/lib/members-data";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { EditMemberForm } from "@/components/edit-member-form";
+import { getFullName } from "@/components/members-table";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -16,6 +19,7 @@ export default function AdminPage() {
   const firestore = useFirestore();
 
   const [allMembers, setAllMembers] = useState<Member[]>([]);
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
   
   const membersCollection = useMemoFirebase(() => (firestore) ? collection(firestore, 'members') : null, [firestore]);
   const { data: members, isLoading: isLoadingMembers } = useCollection<Member>(membersCollection);
@@ -44,7 +48,7 @@ export default function AdminPage() {
     setAllMembers(sortedItems);
   }, [members, membershipRequests]);
 
-  const handleUpdateLocally = useCallback((updatedMember: Member) => {
+  const handleMemberUpdate = useCallback((updatedMember: Member) => {
     setAllMembers(prevMembers => {
       const index = prevMembers.findIndex(m => m.id === updatedMember.id);
       if (index !== -1) {
@@ -52,14 +56,18 @@ export default function AdminPage() {
         newMembers[index] = updatedMember;
         return newMembers;
       }
-      // If member is new (e.g., status change from rejected to pending)
-      return [...prevMembers, updatedMember].sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
+      return prevMembers; // Should not happen if updating
     });
-  }, []);
+    // Also update editing member if it's the one being edited
+    if (editingMember && editingMember.id === updatedMember.id) {
+      setEditingMember(updatedMember);
+    }
+  }, [editingMember]);
 
-  const handleRemoveLocally = useCallback((memberId: string) => {
+  const handleMemberDelete = useCallback((memberId: string) => {
     setAllMembers(prevMembers => prevMembers.filter(m => m.id !== memberId));
   }, []);
+  
 
   if (isUserLoading || !user) {
     return (
@@ -92,12 +100,30 @@ export default function AdminPage() {
           ) : (
             <MembersTable 
                 members={allMembers}
-                onMemberUpdate={handleUpdateLocally}
-                onMemberDelete={handleRemoveLocally}
+                onEdit={setEditingMember}
+                onMemberDelete={handleMemberDelete}
             />
           )}
         </div>
       </main>
+
+       <Sheet open={!!editingMember} onOpenChange={(isOpen) => !isOpen && setEditingMember(null)}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+          {editingMember && (
+            <>
+              <SheetHeader>
+                <SheetTitle>Modifica Membro: {getFullName(editingMember)}</SheetTitle>
+              </SheetHeader>
+              <EditMemberForm 
+                member={editingMember} 
+                onClose={() => setEditingMember(null)}
+                onMemberUpdate={handleMemberUpdate}
+              />
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
       <Footer />
     </div>
   );

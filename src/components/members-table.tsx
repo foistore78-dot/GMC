@@ -27,12 +27,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -51,7 +45,6 @@ import { Input } from "./ui/input";
 import { useFirestore } from "@/firebase";
 import { doc, deleteDoc } from "firebase/firestore";
 import { differenceInYears, format } from 'date-fns';
-import { EditMemberForm } from "./edit-member-form";
 
 // Helper Functions
 export const getFullName = (member: any) => `${member.firstName || ''} ${member.lastName || ''}`.trim();
@@ -97,14 +90,13 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
 
 const MemberTableRow = ({ 
   member,
-  onUpdate,
+  onEdit,
   onDelete,
 }: { 
   member: Member; 
-  onUpdate: (member: Member) => void;
+  onEdit: (member: Member) => void;
   onDelete: (id: string) => void;
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -135,13 +127,11 @@ const MemberTableRow = ({
             description: "Non è stato possibile rimuovere il membro. L'elenco verrà aggiornato.",
             variant: "destructive"
         });
-        // Note: useCollection will automatically handle the revert on error
     });
   };
   
   return (
-    <>
-      <TableRow key={member.id}>
+    <TableRow key={member.id}>
         <TableCell className="font-medium">
            <div className="flex items-center gap-3">
                 <Dialog>
@@ -212,7 +202,7 @@ const MemberTableRow = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-              <DropdownMenuItem onSelect={() => setIsEditing(true)}>
+              <DropdownMenuItem onSelect={() => onEdit(member)}>
                 <Pencil className="mr-2 h-4 w-4" /> Modifica
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -241,30 +231,16 @@ const MemberTableRow = ({
           </DropdownMenu>
         </TableCell>
       </TableRow>
-
-      <Sheet open={isEditing} onOpenChange={setIsEditing}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
-            <SheetHeader>
-              <SheetTitle>Modifica Membro: {getFullName(member)}</SheetTitle>
-            </SheetHeader>
-            <EditMemberForm 
-              member={member} 
-              onClose={() => setIsEditing(false)}
-              onUpdate={onUpdate}
-            />
-        </SheetContent>
-      </Sheet>
-    </>
   );
 };
 
 interface MembersTableProps {
   members: Member[];
-  onMemberUpdate: (member: Member) => void;
+  onEdit: (member: Member) => void;
   onMemberDelete: (id: string) => void;
 }
 
-export function MembersTable({ members, onMemberUpdate, onMemberDelete }: MembersTableProps) {
+export function MembersTable({ members, onEdit, onMemberDelete }: MembersTableProps) {
   const [filter, setFilter] = useState('');
 
   const filteredMembers = useMemo(() => members.filter(member => {
@@ -303,7 +279,7 @@ export function MembersTable({ members, onMemberUpdate, onMemberDelete }: Member
                 <MemberTableRow 
                   key={member.id} 
                   member={member}
-                  onUpdate={onMemberUpdate}
+                  onEdit={onEdit}
                   onDelete={onMemberDelete}
                 />
               ))
