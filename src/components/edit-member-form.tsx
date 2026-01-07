@@ -53,14 +53,13 @@ export function EditMemberForm({ member, onUpdate }: EditMemberFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firestore = useFirestore();
-  const isMinor = differenceInYears(new Date(), new Date(member.birthDate)) < 18;
-
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       ...member,
       membershipYear: member.membershipYear || new Date().getFullYear().toString(),
-      membershipFee: member.membershipFee ?? (isMinor ? 0 : 10),
+      membershipFee: member.membershipFee ?? (differenceInYears(new Date(), new Date(member.birthDate)) < 18 ? 0 : 10),
       isVolunteer: member.isVolunteer || false,
       notes: member.notes || "",
     },
@@ -78,7 +77,8 @@ export function EditMemberForm({ member, onUpdate }: EditMemberFormProps) {
 
     try {
       const updatedData = { ...member, ...values };
-      await setDocumentNonBlocking(memberRef, values, { merge: true });
+      // Use non-blocking write for better UI experience
+      setDocumentNonBlocking(memberRef, values, { merge: true });
       onUpdate(updatedData);
       toast({
         title: "Membro aggiornato!",
