@@ -49,6 +49,8 @@ type EditMemberFormProps = {
     onClose: () => void;
 };
 
+const getStatus = (member: any) => member.status || member.membershipStatus;
+
 export function EditMemberForm({ member, onClose }: EditMemberFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,17 +74,22 @@ export function EditMemberForm({ member, onClose }: EditMemberFormProps) {
     }
     setIsSubmitting(true);
     
-    const collectionName = member.membershipStatus === 'pending' ? 'membership_requests' : 'members';
+    const memberStatus = getStatus(member);
+    const collectionName = memberStatus === 'pending' || memberStatus === 'rejected' ? 'membership_requests' : 'members';
     const memberRef = doc(firestore, collectionName, member.id);
 
+    const dataToSave = {
+        ...member, // Start with original data to preserve fields like status
+        ...values,   // Override with new form values
+    };
+
     try {
-      // Use non-blocking write for better UI experience
-      setDocumentNonBlocking(memberRef, values, { merge: true });
+      setDocumentNonBlocking(memberRef, dataToSave, { merge: true });
       toast({
         title: "Membro aggiornato!",
         description: "I dati del membro sono stati aggiornati con successo.",
       });
-      onClose(); // Close the dialog
+      onClose();
     } catch (error) {
       console.error("Error updating member:", error);
       toast({
