@@ -39,10 +39,26 @@ export default function AdminPage() {
     );
   }
 
-  const allMembers = [
-      ...(members || []), 
-      ...(membershipRequests || []),
-    ].sort((a,b) => (a.firstName || '').localeCompare(b.firstName || ''));
+  // Combine and deduplicate members and requests
+  const combinedData: { [key: string]: any } = {};
+
+  if (members) {
+    for (const member of members) {
+      combinedData[member.id] = member;
+    }
+  }
+
+  if (membershipRequests) {
+    for (const request of membershipRequests) {
+      // Only add if not already present from the members list
+      if (!combinedData[request.id]) {
+        combinedData[request.id] = request;
+      }
+    }
+  }
+
+  const allMembers = Object.values(combinedData).sort((a,b) => (a.firstName || '').localeCompare(b.firstName || ''));
+
 
   return (
     <div className="flex flex-col min-h-screen bg-secondary">
