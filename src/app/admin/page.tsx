@@ -15,10 +15,10 @@ export default function AdminPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   
-  const membersCollection = useMemoFirebase(() => firestore ? collection(firestore, 'members') : null, [firestore]);
+  const membersCollection = useMemoFirebase(() => (firestore && user) ? collection(firestore, 'members') : null, [firestore, user]);
   const { data: members, isLoading: isLoadingMembers } = useCollection<Member>(membersCollection);
 
-  const membershipRequestsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'membership_requests') : null, [firestore]);
+  const membershipRequestsCollection = useMemoFirebase(() => (firestore && user) ? collection(firestore, 'membership_requests') : null, [firestore, user]);
   const { data: membershipRequests, isLoading: isLoadingRequests } = useCollection<any>(membershipRequestsCollection);
 
   useEffect(() => {
