@@ -72,7 +72,7 @@ export function EditMemberForm({ member, onClose, onUpdate }: EditMemberFormProp
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  function onSubmit(values: z.infer<typeof formSchema>) {
     if (!firestore) {
       toast({ title: "Errore di connessione a Firestore", variant: "destructive" });
       return;
@@ -82,81 +82,70 @@ export function EditMemberForm({ member, onClose, onUpdate }: EditMemberFormProp
     const newStatus = values.status;
     const { status, ...dataToSave } = values;
 
-    const finalMemberData: Member = {
-      ...member,
-      ...dataToSave,
-      id: member.id,
-      membershipStatus: newStatus === 'active' ? 'active' : 'pending', // adjust as per your logic
-      // other status related fields need to be handled here
-    };
+    // Call the local update callback immediately for a responsive UI
+    onUpdate({ ...member, ...dataToSave, id: member.id } as Member, newStatus, originalStatus);
+    
+    const batch = writeBatch(firestore);
 
-
+    // Determine collections based on status change
+    const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
+    const newCollection = newStatus === 'active' ? 'members' : 'membership_requests';
+    
+    const oldDocRef = doc(firestore, oldCollection, member.id);
+    
+    // Non-blocking commit in the background
     try {
         if (originalStatus !== newStatus) {
-            // Status has changed, we need to move the document
-            const batch = writeBatch(firestore);
-
-            // 1. Define old and new document references
-            const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
-            const oldDocRef = doc(firestore, oldCollection, member.id);
-
-            const newCollection = newStatus === 'active' ? 'members' : 'membership_requests';
+            // Status has changed: delete from old collection, add to new
             const newDocRef = doc(firestore, newCollection, member.id);
-
-            // 2. Prepare data for the new document
-            let finalData: any = {
-                ...member, // preserve original fields
-                ...dataToSave,
-                id: member.id,
-            };
+            
+            let finalData: any = { ...member, ...dataToSave, id: member.id };
 
             if (newStatus === 'active') {
                 finalData.membershipStatus = 'active';
-                if (!finalData.joinDate) finalData.joinDate = serverTimestamp();
-                if (!finalData.expirationDate) finalData.expirationDate = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
-                delete finalData.status;
-            } else {
+                finalData.joinDate = member.joinDate || serverTimestamp();
+                finalData.expirationDate = member.expirationDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
+                delete finalData.status; // a member doesn't have 'status'
+            } else { // 'pending' or 'rejected'
                 finalData.status = newStatus;
-                if (!finalData.requestDate) finalData.requestDate = serverTimestamp();
+                finalData.requestDate = member.requestDate || serverTimestamp();
                 delete finalData.membershipStatus;
                 delete finalData.joinDate;
                 delete finalData.expirationDate;
             }
 
-            // 3. Perform batch write: delete old, create new
+            // Delete the old document
             batch.delete(oldDocRef);
-            batch.set(newDocRef, finalData, { merge: true });
-            
-            // Non-blocking commit
-            batch.commit().then(() => {
-                onUpdate(finalMemberData as Member, newStatus, originalStatus);
-            }).catch(error => {
-                console.error("Error committing batch:", error);
-                toast({ title: "Errore", description: "Si è verificato un problema durante l'aggiornamento.", variant: "destructive" });
-            });
-
-        } else {
-            // Status has not changed, just update the existing document
-            const collectionName = newStatus === 'active' ? 'members' : 'membership_requests';
-            const docRef = doc(firestore, collectionName, member.id);
-            setDocumentNonBlocking(docRef, dataToSave, { merge: true });
-            onUpdate(finalMemberData as Member, newStatus, originalStatus);
+            // Create/overwrite in the new location only if not rejected
+            if (newStatus !== 'rejected') {
+                batch.set(newDocRef, finalData, { merge: true });
+            }
+        } else if (newStatus !== 'rejected') {
+            // Status is the same and not rejected, just update the existing document
+            batch.set(oldDocRef, dataToSave, { merge: true });
+        } else { // newStatus is 'rejected' and originalStatus was also 'rejected'
+            // We just need to delete it.
+            batch.delete(oldDocRef);
         }
+
+        // Commit the batch non-blockingly
+        batch.commit().catch(error => {
+            console.error("Error committing batch:", error);
+            // Optionally revert UI changes or show a specific error
+            toast({ title: "Errore di Sincronizzazione", description: "L'aggiornamento sul server è fallito.", variant: "destructive" });
+        });
 
         toast({
             title: "Membro aggiornato!",
-            description: `I dati di ${getFullName(values)} sono stati aggiornati.`,
+            description: `I dati di ${getFullName(values)} sono stati salvati.`,
         });
 
-    } catch (error) {
-        console.error("Error updating member:", error);
-        toast({
-            title: "Errore",
-            description: "Si è verificato un problema durante l'aggiornamento.",
-            variant: "destructive",
-        });
+    } catch(error) {
+        console.error("Error preparing batch for member update:", error);
+        toast({ title: "Errore", description: "Si è verificato un problema durante la preparazione dell'aggiornamento.", variant: "destructive" });
     } finally {
-        setIsSubmitting(false);
+        setIsSubmitting(false); // This will happen immediately
+        onClose(); // Close the form immediately
     }
 }
 

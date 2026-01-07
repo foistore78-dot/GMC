@@ -214,7 +214,7 @@ const MemberTableRow = ({
 };
 
 
-export function MembersTable({ members, onMemberUpdate, onMemberDelete }: { members: Member[], onMemberUpdate: (member: Member) => void, onMemberDelete: (id: string) => void }) {
+export function MembersTable({ members, onMemberUpdate, onMemberDelete }: { members: Member[], onMemberUpdate: (updatedMember: Member, newStatus: string, originalStatus: string) => void, onMemberDelete: (id: string) => void }) {
   const [filter, setFilter] = useState('');
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const firestore = useFirestore();
@@ -251,6 +251,20 @@ export function MembersTable({ members, onMemberUpdate, onMemberDelete }: { memb
   
   const handleCloseSheet = () => {
     setEditingMember(null);
+  };
+
+  const handleUpdate = (updatedData: Member, newStatus: string, originalStatus: string) => {
+    if (originalStatus !== newStatus) {
+        // If status changes, we first remove the old item and then add the new one (or just remove if rejected)
+        onMemberDelete(updatedData.id);
+        if (newStatus !== 'rejected') {
+            onMemberUpdate(updatedData, newStatus, originalStatus);
+        }
+    } else {
+        // If status is the same, just update the item in place
+        onMemberUpdate(updatedData, newStatus, originalStatus);
+    }
+    handleCloseSheet();
   };
 
   return (
@@ -306,18 +320,7 @@ export function MembersTable({ members, onMemberUpdate, onMemberDelete }: { memb
               <EditMemberForm 
                 member={editingMember} 
                 onClose={handleCloseSheet}
-                onUpdate={(updatedData, newStatus, originalStatus) => {
-                    // This callback now only updates the local state
-                    if (originalStatus !== newStatus) {
-                        onMemberDelete(editingMember.id);
-                        if (newStatus !== 'rejected') {
-                             onMemberUpdate({ ...editingMember, ...updatedData } as Member);
-                        }
-                    } else {
-                        onMemberUpdate({ ...editingMember, ...updatedData } as Member);
-                    }
-                    handleCloseSheet(); // Close sheet
-                }}
+                onUpdate={handleUpdate}
               />
             </>
           )}

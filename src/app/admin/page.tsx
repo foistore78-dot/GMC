@@ -9,7 +9,6 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebas
 import { collection } from "firebase/firestore";
 import { Loader2, Users } from "lucide-react";
 import { Member } from "@/lib/members-data";
-import { getStatus } from "@/components/members-table";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -43,11 +42,13 @@ export default function AdminPage() {
   const handleUpdateLocally = useCallback((updatedMember: Member) => {
     setAllItems(prevItems => {
       const itemExists = prevItems.some(item => item.id === updatedMember.id);
+      let newItems;
       if (itemExists) {
-        return prevItems.map(item => item.id === updatedMember.id ? { ...item, ...updatedMember } : item);
+        newItems = prevItems.map(item => item.id === updatedMember.id ? { ...item, ...updatedMember } : item);
       } else {
-        return [...prevItems, updatedMember].sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
+        newItems = [...prevItems, updatedMember];
       }
+      return newItems.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
     });
   }, []);
 
