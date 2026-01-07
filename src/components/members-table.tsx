@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { Member } from "@/lib/members-data";
 import {
   Table,
@@ -49,6 +49,7 @@ import { EditMemberForm } from "./edit-member-form";
 
 type MembersTableProps = {
   initialMembers: any[];
+  initialRequests: any[];
 };
 
 const getFullName = (member: any) => {
@@ -298,10 +299,28 @@ const MemberTableRow = ({ member }: { member: any }) => {
 };
 
 
-export function MembersTable({ initialMembers }: MembersTableProps) {
+export function MembersTable({ initialMembers, initialRequests }: MembersTableProps) {
   const [filter, setFilter] = useState('');
   
-  const filteredMembers = initialMembers.filter(member => {
+  const allMembers = useMemo(() => {
+    const combinedData: { [key: string]: any } = {};
+
+    for (const member of initialMembers) {
+      combinedData[member.id] = member;
+    }
+
+    for (const request of initialRequests) {
+      // Only add if not already present from the members list
+      if (!combinedData[request.id]) {
+        combinedData[request.id] = request;
+      }
+    }
+    
+    return Object.values(combinedData).sort((a,b) => (a.firstName || '').localeCompare(b.firstName || ''));
+  }, [initialMembers, initialRequests]);
+
+
+  const filteredMembers = allMembers.filter(member => {
     const fullName = getFullName(member);
     return fullName.toLowerCase().includes(filter.toLowerCase()) ||
            (member.email && member.email.toLowerCase().includes(filter.toLowerCase()));
