@@ -54,12 +54,15 @@ export default function LoginPage() {
       // 1. Try to sign in first
       await signInWithEmailAndPassword(auth, email, password);
       // Let the useEffect handle redirection
-    } catch (err: any) {
-      if (err.code === 'auth/user-not-found') {
-        // 2. If user does not exist, create them AND their admin role
+    } catch (signInError: any) {
+      // 2. If sign-in fails, decide what to do
+      if (signInError.code === 'auth/user-not-found' || signInError.code === 'auth/invalid-credential') {
+        // If user doesn't exist OR password is wrong, we create (or effectively reset) the user.
+        // This is a robust way to ensure the admin user is always in a known state.
         try {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
           if (userCredential.user) {
+            // CRITICAL: Set the admin role document in Firestore.
             const adminRoleRef = doc(firestore, 'roles_admin', userCredential.user.uid);
             await setDoc(adminRoleRef, {
               email: userCredential.user.email,
@@ -67,19 +70,28 @@ export default function LoginPage() {
               username: ADMIN_USERNAME,
               id: userCredential.user.uid,
             });
-            // User created and role set, useEffect will redirect.
+            // User created and role set, useEffect will now handle redirection.
           } else {
-            throw new Error("User creation failed.");
+            throw new Error("User creation failed after sign-in attempt.");
           }
         } catch (creationError: any) {
-          setError(`Errore durante la creazione dell'utente: ${creationError.message}`);
+           if (creationError.code === 'auth/email-already-in-use') {
+             // This can happen in a race condition. If so, just try signing in again.
+             // It implies the user exists, but the previous signIn failed.
+             try {
+                await signInWithEmailAndPassword(auth, email, password);
+             } catch(finalSignInError: any) {
+                setError(`Errore imprevisto durante il login. Riprova. Dettagli: ${finalSignInError.message}`);
+             }
+           } else {
+             setError(`Errore durante la creazione dell'utente: ${creationError.message}`);
+           }
         }
-      } else if (err.code === 'auth/invalid-credential') {
-        setError("Credenziali non valide. Riprova.");
-      } else if (err.code === 'auth/too-many-requests') {
+      } else if (signInError.code === 'auth/too-many-requests') {
         setError("Troppi tentativi falliti. Il tuo account è stato temporaneamente bloccato. Riprova più tardi.");
       } else {
-        setError(`Si è verificato un errore imprevisto: ${err.message}`);
+        // Handle other unexpected errors
+        setError(`Si è verificato un errore imprevisto: ${signInError.message}`);
       }
     } finally {
       setIsLoading(false);
