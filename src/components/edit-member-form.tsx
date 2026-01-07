@@ -20,8 +20,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
-import { useFirestore } from "@/firebase";
-import { doc, writeBatch, serverTimestamp } from "firebase/firestore";
+import { useFirestore, setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
+import { doc, serverTimestamp, writeBatch } from "firebase/firestore";
 import type { Member } from "@/lib/members-data";
 import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -56,13 +56,13 @@ export function EditMemberForm({ member, onClose }: EditMemberFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firestore = useFirestore();
-  const currentStatus = getStatus(member);
+  const originalStatus = getStatus(member);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       ...member,
-      status: currentStatus,
+      status: originalStatus,
       membershipYear: member.membershipYear || new Date().getFullYear().toString(),
       membershipFee: member.membershipFee ?? (differenceInYears(new Date(), member.birthDate || new Date()) < 18 ? 0 : 10),
       isVolunteer: member.isVolunteer || false,
@@ -77,60 +77,71 @@ export function EditMemberForm({ member, onClose }: EditMemberFormProps) {
     }
     setIsSubmitting(true);
 
-    const batch = writeBatch(firestore);
     const newStatus = values.status;
-
-    const originalCollection = currentStatus === 'active' ? 'members' : 'membership_requests';
-    const oldDocRef = doc(firestore, originalCollection, member.id);
-
-    const targetCollection = newStatus === 'active' ? 'members' : 'membership_requests';
-    const targetDocRef = doc(firestore, targetCollection, member.id);
-
     const { status, ...dataToSave } = values;
 
-    let finalData: any = {
-        ...member, // preserve original fields like joinDate etc.
-        ...dataToSave,
-        id: member.id,
-    };
-    
-    if (newStatus === 'active') {
-        finalData.membershipStatus = 'active';
-        if (!finalData.joinDate) finalData.joinDate = serverTimestamp();
-        if (!finalData.expirationDate) finalData.expirationDate = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
-        delete finalData.status;
-    } else {
-        finalData.status = newStatus;
-        if (!finalData.requestDate) finalData.requestDate = serverTimestamp();
-        delete finalData.membershipStatus;
-        delete finalData.joinDate;
-        delete finalData.expirationDate;
-    }
-
-    if (originalCollection !== targetCollection) {
-        batch.delete(oldDocRef);
-    }
-    
-    batch.set(targetDocRef, finalData, { merge: true });
-    
     try {
-      await batch.commit();
-      toast({
-        title: "Membro aggiornato!",
-        description: `I dati di ${getFullName(values)} sono stati aggiornati.`,
-      });
-      onClose();
+        if (originalStatus !== newStatus) {
+            // Status has changed, we need to move the document
+            const batch = writeBatch(firestore);
+
+            // 1. Define old and new document references
+            const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
+            const oldDocRef = doc(firestore, oldCollection, member.id);
+
+            const newCollection = newStatus === 'active' ? 'members' : 'membership_requests';
+            const newDocRef = doc(firestore, newCollection, member.id);
+
+            // 2. Prepare data for the new document
+            let finalData: any = {
+                ...member, // preserve original fields
+                ...dataToSave,
+                id: member.id,
+            };
+
+            if (newStatus === 'active') {
+                finalData.membershipStatus = 'active';
+                if (!finalData.joinDate) finalData.joinDate = serverTimestamp();
+                if (!finalData.expirationDate) finalData.expirationDate = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
+                delete finalData.status;
+            } else {
+                finalData.status = newStatus;
+                if (!finalData.requestDate) finalData.requestDate = serverTimestamp();
+                delete finalData.membershipStatus;
+                delete finalData.joinDate;
+                delete finalData.expirationDate;
+            }
+
+            // 3. Perform batch write: delete old, create new
+            batch.delete(oldDocRef);
+            batch.set(newDocRef, finalData, { merge: true });
+            await batch.commit();
+
+        } else {
+            // Status has not changed, just update the existing document
+            const collectionName = newStatus === 'active' ? 'members' : 'membership_requests';
+            const docRef = doc(firestore, collectionName, member.id);
+            setDocumentNonBlocking(docRef, dataToSave, { merge: true });
+        }
+
+        toast({
+            title: "Membro aggiornato!",
+            description: `I dati di ${getFullName(values)} sono stati aggiornati.`,
+        });
+        onClose();
+
     } catch (error) {
-      console.error("Error updating member:", error);
-      toast({
-        title: "Errore",
-        description: "Si è verificato un problema durante l'aggiornamento.",
-        variant: "destructive",
-      });
+        console.error("Error updating member:", error);
+        toast({
+            title: "Errore",
+            description: "Si è verificato un problema durante l'aggiornamento.",
+            variant: "destructive",
+        });
     } finally {
-      setIsSubmitting(false);
+        setIsSubmitting(false);
     }
-  }
+}
+
 
   return (
     <Form {...form}>

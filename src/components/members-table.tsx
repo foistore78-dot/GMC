@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
 import { useFirestore } from "@/firebase";
-import { doc, writeBatch } from "firebase/firestore";
+import { doc, deleteDoc } from "firebase/firestore";
 import { differenceInYears, format } from 'date-fns';
 import { EditMemberForm } from "./edit-member-form";
 
@@ -95,7 +95,8 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
   );
 };
 
-const MemberTableRow = ({ member, onEdit, onDelete }: { member: any, onEdit: () => void, onDelete: () => void }) => {
+
+const MemberTableRow = ({ member, onEdit, onDelete }: { member: any; onEdit: () => void; onDelete: () => void }) => {
   const status = getStatus(member);
   const memberIsMinor = isMinor(member.birthDate);
   const defaultFee = member.membershipFee ?? (isMinor(member.birthDate) ? 0 : 10);
@@ -103,49 +104,46 @@ const MemberTableRow = ({ member, onEdit, onDelete }: { member: any, onEdit: () 
   return (
     <TableRow>
       <TableCell className="font-medium">
-        <div className="flex items-center gap-3">
+        <Dialog>
+          <DialogTrigger asChild>
+            <div className="flex items-center gap-2 cursor-pointer group">
+              {member.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500" />}
+              <span className="group-hover:text-primary transition-colors">{getFullName(member)}</span>
+            </div>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-3"><User/> Dettagli Membro</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-2 max-h-[70vh] overflow-y-auto p-1 pr-4">
+              <DetailRow icon={<User />} label="Nome Completo" value={getFullName(member)} />
+              <DetailRow icon={<Mail />} label="Email" value={member.email} />
+              <DetailRow icon={<Phone />} label="Telefono" value={member.phone} />
+              <DetailRow icon={<Home />} label="Indirizzo" value={`${member.address}, ${member.city} (${member.province}) ${member.postalCode}`} />
+              <DetailRow icon={<Hash />} label="Codice Fiscale" value={member.fiscalCode} />
+              <DetailRow icon={<Calendar />} label="Anno Associativo" value={member.membershipYear || new Date().getFullYear()} />
+              <DetailRow icon={<Euro />} label="Quota Versata" value={`€ ${defaultFee}`} />
+              {member.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
+              <DetailRow icon={<StickyNote />} label="Note" value={member.notes} />
+            </div>
+          </DialogContent>
+        </Dialog>
+        {memberIsMinor && (
           <Dialog>
             <DialogTrigger asChild>
-              <div className="flex items-center gap-2 cursor-pointer group">
-                {member.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500" />}
-                <span className="group-hover:text-primary transition-colors">{getFullName(member)}</span>
-              </div>
+              <Badge onClick={(e) => { e.stopPropagation(); }} variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10">Minore</Badge>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent>
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-3"><User/> Dettagli Membro</DialogTitle>
+                <DialogTitle className="flex items-center gap-2"><ShieldCheck/> Dettagli Tutore</DialogTitle>
               </DialogHeader>
-              <div className="py-4 space-y-2 max-h-[70vh] overflow-y-auto p-1 pr-4">
-                <DetailRow icon={<User />} label="Nome Completo" value={getFullName(member)} />
-                <DetailRow icon={<Mail />} label="Email" value={member.email} />
-                <DetailRow icon={<Phone />} label="Telefono" value={member.phone} />
-                <DetailRow icon={<Home />} label="Indirizzo" value={`${member.address}, ${member.city} (${member.province}) ${member.postalCode}`} />
-                <DetailRow icon={<Hash />} label="Codice Fiscale" value={member.fiscalCode} />
-                <DetailRow icon={<Calendar />} label="Anno Associativo" value={member.membershipYear || new Date().getFullYear()} />
-                <DetailRow icon={<Euro />} label="Quota Versata" value={`€ ${defaultFee}`} />
-                {member.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
-                <DetailRow icon={<StickyNote />} label="Note" value={member.notes} />
+              <div className="py-4">
+                <DetailRow icon={<User />} label="Nome Tutore" value={`${member.guardianFirstName} ${member.guardianLastName}`} />
+                <DetailRow icon={<Calendar />} label="Data di Nascita Tutore" value={formatDate(member.guardianBirthDate)} />
               </div>
             </DialogContent>
           </Dialog>
-          {memberIsMinor && (
-            <Dialog>
-              <DialogTrigger asChild>
-                <Badge onClick={(e) => { e.stopPropagation(); }} variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10">Minore</Badge>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2"><ShieldCheck/> Dettagli Tutore</DialogTitle>
-                </DialogHeader>
-                <div className="py-4">
-                  <DetailRow icon={<User />} label="Nome Tutore" value={`${member.guardianFirstName} ${member.guardianLastName}`} />
-
-                  <DetailRow icon={<Calendar />} label="Data di Nascita Tutore" value={formatDate(member.guardianBirthDate)} />
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
+        )}
       </TableCell>
       <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
         <div>{formatDate(member.birthDate)}</div>
@@ -206,6 +204,7 @@ const MemberTableRow = ({ member, onEdit, onDelete }: { member: any, onEdit: () 
   );
 };
 
+
 export function MembersTable({ initialMembers, initialRequests }: { initialMembers: any[], initialRequests: any[] }) {
   const [filter, setFilter] = useState('');
   const [allItems, setAllItems] = useState<any[]>([]);
@@ -248,11 +247,8 @@ export function MembersTable({ initialMembers, initialRequests }: { initialMembe
     const collectionName = currentStatus === 'active' ? 'members' : 'membership_requests';
     const docRef = doc(firestore, collectionName, memberToDelete.id);
     
-    const batch = writeBatch(firestore);
-    batch.delete(docRef);
-    
     try {
-      await batch.commit();
+      await deleteDoc(docRef);
       toast({
         title: "Membro rimosso",
         description: `${getFullName(memberToDelete)} è stato rimosso dalla lista.`,
