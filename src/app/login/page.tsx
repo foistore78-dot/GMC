@@ -37,10 +37,13 @@ export default function LoginPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
 
-  // Redirect if user is already logged in
+  // Redirect if user is already logged in and recognized
   useEffect(() => {
     if (user && !isUserLoading) {
-      router.push("/admin");
+      // Check if we are not already on the admin page to prevent loops
+      if (window.location.pathname !== '/admin') {
+        router.push("/admin");
+      }
     }
   }, [user, isUserLoading, router]);
 
@@ -90,9 +93,11 @@ export default function LoginPage() {
           role: 'admin',
           username: ADMIN_USERNAME,
           id: userCredential.user.uid,
-        });
+        }, { merge: true }); // Use merge to be safe
         
-        // The useEffect will handle the redirection to /admin
+        // Step 4: Manually redirect to the admin page ONLY after the role has been set.
+        router.push("/admin");
+
       } catch (roleError: any) {
         setError(`Impossibile impostare i permessi di amministratore: ${roleError.message}`);
       }
@@ -101,7 +106,8 @@ export default function LoginPage() {
     setIsLoading(false);
   };
 
-  if (isUserLoading || user) {
+  // Show a loader while the initial auth state is being determined.
+  if (isUserLoading) {
     return (
         <div className="flex flex-col min-h-screen bg-secondary">
             <Header />
@@ -112,6 +118,21 @@ export default function LoginPage() {
         </div>
     );
   }
+
+  // If the user is already logged in, they will be redirected by the useEffect. 
+  // We can render null or a loader here to prevent the form from flashing.
+  if (user) {
+     return (
+        <div className="flex flex-col min-h-screen bg-secondary">
+            <Header />
+            <main className="flex-grow flex items-center justify-center">
+                <Loader2 className="h-16 w-16 animate-spin text-primary" />
+            </main>
+            <Footer />
+        </div>
+    );
+  }
+
 
   return (
     <div className="flex flex-col min-h-screen bg-secondary">
