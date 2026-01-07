@@ -70,50 +70,56 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
   const { toast } = useToast();
   const firestore = useFirestore();
 
-  const handleStatusChange = async (id: string, status: 'approved' | 'rejected') => {
-    
+  const handleApprove = async (id: string) => {
     const memberToUpdate = members.find((m) => m.id === id);
     if (!memberToUpdate || !firestore) return;
+
+    // 1. Create the new member document
+    const { id: oldId, requestDate, ...memberData } = memberToUpdate;
+    const newMemberData = {
+      ...memberData,
+      membershipStatus: 'active',
+      joinDate: serverTimestamp(),
+      expirationDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
+    };
+    const membersCollection = collection(firestore, 'members');
+    // We await this to get the new ID for the state update
+    const newMemberRef = await addDocumentNonBlocking(membersCollection, newMemberData);
+
+    // 2. Delete the old membership request
+    const requestRef = doc(firestore, "membership_requests", id);
+    await deleteDocumentNonBlocking(requestRef);
     
-    if (status === "approved") {
-        const { id: oldId, requestDate, ...memberData } = memberToUpdate;
-        const newMemberData = {
-          ...memberData,
-          membershipStatus: 'active',
-          joinDate: serverTimestamp(),
-          expirationDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
-        };
-        const membersCollection = collection(firestore, 'members');
-        const newMemberRef = await addDocumentNonBlocking(membersCollection, newMemberData);
+    // 3. Update the local state correctly
+    setMembers((prev) => 
+      prev.map(m => (m.id === id ? { ...newMemberData, id: newMemberRef.id } : m))
+    );
 
-        const requestRef = doc(firestore, "membership_requests", id);
-        await deleteDocumentNonBlocking(requestRef);
-        
-        setMembers((prev) => 
-          prev.map(m => m.id === id ? { ...newMemberData, id: newMemberRef.id } : m)
-        );
-
-         toast({
-            title: "Membro Approvato!",
-            description: `${memberToUpdate.firstName} è ora un membro del club.`,
-        });
-
-    } else {
-        const memberRef = doc(firestore, memberToUpdate.status === 'pending' ? "membership_requests" : "members", id);
-        await setDocumentNonBlocking(memberRef, { status }, { merge: true });
-        
-        setMembers((prevMembers) =>
-          prevMembers.map((member) =>
-            member.id === id ? { ...member, status } : member
-          )
-        );
-        toast({
-          title: "Stato membro aggiornato!",
-          description: `Il membro è stato impostato su ${status}.`,
-        });
-    }
-
+    toast({
+        title: "Membro Approvato!",
+        description: `${memberToUpdate.firstName} è ora un membro del club.`,
+    });
   };
+
+  const handleReject = async (id: string) => {
+    const memberToUpdate = members.find((m) => m.id === id);
+    if (!memberToUpdate || !firestore) return;
+
+    const memberRef = doc(firestore, "membership_requests", id);
+    await setDocumentNonBlocking(memberRef, { status: 'rejected' }, { merge: true });
+    
+    setMembers((prevMembers) =>
+      prevMembers.map((member) =>
+        member.id === id ? { ...member, status: 'rejected' } : member
+      )
+    );
+    toast({
+      title: "Richiesta Rifiutata",
+      description: `La richiesta di ${memberToUpdate.firstName} è stata rifiutata.`,
+      variant: "destructive"
+    });
+  }
+
 
   const handleDelete = async (id: string) => {
     const memberToDelete = members.find((m) => m.id === id);
@@ -281,14 +287,14 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                           <DropdownMenuLabel>Azioni</DropdownMenuLabel>
                           {status === 'pending' && (
                               <DropdownMenuItem
-                              onClick={() => handleStatusChange(member.id, "approved")}
+                              onClick={() => handleApprove(member.id)}
                               >
                               <Check className="mr-2 h-4 w-4" /> Approva
                               </DropdownMenuItem>
                           )}
                           {status === 'pending' && (
                               <DropdownMenuItem
-                              onClick={() => handleStatusChange(member.id, "rejected")}
+                              onClick={() => handleReject(member.id)}
                               >
                               <X className="mr-2 h-4 w-4" /> Rifiuta
                               </DropdownMenuItem>
