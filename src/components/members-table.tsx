@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { Member } from "@/lib/members-data";
 import {
   Table,
@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
 import { useFirestore } from "@/firebase";
-import { doc, writeBatch } from "firebase/firestore";
+import { doc, writeBatch, deleteDoc } from "firebase/firestore";
 import { differenceInYears, format } from 'date-fns';
 import { EditMemberForm } from "./edit-member-form";
 
@@ -111,14 +111,12 @@ const MemberTableRow = ({
 
   const handleDelete = () => {
     if (!firestore) return;
+    setIsDeleting(false);
 
     const collectionName = status === 'active' ? 'members' : 'membership_requests';
     const docRef = doc(firestore, collectionName, member.id);
     
-    const batch = writeBatch(firestore);
-    batch.delete(docRef);
-    
-    batch.commit().then(() => {
+    deleteDoc(docRef).then(() => {
         toast({
             title: "Membro rimosso",
             description: `${getFullName(member)} è stato rimosso dalla lista.`,
@@ -132,7 +130,6 @@ const MemberTableRow = ({
             variant: "destructive"
         });
     });
-    setIsDeleting(false);
   };
   
   return (
@@ -212,9 +209,27 @@ const MemberTableRow = ({
                 <Pencil className="mr-2 h-4 w-4" /> Modifica
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => setIsDeleting(true)} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
-                <Trash2 className="mr-2 h-4 w-4" /> Elimina
-              </DropdownMenuItem>
+               <AlertDialog open={isDeleting} onOpenChange={setIsDeleting}>
+                  <AlertDialogTrigger asChild>
+                     <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
+                        <Trash2 className="mr-2 h-4 w-4" /> Elimina
+                     </DropdownMenuItem>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Questa azione non può essere annullata. Questo rimuoverà permanentemente {getFullName(member)} dalla lista.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Annulla</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Elimina
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+              </AlertDialog>
             </DropdownMenuContent>
           </DropdownMenu>
         </TableCell>
@@ -231,37 +246,38 @@ const MemberTableRow = ({
             />
         </SheetContent>
       </Sheet>
-
-      <AlertDialog open={isDeleting} onOpenChange={setIsDeleting}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Questa azione non può essere annullata. Questo rimuoverà permanentemente {getFullName(member)} dalla lista.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annulla</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Elimina
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 };
 
 
-export function MembersTable({ members }: { members: Member[] }) {
+export function MembersTable({ initialMembers, initialRequests }: { initialMembers: Member[], initialRequests: Member[] }) {
   const [filter, setFilter] = useState('');
+  const [allItems, setAllItems] = useState<Member[]>([]);
 
-  const filteredMembers = useMemo(() => members.filter(member => {
+  useEffect(() => {
+    const combinedData: { [key: string]: Member } = {};
+
+    (initialRequests || []).forEach(item => {
+      if (item && item.id) combinedData[item.id] = { ...item } as Member;
+    });
+    
+    (initialMembers || []).forEach(item => {
+      if (item && item.id) combinedData[item.id] = { ...item } as Member;
+    });
+
+    const sortedItems = Object.values(combinedData).sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
+    setAllItems(sortedItems);
+
+  }, [initialMembers, initialRequests]);
+
+
+  const filteredMembers = useMemo(() => allItems.filter(member => {
     const fullName = getFullName(member) || '';
     const email = member.email || '';
     return fullName.toLowerCase().includes(filter.toLowerCase()) ||
            email.toLowerCase().includes(filter.toLowerCase());
-  }), [members, filter]);
+  }), [allItems, filter]);
   
   return (
     <div>

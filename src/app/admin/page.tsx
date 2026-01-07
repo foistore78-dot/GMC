@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -21,29 +21,12 @@ export default function AdminPage() {
   const membershipRequestsCollection = useMemoFirebase(() => (firestore) ? collection(firestore, 'membership_requests') : null, [firestore]);
   const { data: membershipRequests, isLoading: isLoadingRequests } = useCollection<any>(membershipRequestsCollection);
 
-  const [allItems, setAllItems] = useState<Member[]>([]);
-
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push("/login");
     }
   }, [user, isUserLoading, router]);
 
-  useEffect(() => {
-    const combinedData: { [key: string]: Member } = {};
-
-    (membershipRequests || []).forEach(item => {
-      if (item && item.id) combinedData[item.id] = { ...item } as Member;
-    });
-    
-    (members || []).forEach(item => {
-      if (item && item.id) combinedData[item.id] = { ...item } as Member;
-    });
-
-    const sortedItems = Object.values(combinedData).sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
-    setAllItems(sortedItems);
-
-  }, [members, membershipRequests]);
 
   if (isUserLoading || !user) {
     return (
@@ -69,12 +52,12 @@ export default function AdminPage() {
         </div>
 
         <div className="bg-background rounded-lg border border-border shadow-lg p-4">
-          {isLoadingMembers || isLoadingRequests ? (
+          {(isLoadingMembers || isLoadingRequests) ? (
              <div className="flex justify-center items-center h-64">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
              </div>
           ) : (
-            <MembersTable members={allItems} />
+            <MembersTable initialMembers={members || []} initialRequests={membershipRequests || []} />
           )}
         </div>
       </main>
