@@ -64,11 +64,11 @@ export function AdminUserInitializer() {
                 email: user.email,
                 role: "admin",
                 username: "admin_gmc",
+                id: user.uid,
               },
               { merge: true }
             );
             console.log("Admin role created in Firestore.");
-            // Don't sign out immediately, let the user session begin
           }
         }
       } catch (error) {
@@ -79,11 +79,9 @@ export function AdminUserInitializer() {
         }
       } finally {
         setIsAdminInitialized(true);
-        // Only sign out if no user is actually logged in, to clean up.
-        // This prevents signing out the user who just logged in.
-        if (!auth.currentUser) {
-            await auth.signOut();
-        }
+        // We don't want to sign out. If a user lands here, they should be logged in
+        // as the admin user. The app will redirect them to /admin if they are not
+        // already on a protected route.
       }
     };
 
