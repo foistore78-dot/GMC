@@ -21,22 +21,6 @@ export default function AdminPage() {
   const membershipRequestsCollection = useMemoFirebase(() => (firestore) ? collection(firestore, 'membership_requests') : null, [firestore]);
   const { data: membershipRequests, isLoading: isLoadingRequests } = useCollection<any>(membershipRequestsCollection);
 
-  const allItems = useMemo(() => {
-    const combinedData: { [key: string]: any } = {};
-    const requests = membershipRequests || [];
-    const activeMembers = members || [];
-
-    // Add requests first
-    requests.forEach(item => {
-        if (item && item.id) combinedData[item.id] = item;
-    });
-    // Add members, overwriting any pending requests with the same ID
-    activeMembers.forEach(item => {
-        if (item && item.id) combinedData[item.id] = item;
-    });
-    return Object.values(combinedData).sort((a,b) => (a.firstName || '').localeCompare(b.firstName || ''));
-  }, [members, membershipRequests]);
-
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push("/login");
@@ -72,7 +56,7 @@ export default function AdminPage() {
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
              </div>
           ) : (
-            <MembersTable allItems={allItems} />
+            <MembersTable initialMembers={members || []} initialRequests={membershipRequests || []} />
           )}
         </div>
       </main>

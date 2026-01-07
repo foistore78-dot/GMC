@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { Member } from "@/lib/members-data";
 import {
   Table,
@@ -45,7 +45,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
 import { useFirestore } from "@/firebase";
@@ -248,8 +247,27 @@ const MemberTableRow = ({ member }: { member: any }) => {
   );
 };
 
-export function MembersTable({ allItems }: { allItems: any[] }) {
+export function MembersTable({ initialMembers, initialRequests }: { initialMembers: any[], initialRequests: any[] }) {
   const [filter, setFilter] = useState('');
+  const [allItems, setAllItems] = useState<any[]>([]);
+
+  useEffect(() => {
+    const combinedData: { [key: string]: any } = {};
+    const requests = initialRequests || [];
+    const activeMembers = initialMembers || [];
+
+    // Add requests first
+    requests.forEach(item => {
+        if (item && item.id) combinedData[item.id] = item;
+    });
+    // Add members, overwriting any pending requests with the same ID
+    activeMembers.forEach(item => {
+        if (item && item.id) combinedData[item.id] = item;
+    });
+    const sortedItems = Object.values(combinedData).sort((a,b) => (a.firstName || '').localeCompare(b.firstName || ''));
+    setAllItems(sortedItems);
+
+  }, [initialMembers, initialRequests])
   
   const filteredMembers = allItems.filter(member => {
     return getFullName(member).toLowerCase().includes(filter.toLowerCase()) ||
