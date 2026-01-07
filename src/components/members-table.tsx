@@ -96,7 +96,7 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
 };
 
 
-const MemberTableRow = ({ member }: { member: any; }) => {
+const MemberTableRow = ({ member }: { member: Member; }) => {
   const [isEditing, setIsEditing] = useState(false);
   const { toast } = useToast();
   const firestore = useFirestore();
@@ -154,7 +154,7 @@ const MemberTableRow = ({ member }: { member: any; }) => {
         {memberIsMinor && (
           <Dialog>
             <DialogTrigger asChild>
-              <Badge onClick={(e) => { e.stopPropagation(); }} variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10">Minore</Badge>
+              <Badge onClick={(e) => { e.stopPropagation(); }} variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10 ml-2">Minore</Badge>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
@@ -239,19 +239,19 @@ const MemberTableRow = ({ member }: { member: any; }) => {
 };
 
 
-export function MembersTable({ initialMembers, initialRequests }: { initialMembers: any[], initialRequests: any[] }) {
+export function MembersTable({ initialMembers, initialRequests }: { initialMembers: Member[], initialRequests: Member[] }) {
   const [filter, setFilter] = useState('');
-  const [allItems, setAllItems] = useState<any[]>([]);
+  const [allItems, setAllItems] = useState<Member[]>([]);
 
   useEffect(() => {
-    const combinedData: { [key: string]: any } = {};
+    const combinedData: { [key: string]: Member } = {};
 
     (initialRequests || []).forEach(item => {
-      if (item && item.id) combinedData[item.id] = { ...item, _source: 'request' };
+      if (item && item.id) combinedData[item.id] = { ...item, _source: 'request' } as Member;
     });
     
     (initialMembers || []).forEach(item => {
-      if (item && item.id) combinedData[item.id] = { ...item, _source: 'member' };
+      if (item && item.id) combinedData[item.id] = { ...item, _source: 'member' } as Member;
     });
 
     const sortedItems = Object.values(combinedData).sort((a,b) => (a.firstName || '').localeCompare(b.firstName || ''));

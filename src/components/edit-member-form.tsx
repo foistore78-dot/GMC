@@ -20,12 +20,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
-import { useFirestore, setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
+import { useFirestore } from "@/firebase";
 import { doc, serverTimestamp, writeBatch } from "firebase/firestore";
 import type { Member } from "@/lib/members-data";
 import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { getStatus, getFullName } from "./members-table";
+import { setDocumentNonBlocking } from "@/firebase";
 
 const formSchema = z.object({
   firstName: z.string().min(2, { message: "Il nome deve contenere almeno 2 caratteri." }),
