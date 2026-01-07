@@ -27,32 +27,32 @@ export function AdminUserInitializer() {
       try {
         let userCredential;
         try {
-          // Try to sign in silently. This will succeed if the user already exists.
+          // Try to sign in silently. This will succeed if the user already exists
+          // and the password is correct.
           userCredential = await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
         } catch (error: any) {
-          // If sign-in fails, check if the user needs to be created.
-          if (error.code === 'auth/user-not-found') {
+          // If sign-in fails for any reason (user-not-found, invalid-credential),
+          // we proceed to create the user. This ensures the user exists with the correct password.
+          try {
             userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
-          } else if (error.code === 'auth/email-already-in-use') {
-             // This can happen in some race conditions. If the user already exists,
-             // we can just try to sign in again. This is safe to do.
-             userCredential = await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
-          } else if (error.code === 'auth/invalid-credential') {
-            // This is the most likely error if the user exists but something is wrong.
-            // We can proceed, assuming the user exists, and the role check will happen next.
-            // No need to create a new user. We can sign them out later to be safe.
-          }
-          else {
-            // For other errors (e.g., network), log them and stop.
-            console.error("Admin sign-in/creation error:", error);
-            setIsInitialized(true); // Mark as initialized to prevent loops
-            return;
+          } catch (creationError: any) {
+            // This can happen in a race condition if another client created the user
+            // between our failed sign-in and this creation attempt.
+            if (creationError.code === 'auth/email-already-in-use') {
+               // The user now exists, so we can proceed. We can try signing in again
+               // just to be sure we have the user credential.
+               userCredential = await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+            } else {
+              // For other creation errors, log them and stop.
+              console.error("Admin user creation error:", creationError);
+              setIsInitialized(true);
+              return;
+            }
           }
         }
         
-        // At this point, we either signed in or created the user.
-        // Or we failed to sign in but assume the user exists to check their role.
-        const user = auth.currentUser;
+        // At this point, we have a valid user credential.
+        const user = userCredential.user;
         
         if (user) {
           const adminRoleRef = doc(firestore, "roles_admin", user.uid);
