@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import { Guitar, Mic, Speaker } from "lucide-react";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
@@ -7,25 +9,28 @@ import { MembershipForm } from "@/components/membership-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { LanguageSelector } from "@/components/language-selector";
+import { useLanguage } from "@/components/language-provider";
 
 export default function Home() {
   const heroImage = PlaceHolderImages.find((img) => img.id === "hero-concert");
+  const { t } = useLanguage();
 
   const features = [
     {
       icon: <Guitar className="w-10 h-10 text-primary" />,
-      title: "Jam Session",
-      description: "Jam session settimanali organizzate per affinare le tue abilità e collaborare con gli altri.",
+      title: t('features.jamSessions.title'),
+      description: t('features.jamSessions.description'),
     },
     {
       icon: <Mic className="w-10 h-10 text-primary" />,
-      title: "Concerti dal Vivo",
-      description: "Ottieni l'opportunità di esibirti di fronte a un pubblico dal vivo ai nostri eventi esclusivi.",
+      title: t('features.liveGigs.title'),
+      description: t('features.liveGigs.description'),
     },
     {
       icon: <Speaker className="w-10 h-10 text-primary" />,
-      title: "Attrezzatura Professionale",
-      description: "Accesso a strumenti, amplificatori e sistemi audio di livello professionale.",
+      title: t('features.proGear.title'),
+      description: t('features.proGear.description'),
     },
   ];
 
@@ -50,10 +55,10 @@ export default function Home() {
               Garage Music Club
             </h1>
             <p className="text-lg md:text-xl max-w-2xl mb-8 font-light">
-              Il tuo viaggio nel suono inizia qui. Unisciti a una comunità di musicisti e artisti appassionati.
+              {t('hero.subtitle')}
             </p>
             <Button asChild size="lg" className="font-bold text-lg px-10 py-6">
-              <Link href="#apply">Iscriviti Ora</Link>
+              <Link href="#apply">{t('hero.cta')}</Link>
             </Button>
           </div>
         </section>
@@ -61,7 +66,7 @@ export default function Home() {
         <section className="py-16 md:py-24 bg-secondary">
           <div className="container mx-auto px-4">
             <h2 className="font-headline text-4xl md:text-5xl text-center mb-12 text-primary">
-              Cosa Offriamo
+              {t('features.title')}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {features.map((feature, index) => (
@@ -83,11 +88,14 @@ export default function Home() {
 
         <section id="apply" className="py-16 md:py-24">
           <div className="container mx-auto px-4">
+            <div className="flex justify-center mb-8">
+              <LanguageSelector />
+            </div>
             <h2 className="font-headline text-4xl md:text-5xl text-center mb-4 text-primary">
-              Unisciti al Club
+              {t('join.title')}
             </h2>
             <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-              Pronto a fare un po' di rumore? Compila il modulo di iscrizione qui sotto. Esaminiamo tutte le candidature e ti risponderemo presto.
+              {t('join.subtitle')}
             </p>
             <div className="max-w-2xl mx-auto">
               <Card className="bg-secondary border-primary/20">
