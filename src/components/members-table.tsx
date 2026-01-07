@@ -20,7 +20,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Check, MoreHorizontal, Pencil, Trash2, X, Filter, MessageCircle, Shield } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Check, MoreHorizontal, Pencil, Trash2, X, Filter, MessageCircle, Shield, User, Phone, Mail, Home, Calendar, MapPin, Hash, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -37,10 +44,23 @@ import {
 import { Input } from "./ui/input";
 import { useFirestore, setDocumentNonBlocking, deleteDocumentNonBlocking, addDocumentNonBlocking } from "@/firebase";
 import { collection, doc, serverTimestamp } from "firebase/firestore";
-import { differenceInYears } from 'date-fns';
+import { differenceInYears, format } from 'date-fns';
 
 type MembersTableProps = {
   initialMembers: any[];
+};
+
+const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: string, value?: string | null }) => {
+  if (!value) return null;
+  return (
+    <div className="flex items-start gap-3 py-2 border-b border-secondary">
+      <div className="text-primary mt-1">{icon}</div>
+      <div>
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className="font-medium">{value}</p>
+      </div>
+    </div>
+  )
 };
 
 export function MembersTable({ initialMembers }: MembersTableProps) {
@@ -55,18 +75,16 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
     if (!memberToUpdate) return;
     
     if (status === "approved") {
-        // Move from requests to members
         const { id: oldId, requestDate, ...memberData } = memberToUpdate;
         const newMemberData = {
           ...memberData,
-          membershipStatus: 'active', // or 'approved'
+          membershipStatus: 'active',
           joinDate: serverTimestamp(),
           expirationDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
         };
         const membersCollection = collection(firestore, 'members');
         const newMemberRef = await addDocumentNonBlocking(membersCollection, newMemberData);
 
-        // Delete from requests
         const requestRef = doc(firestore, "membership_requests", id);
         await deleteDocumentNonBlocking(requestRef);
 
@@ -78,7 +96,6 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
         });
 
     } else {
-        // Update status in place (for pending -> rejected)
         const memberRef = doc(firestore, memberToUpdate.status === 'pending' ? "membership_requests" : "members", id);
         await setDocumentNonBlocking(memberRef, { status }, { merge: true });
         
@@ -128,6 +145,15 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
     return differenceInYears(new Date(), new Date(birthDate)) < 18;
   }
 
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    try {
+      return format(new Date(dateString), 'dd/MM/yyyy');
+    } catch {
+      return dateString;
+    }
+  }
+
   return (
     <div>
         <div className="flex items-center py-4">
@@ -146,9 +172,8 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
-              <TableHead className="hidden md:table-cell">Contatto</TableHead>
+              <TableHead className="hidden md:table-cell">Nascita</TableHead>
               <TableHead>Stato</TableHead>
-              <TableHead className="hidden lg:table-cell">Dettagli</TableHead>
               <TableHead className="text-right">Azioni</TableHead>
             </TableRow>
           </TableHeader>
@@ -156,22 +181,53 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
             {filteredMembers.length > 0 ? (
               filteredMembers.map((member) => {
                 const status = getStatus(member);
+                const memberIsMinor = isMinor(member.birthDate);
+
                 return (
                 <TableRow key={member.id}>
                   <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                        {getFullName(member)}
-                        {isMinor(member.birthDate) && <Badge variant="outline" className="text-xs border-yellow-400 text-yellow-400">Minore</Badge>}
-                    </div>
+                    <Dialog>
+                       <DialogTrigger asChild>
+                         <div className="flex items-center gap-3 cursor-pointer group">
+                            <div className="flex items-center gap-2">
+                              {member.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500" />}
+                              <span className="group-hover:text-primary transition-colors">{getFullName(member)}</span>
+                            </div>
+                            {memberIsMinor && (
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                   <Badge variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10">Minore</Badge>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle className="flex items-center gap-2"><ShieldCheck/> Dettagli Tutore</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="py-4">
+                                      <DetailRow icon={<User />} label="Nome Tutore" value={`${member.guardianFirstName} ${member.guardianLastName}`} />
+                                      <DetailRow icon={<Calendar />} label="Data di Nascita Tutore" value={formatDate(member.guardianBirthDate)} />
+                                    </div>
+                                </DialogContent>
+                              </Dialog>
+                            )}
+                         </div>
+                       </DialogTrigger>
+                       <DialogContent className="max-w-md">
+                          <DialogHeader>
+                            <DialogTitle className="flex items-center gap-3"><User/> Dettagli Membro</DialogTitle>
+                          </DialogHeader>
+                           <div className="py-4 space-y-2">
+                              <DetailRow icon={<User />} label="Nome Completo" value={getFullName(member)} />
+                              <DetailRow icon={<Mail />} label="Email" value={member.email} />
+                              <DetailRow icon={<Phone />} label="Telefono" value={member.phone} />
+                              <DetailRow icon={<Home />} label="Indirizzo" value={`${member.address}, ${member.city} (${member.province}) ${member.postalCode}`} />
+                              <DetailRow icon={<Hash />} label="Codice Fiscale" value={member.fiscalCode} />
+                           </div>
+                       </DialogContent>
+                    </Dialog>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                       {member.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500" />}
-                       <div>
-                         <div>{member.email}</div>
-                         <div>{member.phone}</div>
-                       </div>
-                    </div>
+                  <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
+                    <div>{formatDate(member.birthDate)}</div>
+                    <div className="text-xs">{member.birthPlace}</div>
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -191,20 +247,6 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
                       {status === 'active' || status === 'approved' ? 'approvato' : status === 'pending' ? 'in attesa' : 'rifiutato'}
                     </Badge>
                   </TableCell>
-                   <TableCell className="hidden lg:table-cell text-muted-foreground text-xs">
-                     {member.fiscalCode && <div><span className="font-semibold">CF:</span> {member.fiscalCode}</div>}
-                     {member.address && <div><span className="font-semibold">Indirizzo:</span> {member.address}, {member.city}</div>}
-                     {member.guardianFirstName && (
-                        <div className="mt-2 pt-2 border-t border-dashed border-border flex items-start gap-2 text-yellow-400/80">
-                            <Shield className="w-4 h-4 mt-0.5 shrink-0"/>
-                            <div>
-                                <span className="font-semibold">Tutore:</span> {member.guardianFirstName} {member.guardianLastName}
-                                <br />
-                                <span className="font-semibold">Nato/a il:</span> {member.guardianBirthDate}
-                            </div>
-                        </div>
-                     )}
-                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
