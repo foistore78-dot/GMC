@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -15,10 +15,10 @@ export default function AdminPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   
-  const membersCollection = useMemoFirebase(() => (firestore && user) ? collection(firestore, 'members') : null, [firestore, user]);
+  const membersCollection = useMemoFirebase(() => (firestore) ? collection(firestore, 'members') : null, [firestore]);
   const { data: members, isLoading: isLoadingMembers } = useCollection<Member>(membersCollection);
 
-  const membershipRequestsCollection = useMemoFirebase(() => (firestore && user) ? collection(firestore, 'membership_requests') : null, [firestore, user]);
+  const membershipRequestsCollection = useMemoFirebase(() => (firestore) ? collection(firestore, 'membership_requests') : null, [firestore]);
   const { data: membershipRequests, isLoading: isLoadingRequests } = useCollection<any>(membershipRequestsCollection);
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export default function AdminPage() {
     }
   }, [user, isUserLoading, router]);
 
-  if (isUserLoading || !user || !firestore) {
+  if (isUserLoading || !user) {
     return (
       <div className="flex flex-col min-h-screen bg-secondary">
         <Header />

@@ -42,22 +42,39 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AlertDialogTrigger } from "./ui/alert-dialog";
 import { Input } from "./ui/input";
-import { useFirestore, setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
-import { collection, doc, serverTimestamp, writeBatch } from "firebase/firestore";
+import { useFirestore } from "@/firebase";
+import { doc, writeBatch } from "firebase/firestore";
 import { differenceInYears, format } from 'date-fns';
 import { EditMemberForm } from "./edit-member-form";
 
 // Helper Functions
 export const getFullName = (member: any) => `${member.firstName || ''} ${member.lastName || ''}`.trim();
-export const getStatus = (member: any): 'active' | 'pending' | 'rejected' => member.status || member.membershipStatus;
-export const isMinor = (birthDate: string) => birthDate ? differenceInYears(new Date(), new Date(birthDate)) < 18 : false;
+export const getStatus = (member: any): 'active' | 'pending' | 'rejected' => member.membershipStatus || member.status;
+export const isMinor = (birthDate: string | Date) => birthDate ? differenceInYears(new Date(), new Date(birthDate)) < 18 : false;
 export const formatDate = (dateString: any) => {
   if (!dateString) return 'N/A';
-  if (dateString.toDate) {
-    try { return format(dateString.toDate(), 'dd/MM/yyyy'); } catch { return 'Data non valida'; }
+  // Handle Firestore Timestamps
+  if (dateString && typeof dateString.toDate === 'function') {
+    try { 
+      return format(dateString.toDate(), 'dd/MM/yyyy'); 
+    } catch { 
+      return 'Data non valida'; 
+    }
   }
-  try { return format(new Date(dateString), 'dd/MM/yyyy'); } catch { return dateString; }
+  // Handle ISO strings or Date objects
+  try { 
+    return format(new Date(dateString), 'dd/MM/yyyy'); 
+  } catch { 
+    return String(dateString); // Fallback to string representation
+  }
 };
+
+const statusTranslations: Record<string, string> = {
+  active: 'Attivo',
+  pending: 'In attesa',
+  rejected: 'Rifiutato',
+};
+
 
 const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: string, value?: string | number | null }) => {
   if (!value && typeof value !== 'number') return null;
@@ -78,66 +95,27 @@ const MemberActions = ({ member }: { member: any }) => {
   const { toast } = useToast();
   const firestore = useFirestore();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const currentStatus = getStatus(member);
-
-  const handleStatusChange = async (newStatus: 'active' | 'pending' | 'rejected') => {
-    if (!firestore || newStatus === currentStatus) return;
-
-    const batch = writeBatch(firestore);
-    const originalCollection = currentStatus === 'active' ? 'members' : 'membership_requests';
-    const originalId = member.id;
-    const oldDocRef = doc(firestore, originalCollection, originalId);
-
-    const targetCollection = newStatus === 'active' ? 'members' : 'membership_requests';
-    const targetDocRef = doc(firestore, targetCollection, originalId);
-    
-    const { id, requestDate, ...memberData } = member;
-
-    let dataToWrite: any = {
-      ...memberData,
-      id: originalId,
-    };
-    
-    if (newStatus === 'active') {
-      dataToWrite.membershipStatus = 'active';
-      dataToWrite.joinDate = member.joinDate || serverTimestamp();
-      dataToWrite.expirationDate = member.expirationDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
-      delete dataToWrite.status; // Remove request status field
-    } else {
-      dataToWrite.status = newStatus;
-      dataToWrite.requestDate = member.requestDate || serverTimestamp();
-      delete dataToWrite.membershipStatus; // Remove member status fields
-      delete dataToWrite.joinDate;
-      delete dataToWrite.expirationDate;
-    }
-
-    if (originalCollection !== targetCollection) {
-      batch.delete(oldDocRef); // Delete from the old collection
-    }
-    batch.set(targetDocRef, dataToWrite, { merge: true }); // Create/update in the new collection
-
-    try {
-      await batch.commit();
-      toast({
-        title: "Stato aggiornato!",
-        description: `Lo stato di ${getFullName(member)} è ora '${newStatus}'.`,
-      });
-    } catch (error) {
-      console.error("Error updating status:", error);
-      toast({ title: "Errore", description: "Impossibile aggiornare lo stato.", variant: "destructive" });
-    }
-  };
   
   const handleDelete = async () => {
     if (!firestore) return;
+    const currentStatus = getStatus(member);
     const collectionName = currentStatus === 'active' ? 'members' : 'membership_requests';
     const docRef = doc(firestore, collectionName, member.id);
-    deleteDocumentNonBlocking(docRef);
-    toast({
-      title: "Membro rimosso",
-      description: `${getFullName(member)} è stato rimosso dalla lista.`,
-      variant: "destructive",
-    });
+    
+    const batch = writeBatch(firestore);
+    batch.delete(docRef);
+    
+    try {
+      await batch.commit();
+      toast({
+        title: "Membro rimosso",
+        description: `${getFullName(member)} è stato rimosso dalla lista.`,
+        variant: "destructive",
+      });
+    } catch (error) {
+       console.error("Error deleting member:", error);
+       toast({ title: "Errore", description: "Impossibile eliminare il membro.", variant: "destructive" });
+    }
   };
 
   return (
@@ -151,12 +129,10 @@ const MemberActions = ({ member }: { member: any }) => {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-          {currentStatus === 'pending' && <DropdownMenuItem onClick={() => handleStatusChange('active')}><Check className="mr-2 h-4 w-4" /> Approva</DropdownMenuItem>}
-          {currentStatus === 'pending' && <DropdownMenuItem onClick={() => handleStatusChange('rejected')}><X className="mr-2 h-4 w-4" /> Rifiuta</DropdownMenuItem>}
+          <DropdownMenuItem onSelect={() => setIsEditDialogOpen(true)}>
+            <Pencil className="mr-2 h-4 w-4" /> Modifica
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DialogTrigger asChild>
-            <DropdownMenuItem><Pencil className="mr-2 h-4 w-4" /> Modifica</DropdownMenuItem>
-          </DialogTrigger>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
@@ -255,7 +231,7 @@ const MemberTableRow = ({ member }: { member: any }) => {
               "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30": status === "rejected",
             })}
           >
-            {status}
+            {statusTranslations[status] || status}
           </Badge>
         </TableCell>
         <TableCell className="text-right">
@@ -270,8 +246,13 @@ export function MembersTable({ initialMembers, initialRequests }: { initialMembe
   
   const allItems = useMemo(() => {
     const combinedData: { [key: string]: any } = {};
-    [...initialMembers, ...initialRequests].forEach(item => {
-      combinedData[item.id] = item;
+    // Add requests first
+    initialRequests.forEach(item => {
+        if (item && item.id) combinedData[item.id] = item;
+    });
+    // Add members, overwriting any pending requests with the same ID
+    initialMembers.forEach(item => {
+        if (item && item.id) combinedData[item.id] = item;
     });
     return Object.values(combinedData).sort((a,b) => (a.firstName || '').localeCompare(b.firstName || ''));
   }, [initialMembers, initialRequests]);
