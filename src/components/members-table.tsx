@@ -27,7 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Check, MoreHorizontal, Pencil, Trash2, X, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, MapPin, Euro, StickyNote, HandHeart, CheckCircle } from "lucide-react";
+import { Check, MoreHorizontal, Pencil, Trash2, X, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -43,42 +43,21 @@ import {
 import { AlertDialogTrigger } from "./ui/alert-dialog";
 import { Input } from "./ui/input";
 import { useFirestore, setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
-import { collection, doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, doc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { differenceInYears, format } from 'date-fns';
 import { EditMemberForm } from "./edit-member-form";
 
-type MembersTableProps = {
-  initialMembers: any[];
-  initialRequests: any[];
-};
-
-const getFullName = (member: any) => {
-    return `${member.firstName || ''} ${member.lastName || ''}`.trim();
-};
-
-const getStatus = (member: any) => member.status || member.membershipStatus;
-
-const isMinor = (birthDate: string) => {
-  if (!birthDate) return false;
-  return differenceInYears(new Date(), new Date(birthDate)) < 18;
-};
-
-const formatDate = (dateString: any) => {
+// Helper Functions
+export const getFullName = (member: any) => `${member.firstName || ''} ${member.lastName || ''}`.trim();
+export const getStatus = (member: any): 'active' | 'pending' | 'rejected' => member.status || member.membershipStatus;
+export const isMinor = (birthDate: string) => birthDate ? differenceInYears(new Date(), new Date(birthDate)) < 18 : false;
+export const formatDate = (dateString: any) => {
   if (!dateString) return 'N/A';
   if (dateString.toDate) {
-    try {
-      return format(dateString.toDate(), 'dd/MM/yyyy');
-    } catch {
-      return 'Data non valida';
-    }
+    try { return format(dateString.toDate(), 'dd/MM/yyyy'); } catch { return 'Data non valida'; }
   }
-  try {
-    return format(new Date(dateString), 'dd/MM/yyyy');
-  } catch {
-    return dateString;
-  }
+  try { return format(new Date(dateString), 'dd/MM/yyyy'); } catch { return dateString; }
 };
-
 
 const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: string, value?: string | number | null }) => {
   if (!value && typeof value !== 'number') return null;
@@ -90,80 +69,133 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
         <p className="font-medium">{value}</p>
       </div>
     </div>
-  )
+  );
 };
 
 
-const MemberTableRow = ({ member }: { member: any }) => {
+// Dedicated component for actions to isolate state and logic
+const MemberActions = ({ member }: { member: any }) => {
   const { toast } = useToast();
   const firestore = useFirestore();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const currentStatus = getStatus(member);
 
-  const status = getStatus(member);
-  const memberIsMinor = isMinor(member.birthDate);
-  const defaultFee = member.membershipFee ?? (memberIsMinor ? 0 : 10);
+  const handleStatusChange = async (newStatus: 'active' | 'pending' | 'rejected') => {
+    if (!firestore || newStatus === currentStatus) return;
 
-  const handleApprove = (id: string) => {
-    const memberToUpdate = member;
-    if (!memberToUpdate || !firestore) return;
-  
-    const { id: oldId, requestDate, status, ...memberData } = memberToUpdate;
+    const batch = writeBatch(firestore);
+    const originalCollection = currentStatus === 'active' ? 'members' : 'membership_requests';
+    const originalId = member.id;
+    const oldDocRef = doc(firestore, originalCollection, originalId);
+
+    const targetCollection = newStatus === 'active' ? 'members' : 'membership_requests';
+    const targetDocRef = doc(firestore, targetCollection, originalId);
     
-    // Generate a new ID for the member document
-    const newMemberRef = doc(collection(firestore, 'members'));
+    const { id, requestDate, ...memberData } = member;
 
-    const newMemberData = {
+    let dataToWrite: any = {
       ...memberData,
-      id: newMemberRef.id,
-      membershipStatus: 'active',
-      joinDate: serverTimestamp(),
-      expirationDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
+      id: originalId,
     };
-
-    // Non-blocking write and delete. Firestore listeners will pick up the changes.
-    setDoc(newMemberRef, newMemberData, {});
     
-    const requestRef = doc(firestore, "membership_requests", id);
-    deleteDocumentNonBlocking(requestRef);
+    if (newStatus === 'active') {
+      dataToWrite.membershipStatus = 'active';
+      dataToWrite.joinDate = member.joinDate || serverTimestamp();
+      dataToWrite.expirationDate = member.expirationDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
+      delete dataToWrite.status; // Remove request status field
+    } else {
+      dataToWrite.status = newStatus;
+      dataToWrite.requestDate = member.requestDate || serverTimestamp();
+      delete dataToWrite.membershipStatus; // Remove member status fields
+      delete dataToWrite.joinDate;
+      delete dataToWrite.expirationDate;
+    }
 
-    toast({
-        title: "Membro Approvato!",
-        description: `${memberToUpdate.firstName} è ora un membro del club.`,
-    });
+    if (originalCollection !== targetCollection) {
+      batch.delete(oldDocRef); // Delete from the old collection
+    }
+    batch.set(targetDocRef, dataToWrite, { merge: true }); // Create/update in the new collection
+
+    try {
+      await batch.commit();
+      toast({
+        title: "Stato aggiornato!",
+        description: `Lo stato di ${getFullName(member)} è ora '${newStatus}'.`,
+      });
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast({ title: "Errore", description: "Impossibile aggiornare lo stato.", variant: "destructive" });
+    }
   };
-
-  const handleReject = async (id: string) => {
-    const memberToUpdate = member;
-    if (!memberToUpdate || !firestore) return;
-
-    const memberRef = doc(firestore, "membership_requests", id);
-    // Non-blocking write. Firestore listeners will pick up the change.
-    setDocumentNonBlocking(memberRef, { status: 'rejected' }, { merge: true });
-    
-    toast({
-      title: "Richiesta Rifiutata",
-      description: `La richiesta di ${memberToUpdate.firstName} è stata rifiutata.`,
-      variant: "destructive"
-    });
-  }
-
-  const handleDelete = async (id: string) => {
-    const memberToDelete = member;
-    if (!memberToDelete || !firestore) return;
-
-    const collectionName = getStatus(memberToDelete) === 'pending' ? 'membership_requests' : 'members';
-    const docRef = doc(firestore, collectionName, id);
-    // Non-blocking delete. Firestore listeners will pick up the change.
+  
+  const handleDelete = async () => {
+    if (!firestore) return;
+    const collectionName = currentStatus === 'active' ? 'members' : 'membership_requests';
+    const docRef = doc(firestore, collectionName, member.id);
     deleteDocumentNonBlocking(docRef);
-
     toast({
       title: "Membro rimosso",
-      description: "Il membro è stato rimosso dalla lista.",
+      description: `${getFullName(member)} è stato rimosso dalla lista.`,
       variant: "destructive",
     });
   };
 
+  return (
+    <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="h-8 w-8 p-0">
+            <span className="sr-only">Apri menu</span>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Azioni</DropdownMenuLabel>
+          {currentStatus === 'pending' && <DropdownMenuItem onClick={() => handleStatusChange('active')}><Check className="mr-2 h-4 w-4" /> Approva</DropdownMenuItem>}
+          {currentStatus === 'pending' && <DropdownMenuItem onClick={() => handleStatusChange('rejected')}><X className="mr-2 h-4 w-4" /> Rifiuta</DropdownMenuItem>}
+          <DropdownMenuSeparator />
+          <DialogTrigger asChild>
+            <DropdownMenuItem><Pencil className="mr-2 h-4 w-4" /> Modifica</DropdownMenuItem>
+          </DialogTrigger>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
+                <Trash2 className="mr-2 h-4 w-4" /> Elimina
+              </DropdownMenuItem>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Questa azione non può essere annullata. Questo rimuoverà permanentemente {getFullName(member)} dalla lista.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annulla</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Elimina
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Modifica Membro: {getFullName(member)}</DialogTitle>
+          </DialogHeader>
+          <EditMemberForm member={member} onClose={() => setIsEditDialogOpen(false)} />
+      </DialogContent>
+    </Dialog>
+  );
+};
 
+
+const MemberTableRow = ({ member }: { member: any }) => {
+  const status = getStatus(member);
+  const memberIsMinor = isMinor(member.birthDate);
+  const defaultFee = member.membershipFee ?? (isMinor(member.birthDate) ? 0 : 10);
+  
   return (
       <TableRow>
         <TableCell className="font-medium">
@@ -179,13 +211,13 @@ const MemberTableRow = ({ member }: { member: any }) => {
                     <DialogHeader>
                       <DialogTitle className="flex items-center gap-3"><User/> Dettagli Membro</DialogTitle>
                     </DialogHeader>
-                     <div className="py-4 space-y-2">
+                     <div className="py-4 space-y-2 max-h-[70vh] overflow-y-auto p-1 pr-4">
                         <DetailRow icon={<User />} label="Nome Completo" value={getFullName(member)} />
                         <DetailRow icon={<Mail />} label="Email" value={member.email} />
                         <DetailRow icon={<Phone />} label="Telefono" value={member.phone} />
                         <DetailRow icon={<Home />} label="Indirizzo" value={`${member.address}, ${member.city} (${member.province}) ${member.postalCode}`} />
                         <DetailRow icon={<Hash />} label="Codice Fiscale" value={member.fiscalCode} />
-                        <DetailRow icon={<Calendar />} label="Anno Associativo" value={member.membershipYear} />
+                        <DetailRow icon={<Calendar />} label="Anno Associativo" value={member.membershipYear || new Date().getFullYear()} />
                         <DetailRow icon={<Euro />} label="Quota Versata" value={`€ ${defaultFee}`} />
                         {member.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
                         <DetailRow icon={<StickyNote />} label="Note" value={member.notes} />
@@ -216,129 +248,52 @@ const MemberTableRow = ({ member }: { member: any }) => {
         </TableCell>
         <TableCell>
           <Badge
-            variant={
-              status === "active" || status === "approved"
-                ? "default"
-                : status === "pending"
-                ? "secondary"
-                : "destructive"
-            }
+            variant={status === "active" ? "default" : status === "pending" ? "secondary" : "destructive"}
             className={cn({
-              "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30": status === "active" || status === "approved",
+              "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30": status === "active",
               "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30": status === "pending",
               "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30": status === "rejected",
             })}
           >
-            {status === 'active' || status === 'approved' ? 'approvato' : status === 'pending' ? 'in attesa' : 'rifiutato'}
+            {status}
           </Badge>
         </TableCell>
         <TableCell className="text-right">
-          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
-                  <span className="sr-only">Apri menu</span>
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-                {status === 'pending' && (
-                    <DropdownMenuItem
-                    onClick={() => handleApprove(member.id)}
-                    >
-                    <Check className="mr-2 h-4 w-4" /> Approva
-                    </DropdownMenuItem>
-                )}
-                {status === 'pending' && (
-                    <DropdownMenuItem
-                    onClick={() => handleReject(member.id)}
-                    >
-                    <X className="mr-2 h-4 w-4" /> Rifiuta
-                    </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DialogTrigger asChild>
-                  <DropdownMenuItem>
-                    <Pencil className="mr-2 h-4 w-4" /> Modifica
-                  </DropdownMenuItem>
-                </DialogTrigger>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
-                      <Trash2 className="mr-2 h-4 w-4" /> Elimina
-                    </DropdownMenuItem>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Questa azione non può essere annullata. Questo rimuoverà permanentemente {getFullName(member)} dalla lista.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Annulla</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleDelete(member.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                        Elimina
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Modifica Membro: {getFullName(member)}</DialogTitle>
-                </DialogHeader>
-                <EditMemberForm member={member} onClose={() => setIsEditDialogOpen(false)} />
-            </DialogContent>
-          </Dialog>
+          <MemberActions member={member} />
         </TableCell>
       </TableRow>
   );
 };
 
-
-export function MembersTable({ initialMembers, initialRequests }: MembersTableProps) {
+export function MembersTable({ initialMembers, initialRequests }: { initialMembers: any[], initialRequests: any[] }) {
   const [filter, setFilter] = useState('');
   
-  const allMembers = useMemo(() => {
+  const allItems = useMemo(() => {
     const combinedData: { [key: string]: any } = {};
-
-    for (const member of initialMembers) {
-      combinedData[member.id] = member;
-    }
-
-    for (const request of initialRequests) {
-      // Only add if not already present from the members list
-      if (!combinedData[request.id]) {
-        combinedData[request.id] = request;
-      }
-    }
-    
+    [...initialMembers, ...initialRequests].forEach(item => {
+      combinedData[item.id] = item;
+    });
     return Object.values(combinedData).sort((a,b) => (a.firstName || '').localeCompare(b.firstName || ''));
   }, [initialMembers, initialRequests]);
 
-
-  const filteredMembers = allMembers.filter(member => {
-    const fullName = getFullName(member);
-    return fullName.toLowerCase().includes(filter.toLowerCase()) ||
+  const filteredMembers = allItems.filter(member => {
+    return getFullName(member).toLowerCase().includes(filter.toLowerCase()) ||
            (member.email && member.email.toLowerCase().includes(filter.toLowerCase()));
   });
 
   return (
     <div>
-        <div className="flex items-center py-4">
-            <div className="relative w-full max-w-sm">
-                 <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    placeholder="Filtra per nome o email..."
-                    value={filter}
-                    onChange={(event) => setFilter(event.target.value)}
-                    className="pl-10"
-                />
-            </div>
-        </div>
+      <div className="flex items-center py-4">
+          <div className="relative w-full max-w-sm">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                  placeholder="Filtra per nome o email..."
+                  value={filter}
+                  onChange={(event) => setFilter(event.target.value)}
+                  className="pl-10"
+              />
+          </div>
+      </div>
       <div className="rounded-md border">
         <Table>
           <TableHeader>

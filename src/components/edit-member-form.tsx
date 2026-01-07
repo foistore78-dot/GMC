@@ -20,10 +20,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
-import { useFirestore, setDocumentNonBlocking } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { useFirestore } from "@/firebase";
+import { doc, writeBatch, serverTimestamp } from "firebase/firestore";
 import type { Member } from "@/lib/members-data";
 import { Textarea } from "./ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { getStatus, getFullName } from "./members-table";
 
 const formSchema = z.object({
   firstName: z.string().min(2, { message: "Il nome deve contenere almeno 2 caratteri." }),
@@ -42,6 +44,7 @@ const formSchema = z.object({
   notes: z.string().optional(),
   membershipYear: z.string().optional(),
   membershipFee: z.coerce.number().optional(),
+  status: z.enum(['active', 'pending', 'rejected']),
 });
 
 type EditMemberFormProps = {
@@ -49,19 +52,19 @@ type EditMemberFormProps = {
     onClose: () => void;
 };
 
-const getStatus = (member: any) => member.status || member.membershipStatus;
-
 export function EditMemberForm({ member, onClose }: EditMemberFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firestore = useFirestore();
+  const currentStatus = getStatus(member);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       ...member,
+      status: currentStatus,
       membershipYear: member.membershipYear || new Date().getFullYear().toString(),
-      membershipFee: member.membershipFee ?? (differenceInYears(new Date(), new Date(member.birthDate)) < 18 ? 0 : 10),
+      membershipFee: member.membershipFee ?? (differenceInYears(new Date(), member.birthDate || new Date()) < 18 ? 0 : 10),
       isVolunteer: member.isVolunteer || false,
       notes: member.notes || "",
     },
@@ -73,21 +76,48 @@ export function EditMemberForm({ member, onClose }: EditMemberFormProps) {
       return;
     }
     setIsSubmitting(true);
-    
-    const memberStatus = getStatus(member);
-    const collectionName = memberStatus === 'pending' || memberStatus === 'rejected' ? 'membership_requests' : 'members';
-    const memberRef = doc(firestore, collectionName, member.id);
 
-    const dataToSave = {
-        ...member, // Start with original data to preserve fields like status
-        ...values,   // Override with new form values
+    const batch = writeBatch(firestore);
+    const newStatus = values.status;
+
+    const originalCollection = currentStatus === 'active' ? 'members' : 'membership_requests';
+    const oldDocRef = doc(firestore, originalCollection, member.id);
+
+    const targetCollection = newStatus === 'active' ? 'members' : 'membership_requests';
+    const targetDocRef = doc(firestore, targetCollection, member.id);
+
+    const { status, ...dataToSave } = values;
+
+    let finalData: any = {
+        ...member, // preserve original fields like joinDate etc.
+        ...dataToSave,
+        id: member.id,
     };
+    
+    if (newStatus === 'active') {
+        finalData.membershipStatus = 'active';
+        if (!finalData.joinDate) finalData.joinDate = serverTimestamp();
+        if (!finalData.expirationDate) finalData.expirationDate = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
+        delete finalData.status;
+    } else {
+        finalData.status = newStatus;
+        if (!finalData.requestDate) finalData.requestDate = serverTimestamp();
+        delete finalData.membershipStatus;
+        delete finalData.joinDate;
+        delete finalData.expirationDate;
+    }
 
+    if (originalCollection !== targetCollection) {
+        batch.delete(oldDocRef);
+    }
+    
+    batch.set(targetDocRef, finalData, { merge: true });
+    
     try {
-      setDocumentNonBlocking(memberRef, dataToSave, { merge: true });
+      await batch.commit();
       toast({
         title: "Membro aggiornato!",
-        description: "I dati del membro sono stati aggiornati con successo.",
+        description: `I dati di ${getFullName(values)} sono stati aggiornati.`,
       });
       onClose();
     } catch (error) {
@@ -105,6 +135,30 @@ export function EditMemberForm({ member, onClose }: EditMemberFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1 pr-4">
+        
+        <FormField
+          control={form.control}
+          name="status"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Stato</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona uno stato" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="active">Attivo</SelectItem>
+                  <SelectItem value="pending">In attesa</SelectItem>
+                  <SelectItem value="rejected">Rifiutato</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField control={form.control} name="firstName" render={({ field }) => (
                 <FormItem><FormLabel>Nome</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
