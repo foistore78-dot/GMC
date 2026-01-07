@@ -1,28 +1,4 @@
 
-/**
- * Core Philosophy:
- * This ruleset implements a strict, role-based access control model centered around a global 'admin' role.
- * Public, unauthenticated users have the single ability to submit a membership request. All other actions,
- * including viewing and managing requests, members, and even other administrators, are restricted to
- * authenticated users designated as admins.
- *
- * Data Structure:
- * The data is organized into three distinct, top-level collections:
- * - `/membership_requests`: A write-only collection for the public to submit applications.
- * - `/members`: A private collection of approved club members, manageable only by admins.
- * - `/roles_admin`: A lookup collection where the existence of a document with a user's UID grants them system-wide admin privileges.
- *
- * Key Security Decisions:
- * - Admin Role Verification: A user is considered an admin if and only if a document exists for them at the path `/roles_admin/{userId}`. This provides a single, reliable source of truth for authorization.
- * - Public Submissions, Private Reads: To protect applicant privacy, the `/membership_requests` collection is publicly writable but readable only by admins. This prevents users from listing or viewing each other's applications.
- * - Secure Admin Management: The `/roles_admin` collection itself is protected, meaning only existing admins can grant or revoke administrative privileges for other users.
- *
- * Denormalization for Authorization:
- * The primary authorization mechanism relies on the existence of a document in the `/roles_admin` collection. This lookup-based approach (`exists()`) is a form of denormalization, as it stores authorization state (admin status) separately from user data, allowing for efficient and secure cross-collection checks.
- *
- * Structural Segregation:
- * The ruleset leverages structural segregation by separating public-facing write operations (`/membership_requests`) from private, admin-only data (`/members`). This is more secure and performant than a single collection with a status flag, especially for list operations.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -39,12 +15,20 @@ service cloud.firestore {
     }
 
     /**
-     * Checks if the user has an admin role by checking for a role document
-     * in the /roles_admin collection.
+     * DEPRECATED: We no longer use a roles collection.
+     * The new rule is that any authenticated user is an admin.
      */
-    function isAdmin() {
+    function isAdmin_DEPRECATED() {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
+    
+    /**
+     * Any signed-in user is considered an admin.
+     */
+    function isAdmin() {
+      return isSignedIn();
+    }
+
 
     // ----------------------------------------------------------------------
     // Collection Rules
@@ -53,48 +37,33 @@ service cloud.firestore {
     /**
      * @description Controls access to membership requests. Allows anyone to create a request, but restricts all other access to admins.
      * @path /membership_requests/{membershipRequestId}
-     * @allow (create) An unauthenticated user successfully submits a new membership request.
-     * @deny (get) An authenticated non-admin user tries to read a membership request.
-     * @principle Implements a "public drop-box" pattern: anyone can submit data, but only authorized users can view or manage it.
      */
     match /membership_requests/{membershipRequestId} {
       allow get: if isAdmin();
       allow list: if isAdmin();
       allow create: if true;
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     /**
      * @description Manages the collection of official club members. All access is strictly limited to administrators.
      * @path /members/{memberId}
-     * @allow (list) An admin user lists all current members of the club.
-     * @deny (create) An authenticated, non-admin user attempts to add themselves to the members list.
-     * @principle Enforces strict admin-only control over sensitive member data.
      */
     match /members/{memberId} {
       allow get: if isAdmin();
       allow list: if isAdmin();
       allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     /**
-     * @description Manages admin role assignments. The existence of a document here grants admin privileges. Only existing admins can modify this collection.
-     * @path /roles_admin/{adminId}
-     * @allow (create) An existing admin adds a new user to the admin list, granting them admin rights.
-     * @deny (create) A non-admin user attempts to create a document for their own UID to grant themselves admin rights.
-     * @principle Secures the role management system itself, preventing unauthorized privilege escalation.
+     * DEPRECATED: This collection is no longer used for role management.
+     * The `isAdmin()` function now handles authorization.
      */
     match /roles_admin/{adminId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
+      allow read, write: if false; // Block all access to this collection
     }
   }
 }
-
-    

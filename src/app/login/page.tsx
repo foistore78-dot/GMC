@@ -18,13 +18,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
-import { useAuth, useFirestore, useUser } from "@/firebase";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, type UserCredential } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { useAuth, useUser } from "@/firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
 
 const ADMIN_EMAIL = 'garage.music.club2024@gmail.com';
 const ADMIN_PASSWORD = 'password';
-const ADMIN_USERNAME = 'admin_gmc';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,7 +33,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   const auth = useAuth();
-  const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
 
   useEffect(() => {
@@ -47,58 +44,25 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth || !firestore) return;
+    if (!auth) return;
 
     setError("");
     setIsLoading(true);
 
-    let userCredential: UserCredential | null = null;
-
     try {
-      // First, try to sign in.
-      userCredential = await signInWithEmailAndPassword(auth, email, password);
-    } catch (signInError: any) {
-      // If sign-in fails because the user is not found or credentials are bad, try to create a new user.
-      if (signInError.code === 'auth/user-not-found' || signInError.code === 'auth/invalid-credential') {
-        try {
-          userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        } catch (creationError: any) {
-          setError(`Errore durante la creazione dell'account: ${creationError.message}`);
-          setIsLoading(false);
-          return;
-        }
+      await signInWithEmailAndPassword(auth, email, password);
+      // The onAuthStateChanged listener in the provider will handle the redirect.
+      // We can manually push here as a fallback.
+      router.push("/admin");
+    } catch (error: any) {
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        setError("Credenziali non valide. Verifica email e password.");
       } else {
-        // Handle other sign-in errors.
-        setError(`Errore di accesso: ${signInError.message}`);
+        setError(`Errore di accesso: ${error.message}`);
+      }
+    } finally {
         setIsLoading(false);
-        return;
-      }
     }
-
-    // If we have a user credential (either from sign-in or creation), set the admin role.
-    if (userCredential && userCredential.user) {
-      try {
-        const adminRoleRef = doc(firestore, 'roles_admin', userCredential.user.uid);
-        // AWAIT this operation to ensure the role is set before proceeding.
-        await setDoc(adminRoleRef, {
-          email: userCredential.user.email,
-          role: 'admin',
-          username: ADMIN_USERNAME,
-          id: userCredential.user.uid,
-        }, { merge: true });
-        
-        // This manual push is critical. It ensures navigation happens *after* the role is set.
-        router.push("/admin");
-
-      } catch (roleError: any) {
-        setError(`Impossibile impostare i permessi di amministratore: ${roleError.message}`);
-      }
-    } else {
-        setError("Impossibile ottenere le credenziali dell'utente dopo il login/registrazione.");
-    }
-
-    // This will only be reached if there's an error in setting the role.
-    setIsLoading(false);
   };
 
   // While checking auth state or if user is already logged in, show a loader.
@@ -186,5 +150,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    
