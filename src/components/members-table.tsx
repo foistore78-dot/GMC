@@ -65,16 +65,14 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
 };
 
 export function MembersTable({ initialMembers }: MembersTableProps) {
-  const [members, setMembers] = useState<any[]>(initialMembers);
   const [filter, setFilter] = useState('');
   const { toast } = useToast();
   const firestore = useFirestore();
 
   const handleApprove = async (id: string) => {
-    const memberToUpdate = members.find((m) => m.id === id);
+    const memberToUpdate = initialMembers.find((m) => m.id === id);
     if (!memberToUpdate || !firestore) return;
   
-    // 1. Create the new member document from the request data
     const { id: oldId, requestDate, status, ...memberData } = memberToUpdate;
     const newMemberData = {
       ...memberData,
@@ -82,42 +80,35 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
       joinDate: serverTimestamp(),
       expirationDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
     };
-    const membersCollection = collection(firestore, 'members');
+
+    try {
+        const membersCollection = collection(firestore, 'members');
+        const newMemberRef = await addDocumentNonBlocking(membersCollection, newMemberData);
+        
+        const requestRef = doc(firestore, "membership_requests", id);
+        await deleteDocumentNonBlocking(requestRef);
     
-    // We await this to get the new document reference with its ID
-    const newMemberRef = await addDocumentNonBlocking(membersCollection, newMemberData);
-  
-    // 2. Delete the old membership request
-    const requestRef = doc(firestore, "membership_requests", id);
-    await deleteDocumentNonBlocking(requestRef);
-    
-    // 3. Correctly update the local state: remove the old request and add the new member
-    setMembers((prev) => {
-      // Filter out the old request by its original ID
-      const updatedList = prev.filter(m => m.id !== id);
-      // Add the new member with its new ID from Firestore
-      updatedList.push({ ...newMemberData, id: newMemberRef.id });
-      return updatedList;
-    });
-  
-    toast({
-        title: "Membro Approvato!",
-        description: `${memberToUpdate.firstName} è ora un membro del club.`,
-    });
+        toast({
+            title: "Membro Approvato!",
+            description: `${memberToUpdate.firstName} è ora un membro del club.`,
+        });
+    } catch (error) {
+        console.error("Error approving member:", error);
+        toast({
+            title: "Errore di Approvazione",
+            description: "Si è verificato un problema durante l'approvazione.",
+            variant: "destructive",
+        });
+    }
   };
 
   const handleReject = async (id: string) => {
-    const memberToUpdate = members.find((m) => m.id === id);
+    const memberToUpdate = initialMembers.find((m) => m.id === id);
     if (!memberToUpdate || !firestore) return;
 
     const memberRef = doc(firestore, "membership_requests", id);
-    await setDocumentNonBlocking(memberRef, { status: 'rejected' }, { merge: true });
+    setDocumentNonBlocking(memberRef, { status: 'rejected' }, { merge: true });
     
-    setMembers((prevMembers) =>
-      prevMembers.map((member) =>
-        member.id === id ? { ...member, status: 'rejected' } : member
-      )
-    );
     toast({
       title: "Richiesta Rifiutata",
       description: `La richiesta di ${memberToUpdate.firstName} è stata rifiutata.`,
@@ -125,16 +116,14 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
     });
   }
 
-
   const handleDelete = async (id: string) => {
-    const memberToDelete = members.find((m) => m.id === id);
+    const memberToDelete = initialMembers.find((m) => m.id === id);
     if (!memberToDelete || !firestore) return;
 
     const collectionName = getStatus(memberToDelete) === 'pending' ? 'membership_requests' : 'members';
     const docRef = doc(firestore, collectionName, id);
-    await deleteDocumentNonBlocking(docRef);
+    deleteDocumentNonBlocking(docRef);
 
-    setMembers((prevMembers) => prevMembers.filter((member) => member.id !== id));
     toast({
       title: "Membro rimosso",
       description: "Il membro è stato rimosso dalla lista.",
@@ -143,14 +132,14 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
   };
 
   const handleUpdateMember = (updatedMember: Member) => {
-    setMembers(prev => prev.map(m => m.id === updatedMember.id ? updatedMember : m));
+     // No local state update needed, Firestore listener will handle it.
   };
   
   const getFullName = (member: any) => {
     return `${member.firstName || ''} ${member.lastName || ''}`.trim();
   }
 
-  const filteredMembers = members.filter(member => {
+  const filteredMembers = initialMembers.filter(member => {
     const fullName = getFullName(member);
     return fullName.toLowerCase().includes(filter.toLowerCase()) ||
            (member.email && member.email.toLowerCase().includes(filter.toLowerCase()));
@@ -165,7 +154,6 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
 
   const formatDate = (dateString: any) => {
     if (!dateString) return 'N/A';
-    // Handle Firestore Timestamp objects
     if (dateString.toDate) {
       try {
         return format(dateString.toDate(), 'dd/MM/yyyy');
@@ -173,7 +161,6 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
         return 'Data non valida';
       }
     }
-    // Handle string dates
     try {
       return format(new Date(dateString), 'dd/MM/yyyy');
     } catch {
@@ -209,7 +196,7 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
               filteredMembers.map((member) => {
                 const status = getStatus(member);
                 const memberIsMinor = isMinor(member.birthDate);
-                const defaultFee = member.membershipFee ?? (isMinor(member.birthDate) ? 0 : 10);
+                const defaultFee = member.membershipFee ?? (memberIsMinor ? 0 : 10);
 
                 return (
                 <TableRow key={member.id}>
@@ -356,3 +343,5 @@ export function MembersTable({ initialMembers }: MembersTableProps) {
     </div>
   );
 }
+
+    
