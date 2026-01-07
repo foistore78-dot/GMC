@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
 import { useFirestore } from "@/firebase";
-import { doc, writeBatch, deleteDoc } from "firebase/firestore";
+import { doc, deleteDoc } from "firebase/firestore";
 import { differenceInYears, format } from 'date-fns';
 import { EditMemberForm } from "./edit-member-form";
 
@@ -97,8 +97,12 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
 
 const MemberTableRow = ({ 
   member,
+  onUpdate,
+  onDelete,
 }: { 
   member: Member; 
+  onUpdate: (member: Member) => void;
+  onDelete: (id: string) => void;
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -111,7 +115,6 @@ const MemberTableRow = ({
 
   const handleDelete = () => {
     if (!firestore) return;
-    setIsDeleting(false);
 
     const collectionName = status === 'active' ? 'members' : 'membership_requests';
     const docRef = doc(firestore, collectionName, member.id);
@@ -120,8 +123,8 @@ const MemberTableRow = ({
         toast({
             title: "Membro rimosso",
             description: `${getFullName(member)} è stato rimosso dalla lista.`,
-            variant: "destructive",
         });
+        onDelete(member.id);
     }).catch(error => {
         console.error("Error deleting member:", error);
         toast({
@@ -129,6 +132,8 @@ const MemberTableRow = ({
             description: "Non è stato possibile rimuovere il membro.",
             variant: "destructive"
         });
+    }).finally(() => {
+        setIsDeleting(false);
     });
   };
   
@@ -209,7 +214,7 @@ const MemberTableRow = ({
                 <Pencil className="mr-2 h-4 w-4" /> Modifica
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-               <AlertDialog open={isDeleting} onOpenChange={setIsDeleting}>
+              <AlertDialog open={isDeleting} onOpenChange={setIsDeleting}>
                   <AlertDialogTrigger asChild>
                      <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
                         <Trash2 className="mr-2 h-4 w-4" /> Elimina
@@ -243,6 +248,7 @@ const MemberTableRow = ({
             <EditMemberForm 
               member={member} 
               onClose={() => setIsEditing(false)}
+              onUpdate={onUpdate}
             />
         </SheetContent>
       </Sheet>
@@ -250,8 +256,14 @@ const MemberTableRow = ({
   );
 };
 
+interface MembersTableProps {
+  initialMembers: Member[];
+  initialRequests: Member[];
+  handleUpdateLocally: (member: Member) => void;
+  handleRemoveLocally: (id: string) => void;
+}
 
-export function MembersTable({ initialMembers, initialRequests }: { initialMembers: Member[], initialRequests: Member[] }) {
+export function MembersTable({ initialMembers, initialRequests, handleUpdateLocally, handleRemoveLocally }: MembersTableProps) {
   const [filter, setFilter] = useState('');
   const [allItems, setAllItems] = useState<Member[]>([]);
 
@@ -308,6 +320,8 @@ export function MembersTable({ initialMembers, initialRequests }: { initialMembe
                 <MemberTableRow 
                   key={member.id} 
                   member={member}
+                  onUpdate={handleUpdateLocally}
+                  onDelete={handleRemoveLocally}
                 />
               ))
             ) : (

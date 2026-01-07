@@ -50,9 +50,10 @@ const formSchema = z.object({
 type EditMemberFormProps = {
     member: Member;
     onClose: () => void;
+    onUpdate: (updatedData: Member) => void;
 };
 
-export function EditMemberForm({ member, onClose }: EditMemberFormProps) {
+export function EditMemberForm({ member, onClose, onUpdate }: EditMemberFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firestore = useFirestore();
@@ -70,7 +71,7 @@ export function EditMemberForm({ member, onClose }: EditMemberFormProps) {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!firestore) {
       toast({ title: "Errore di connessione a Firestore", variant: "destructive" });
       return;
@@ -80,6 +81,10 @@ export function EditMemberForm({ member, onClose }: EditMemberFormProps) {
     const newStatus = values.status;
     const { status, ...dataToSave } = values;
     
+    // Optimistic UI update
+    onUpdate({ ...member, ...dataToSave, status: newStatus });
+    onClose();
+
     const batch = writeBatch(firestore);
 
     try {
@@ -114,22 +119,18 @@ export function EditMemberForm({ member, onClose }: EditMemberFormProps) {
             batch.delete(oldDocRef);
         }
 
-        batch.commit().then(() => {
-            toast({
-                title: "Membro aggiornato!",
-                description: `I dati di ${getFullName(values)} sono stati salvati.`,
-            });
-            onClose();
-        }).catch(error => {
-            console.error("Error committing batch:", error);
-            toast({ title: "Errore di Sincronizzazione", description: "L'aggiornamento sul server è fallito.", variant: "destructive" });
-        }).finally(() => {
-            setIsSubmitting(false);
+        await batch.commit()
+
+        toast({
+            title: "Membro aggiornato!",
+            description: `I dati di ${getFullName(values)} sono stati salvati.`,
         });
 
     } catch(error) {
-        console.error("Error preparing batch for member update:", error);
-        toast({ title: "Errore", description: "Si è verificato un problema durante la preparazione dell'aggiornamento.", variant: "destructive" });
+        console.error("Error committing batch:", error);
+        toast({ title: "Errore di Sincronizzazione", description: "L'aggiornamento sul server è fallito. I dati locali verranno ripristinati.", variant: "destructive" });
+        // Revert UI if server update fails - although useCollection will do this automatically
+    } finally {
         setIsSubmitting(false);
     }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -15,6 +15,8 @@ export default function AdminPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
+  const [allMembers, setAllMembers] = useState<Member[]>([]);
+  
   const membersCollection = useMemoFirebase(() => (firestore) ? collection(firestore, 'members') : null, [firestore]);
   const { data: members, isLoading: isLoadingMembers } = useCollection<Member>(membersCollection);
 
@@ -27,6 +29,37 @@ export default function AdminPage() {
     }
   }, [user, isUserLoading, router]);
 
+  useEffect(() => {
+    const combinedData: { [key: string]: Member } = {};
+
+    (membershipRequests || []).forEach(item => {
+      if (item && item.id) combinedData[item.id] = { ...item } as Member;
+    });
+    
+    (members || []).forEach(item => {
+      if (item && item.id) combinedData[item.id] = { ...item } as Member;
+    });
+
+    const sortedItems = Object.values(combinedData).sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
+    setAllMembers(sortedItems);
+  }, [members, membershipRequests]);
+
+  const handleUpdateLocally = useCallback((updatedMember: Member) => {
+    setAllMembers(prevMembers => {
+      const index = prevMembers.findIndex(m => m.id === updatedMember.id);
+      if (index !== -1) {
+        const newMembers = [...prevMembers];
+        newMembers[index] = updatedMember;
+        return newMembers;
+      }
+      // If member is new (e.g., status change from rejected to pending)
+      return [...prevMembers, updatedMember].sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
+    });
+  }, []);
+
+  const handleRemoveLocally = useCallback((memberId: string) => {
+    setAllMembers(prevMembers => prevMembers.filter(m => m.id !== memberId));
+  }, []);
 
   if (isUserLoading || !user) {
     return (
@@ -57,7 +90,12 @@ export default function AdminPage() {
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
              </div>
           ) : (
-            <MembersTable initialMembers={members || []} initialRequests={membershipRequests || []} />
+            <MembersTable 
+                initialMembers={members || []}
+                initialRequests={membershipRequests || []}
+                handleUpdateLocally={handleUpdateLocally} 
+                handleRemoveLocally={handleRemoveLocally} 
+            />
           )}
         </div>
       </main>
