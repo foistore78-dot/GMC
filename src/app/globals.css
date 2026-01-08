@@ -85,4 +85,9 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Make calendar and other popovers more visible */
+  .rdp-button:not([disabled]) {
+      @apply bg-secondary border-secondary-foreground/20;
+  }
 }

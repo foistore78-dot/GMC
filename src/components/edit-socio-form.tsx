@@ -88,6 +88,7 @@ const getDefaultValues = (socio: Socio) => {
 
     return {
         ...socio,
+        birthDate: formatDate(socio.birthDate, 'yyyy-MM-dd'),
         phone: socio.phone || '',
         status: originalStatus,
         qualifica: socio.qualifica || [],
@@ -326,7 +327,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                   />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={form.control} name="birthDate" render={({ field }) => (
-                        <FormItem><FormLabel>Data di Nascita</FormLabel><FormControl><Input type="date" {...field} value={formatDate(field.value, 'yyyy-MM-dd')} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Data di Nascita</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
                     )}/>
                     <FormField control={form.control} name="birthPlace" render={({ field }) => (
                         <FormItem><FormLabel>Luogo di Nascita</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -417,5 +418,3 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
-
-    
