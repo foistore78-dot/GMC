@@ -6,25 +6,20 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { SociTable } from "@/components/soci-table";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, orderBy, getDocs, writeBatch as firestoreWriteBatch } from "firebase/firestore";
+import { collection, query, orderBy } from "firebase/firestore";
 import { Loader2, Users } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { EditSocioForm } from "@/components/edit-socio-form";
 import { getFullName } from "@/components/soci-table";
-import { sociDataSeed } from "@/lib/seed-data";
-import { useToast } from "@/hooks/use-toast";
-
 
 export default function AdminPage() {
   const router = useRouter();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
-  const { toast } = useToast();
 
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
   const [combinedSoci, setCombinedSoci] = useState<Socio[]>([]);
-  const [dataLoaded, setDataLoaded] = useState(false);
 
   const membersQuery = useMemoFirebase(
     () => (firestore ? query(collection(firestore, "members"), orderBy("lastName")) : null),
@@ -43,47 +38,6 @@ export default function AdminPage() {
       router.push("/login");
     }
   }, [user, isUserLoading, router]);
-
-  useEffect(() => {
-    const seedDataIfNeeded = async () => {
-        if (!firestore || dataLoaded) return;
-
-        const requestsCollection = collection(firestore, "membership_requests");
-        const membersCollection = collection(firestore, "members");
-
-        const requestsSnapshot = await getDocs(requestsCollection);
-        const membersSnapshot = await getDocs(membersCollection);
-
-        if (requestsSnapshot.empty && membersSnapshot.empty) {
-            console.log("Database is empty. Seeding test data...");
-            try {
-                const batch = firestoreWriteBatch(firestore);
-                sociDataSeed.forEach(socio => {
-                    const docRef = doc(requestsCollection);
-                    const { id, ...socioData } = socio;
-                    batch.set(docRef, { ...socioData, id: docRef.id });
-                });
-                await batch.commit();
-                toast({
-                    title: "Dati di test caricati",
-                    description: `Aggiunte ${sociDataSeed.length} richieste di iscrizione di esempio.`,
-                });
-                // Data will be re-fetched by useCollection hooks, no manual reload needed.
-            } catch (error) {
-                console.error("Error seeding data:", error);
-                toast({
-                    title: "Errore nel seeding",
-                    description: `Non è stato possibile caricare i dati di test. Dettagli: ${(error as Error).message}`,
-                    variant: "destructive",
-                });
-            }
-        }
-        setDataLoaded(true); // Mark as checked
-    };
-
-    seedDataIfNeeded();
-  }, [firestore, dataLoaded, toast]);
-
 
   useEffect(() => {
     const sociMap = new Map<string, Socio>();
