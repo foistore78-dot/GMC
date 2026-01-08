@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -31,31 +31,30 @@ export default function AdminPage() {
 
   const { data: membersData, isLoading: isMembersLoading } = useCollection<Socio>(membersQuery);
   const { data: requestsData, isLoading: isRequestsLoading } = useCollection<Socio>(requestsQuery);
-
+  
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push("/login");
     }
   }, [user, isUserLoading, router]);
 
-  const combinedSoci = useMemo(() => {
-    const allSoci = [...(membersData || []), ...(requestsData || [])];
-    const sociMap = new Map<string, Socio>();
-    allSoci.forEach(s => {
-      if (s && s.id) {
-        if (!sociMap.has(s.id)) {
-            sociMap.set(s.id, s);
-        }
-      }
-    });
-    return Array.from(sociMap.values()).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
-  }, [membersData, requestsData]);
+  const combinedSoci = [
+    ...(membersData || []),
+    ...(requestsData || []),
+  ].reduce((acc, s) => {
+    if (s && s.id && !acc.has(s.id)) {
+      acc.set(s.id, s);
+    }
+    return acc;
+  }, new Map<string, Socio>());
+
+  const sortedSoci = Array.from(combinedSoci.values()).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
 
   const isLoading = isUserLoading || isMembersLoading || isRequestsLoading;
   
-  const handleEditSocio = (socio: Socio) => {
+  const handleEditSocio = useCallback((socio: Socio) => {
     setEditingSocio(socio);
-  };
+  }, []);
 
   const handleSheetOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -93,7 +92,7 @@ export default function AdminPage() {
              </div>
           ) : (
             <SociTable 
-                soci={combinedSoci}
+                soci={sortedSoci}
                 onEdit={handleEditSocio}
             />
           )}
