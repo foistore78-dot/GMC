@@ -29,12 +29,8 @@ const getTesseraNumber = (tessera: string | undefined) => {
   return isNaN(num) ? Infinity : num;
 };
 
-const getTesseraYear = (tessera: string | undefined) => {
-    if (!tessera) return 0;
-    const parts = tessera.split('-');
-    if (parts.length < 3) return 0;
-    const year = parseInt(parts[1], 10);
-    return isNaN(year) ? 0 : year;
+const getTesseraYear = (socio: Socio) => {
+    return socio.membershipYear ? parseInt(socio.membershipYear, 10) : 0;
 };
 
 export default function AdminPage() {
@@ -47,7 +43,7 @@ export default function AdminPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
   const [activeTab, setActiveTab] = useState("active");
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "ascending" });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "descending" });
 
   const membersQuery = useMemoFirebase(
     () => (firestore && user ? collection(firestore, "members") : null),
@@ -63,33 +59,50 @@ export default function AdminPage() {
   
   const sortedMembers = useMemo(() => {
     if (!membersData) return [];
+    const currentYear = new Date().getFullYear();
+    
     const sorted = [...membersData].sort((a, b) => {
-      const { key, direction } = sortConfig;
-      let aValue: any;
-      let bValue: any;
-      
-      if (key === 'tessera') {
-          const yearA = getTesseraYear(a.tessera);
-          const yearB = getTesseraYear(b.tessera);
-          if (yearA !== yearB) {
-              return direction === 'ascending' ? yearA - yearB : yearB - yearA;
-          }
-          aValue = getTesseraNumber(a.tessera);
-          bValue = getTesseraNumber(b.tessera);
-      } else if (key === 'name') {
-        aValue = `${a.lastName} ${a.firstName}`;
-        bValue = `${b.lastName} ${b.firstName}`;
-      } else {
-        aValue = a[key as keyof Socio];
-        bValue = b[key as keyof Socio];
-      }
+        const { key, direction } = sortConfig;
+        
+        // Primary sort: by year (current year first)
+        const yearA = getTesseraYear(a);
+        const yearB = getTesseraYear(b);
+        
+        const isACurrent = yearA === currentYear;
+        const isBCurrent = yearB === currentYear;
 
-      if (aValue < bValue) return direction === 'ascending' ? -1 : 1;
-      if (aValue > bValue) return direction === 'ascending' ? 1 : -1;
-      return 0;
+        if (isACurrent && !isBCurrent) return -1;
+        if (!isACurrent && isBCurrent) return 1;
+
+        // If both are current or both are not, sort by the selected key
+        let aValue: any;
+        let bValue: any;
+        
+        if (key === 'tessera') {
+            // Secondary sort: year descending
+            if (yearA !== yearB) {
+                return direction === 'ascending' ? yearA - yearB : yearB - yearA;
+            }
+            // Tertiary sort: tessera number
+            aValue = getTesseraNumber(a.tessera);
+            bValue = getTesseraNumber(b.tessera);
+        } else if (key === 'name') {
+            aValue = `${a.lastName} ${a.firstName}`;
+            bValue = `${b.lastName} ${b.firstName}`;
+        } else {
+            aValue = a[key as keyof Socio];
+            bValue = b[key as keyof Socio];
+        }
+
+        const asc = direction === 'ascending';
+        if (aValue < bValue) return asc ? -1 : 1;
+        if (aValue > bValue) return asc ? 1 : -1;
+        return 0;
     });
+    
     return sorted.map(s => ({ ...s, membershipStatus: 'active' as const }));
   }, [membersData, sortConfig]);
+
 
   const sortedRequests = useMemo(() => {
     if (!requestsData) return [];
@@ -139,7 +152,7 @@ export default function AdminPage() {
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     if (tab === 'active') {
-      setSortConfig({ key: 'tessera', direction: 'ascending' });
+      setSortConfig({ key: 'tessera', direction: 'descending' });
     } else {
       setSortConfig({ key: 'requestDate', direction: 'descending' });
     }
@@ -290,4 +303,3 @@ export default function AdminPage() {
     </div>
   );
 }
-    
