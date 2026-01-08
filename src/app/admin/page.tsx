@@ -10,8 +10,10 @@ import { collection, query, orderBy } from "firebase/firestore";
 import { Loader2, Users } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EditSocioForm } from "@/components/edit-socio-form";
 import { getFullName } from "@/components/soci-table";
+import { Badge } from "@/components/ui/badge";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -19,7 +21,9 @@ export default function AdminPage() {
   const firestore = useFirestore();
 
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
-  const [combinedSoci, setCombinedSoci] = useState<Socio[]>([]);
+  const [activeSoci, setActiveSoci] = useState<Socio[]>([]);
+  const [pendingSoci, setPendingSoci] = useState<Socio[]>([]);
+
 
   const membersQuery = useMemoFirebase(
     () => (firestore ? query(collection(firestore, "members"), orderBy("lastName")) : null),
@@ -40,22 +44,13 @@ export default function AdminPage() {
   }, [user, isUserLoading, router]);
 
   useEffect(() => {
-    const sociMap = new Map<string, Socio>();
+    const active: Socio[] = (membersData || []).map(s => ({ ...s, membershipStatus: 'active' as const }));
+    const pending: Socio[] = (requestsData || []).map(s => ({ ...s, membershipStatus: 'pending' as const }));
 
-    (requestsData || []).forEach(s => {
-        if (s?.id) sociMap.set(s.id, { ...s, membershipStatus: 'pending' });
-    });
-
-    (membersData || []).forEach(s => {
-        if (s?.id) sociMap.set(s.id, { ...s, membershipStatus: 'active' });
-    });
-
-    const sortedSoci = Array.from(sociMap.values()).sort((a, b) => 
-        (a.lastName || '').localeCompare(b.lastName || '')
-    );
-    
-    setCombinedSoci(sortedSoci);
+    setActiveSoci(active.sort((a, b) => (a.lastName || '').localeCompare(b.lastName || '')));
+    setPendingSoci(pending.sort((a, b) => (a.lastName || '').localeCompare(b.lastName || '')));
   }, [membersData, requestsData]);
+
   
   const isLoading = isUserLoading || isMembersLoading || isRequestsLoading;
 
@@ -93,16 +88,37 @@ export default function AdminPage() {
         </div>
 
         <div className="bg-background rounded-lg border border-border shadow-lg p-4">
-          {isLoading && combinedSoci.length === 0 ? (
+          {isLoading && activeSoci.length === 0 && pendingSoci.length === 0 ? (
              <div className="flex justify-center items-center h-64">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
              </div>
           ) : (
-            <SociTable 
-                soci={combinedSoci}
-                onEdit={handleEditSocio}
-                allMembers={membersData || []}
-            />
+            <Tabs defaultValue="pending">
+              <TabsList className="mb-4">
+                <TabsTrigger value="pending">
+                  Soci in Sospeso
+                  <Badge variant="secondary" className="ml-2">{pendingSoci.length}</Badge>
+                </TabsTrigger>
+                <TabsTrigger value="active">
+                  Soci Attivi
+                  <Badge variant="secondary" className="ml-2">{activeSoci.length}</Badge>
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="pending">
+                <SociTable 
+                    soci={pendingSoci}
+                    onEdit={handleEditSocio}
+                    allMembers={membersData || []}
+                />
+              </TabsContent>
+              <TabsContent value="active">
+                <SociTable 
+                    soci={activeSoci}
+                    onEdit={handleEditSocio}
+                    allMembers={membersData || []}
+                />
+              </TabsContent>
+            </Tabs>
           )}
         </div>
       </main>
