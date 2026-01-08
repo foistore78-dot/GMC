@@ -35,9 +35,9 @@ import {
   SelectValue,
 } from "./ui/select";
 
-const QUALIFICHE = ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
+export const QUALIFICHE = ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
 
-const isMinorCheck = (birthDate: string | undefined): boolean => {
+export const isMinorCheck = (birthDate: string | undefined | Date): boolean => {
   if (!birthDate) return false;
   const date = new Date(birthDate);
   if (isNaN(date.getTime())) return false;
@@ -148,10 +148,12 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
 
     try {
         if (newStatus === 'rejected') {
-            const requestDocRef = doc(firestore, 'membership_requests', socio.id);
-            const memberDocRef = doc(firestore, 'members', socio.id);
-            batch.delete(requestDocRef);
-            batch.delete(memberDocRef);
+            if (socio.id) {
+                const requestDocRef = doc(firestore, 'membership_requests', socio.id);
+                const memberDocRef = doc(firestore, 'members', socio.id);
+                batch.delete(requestDocRef);
+                batch.delete(memberDocRef);
+            }
         } else if (originalStatus !== newStatus) {
             if (newStatus === 'active') { // Moving to 'members'
                 const oldDocRef = doc(firestore, 'membership_requests', socio.id);
@@ -629,3 +631,5 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
+
+    

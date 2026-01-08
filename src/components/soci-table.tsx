@@ -52,9 +52,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { Checkbox } from "./ui/checkbox";
 import { useFirestore } from "@/firebase";
 import { doc, deleteDoc, writeBatch, serverTimestamp } from "firebase/firestore";
 import { differenceInYears, format, parseISO, isValid } from 'date-fns';
+import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
+
 
 // Helper Functions
 export const getFullName = (socio: any) => `${socio.firstName || ''} ${socio.lastName || ''}`.trim();
@@ -63,7 +66,7 @@ export const getStatus = (socio: any): 'active' | 'pending' | 'rejected' => {
     if (socio.status === 'rejected') return 'rejected';
     return socio.status || 'pending';
 };
-export const isMinor = (birthDate: string | Date | undefined) => birthDate ? differenceInYears(new Date(), new Date(birthDate)) < 18 : false;
+
 
 export const formatDate = (dateString: any, outputFormat: string = 'dd/MM/yyyy') => {
     if (!dateString) return 'N/A';
@@ -153,7 +156,11 @@ const SocioTableRow = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
+  
   const [newMemberNumber, setNewMemberNumber] = useState("");
+  const [membershipFee, setMembershipFee] = useState(10);
+  const [qualifiche, setQualifiche] = useState<string[]>([]);
+
 
   const status = getStatus(socio);
   const socioIsMinor = isMinor(socio.birthDate);
@@ -164,8 +171,10 @@ const SocioTableRow = ({
       const yearMembers = allMembers.filter(m => m.membershipYear === String(currentYear) && m.tessera);
       const nextMemberNumberValue = yearMembers.length + 1;
       setNewMemberNumber(String(nextMemberNumberValue));
+      setMembershipFee(socioIsMinor ? 0 : 10);
+      setQualifiche(socio.qualifica || []);
     }
-  }, [showApproveDialog, allMembers]);
+  }, [showApproveDialog, allMembers, socioIsMinor, socio.qualifica]);
 
   const handleDelete = async () => {
     if (!firestore || isDeleting) return;
@@ -174,12 +183,8 @@ const SocioTableRow = ({
     let collectionName;
     if (status === 'active') {
         collectionName = 'members';
-    } else if (status === 'pending' || status === 'rejected') {
+    } else { // pending or rejected
         collectionName = 'membership_requests';
-    } else {
-        console.error("Unknown status for deletion:", status);
-        setIsDeleting(false);
-        return;
     }
 
     const docRef = doc(firestore, collectionName, socio.id);
@@ -214,16 +219,18 @@ const SocioTableRow = ({
     const requestDocRef = doc(firestore, "membership_requests", socio.id);
     const memberDocRef = doc(firestore, "members", socio.id);
 
-    const newMemberData = {
+    const newMemberData: Omit<Socio, 'status'> & { membershipStatus: 'active' } = {
         ...socio,
         membershipStatus: 'active' as const,
-        status: 'active' as const,
-        joinDate: serverTimestamp(),
+        joinDate: serverTimestamp() as any, // Let Firestore set the date
         expirationDate: new Date(new Date().setFullYear(currentYear + 1)).toISOString(),
         membershipYear: String(currentYear),
         tessera: membershipCardNumber,
+        membershipFee: membershipFee,
+        qualifica: qualifiche,
     };
     delete (newMemberData as any).requestDate;
+    delete (newMemberData as any).status;
 
     batch.set(memberDocRef, newMemberData, { merge: true });
     batch.delete(requestDocRef);
@@ -245,6 +252,12 @@ const SocioTableRow = ({
     } finally {
       setIsApproving(false);
     }
+  };
+  
+  const handleQualificaChange = (qualifica: string, checked: boolean) => {
+    setQualifiche(prev => 
+      checked ? [...prev, qualifica] : prev.filter(q => q !== qualifica)
+    );
   };
   
   return (
@@ -279,8 +292,8 @@ const SocioTableRow = ({
                        <DetailRow icon={<Hash />} label="Codice Fiscale" value={socio.fiscalCode} />
                        <DetailRow icon={<Calendar />} label="Anno Associativo" value={socio.membershipYear || new Date().getFullYear()} />
                        <DetailRow icon={<Calendar />} label="Data Richiesta" value={formatDate(socio.requestDate)} />
-                       <DetailRow icon={<Calendar />} label="Data Ammissione" value={formatDate(socio.joinDate)} />
-                       <DetailRow icon={<Euro />} label="Quota Versata" value={formatCurrency(socio.membershipFee)} />
+                       {socio.membershipStatus === 'active' && <DetailRow icon={<Calendar />} label="Data Ammissione" value={formatDate(socio.joinDate)} />}
+                       <DetailRow icon={<Euro />} label="Quota Versata" value={formatCurrency(status === 'pending' ? 0 : socio.membershipFee)} />
                        {socio.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
                        <DetailRow icon={<StickyNote />} label="Note" value={socio.notes} />
                      </div>
@@ -375,6 +388,7 @@ const SocioTableRow = ({
                     <AlertDialogFooter>
                       <AlertDialogCancel>Annulla</AlertDialogCancel>
                       <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Elimina
                       </AlertDialogAction>
                     </AlertDialogFooter>
@@ -386,25 +400,56 @@ const SocioTableRow = ({
       </TableRow>
 
       <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-                <DialogTitle>Approva Socio</DialogTitle>
+                <DialogTitle>Approva Socio e Completa Iscrizione</DialogTitle>
                 <DialogDescription>
-                    Stai per approvare {getFullName(socio)} come membro attivo. Verrà assegnato il seguente numero di tessera.
+                    Stai per approvare {getFullName(socio)} come membro attivo. Completa i dati di tesseramento.
                 </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
+            <div className="grid gap-6 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="membership-number" className="text-right">
-                        Numero Tessera
+                        N. Tessera
                     </Label>
                     <div className="col-span-3 flex items-center gap-2">
-                      <span className="text-muted-foreground">GMC-{new Date().getFullYear()}-</span>
+                      <span className="text-muted-foreground text-sm">GMC-{new Date().getFullYear()}-</span>
                       <Input
                           id="membership-number"
                           value={newMemberNumber}
                           onChange={(e) => setNewMemberNumber(e.target.value)}
                           className="w-20"
+                      />
+                    </div>
+                </div>
+                 <div className="grid grid-cols-4 items-start gap-4">
+                    <Label className="text-right pt-2">Qualifiche</Label>
+                    <div className="col-span-3 space-y-2">
+                        {QUALIFICHE.map((q) => (
+                           <div key={q} className="flex items-center space-x-2">
+                                <Checkbox 
+                                    id={`qualifica-${q}`} 
+                                    checked={qualifiche.includes(q)}
+                                    onCheckedChange={(checked) => handleQualificaChange(q, !!checked)}
+                                />
+                                <label htmlFor={`qualifica-${q}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                    {q}
+                                </label>
+                            </div>
+                        ))}
+                    </div>
+                 </div>
+                 <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="membership-fee" className="text-right">
+                        Quota (€)
+                    </Label>
+                    <div className="col-span-3">
+                      <Input
+                          id="membership-fee"
+                          type="number"
+                          value={membershipFee}
+                          onChange={(e) => setMembershipFee(Number(e.target.value))}
+                          className="w-28"
                       />
                     </div>
                 </div>
@@ -426,12 +471,15 @@ const SociTableComponent = ({ soci, onEdit, allMembers }: SociTableProps) => {
   const [filter, setFilter] = useState('');
 
   const filteredSoci = useMemo(() => soci.filter(socio => {
+    if (!socio) return false;
     const fullName = getFullName(socio) || '';
     const email = socio.email || '';
     const tessera = socio.tessera || '';
-    return fullName.toLowerCase().includes(filter.toLowerCase()) ||
-           email.toLowerCase().includes(filter.toLowerCase()) ||
-           tessera.toLowerCase().includes(filter.toLowerCase());
+    const searchString = filter.toLowerCase();
+    
+    return fullName.toLowerCase().includes(searchString) ||
+           email.toLowerCase().includes(searchString) ||
+           tessera.toLowerCase().includes(searchString);
   }), [soci, filter]);
   
   return (
@@ -488,3 +536,5 @@ interface SociTableProps {
 }
 
 export const SociTable = SociTableComponent;
+
+    
