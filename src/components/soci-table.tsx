@@ -176,8 +176,8 @@ const SocioTableRow = ({
 
     const newMemberData: Omit<Socio, 'status'> & { membershipStatus: 'active' } = {
         ...socio,
-        membershipStatus: 'active' as const,
         joinDate: new Date().toISOString(),
+        membershipStatus: 'active' as const,
         expirationDate: new Date(new Date().setFullYear(currentYear + 1)).toISOString(),
         membershipYear: String(currentYear),
         tessera: membershipCardNumber,
@@ -219,12 +219,14 @@ const SocioTableRow = ({
   return (
     <>
     <TableRow>
+        <TableCell className="font-mono text-xs text-muted-foreground">
+          {socio.tessera ? socio.tessera.substring(8) : '-'}
+        </TableCell>
         <TableCell className="font-medium">
            <div className="flex items-center gap-3 flex-wrap">
                 <Dialog>
                    <DialogTrigger asChild>
                      <div className="flex items-center gap-2 cursor-pointer group">
-                        {socio.tessera && <span className="font-mono text-xs text-muted-foreground">{socio.tessera.substring(4)}</span>}
                         <span className="group-hover:text-primary transition-colors">{getFullName(socio)}</span>
                         {socio.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500 ml-1" />}
                      </div>
@@ -466,6 +468,7 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortCon
         <Table>
           <TableHeader>
             <TableRow>
+              <SortableHeader label="Tessera" sortKey="tessera" sortConfig={sortConfig} setSortConfig={setSortConfig} />
               <SortableHeader label="Nome" sortKey="name" sortConfig={sortConfig} setSortConfig={setSortConfig} />
               <SortableHeader label="Nascita" sortKey="birthDate" sortConfig={sortConfig} setSortConfig={setSortConfig} />
               <SortableHeader label="Stato" sortKey="status" sortConfig={sortConfig} setSortConfig={setSortConfig} />
@@ -485,7 +488,7 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortCon
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                   Nessun socio trovato.
                 </TableCell>
               </TableRow>
