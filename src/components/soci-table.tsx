@@ -58,6 +58,7 @@ import { differenceInYears, format, parseISO, isValid } from 'date-fns';
 export const getFullName = (socio: any) => `${socio.firstName || ''} ${socio.lastName || ''}`.trim();
 export const getStatus = (socio: any): 'active' | 'pending' | 'rejected' => {
     if (socio.membershipStatus === 'active') return 'active';
+    if (socio.status === 'rejected') return 'rejected';
     return socio.status || 'pending';
 };
 export const isMinor = (birthDate: string | Date | undefined) => birthDate ? differenceInYears(new Date(), new Date(birthDate)) < 18 : false;
@@ -142,14 +143,26 @@ const SocioTableRow = ({
 }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const status = getStatus(socio);
   const socioIsMinor = isMinor(socio.birthDate);
 
   const handleDelete = async () => {
-    if (!firestore) return;
+    if (!firestore || isDeleting) return;
+    setIsDeleting(true);
     
-    const collectionName = getStatus(socio) === 'active' ? 'members' : 'membership_requests';
+    let collectionName;
+    if (status === 'active') {
+        collectionName = 'members';
+    } else if (status === 'pending' || status === 'rejected') {
+        collectionName = 'membership_requests';
+    } else {
+        console.error("Unknown status for deletion:", status);
+        setIsDeleting(false);
+        return;
+    }
+
     const docRef = doc(firestore, collectionName, socio.id);
     
     try {
@@ -165,6 +178,8 @@ const SocioTableRow = ({
             description: "Non è stato possibile rimuovere il socio.",
             variant: "destructive"
         });
+    } finally {
+        setIsDeleting(false);
     }
   };
 
@@ -312,7 +327,7 @@ const SocioTableRow = ({
         <TableCell className="text-right">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
+              <Button variant="ghost" className="h-8 w-8 p-0" disabled={isDeleting}>
                 <span className="sr-only">Apri menu</span>
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
