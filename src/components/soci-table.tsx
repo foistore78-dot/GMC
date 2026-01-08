@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { Socio } from "@/lib/soci-data";
 import {
   Table,
@@ -28,6 +28,7 @@ import {
   DialogTrigger,
   DialogFooter,
   DialogClose,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Tooltip,
@@ -35,7 +36,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -50,6 +51,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 import { useFirestore } from "@/firebase";
 import { doc, deleteDoc, writeBatch, serverTimestamp } from "firebase/firestore";
 import { differenceInYears, format, parseISO, isValid } from 'date-fns';
@@ -144,9 +146,21 @@ const SocioTableRow = ({
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
-  
+  const [isApproving, setIsApproving] = useState(false);
+  const [showApproveDialog, setShowApproveDialog] = useState(false);
+  const [newMemberNumber, setNewMemberNumber] = useState("");
+
   const status = getStatus(socio);
   const socioIsMinor = isMinor(socio.birthDate);
+
+  useEffect(() => {
+    if (showApproveDialog) {
+      const currentYear = new Date().getFullYear();
+      const yearMembers = allMembers.filter(m => m.membershipYear === String(currentYear) && m.tessera);
+      const nextMemberNumberValue = yearMembers.length + 1;
+      setNewMemberNumber(String(nextMemberNumberValue));
+    }
+  }, [showApproveDialog, allMembers]);
 
   const handleDelete = async () => {
     if (!firestore || isDeleting) return;
@@ -184,12 +198,11 @@ const SocioTableRow = ({
   };
 
   const handleApprove = async () => {
-    if (!firestore) return;
+    if (!firestore || isApproving) return;
 
+    setIsApproving(true);
     const currentYear = new Date().getFullYear();
-    const yearMembers = allMembers.filter(m => m.membershipYear === String(currentYear) && m.tessera);
-    const nextMemberNumber = yearMembers.length + 1;
-    const membershipCardNumber = `GMC-${currentYear}-${nextMemberNumber}`;
+    const membershipCardNumber = `GMC-${currentYear}-${newMemberNumber}`;
 
     const batch = writeBatch(firestore);
 
@@ -216,6 +229,7 @@ const SocioTableRow = ({
             title: "Socio Approvato!",
             description: `${getFullName(socio)} è ora un membro attivo. N. tessera: ${membershipCardNumber}`,
         });
+        setShowApproveDialog(false);
     } catch (error) {
         console.error("Error approving member:", error);
         toast({
@@ -223,14 +237,13 @@ const SocioTableRow = ({
             description: `Impossibile approvare ${getFullName(socio)}. Dettagli: ${(error as Error).message}`,
             variant: "destructive",
         });
+    } finally {
+      setIsApproving(false);
     }
-  };
-
-  const handleEdit = () => {
-    onEdit(socio);
   };
   
   return (
+    <>
     <TableRow>
         <TableCell className="font-medium">
            <div className="flex items-center gap-3 flex-wrap">
@@ -238,8 +251,8 @@ const SocioTableRow = ({
                    <DialogTrigger asChild>
                      <div className="flex items-center gap-2 cursor-pointer group">
                         {socio.tessera && <span className="font-mono text-xs text-muted-foreground">{socio.tessera.substring(4)}</span>}
-                        {socio.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500" />}
                         <span className="group-hover:text-primary transition-colors">{getFullName(socio)}</span>
+                        {socio.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500" />}
                      </div>
                    </DialogTrigger>
                    <DialogContent className="max-w-md">
@@ -270,9 +283,7 @@ const SocioTableRow = ({
                           <DialogClose asChild>
                             <Button variant="ghost">Chiudi</Button>
                           </DialogClose>
-                           <DialogClose asChild>
-                             <Button onClick={handleEdit}><Pencil className="mr-2 h-4 w-4" /> Modifica Dati</Button>
-                          </DialogClose>
+                           <Button onClick={() => onEdit(socio)}><Pencil className="mr-2 h-4 w-4" /> Modifica Dati</Button>
                       </DialogFooter>
                    </DialogContent>
                  </Dialog>
@@ -334,8 +345,11 @@ const SocioTableRow = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Azioni</DropdownMenuLabel>
+               <DropdownMenuItem onSelect={() => onEdit(socio)}>
+                 <Pencil className="mr-2 h-4 w-4" /> Modifica
+              </DropdownMenuItem>
               {status === 'pending' && (
-                <DropdownMenuItem onSelect={handleApprove} className="text-green-500 focus:text-green-400 focus:bg-green-500/10">
+                <DropdownMenuItem onSelect={() => setShowApproveDialog(true)} className="text-green-500 focus:text-green-400 focus:bg-green-500/10">
                     <CheckCircle className="mr-2 h-4 w-4" /> Approva
                 </DropdownMenuItem>
               )}
@@ -365,6 +379,41 @@ const SocioTableRow = ({
           </DropdownMenu>
         </TableCell>
       </TableRow>
+
+      <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Approva Socio</DialogTitle>
+                <DialogDescription>
+                    Stai per approvare {getFullName(socio)} come membro attivo. Verrà assegnato il seguente numero di tessera.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="membership-number" className="text-right">
+                        Numero Tessera
+                    </Label>
+                    <div className="col-span-3 flex items-center gap-2">
+                      <span className="text-muted-foreground">GMC-{new Date().getFullYear()}-</span>
+                      <Input
+                          id="membership-number"
+                          value={newMemberNumber}
+                          onChange={(e) => setNewMemberNumber(e.target.value)}
+                          className="w-20"
+                      />
+                    </div>
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="ghost" onClick={() => setShowApproveDialog(false)}>Annulla</Button>
+                <Button onClick={handleApprove} disabled={isApproving}>
+                    {isApproving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Conferma e Approva
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
