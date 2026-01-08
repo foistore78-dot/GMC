@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { differenceInYears, formatISO } from 'date-fns';
+import { differenceInYears } from 'date-fns';
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,8 +20,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useState, useMemo } from "react";
-import { useFirestore } from "@/firebase";
-import { doc, writeBatch } from "firebase/firestore";
+import { useFirestore, addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase";
+import { doc, writeBatch, collection, setDoc, deleteDoc } from "firebase/firestore";
 import type { Socio } from "@/lib/soci-data";
 import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -89,7 +89,6 @@ const getDefaultValues = (socio: Socio) => {
         requestDateValue = new Date().toISOString().split('T')[0];
     }
     
-    // Ensure dates are in 'yyyy-MM-dd' string format for native input, or full ISO string for custom picker
     const birthDateValue = socio.birthDate ? formatDate(socio.birthDate, 'yyyy-MM-dd') : '';
     const guardianBirthDateValue = socio.guardianBirthDate ? formatDate(socio.guardianBirthDate, 'yyyy-MM-dd') : '';
 
@@ -134,52 +133,56 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     
     const originalStatus = getStatus(socio);
     const newStatus = values.status;
-    const { status, ...dataToSave } = values;
-    
-    const batch = writeBatch(firestore);
 
     try {
-      // Data transformation to ensure dates are stored as ISO strings
-      const dataWithIsoDates = {
-          ...dataToSave,
+      const dataToSave = {
+          ...values,
+          id: socio.id, // Keep original ID
           birthDate: values.birthDate ? new Date(values.birthDate).toISOString() : '',
           requestDate: values.requestDate ? new Date(values.requestDate).toISOString() : new Date().toISOString(),
           guardianBirthDate: values.guardianBirthDate ? new Date(values.guardianBirthDate).toISOString() : ''
       };
 
+      const batch = writeBatch(firestore);
+
       if (originalStatus !== newStatus) {
-        const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
-        const oldDocRef = doc(firestore, oldCollection, socio.id);
-        
-        if (oldCollection === 'members' || oldCollection === 'membership_requests') {
-          batch.delete(oldDocRef);
-        }
+        // Delete from the old collection
+        const oldCollectionName = originalStatus === 'active' ? 'members' : 'membership_requests';
+        const oldDocRef = doc(firestore, oldCollectionName, socio.id);
+        batch.delete(oldDocRef);
 
+        // Add to the new collection (if not rejected)
         if (newStatus !== 'rejected') {
-            const newCollection = newStatus === 'active' ? 'members' : 'membership_requests';
-            const newDocRef = doc(firestore, newCollection, socio.id);
-            let finalData: any = { ...socio, ...dataWithIsoDates, id: socio.id };
-
-            if (newStatus === 'active') {
-                finalData.membershipStatus = 'active';
-                finalData.joinDate = socio.joinDate || new Date().toISOString();
-                finalData.expirationDate = socio.expirationDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
-                delete finalData.status;
-            } else { // pending
-                finalData.status = newStatus;
-                // requestDate is already in dataWithIsoDates
-                delete finalData.membershipStatus;
-                delete finalData.joinDate;
-                delete finalData.expirationDate;
-            }
-            batch.set(newDocRef, finalData, { merge: true });
+          const newCollectionName = newStatus === 'active' ? 'members' : 'membership_requests';
+          const newDocRef = doc(firestore, newCollectionName, socio.id);
+          
+          let finalData: Partial<Socio> & { status?: string, membershipStatus?: string } = { ...dataToSave };
+          
+          if (newStatus === 'active') {
+            finalData.membershipStatus = 'active';
+            finalData.joinDate = socio.joinDate || new Date().toISOString();
+            finalData.expirationDate = socio.expirationDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
+            delete finalData.status;
+          } else { // 'pending'
+            finalData.status = 'pending';
+            delete finalData.membershipStatus;
+            delete finalData.joinDate;
+            delete finalData.expirationDate;
+          }
+          batch.set(newDocRef, finalData, { merge: true });
         }
       } else if (newStatus !== 'rejected') {
-        const collection = newStatus === 'active' ? 'members' : 'membership_requests';
-        const docRef = doc(firestore, collection, socio.id);
-        batch.set(docRef, dataWithIsoDates, { merge: true });
+        // Update in the same collection
+        const collectionName = newStatus === 'active' ? 'members' : 'membership_requests';
+        const docRef = doc(firestore, collectionName, socio.id);
+        batch.set(docRef, dataToSave, { merge: true });
+      } else { // newStatus is 'rejected' and was already rejected
+         // If status was already 'rejected', we might just delete it
+         const oldCollectionName = originalStatus === 'active' ? 'members' : 'membership_requests';
+         const oldDocRef = doc(firestore, oldCollectionName, socio.id);
+         batch.delete(oldDocRef);
       }
-
+      
       await batch.commit();
 
       toast({
@@ -461,3 +464,5 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
+
+    
