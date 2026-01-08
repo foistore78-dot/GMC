@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { exportToExcel } from "@/lib/excel-export";
 import { importFromExcel } from "@/lib/excel-import";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -224,7 +225,7 @@ export default function AdminPage() {
                   <Badge variant="secondary" className="ml-2">{sortedRequests.length}</Badge>
                 </TabsTrigger>
               </TabsList>
-              <TabsContent value="pending">
+              <TabsContent value="pending" className="rounded-lg bg-yellow-500/5 p-4">
                 <SociTable 
                     soci={sortedRequests}
                     onEdit={handleEditSocio}
@@ -235,7 +236,7 @@ export default function AdminPage() {
                     itemsPerPage={ITEMS_PER_PAGE}
                 />
               </TabsContent>
-              <TabsContent value="active">
+              <TabsContent value="active" className="rounded-lg p-4">
                 <SociTable 
                     soci={sortedMembers}
                     onEdit={handleEditSocio}
