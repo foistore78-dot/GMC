@@ -21,9 +21,6 @@ export default function AdminPage() {
   const firestore = useFirestore();
 
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
-  const [activeSoci, setActiveSoci] = useState<Socio[]>([]);
-  const [pendingSoci, setPendingSoci] = useState<Socio[]>([]);
-
 
   const membersQuery = useMemoFirebase(
     () => (firestore ? query(collection(firestore, "members"), orderBy("lastName")) : null),
@@ -43,15 +40,20 @@ export default function AdminPage() {
     }
   }, [user, isUserLoading, router]);
 
-  useEffect(() => {
-    const active: Socio[] = (membersData || []).map(s => ({ ...s, membershipStatus: 'active' as const }));
-    const pending: Socio[] = (requestsData || []).map(s => ({ ...s, membershipStatus: 'pending' as const }));
+  const activeSoci = useMemo(() => {
+    if (!membersData) return [];
+    return membersData
+      .map(s => ({ ...s, membershipStatus: 'active' as const }))
+      .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+  }, [membersData]);
 
-    setActiveSoci(active.sort((a, b) => (a.lastName || '').localeCompare(b.lastName || '')));
-    setPendingSoci(pending.sort((a, b) => (a.lastName || '').localeCompare(b.lastName || '')));
-  }, [membersData, requestsData]);
+  const pendingSoci = useMemo(() => {
+    if (!requestsData) return [];
+     return requestsData
+      .map(s => ({ ...s, membershipStatus: 'pending' as const }))
+      .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+  }, [requestsData]);
 
-  
   const isLoading = isUserLoading || isMembersLoading || isRequestsLoading;
 
   const handleEditSocio = (socio: Socio) => {
