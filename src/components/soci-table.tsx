@@ -26,6 +26,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
+  DialogClose,
 } from "@/components/ui/dialog";
 import {
   Tooltip,
@@ -45,7 +47,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
 import { useFirestore } from "@/firebase";
@@ -126,6 +127,7 @@ const SocioTableRow = memo(({
 }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   
   const status = getStatus(socio);
   const socioIsMinor = isMinor(socio.birthDate);
@@ -151,12 +153,17 @@ const SocioTableRow = memo(({
         });
     }
   };
+
+  const handleEditClick = () => {
+    setIsDetailOpen(false);
+    onEdit(socio);
+  };
   
   return (
     <TableRow>
         <TableCell className="font-medium">
            <div className="flex items-center gap-3 flex-wrap">
-                <Dialog>
+                <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
                    <DialogTrigger asChild>
                      <div className="flex items-center gap-2 cursor-pointer group">
                         {socio.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500" />}
@@ -167,7 +174,7 @@ const SocioTableRow = memo(({
                      <DialogHeader>
                        <DialogTitle className="flex items-center gap-3"><User/> Dettagli Socio</DialogTitle>
                      </DialogHeader>
-                     <div className="py-4 space-y-2 max-h-[70vh] overflow-y-auto p-1 pr-4">
+                     <div className="py-4 space-y-2 max-h-[60vh] overflow-y-auto p-1 pr-4">
                        <DetailRow icon={<CircleDot />} label="Stato" value={statusTranslations[status]} />
                        <DetailRow icon={<User />} label="Nome Completo" value={getFullName(socio)} />
                        <DetailRow icon={<Award />} label="Qualifiche" value={
@@ -185,6 +192,12 @@ const SocioTableRow = memo(({
                        {socio.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
                        <DetailRow icon={<StickyNote />} label="Note" value={socio.notes} />
                      </div>
+                      <DialogFooter>
+                          <DialogClose asChild>
+                            <Button variant="ghost">Chiudi</Button>
+                          </DialogClose>
+                          <Button onClick={handleEditClick}><Pencil className="mr-2 h-4 w-4" /> Modifica Dati</Button>
+                      </DialogFooter>
                    </DialogContent>
                  </Dialog>
                  <div className="flex items-center gap-1">
@@ -245,8 +258,8 @@ const SocioTableRow = memo(({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-              <DropdownMenuItem onSelect={() => onEdit(socio)}>
-                <Pencil className="mr-2 h-4 w-4" /> Modifica
+              <DropdownMenuItem onSelect={() => setIsDetailOpen(true)}>
+                <User className="mr-2 h-4 w-4" /> Vedi Dettagli
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <AlertDialog>

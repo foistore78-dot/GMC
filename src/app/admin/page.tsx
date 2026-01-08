@@ -38,17 +38,13 @@ export default function AdminPage() {
     }
   }, [user, isUserLoading, router]);
 
-  const combinedSoci = [
-    ...(membersData || []),
-    ...(requestsData || []),
-  ].reduce((acc, s) => {
-    if (s && s.id && !acc.has(s.id)) {
-      acc.set(s.id, s);
-    }
-    return acc;
-  }, new Map<string, Socio>());
+  const combinedSoci = useMemo(() => {
+    const sociMap = new Map<string, Socio>();
+    (membersData || []).forEach(s => s?.id && sociMap.set(s.id, s));
+    (requestsData || []).forEach(s => s?.id && sociMap.set(s.id, s));
+    return Array.from(sociMap.values()).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+  }, [membersData, requestsData]);
 
-  const sortedSoci = Array.from(combinedSoci.values()).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
 
   const isLoading = isUserLoading || isMembersLoading || isRequestsLoading;
   
@@ -86,13 +82,13 @@ export default function AdminPage() {
         </div>
 
         <div className="bg-background rounded-lg border border-border shadow-lg p-4">
-          {isLoading && !editingSocio ? (
+          {isLoading && combinedSoci.length === 0 ? (
              <div className="flex justify-center items-center h-64">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
              </div>
           ) : (
             <SociTable 
-                soci={sortedSoci}
+                soci={combinedSoci}
                 onEdit={handleEditSocio}
             />
           )}
