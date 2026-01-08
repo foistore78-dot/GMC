@@ -4,13 +4,14 @@ import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
-import { SociTable, getFullName } from "@/components/soci-table";
+import { SociTable } from "@/components/soci-table";
 import { useUser, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { collection, query, orderBy } from "firebase/firestore";
 import { Loader2, Users } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { EditSocioForm } from "@/components/edit-socio-form";
+import { getFullName } from "@/components/soci-table";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -54,13 +55,17 @@ export default function AdminPage() {
     setEditingSocio(null);
   };
   
-  const combinedSoci: Socio[] = useMemo(() => {
+  const combinedSoci = useMemo(() => {
     const activeMembers = membersData || [];
     const pendingRequests = requestsData || [];
 
     // Combine and deduplicate
     const sociMap = new Map<string, Socio>();
-    [...activeMembers, ...pendingRequests].forEach(s => sociMap.set(s.id, s));
+    [...activeMembers, ...pendingRequests].forEach(s => {
+        if(s.id) { // Ensure socio has an id
+            sociMap.set(s.id, s);
+        }
+    });
     
     // Sort the combined list
     return Array.from(sociMap.values()).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
