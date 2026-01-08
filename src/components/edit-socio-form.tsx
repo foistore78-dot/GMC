@@ -33,7 +33,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "./ui/select";
+} from "@/components/ui/select";
 
 export const QUALIFICHE = ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
 
@@ -45,10 +45,15 @@ export const isMinorCheck = (birthDate: string | undefined | Date): boolean => {
 };
 
 const getStatus = (socio: Socio): "active" | "pending" | "rejected" => {
-    if (socio.membershipStatus === "active") return "active";
-    if(socio.status && ['active', 'pending', 'rejected'].includes(socio.status)) {
-        return socio.status as "active" | "pending" | "rejected";
+    // If it's an active member, status is 'active'
+    if (socio.membershipStatus === "active") {
+        return "active";
     }
+    // For pending requests, the status can be 'pending' or 'rejected'
+    if (socio.status === 'rejected') {
+        return 'rejected';
+    }
+    // Default for non-active members is 'pending'
     return "pending";
 };
 
@@ -241,7 +246,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Stato</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Seleziona uno stato" />
@@ -631,3 +636,5 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
+
+    
