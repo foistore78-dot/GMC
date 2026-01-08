@@ -53,11 +53,11 @@ export default function AdminPage() {
 
   const isLoading = isUserLoading || isMembersLoading || isRequestsLoading;
   
-  // This is the key fix. By wrapping setEditingSocio in useCallback,
-  // we provide a stable function reference to SociTable, preventing re-renders.
+  // By wrapping setEditingSocio in useCallback, we provide a stable function
+  // reference to SociTable, preventing re-renders.
   const handleEditSocio = useCallback((socio: Socio) => {
     setEditingSocio(socio);
-  }, []);
+  }, []); // Empty dependency array means this function is created only once.
 
   if (isUserLoading || !user) {
     return (
