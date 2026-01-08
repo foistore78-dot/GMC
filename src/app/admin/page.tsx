@@ -38,18 +38,14 @@ export default function AdminPage() {
     }
   }, [user, isUserLoading, router]);
 
-  const handleCloseSheet = () => {
-    setEditingSocio(null);
-  };
-  
   const combinedSoci = useMemo(() => {
     const allSoci = [...(membersData || []), ...(requestsData || [])];
     const sociMap = new Map<string, Socio>();
     allSoci.forEach(s => {
-      // Use a consistent ID, preferably from the document itself.
-      const socioId = s.id || `${s.firstName}-${s.lastName}-${s.birthDate}`;
-      if (!sociMap.has(socioId)) {
-        sociMap.set(socioId, s);
+      if (s && s.id) {
+        if (!sociMap.has(s.id)) {
+            sociMap.set(s.id, s);
+        }
       }
     });
     return Array.from(sociMap.values()).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
@@ -89,7 +85,6 @@ export default function AdminPage() {
             <SociTable 
                 soci={combinedSoci}
                 onEdit={setEditingSocio}
-                onSocioDelete={() => {}} 
             />
           )}
         </div>
@@ -105,7 +100,7 @@ export default function AdminPage() {
               <EditSocioForm
                 key={editingSocio.id}
                 socio={editingSocio} 
-                onClose={handleCloseSheet}
+                onClose={() => setEditingSocio(null)}
               />
             </>
           )}

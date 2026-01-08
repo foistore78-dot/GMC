@@ -106,11 +106,9 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
 const SocioTableRow = memo(({ 
   socio,
   onEdit,
-  onDelete,
 }: { 
   socio: Socio; 
   onEdit: (socio: Socio) => void;
-  onDelete: (id: string) => void;
 }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -130,7 +128,7 @@ const SocioTableRow = memo(({
           title: "Socio rimosso",
           description: `${getFullName(socio)} è stato rimosso dalla lista.`,
       });
-      onDelete(socio.id);
+      // No need for onDelete callback, useCollection will update the UI
     } catch (error) {
         console.error("Error deleting socio:", error);
         toast({
@@ -260,10 +258,9 @@ SocioTableRow.displayName = 'SocioTableRow';
 interface SociTableProps {
   soci: Socio[];
   onEdit: (socio: Socio) => void;
-  onSocioDelete: (id: string) => void;
 }
 
-export function SociTable({ soci, onEdit, onSocioDelete }: SociTableProps) {
+export function SociTable({ soci, onEdit }: SociTableProps) {
   const [filter, setFilter] = useState('');
 
   const filteredSoci = useMemo(() => soci.filter(socio => {
@@ -303,7 +300,6 @@ export function SociTable({ soci, onEdit, onSocioDelete }: SociTableProps) {
                   key={socio.id} 
                   socio={socio}
                   onEdit={onEdit}
-                  onDelete={onSocioDelete}
                 />
               ))
             ) : (
@@ -319,5 +315,3 @@ export function SociTable({ soci, onEdit, onSocioDelete }: SociTableProps) {
     </div>
   );
 }
-
-    
