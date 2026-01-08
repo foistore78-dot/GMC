@@ -20,12 +20,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useState, useMemo } from "react";
-import { useFirestore, addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase";
-import { doc, writeBatch, collection, setDoc, deleteDoc } from "firebase/firestore";
+import { useFirestore, setDocumentNonBlocking } from "@/firebase";
+import { doc } from "firebase/firestore";
 import type { Socio } from "@/lib/soci-data";
 import { Textarea } from "./ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { getStatus, getFullName, isMinor, formatDate } from "./soci-table";
+import { getFullName, isMinor, formatDate } from "./soci-table";
 import { Separator } from "./ui/separator";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { DatePicker } from "./ui/date-picker";
@@ -46,11 +45,11 @@ const formSchema = z.object({
   province: z.string().length(2, { message: "La sigla della provincia deve essere di 2 caratteri." }),
   postalCode: z.string().length(5, { message: "Il CAP deve essere di 5 caratteri." }),
   whatsappConsent: z.boolean().default(false),
+  privacyConsent: z.boolean().refine(val => val === true, { message: "Devi accettare l'informativa."}),
   isVolunteer: z.boolean().default(false),
   notes: z.string().optional(),
   membershipYear: z.string().optional(),
   membershipFee: z.coerce.number().optional(),
-  status: z.enum(['active', 'pending', 'rejected']),
   qualifica: z.array(z.string()).optional(),
   requestDate: z.string().optional(),
   guardianFirstName: z.string().optional(),
@@ -75,7 +74,6 @@ type EditSocioFormProps = {
 };
 
 const getDefaultValues = (socio: Socio) => {
-    const originalStatus = getStatus(socio);
     const defaultMembershipYear = socio.membershipYear || new Date().getFullYear().toString();
     
     const socioIsMinor = isMinor(socio.birthDate);
@@ -96,7 +94,6 @@ const getDefaultValues = (socio: Socio) => {
         ...socio,
         birthDate: birthDateValue,
         phone: socio.phone || '',
-        status: originalStatus,
         qualifica: socio.qualifica || [],
         membershipYear: defaultMembershipYear,
         membershipFee: defaultMembershipFee,
@@ -130,60 +127,22 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
       return;
     }
     setIsSubmitting(true);
-    
-    const originalStatus = getStatus(socio);
-    const newStatus = values.status;
 
     try {
       const dataToSave = {
-          ...values,
-          id: socio.id, // Keep original ID
-          birthDate: values.birthDate ? new Date(values.birthDate).toISOString() : '',
-          requestDate: values.requestDate ? new Date(values.requestDate).toISOString() : new Date().toISOString(),
-          guardianBirthDate: values.guardianBirthDate ? new Date(values.guardianBirthDate).toISOString() : ''
+        ...socio, // Start with original socio data
+        ...values, // Override with form values
+        birthDate: values.birthDate ? new Date(values.birthDate).toISOString() : '',
+        requestDate: values.requestDate ? new Date(values.requestDate).toISOString() : new Date().toISOString(),
+        guardianBirthDate: values.guardianBirthDate ? new Date(values.guardianBirthDate).toISOString() : ''
       };
 
-      const batch = writeBatch(firestore);
+      // Determine the collection based on the original socio status
+      const collectionName = socio.membershipStatus === 'active' ? 'members' : 'membership_requests';
+      const docRef = doc(firestore, collectionName, socio.id);
 
-      if (originalStatus !== newStatus) {
-        // Delete from the old collection
-        const oldCollectionName = originalStatus === 'active' ? 'members' : 'membership_requests';
-        const oldDocRef = doc(firestore, oldCollectionName, socio.id);
-        batch.delete(oldDocRef);
-
-        // Add to the new collection (if not rejected)
-        if (newStatus !== 'rejected') {
-          const newCollectionName = newStatus === 'active' ? 'members' : 'membership_requests';
-          const newDocRef = doc(firestore, newCollectionName, socio.id);
-          
-          let finalData: Partial<Socio> & { status?: string, membershipStatus?: string } = { ...dataToSave };
-          
-          if (newStatus === 'active') {
-            finalData.membershipStatus = 'active';
-            finalData.joinDate = socio.joinDate || new Date().toISOString();
-            finalData.expirationDate = socio.expirationDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
-            delete finalData.status;
-          } else { // 'pending'
-            finalData.status = 'pending';
-            delete finalData.membershipStatus;
-            delete finalData.joinDate;
-            delete finalData.expirationDate;
-          }
-          batch.set(newDocRef, finalData, { merge: true });
-        }
-      } else if (newStatus !== 'rejected') {
-        // Update in the same collection
-        const collectionName = newStatus === 'active' ? 'members' : 'membership_requests';
-        const docRef = doc(firestore, collectionName, socio.id);
-        batch.set(docRef, dataToSave, { merge: true });
-      } else { // newStatus is 'rejected' and was already rejected
-         // If status was already 'rejected', we might just delete it
-         const oldCollectionName = originalStatus === 'active' ? 'members' : 'membership_requests';
-         const oldDocRef = doc(firestore, oldCollectionName, socio.id);
-         batch.delete(oldDocRef);
-      }
-      
-      await batch.commit();
+      // Use the non-blocking update
+      setDocumentNonBlocking(docRef, dataToSave, { merge: true });
 
       toast({
           title: "Socio aggiornato!",
@@ -193,7 +152,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
       onClose();
 
     } catch(error) {
-        console.error("Error committing batch:", error);
+        console.error("Error updating document:", error);
         toast({ 
           title: "Errore durante l'aggiornamento", 
           description: `Impossibile salvare le modifiche per ${getFullName(values)}. Dettagli: ${(error as Error).message}`, 
@@ -213,28 +172,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
         <div>
           <h3 className="text-lg font-medium text-primary mb-2">Dati Tesseramento</h3>
           <div className="space-y-4 rounded-md border p-4">
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Stato (Logica App)</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona uno stato" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="active">Attivo</SelectItem>
-                      <SelectItem value="pending">In attesa</SelectItem>
-                      <SelectItem value="rejected">Rifiutato</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
              <FormField
               control={form.control}
               name="qualifica"
@@ -450,6 +387,9 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 <FormField control={form.control} name="isVolunteer" render={({ field }) => (
                     <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange}/></FormControl><div className="space-y-1 leading-none"><FormLabel>Volontario</FormLabel><FormDescription>Il socio è disponibile per attività di volontariato.</FormDescription></div></FormItem>
                 )}/>
+                 <FormField control={form.control} name="privacyConsent" render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange}/></FormControl><div className="space-y-1 leading-none"><FormLabel>Consenso Privacy</FormLabel><FormDescription>Il socio ha accettato la privacy policy.</FormDescription></div></FormItem>
+                )}/>
             </div>
         </div>
 
@@ -464,5 +404,3 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
-
-    

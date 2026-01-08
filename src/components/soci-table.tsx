@@ -27,7 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, Info } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -148,7 +148,6 @@ const SocioTableRow = memo(({
                        <DialogTitle className="flex items-center gap-3"><User/> Dettagli Socio</DialogTitle>
                      </DialogHeader>
                      <div className="py-4 space-y-2 max-h-[70vh] overflow-y-auto p-1 pr-4">
-                       <DetailRow icon={<Info />} label="Stato" value={statusTranslations[status] || status} />
                        <DetailRow icon={<User />} label="Nome Completo" value={getFullName(socio)} />
                        <DetailRow icon={<Award />} label="Qualifiche" value={
                           socio.qualifica && socio.qualifica.length > 0
@@ -310,5 +309,3 @@ export function SociTable({ soci, onEdit, onSocioDelete }: SociTableProps) {
     </div>
   );
 }
-
-    
