@@ -308,7 +308,7 @@ const SocioTableRow = ({
 
   return (
     <>
-    <TableRow>
+    <TableRow className={cn({ 'bg-orange-500/10 hover:bg-orange-500/20': status === 'expired' })}>
         <TableCell className="font-mono text-xs">
           {tesseraDisplay}
         </TableCell>
