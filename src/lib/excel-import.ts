@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import type { Socio } from './soci-data';
-import { collection, writeBatch, Firestore, doc, getDocs, query } from 'firebase/firestore';
+import { collection, writeBatch, Firestore, doc, getDocs, query, where } from 'firebase/firestore';
 import { parse } from 'date-fns';
 
 const parseDate = (dateStr: string | number | undefined): string | null => {
@@ -33,7 +33,15 @@ const parseDate = (dateStr: string | number | undefined): string | null => {
   return null;
 };
 
-const excelRowToSocio = (row: any): Partial<Socio> => {
+type PartialSocioWithStatus = Partial<Socio> & { statusForImport: 'active' | 'pending' | 'expired' };
+
+const excelRowToSocio = (row: any): PartialSocioWithStatus => {
+    const statusText = row['Stato'] || '';
+    let statusForImport: 'active' | 'pending' | 'expired' = 'pending';
+    if (statusText === 'Attivo') statusForImport = 'active';
+    if (statusText === 'Scaduto') statusForImport = 'expired';
+    if (statusText === 'Sospeso') statusForImport = 'pending';
+
     const socio: Partial<Socio> = {
         tessera: row['N. Tessera'] === 'N/A' ? undefined : row['N. Tessera'],
         lastName: row['Cognome'],
@@ -58,7 +66,7 @@ const excelRowToSocio = (row: any): Partial<Socio> => {
         membershipFee: typeof row['Quota Versata (€)'] === 'number' ? row['Quota Versata (€)'] : 0,
         qualifica: row['Qualifiche'] ? row['Qualifiche'].split(',').map((q: string) => q.trim()) : [],
         notes: row['Note'],
-        membershipStatus: 'active',
+        // 'membershipStatus' will be set based on the destination collection
     };
     
     if (row['Tutore']) {
@@ -71,7 +79,7 @@ const excelRowToSocio = (row: any): Partial<Socio> => {
     // Clean up undefined fields
     Object.keys(socio).forEach(key => (socio as any)[key] === undefined && delete (socio as any)[key]);
 
-    return socio;
+    return { ...socio, statusForImport };
 };
 
 
@@ -93,20 +101,28 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
 
         const membersJson = XLSX.utils.sheet_to_json(membersSheet);
         
-        if (membersJson.length === 0) {
-          throw new Error("Il foglio 'Soci Attivi e Scaduti' è vuoto.");
-        }
-        
-        // Fetch existing members to check for updates
+        // Fetch existing members and requests to check for updates
         const membersCollection = collection(firestore, 'members');
-        const existingMembersQuery = query(membersCollection);
-        const querySnapshot = await getDocs(existingMembersQuery);
+        const requestsCollection = collection(firestore, 'membership_requests');
+
+        const [membersSnapshot, requestsSnapshot] = await Promise.all([
+          getDocs(query(membersCollection)),
+          getDocs(query(requestsCollection))
+        ]);
+
         const existingMembersMap = new Map<string, {id: string, data: Socio}>();
-        querySnapshot.forEach(doc => {
+        membersSnapshot.forEach(doc => {
             const member = doc.data() as Socio;
             if(member.tessera) {
                 existingMembersMap.set(member.tessera, {id: doc.id, data: member});
             }
+        });
+        // Also map requests by a composite key if they don't have 'tessera'
+        const existingRequestsMap = new Map<string, {id: string, data: Socio}>();
+        requestsSnapshot.forEach(doc => {
+            const req = doc.data() as Socio;
+            const key = `${req.firstName}-${req.lastName}-${req.birthDate}`;
+            existingRequestsMap.set(key, {id: doc.id, data: req});
         });
 
 
@@ -116,29 +132,55 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
 
         for (const row of membersJson) {
             try {
-                const socioData = excelRowToSocio(row);
+                const { statusForImport, ...socioData } = excelRowToSocio(row);
 
-                // Basic validation: skip row if essential data is missing but continue the loop
                 if (!socioData.firstName || !socioData.lastName || !socioData.birthDate) {
-                    console.warn("Riga saltata per mancanza di dati obbligatori (nome, cognome, data di nascita):", row);
+                    console.warn("Riga saltata per mancanza di dati (nome, cognome, data di nascita):", row);
                     errorCount++;
-                    continue; // Go to the next row
+                    continue;
                 }
                 
-                // Check if member already exists based on tessera
-                if (socioData.tessera && existingMembersMap.has(socioData.tessera)) {
-                    // Update existing member
-                    const existingMember = existingMembersMap.get(socioData.tessera)!;
-                    const docRef = doc(firestore, 'members', existingMember.id);
-                    batch.set(docRef, { ...existingMember.data, ...socioData }, { merge: true });
-                } else {
-                    // Create new member
-                    const newDocRef = doc(membersCollection);
-                    batch.set(newDocRef, {
+                const isMember = statusForImport === 'active' || statusForImport === 'expired';
+                
+                let docRef: any;
+                let existingData: Socio | undefined;
+
+                if (isMember) {
+                    if (socioData.tessera && existingMembersMap.has(socioData.tessera)) {
+                        const existing = existingMembersMap.get(socioData.tessera)!;
+                        docRef = doc(firestore, 'members', existing.id);
+                        existingData = existing.data;
+                    } else {
+                        docRef = doc(membersCollection); // Create new member
+                    }
+                    const dataToSet: any = {
+                        ...existingData,
                         ...socioData,
-                        id: newDocRef.id,
-                        membershipStatus: 'active',
-                    });
+                        id: docRef.id,
+                        membershipStatus: 'active', // always 'active' in members collection
+                    };
+                    delete dataToSet.statusForImport;
+                    delete dataToSet.status; // remove the old 'status' field
+                    batch.set(docRef, dataToSet, { merge: true });
+
+                } else { // 'pending'
+                    const requestKey = `${socioData.firstName}-${socioData.lastName}-${socioData.birthDate}`;
+                    if(existingRequestsMap.has(requestKey)){
+                        const existing = existingRequestsMap.get(requestKey)!;
+                        docRef = doc(firestore, 'membership_requests', existing.id);
+                        existingData = existing.data;
+                    } else {
+                        docRef = doc(requestsCollection); // Create new request
+                    }
+                     const dataToSet: any = {
+                        ...existingData,
+                        ...socioData,
+                        id: docRef.id,
+                        status: 'pending', // always 'pending' in requests collection
+                    };
+                    delete dataToSet.statusForImport;
+                    delete dataToSet.membershipStatus;
+                    batch.set(docRef, dataToSet, { merge: true });
                 }
 
 
