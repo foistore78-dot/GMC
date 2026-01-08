@@ -155,7 +155,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 batch.delete(memberDocRef);
             }
         } else if (originalStatus !== newStatus) {
-            if (newStatus === 'active') { // Moving to 'members'
+            if (newStatus === 'active') { // Moving from 'pending' to 'members'
                 const oldDocRef = doc(firestore, 'membership_requests', socio.id);
                 const newDocRef = doc(firestore, 'members', socio.id);
                 
@@ -164,7 +164,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     ...dataToSave,
                     id: socio.id,
                     membershipStatus: 'active' as const,
-                    joinDate: values.joinDate ? new Date(values.joinDate).toISOString() : serverTimestamp(),
+                    joinDate: values.joinDate ? new Date(values.joinDate).toISOString() : new Date().toISOString(),
                     expirationDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
                 };
                 delete (finalData as any).status;
@@ -172,20 +172,20 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 batch.set(newDocRef, finalData, { merge: true });
                 batch.delete(oldDocRef);
 
-            } else { // Moving to 'membership_requests' (e.g. from active to pending)
+            } else if (newStatus === 'pending') { // Moving from 'active' to 'membership_requests'
                 const oldDocRef = doc(firestore, 'members', socio.id);
                 const newDocRef = doc(firestore, 'membership_requests', socio.id);
                 
-                const finalData = {
+                const finalData: any = {
                     ...socio,
                     ...dataToSave,
                     id: socio.id,
                     status: 'pending' as const,
-                    requestDate: values.requestDate ? new Date(values.requestDate).toISOString() : serverTimestamp(),
+                    requestDate: values.requestDate ? new Date(values.requestDate).toISOString() : new Date().toISOString(),
                 };
-                delete (finalData as any).membershipStatus;
-                delete (finalData as any).joinDate;
-                delete (finalData as any).expirationDate;
+                delete finalData.membershipStatus;
+                delete finalData.joinDate;
+                delete finalData.expirationDate;
 
                 batch.set(newDocRef, finalData, { merge: true });
                 batch.delete(oldDocRef);
@@ -631,5 +631,3 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
-
-    
