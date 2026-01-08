@@ -362,45 +362,12 @@ const SocioTableRow = ({
           </Badge>
         </TableCell>
         <TableCell className="text-right">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0" disabled={isDeleting}>
-                <span className="sr-only">Apri menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-              {status === 'pending' && (
-                <DropdownMenuItem onSelect={() => setShowApproveDialog(true)} className="text-green-500 focus:text-green-400 focus:bg-green-500/10">
-                    <CheckCircle className="mr-2 h-4 w-4" /> Approva
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                     <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
-                        <Trash2 className="mr-2 h-4 w-4" /> Elimina
-                     </DropdownMenuItem>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Questa azione non può essere annullata. Questo rimuoverà permanentemente {getFullName(socio)} dalla lista.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Annulla</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                        {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Elimina
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-              </AlertDialog>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            {status === 'pending' && (
+                <Button variant="ghost" size="sm" onClick={() => setShowApproveDialog(true)} className="text-green-500 hover:text-green-500 hover:bg-green-500/10">
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Approva
+                </Button>
+            )}
         </TableCell>
       </TableRow>
 
