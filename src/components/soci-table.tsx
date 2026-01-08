@@ -28,7 +28,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
@@ -52,19 +52,15 @@ export const getStatus = (socio: any): 'active' | 'pending' | 'rejected' => {
 
 export const formatDate = (dateString: any, outputFormat: string = 'dd/MM/yyyy') => {
     if (!dateString) return 'N/A';
-
     let date: Date;
 
     if (dateString && typeof dateString.toDate === 'function') {
         date = dateString.toDate();
-    } 
-    else if (dateString instanceof Date) {
+    } else if (dateString instanceof Date) {
         date = dateString;
-    } 
-    else if (typeof dateString === 'string') {
-        date = parseISO(dateString); 
-    } 
-    else {
+    } else if (typeof dateString === 'string') {
+        date = parseISO(dateString);
+    } else {
         return 'N/A';
     }
 
@@ -248,6 +244,11 @@ const SocioTableRow = ({
                        <DetailRow icon={<Phone />} label="Telefono" value={socio.phone} />
                        <DetailRow icon={<Home />} label="Indirizzo" value={`${socio.address}, ${socio.city} (${socio.province}) ${socio.postalCode}`} />
                        <DetailRow icon={<Hash />} label="Codice Fiscale" value={socio.fiscalCode} />
+                        <DetailRow icon={<FileLock2 />} label="Consenso Privacy" value={
+                           <span className={`flex items-center gap-2 ${socio.privacyConsent ? 'text-green-500' : 'text-red-500'}`}>
+                             {socio.privacyConsent ? 'Accettato' : 'Non Accettato'}
+                           </span>
+                        } />
                        <DetailRow icon={<Calendar />} label="Anno Associativo" value={socio.membershipYear || new Date().getFullYear()} />
                        <DetailRow icon={<Calendar />} label="Data Richiesta" value={formatDate(socio.requestDate)} />
                        {socio.membershipStatus === 'active' && <DetailRow icon={<Calendar />} label="Data Ammissione" value={formatDate(socio.joinDate)} />}

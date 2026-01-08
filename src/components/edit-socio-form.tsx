@@ -73,7 +73,7 @@ const formSchema = z
     province: z.string().length(2, { message: "La sigla della provincia deve essere di 2 caratteri." }),
     postalCode: z.string().length(5, { message: "Il CAP deve essere di 5 caratteri." }),
     whatsappConsent: z.boolean().default(false),
-    privacyConsent: z.boolean().refine((val) => val === true, { message: "Devi accettare l'informativa." }),
+    privacyConsent: z.boolean().default(true),
     notes: z.string().optional(),
     membershipYear: z.string().optional(),
     membershipFee: z.coerce.number().optional(),
@@ -623,30 +623,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             />
           </div>
         </div>
-        <div>
-           <h3 className="text-lg font-medium text-primary mb-2">Consenso Privacy</h3>
-          <div className="space-y-4 rounded-md border p-4">
-            <FormField
-              control={form.control}
-              name="privacyConsent"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                  <FormControl>
-                     <Checkbox
-                      checked={!!field.value}
-                      onCheckedChange={(checked) => field.onChange(checked === true)}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>Consenso Privacy</FormLabel>
-                    <FormDescription>Il socio ha accettato la privacy policy.</FormDescription>
-                    <FormMessage />
-                  </div>
-                </FormItem>
-              )}
-            />
-          </div>
-        </div>
+        
         <div className="flex justify-end pt-4 sticky bottom-0 bg-secondary/80 backdrop-blur-sm pb-4 rounded-b-lg">
           <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>Annulla</Button>
           <Button type="submit" disabled={isSubmitting}>
