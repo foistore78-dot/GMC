@@ -194,10 +194,14 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             // Status has not changed, just update the data in the correct collection
             const collectionName = newStatus === 'active' ? 'members' : 'membership_requests';
             const docRef = doc(firestore, collectionName, socio.id);
+            
+            const expirationYear = values.membershipYear ? parseInt(values.membershipYear, 10) : new Date().getFullYear();
+
             const finalData = {
               ...dataToSave,
               joinDate: values.joinDate ? new Date(values.joinDate).toISOString() : (socio.joinDate || null),
               renewalDate: values.renewalDate ? new Date(values.renewalDate).toISOString() : (socio.renewalDate || null),
+              expirationDate: new Date(expirationYear, 11, 31).toISOString(),
             };
 
             batch.set(docRef, finalData, { merge: true });
@@ -318,7 +322,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Data Rinnovo</FormLabel>
-                      <FormControl><Input type="date" {...field} value={field.value || ''} readOnly className="bg-muted/50"/></FormControl>
+                      <FormControl><Input type="date" {...field} value={field.value || ''} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
