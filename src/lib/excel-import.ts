@@ -95,10 +95,15 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
         const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
 
         const sheetName = 'Elenco Completo Soci';
-        const worksheet = workbook.Sheets[sheetName];
+        if (workbook.SheetNames.length === 0) {
+            throw new Error('Il file Excel non contiene fogli di lavoro.');
+        }
+
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         
         if (!worksheet) {
-          throw new Error(`Il file Excel deve contenere un foglio chiamato "${sheetName}".`);
+            // This case should ideally not happen if SheetNames is not empty, but it's good practice
+            throw new Error(`Impossibile leggere il primo foglio di lavoro dal file.`);
         }
 
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
