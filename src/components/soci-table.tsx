@@ -47,12 +47,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
 import { useFirestore } from "@/firebase";
 import { doc, deleteDoc, writeBatch, serverTimestamp } from "firebase/firestore";
-import { differenceInYears, format, parseISO } from 'date-fns';
+import { differenceInYears, format, parseISO, isValid } from 'date-fns';
 
 // Helper Functions
 export const getFullName = (socio: any) => `${socio.firstName || ''} ${socio.lastName || ''}`.trim();
@@ -63,43 +62,41 @@ export const getStatus = (socio: any): 'active' | 'pending' | 'rejected' => {
 export const isMinor = (birthDate: string | Date | undefined) => birthDate ? differenceInYears(new Date(), new Date(birthDate)) < 18 : false;
 
 export const formatDate = (dateString: any, outputFormat: string = 'dd/MM/yyyy') => {
-  if (!dateString) return 'N/A';
+    if (!dateString) return 'N/A';
 
-  let date;
-  // Handle Firestore Timestamp
-  if (dateString && typeof dateString.toDate === 'function') {
-    date = dateString.toDate();
-  } 
-  // Handle ISO string or "yyyy-MM-dd"
-  else if (typeof dateString === 'string') {
-    try {
-      // parseISO handles 'yyyy-MM-ddTHH:mm:ss.sssZ'
-      // new Date() can handle 'yyyy-MM-dd'
-      date = dateString.includes('T') ? parseISO(dateString) : new Date(dateString);
-    } catch {
-      return String(dateString); // Return original if parsing fails
+    let date: Date;
+
+    if (dateString && typeof dateString.toDate === 'function') {
+        // Firestore Timestamp
+        date = dateString.toDate();
+    } else if (typeof dateString === 'string') {
+        // ISO string like '2024-05-21T10:00:00.000Z' or 'yyyy-MM-dd'
+        const d = dateString.includes('T') ? parseISO(dateString) : new Date(dateString);
+        // new Date('2024-05-21') can result in a day before depending on timezone, let's fix it.
+        if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [year, month, day] = dateString.split('-').map(Number);
+            date = new Date(year, month - 1, day);
+        } else {
+            date = d;
+        }
+    } else if (dateString instanceof Date) {
+        // Native Date object
+        date = dateString;
+    } else {
+        return 'N/A'; // Unrecognized format
     }
-  } 
-  // Handle native Date object
-  else if (dateString instanceof Date) {
-    date = dateString;
-  } 
-  // If it's not a recognizable format, return N/A
-  else {
-    return 'N/A';
-  }
 
-  // Check if the final date is valid before formatting
-  if (isNaN(date.getTime())) {
-    return "Data non valida";
-  }
+    if (!isValid(date)) {
+        return 'N/A'; // Invalid date
+    }
 
-  try {
-    return format(date, outputFormat);
-  } catch {
-    return 'Formato non valido';
-  }
+    try {
+        return format(date, outputFormat);
+    } catch {
+        return 'N/A';
+    }
 };
+
 
 const formatCurrency = (value: number | undefined | null) => {
     const number = value ?? 0;
@@ -144,7 +141,6 @@ const SocioTableRow = ({
 }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
   
   const status = getStatus(socio);
   const socioIsMinor = isMinor(socio.birthDate);
@@ -175,7 +171,7 @@ const SocioTableRow = ({
     if (!firestore) return;
 
     const currentYear = new Date().getFullYear();
-    const yearMembers = allMembers.filter(m => m.membershipYear === String(currentYear));
+    const yearMembers = allMembers.filter(m => m.membershipYear === String(currentYear) && m.tessera);
     const nextMemberNumber = yearMembers.length + 1;
     const membershipCardNumber = `GMC-${currentYear}-${nextMemberNumber}`;
 
@@ -214,8 +210,7 @@ const SocioTableRow = ({
     }
   };
 
-  const handleEditClick = () => {
-    setIsDetailOpen(false);
+  const handleEdit = () => {
     onEdit(socio);
   };
   
@@ -223,7 +218,7 @@ const SocioTableRow = ({
     <TableRow>
         <TableCell className="font-medium">
            <div className="flex items-center gap-3 flex-wrap">
-                <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+                <Dialog>
                    <DialogTrigger asChild>
                      <div className="flex items-center gap-2 cursor-pointer group">
                         {socio.tessera && <span className="font-mono text-xs text-muted-foreground">{socio.tessera.substring(4)}</span>}
@@ -259,7 +254,9 @@ const SocioTableRow = ({
                           <DialogClose asChild>
                             <Button variant="ghost">Chiudi</Button>
                           </DialogClose>
-                          <Button onClick={handleEditClick}><Pencil className="mr-2 h-4 w-4" /> Modifica Dati</Button>
+                           <DialogClose asChild>
+                             <Button onClick={handleEdit}><Pencil className="mr-2 h-4 w-4" /> Modifica Dati</Button>
+                          </DialogClose>
                       </DialogFooter>
                    </DialogContent>
                  </Dialog>
@@ -326,7 +323,7 @@ const SocioTableRow = ({
                     <CheckCircle className="mr-2 h-4 w-4" /> Approva
                 </DropdownMenuItem>
               )}
-               <DropdownMenuItem onClick={() => onEdit(socio)}>
+               <DropdownMenuItem onClick={handleEdit}>
                 <Pencil className="mr-2 h-4 w-4" /> Modifica
               </DropdownMenuItem>
               <DropdownMenuSeparator />

@@ -74,6 +74,7 @@ const formSchema = z
     membershipFee: z.coerce.number().optional(),
     qualifica: z.array(z.string()).optional(),
     requestDate: z.string().optional(),
+    joinDate: z.string().optional(),
     guardianFirstName: z.string().optional(),
     guardianLastName: z.string().optional(),
     guardianBirthDate: z.string().optional(),
@@ -110,6 +111,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
       birthDate: s.birthDate ? formatDate(s.birthDate, "yyyy-MM-dd") : "",
       guardianBirthDate: s.guardianBirthDate ? formatDate(s.guardianBirthDate, "yyyy-MM-dd") : "",
       requestDate: s.requestDate ? formatDate(s.requestDate, "yyyy-MM-dd") : new Date().toISOString().split("T")[0],
+      joinDate: s.joinDate ? formatDate(s.joinDate, "yyyy-MM-dd") : "",
       phone: s.phone || "",
       qualifica: s.qualifica || [],
       membershipYear: s.membershipYear || new Date().getFullYear().toString(),
@@ -129,6 +131,8 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
 
   const birthDateValue = form.watch("birthDate");
   const isMinor = isMinorCheck(birthDateValue);
+  const currentStatus = form.watch("status");
+
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!firestore) return;
@@ -156,7 +160,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     ...dataToSave,
                     id: socio.id,
                     membershipStatus: 'active' as const,
-                    joinDate: socio.joinDate || serverTimestamp(),
+                    joinDate: values.joinDate ? new Date(values.joinDate).toISOString() : serverTimestamp(),
                     expirationDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
                 };
                 delete (finalData as any).status;
@@ -185,7 +189,12 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
         } else {
             const collectionName = newStatus === 'active' ? 'members' : 'membership_requests';
             const docRef = doc(firestore, collectionName, socio.id);
-            batch.set(docRef, dataToSave, { merge: true });
+            const finalData = {
+              ...dataToSave,
+              joinDate: values.joinDate ? new Date(values.joinDate).toISOString() : (socio.joinDate || null),
+            };
+
+            batch.set(docRef, finalData, { merge: true });
         }
         
         await batch.commit();
@@ -268,6 +277,19 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                   </FormItem>
                 )}
               />
+               {currentStatus === "active" && (
+                <FormField
+                  control={form.control}
+                  name="joinDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Data Ammissione</FormLabel>
+                      <FormControl><Input type="date" {...field} value={field.value || ''} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
             <FormField
               control={form.control}
