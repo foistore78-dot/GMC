@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import type { Socio } from './soci-data';
-import { collection, writeBatch, Firestore, doc, getDocs, query, where } from 'firebase/firestore';
+import { collection, writeBatch, Firestore, doc, getDocs, query } from 'firebase/firestore';
 import { parse } from 'date-fns';
 
 const parseDate = (dateStr: string | number | undefined): string | null => {
@@ -16,7 +16,14 @@ const parseDate = (dateStr: string | number | undefined): string | null => {
       const parsedDate = parse(dateStr, 'dd/MM/yyyy', new Date());
        if (isNaN(parsedDate.getTime())) {
          const parsedDate2 = parse(dateStr, 'dd.MM.yyyy', new Date());
-         if(isNaN(parsedDate2.getTime())) throw new Error("Invalid date format");
+         if(isNaN(parsedDate2.getTime())) {
+            // Try ISO as last resort before failing
+            const isoDate = new Date(dateStr);
+            if (!isNaN(isoDate.getTime())) {
+                return isoDate.toISOString();
+            }
+            throw new Error("Invalid date format");
+         }
          return parsedDate2.toISOString();
        }
       return parsedDate.toISOString();
@@ -36,25 +43,25 @@ const parseDate = (dateStr: string | number | undefined): string | null => {
 type PartialSocioWithStatus = Partial<Socio> & { statusForImport: 'active' | 'pending' | 'expired' };
 
 const excelRowToSocio = (row: any): PartialSocioWithStatus => {
-    const statusText = row['Stato'] || '';
+    const statusText = row['Stato'] || 'Sospeso';
     let statusForImport: 'active' | 'pending' | 'expired' = 'pending';
-    if (statusText === 'Attivo') statusForImport = 'active';
-    if (statusText === 'Scaduto') statusForImport = 'expired';
-    if (statusText === 'Sospeso') statusForImport = 'pending';
+    if (statusText.toLowerCase() === 'attivo') statusForImport = 'active';
+    if (statusText.toLowerCase() === 'scaduto') statusForImport = 'expired';
+    if (statusText.toLowerCase() === 'sospeso') statusForImport = 'pending';
 
     const socio: Partial<Socio> = {
-        tessera: row['N. Tessera'] === 'N/A' ? undefined : row['N. Tessera'],
+        tessera: row['N. Tessera'] || undefined,
         lastName: row['Cognome'],
         firstName: row['Nome'],
-        gender: row['Genere'] === 'M' ? 'male' : 'female',
+        gender: (row['Genere'] || '').toUpperCase() === 'M' ? 'male' : 'female',
         birthDate: parseDate(row['Data di Nascita']) || undefined,
         birthPlace: row['Luogo di Nascita'],
-        fiscalCode: row['Codice Fiscale'],
+        fiscalCode: row['Codice Fiscale'] || undefined,
         address: row['Indirizzo'],
         city: row['Città'],
         province: row['Provincia'],
         postalCode: String(row['CAP'] || ''),
-        email: row['Email'],
+        email: row['Email'] || undefined,
         phone: row['Telefono'] ? String(row['Telefono']) : undefined,
         whatsappConsent: (row['Consenso WhatsApp'] || '').toUpperCase() === 'SI',
         privacyConsent: (row['Consenso Privacy'] || '').toUpperCase() === 'SI',
@@ -64,18 +71,13 @@ const excelRowToSocio = (row: any): PartialSocioWithStatus => {
         renewalDate: parseDate(row['Data Rinnovo']) || undefined,
         expirationDate: parseDate(row['Data Scadenza']) || undefined,
         membershipFee: typeof row['Quota Versata (€)'] === 'number' ? row['Quota Versata (€)'] : 0,
-        qualifica: row['Qualifiche'] ? row['Qualifiche'].split(',').map((q: string) => q.trim()) : [],
-        notes: row['Note'],
-        // 'membershipStatus' will be set based on the destination collection
+        qualifica: row['Qualifiche'] ? row['Qualifiche'].split(',').map((q: string) => q.trim().toUpperCase()) : [],
+        notes: row['Note'] || undefined,
+        guardianFirstName: row['Nome Tutore'] || undefined,
+        guardianLastName: row['Cognome Tutore'] || undefined,
+        guardianBirthDate: parseDate(row['Data Nascita Tutore']) || undefined,
     };
     
-    if (row['Tutore']) {
-        const guardianNameParts = (row['Tutore'] as string).split(' ');
-        socio.guardianLastName = guardianNameParts[0];
-        socio.guardianFirstName = guardianNameParts.slice(1).join(' ');
-        socio.guardianBirthDate = parseDate(row['Data Nascita Tutore']) || undefined;
-    }
-
     // Clean up undefined fields
     Object.keys(socio).forEach(key => (socio as any)[key] === undefined && delete (socio as any)[key]);
 
@@ -90,18 +92,17 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
     reader.onload = async (e) => {
       try {
         const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
+        const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
 
-        const membersSheetName = 'Soci Attivi e Scaduti';
-        const membersSheet = workbook.Sheets[membersSheetName];
+        const sheetName = 'Elenco Completo Soci';
+        const worksheet = workbook.Sheets[sheetName];
         
-        if (!membersSheet) {
-          throw new Error(`Il file Excel deve contenere un foglio chiamato "${membersSheetName}".`);
+        if (!worksheet) {
+          throw new Error(`Il file Excel deve contenere un foglio chiamato "${sheetName}".`);
         }
 
-        const membersJson = XLSX.utils.sheet_to_json(membersSheet);
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
         
-        // Fetch existing members and requests to check for updates
         const membersCollection = collection(firestore, 'members');
         const requestsCollection = collection(firestore, 'membership_requests');
 
@@ -117,7 +118,7 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
                 existingMembersMap.set(member.tessera, {id: doc.id, data: member});
             }
         });
-        // Also map requests by a composite key if they don't have 'tessera'
+        
         const existingRequestsMap = new Map<string, {id: string, data: Socio}>();
         requestsSnapshot.forEach(doc => {
             const req = doc.data() as Socio;
@@ -130,42 +131,42 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
         let importedCount = 0;
         let errorCount = 0;
 
-        for (const row of membersJson) {
+        for (const row of jsonData) {
             try {
                 const { statusForImport, ...socioData } = excelRowToSocio(row);
 
                 if (!socioData.firstName || !socioData.lastName || !socioData.birthDate) {
-                    console.warn("Riga saltata per mancanza di dati (nome, cognome, data di nascita):", row);
+                    console.warn("Riga saltata per mancanza di dati obbligatori (Nome, Cognome, Data di Nascita):", row);
                     errorCount++;
                     continue;
                 }
                 
                 const isMember = statusForImport === 'active' || statusForImport === 'expired';
                 
-                let docRef: any;
-                let existingData: Socio | undefined;
+                let docRef;
+                let existingData: Partial<Socio> = {};
 
-                if (isMember) {
+                if (isMember) { // 'active' or 'expired'
                     if (socioData.tessera && existingMembersMap.has(socioData.tessera)) {
                         const existing = existingMembersMap.get(socioData.tessera)!;
                         docRef = doc(firestore, 'members', existing.id);
                         existingData = existing.data;
                     } else {
-                        docRef = doc(membersCollection); // Create new member
+                        docRef = doc(membersCollection); // Create new member if no tessera or not found
                     }
                     const dataToSet: any = {
                         ...existingData,
                         ...socioData,
                         id: docRef.id,
-                        membershipStatus: 'active', // always 'active' in members collection
+                        membershipStatus: 'active',
                     };
                     delete dataToSet.statusForImport;
-                    delete dataToSet.status; // remove the old 'status' field
+                    delete dataToSet.status;
                     batch.set(docRef, dataToSet, { merge: true });
 
                 } else { // 'pending'
                     const requestKey = `${socioData.firstName}-${socioData.lastName}-${socioData.birthDate}`;
-                    if(existingRequestsMap.has(requestKey)){
+                    if (existingRequestsMap.has(requestKey)) {
                         const existing = existingRequestsMap.get(requestKey)!;
                         docRef = doc(firestore, 'membership_requests', existing.id);
                         existingData = existing.data;
@@ -176,13 +177,12 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
                         ...existingData,
                         ...socioData,
                         id: docRef.id,
-                        status: 'pending', // always 'pending' in requests collection
+                        status: 'pending',
                     };
                     delete dataToSet.statusForImport;
                     delete dataToSet.membershipStatus;
                     batch.set(docRef, dataToSet, { merge: true });
                 }
-
 
                 importedCount++;
 

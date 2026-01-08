@@ -9,69 +9,61 @@ const statusTranslations: Record<string, string> = {
   expired: 'Scaduto'
 };
 
-const formatForExcel = (data: Socio[], isMember: boolean) => {
+const formatForExcel = (data: Socio[]) => {
   return data.map(socio => {
     const status = getStatus(socio);
     return {
-      'N. Tessera': isMember ? socio.tessera || 'N/A' : 'N/A',
+      'Stato': statusTranslations[status] || status,
+      'N. Tessera': socio.tessera || '',
       'Cognome': socio.lastName,
       'Nome': socio.firstName,
-      'Stato': statusTranslations[status] || status,
       'Genere': socio.gender === 'male' ? 'M' : 'F',
       'Data di Nascita': formatDate(socio.birthDate),
       'Luogo di Nascita': socio.birthPlace,
-      'Codice Fiscale': socio.fiscalCode,
+      'Codice Fiscale': socio.fiscalCode || '',
       'Indirizzo': socio.address,
       'Città': socio.city,
       'Provincia': socio.province,
       'CAP': socio.postalCode,
-      'Email': socio.email,
-      'Telefono': socio.phone,
+      'Email': socio.email || '',
+      'Telefono': socio.phone || '',
       'Consenso WhatsApp': socio.whatsappConsent ? 'SI' : 'NO',
       'Consenso Privacy': socio.privacyConsent ? 'SI' : 'NO',
-      'Anno Associativo': socio.membershipYear,
+      'Anno Associativo': socio.membershipYear || '',
       'Data Richiesta': formatDate(socio.requestDate),
       'Data Ammissione': formatDate(socio.joinDate),
       'Data Rinnovo': formatDate(socio.renewalDate),
       'Data Scadenza': formatDate(socio.expirationDate),
-      'Quota Versata (€)': socio.membershipFee,
+      'Quota Versata (€)': socio.membershipFee || 0,
       'Qualifiche': socio.qualifica?.join(', ') || '',
-      'Tutore': socio.guardianFirstName ? `${socio.guardianLastName || ''} ${socio.guardianFirstName || ''}`.trim() : '',
+      'Cognome Tutore': socio.guardianLastName || '',
+      'Nome Tutore': socio.guardianFirstName || '',
       'Data Nascita Tutore': socio.guardianBirthDate ? formatDate(socio.guardianBirthDate) : '',
-      'Note': socio.notes
+      'Note': socio.notes || ''
     };
   });
 };
 
 export const exportToExcel = (members: Socio[], requests: Socio[]) => {
-  // Foglio 1: Soci Attivi e Scaduti
-  const activeAndExpiredMembers = members;
-  const membersSheetData = formatForExcel(activeAndExpiredMembers, true);
-  const membersWorksheet = XLSX.utils.json_to_sheet(membersSheetData);
-
-  // Foglio 2: Richieste Iscrizione
-  const pendingRequests = requests;
-  const requestsSheetData = formatForExcel(pendingRequests, false);
-  const requestsWorksheet = XLSX.utils.json_to_sheet(requestsSheetData);
-
-  // Auto-dimensionamento colonne
+  const allSoci = [...members, ...requests];
+  const allSociSheetData = formatForExcel(allSoci);
+  const worksheet = XLSX.utils.json_to_sheet(allSociSheetData);
+  
   const fitToColumn = (data: any[]) => {
     if (data.length === 0) return [];
     const json = data;
     const widths: { wch: number }[] = [];
-    for (const key in json[0]) {
-        widths.push({ wch: Math.max(...json.map(item => (item[key] || '').toString().length), key.length) });
+    const header = Object.keys(json[0]);
+    for (const key of header) {
+        widths.push({ wch: Math.max(key.length, ...json.map(item => (item[key] || '').toString().length)) });
     }
     return widths;
   };
   
-  membersWorksheet['!cols'] = fitToColumn(membersSheetData);
-  requestsWorksheet['!cols'] = fitToColumn(requestsSheetData);
-
+  worksheet['!cols'] = fitToColumn(allSociSheetData);
 
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, membersWorksheet, 'Soci Attivi e Scaduti');
-  XLSX.utils.book_append_sheet(workbook, requestsWorksheet, 'Richieste Iscrizione');
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Elenco Completo Soci');
 
   const today = formatDate(new Date(), 'dd.MM.yyyy');
   XLSX.writeFile(workbook, `ELENCO SOCI AL ${today}.xlsx`);
