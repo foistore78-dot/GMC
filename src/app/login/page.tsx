@@ -17,9 +17,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
-import { useAuth, useUser } from "@/firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { AlertCircle, Loader2, Eye, EyeOff, Database } from "lucide-react";
+import { useAuth, useUser, useFirestore } from "@/firebase";
+import { signInWithEmailAndPassword, writeBatch } from "firebase/auth";
+import { collection, writeBatch as firestoreWriteBatch, doc } from "firebase/firestore";
+import { sociDataSeed } from "@/lib/seed-data";
+import { useToast } from "@/hooks/use-toast";
+
 
 const ADMIN_EMAIL = 'garage.music.club2024@gmail.com';
 const ADMIN_PASSWORD = 'password';
@@ -30,9 +34,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState(ADMIN_PASSWORD);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { toast } = useToast();
 
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
 
   useEffect(() => {
@@ -64,6 +71,47 @@ export default function LoginPage() {
         setIsLoading(false);
     }
   };
+  
+  const handleSeedData = async () => {
+    if (!firestore) {
+      toast({
+        title: "Errore",
+        description: "Firestore non è disponibile.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsSeeding(true);
+    
+    try {
+      const batch = firestoreWriteBatch(firestore);
+      const requestsCollection = collection(firestore, "membership_requests");
+
+      sociDataSeed.forEach(socio => {
+        const docRef = doc(requestsCollection); // Firestore will generate a new ID
+        const { id, ...socioData } = socio; // exclude the static id
+        batch.set(docRef, socioData);
+      });
+
+      await batch.commit();
+
+      toast({
+        title: "Successo!",
+        description: `${sociDataSeed.length} richieste di iscrizione di test sono state aggiunte.`,
+      });
+
+    } catch (error) {
+       console.error("Error seeding data:", error);
+       toast({
+        title: "Errore nel seeding",
+        description: `Non è stato possibile caricare i dati di test. Dettagli: ${(error as Error).message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
 
   // While checking auth state or if user is already logged in, show a loader.
   if (isUserLoading || user) {
@@ -135,13 +183,19 @@ export default function LoginPage() {
                 </Alert>
               )}
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex flex-col gap-4">
               <Button type="submit" className="w-full font-bold" disabled={isLoading}>
                 {isLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : null}
                 {isLoading ? "Verifica in corso..." : "Login"}
               </Button>
+               {process.env.NODE_ENV === 'development' && (
+                  <Button type="button" variant="outline" className="w-full" onClick={handleSeedData} disabled={isSeeding}>
+                    {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+                    {isSeeding ? "Caricamento..." : "Aggiungi Dati Test"}
+                  </Button>
+                )}
             </CardFooter>
           </form>
         </Card>
