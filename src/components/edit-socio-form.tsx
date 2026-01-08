@@ -207,6 +207,8 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             if (newStatus === 'pending') {
                 finalData.tessera = deleteField();
                 finalData.membershipFee = 0;
+            } else {
+              finalData.tessera = values.tessera;
             }
 
             batch.set(docRef, finalData, { merge: true });
