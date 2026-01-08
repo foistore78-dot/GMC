@@ -99,17 +99,13 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
 
-        const sheetName = 'Elenco Completo Soci';
-        if (workbook.SheetNames.length === 0) {
+        const sheetName = workbook.SheetNames[0];
+        if (!sheetName) {
             throw new Error('Il file Excel non contiene fogli di lavoro.');
         }
 
-        const worksheet = workbook.Sheets[sheetName] ?? workbook.Sheets[workbook.SheetNames[0]];
+        const worksheet = workbook.Sheets[sheetName];
         
-        if (!worksheet) {
-            throw new Error(`Il file Excel deve contenere un foglio chiamato "${sheetName}" o almeno un foglio di lavoro.`);
-        }
-
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
         
         const membersCollection = collection(firestore, 'members');
@@ -144,12 +140,6 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
         for (const row of jsonData) {
             try {
                 const { statusForImport, ...socioData } = excelRowToSocio(row);
-
-                if (!socioData.firstName || !socioData.lastName || !socioData.birthDate) {
-                    console.warn("Riga saltata per mancanza di dati obbligatori (Nome, Cognome, Data di Nascita):", row);
-                    errorCount++;
-                    continue;
-                }
                 
                 const isMember = statusForImport === 'active' || statusForImport === 'expired';
                 
