@@ -701,29 +701,29 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortCon
         </Table>
       </div>
       <div className="flex items-center justify-between space-x-2 py-4">
-          <div className="text-sm text-muted-foreground">
-              Pagina {currentPage} di {totalPages > 0 ? totalPages : 1}
-          </div>
-          <div className="space-x-2">
-              <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePreviousPage}
-                  disabled={currentPage === 1}
-              >
-                  <ChevronLeft className="mr-2 h-4 w-4" />
-                  Precedente
-              </Button>
-              <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleNextPage}
-                  disabled={currentPage >= totalPages}
-              >
-                  Successivo
-                  <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
-          </div>
+        <div className="text-sm text-muted-foreground">
+            Pagina {currentPage} di {totalPages > 0 ? totalPages : 1}
+        </div>
+        <div className="space-x-2">
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1}
+            >
+                <ChevronLeft className="mr-2 h-4 w-4" />
+                Precedente
+            </Button>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={currentPage >= totalPages}
+            >
+                Successivo
+                <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+        </div>
       </div>
     </div>
   );
@@ -731,3 +731,5 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortCon
 
 
 export const SociTable = SociTableComponent;
+
+    
