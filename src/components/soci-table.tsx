@@ -139,11 +139,13 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
 const SocioTableRow = ({ 
   socio,
   onEdit,
-  allMembers
+  allMembers,
+  onSocioApproved
 }: { 
   socio: Socio; 
   onEdit: (socio: Socio) => void;
   allMembers: Socio[];
+  onSocioApproved?: () => void;
 }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -250,6 +252,7 @@ const SocioTableRow = ({
             description: `${getFullName(socio)} è ora un membro attivo. N. tessera: ${membershipCardNumber}`,
         });
         setShowApproveDialog(false);
+        onSocioApproved?.();
     } catch (error) {
         console.error("Error approving member:", error);
         toast({
@@ -439,7 +442,7 @@ const SocioTableRow = ({
   );
 };
 
-const SociTableComponent = ({ soci, onEdit, allMembers }: SociTableProps) => {
+const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved }: SociTableProps) => {
   const [filter, setFilter] = useState('');
 
   const filteredSoci = useMemo(() => soci.filter(socio => {
@@ -485,6 +488,7 @@ const SociTableComponent = ({ soci, onEdit, allMembers }: SociTableProps) => {
                   socio={socio}
                   onEdit={onEdit}
                   allMembers={allMembers}
+                  onSocioApproved={onSocioApproved}
                 />
               ))
             ) : (
@@ -505,6 +509,7 @@ interface SociTableProps {
   soci: Socio[];
   onEdit: (socio: Socio) => void;
   allMembers: Socio[];
+  onSocioApproved?: () => void;
 }
 
 export const SociTable = SociTableComponent;

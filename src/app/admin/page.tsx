@@ -21,6 +21,7 @@ export default function AdminPage() {
   const firestore = useFirestore();
 
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
+  const [activeTab, setActiveTab] = useState("pending");
 
   const membersQuery = useMemoFirebase(
     () => (firestore ? query(collection(firestore, "members"), orderBy("lastName")) : null),
@@ -66,6 +67,10 @@ export default function AdminPage() {
       setEditingSocio(null);
     }
   };
+
+  const handleSocioApproved = () => {
+    setActiveTab("active");
+  };
   
   if (isUserLoading || !user) {
     return (
@@ -96,7 +101,7 @@ export default function AdminPage() {
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
              </div>
           ) : (
-            <Tabs defaultValue="pending">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="mb-4">
                 <TabsTrigger value="pending">
                   Soci in Sospeso
@@ -112,6 +117,7 @@ export default function AdminPage() {
                     soci={pendingSoci}
                     onEdit={handleEditSocio}
                     allMembers={membersData || []}
+                    onSocioApproved={handleSocioApproved}
                 />
               </TabsContent>
               <TabsContent value="active">
@@ -148,5 +154,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-    
