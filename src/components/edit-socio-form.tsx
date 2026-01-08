@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useCallback, useState, useEffect } from "react";
 import { differenceInYears } from "date-fns";
-import { doc, writeBatch, serverTimestamp, collection, deleteField } from "firebase/firestore";
+import { doc, writeBatch, deleteField } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -38,11 +38,9 @@ export const isMinorCheck = (birthDate: string | undefined | Date): boolean => {
 };
 
 const getStatus = (socio: Socio): "active" | "pending" | "rejected" => {
-    // If it has a membershipStatus field, it's from the 'members' collection.
     if (socio.membershipStatus === "active") {
         return "active";
     }
-    // Otherwise it's from 'membership_requests'
     if (socio.status === 'rejected') {
         return 'rejected';
     }
@@ -67,6 +65,7 @@ const formSchema = z
     whatsappConsent: z.boolean().default(false),
     notes: z.string().optional(),
     membershipYear: z.string().optional(),
+    tessera: z.string().optional(),
     membershipFee: z.coerce.number().optional(),
     qualifica: z.array(z.string()).optional(),
     requestDate: z.string().optional(),
@@ -120,6 +119,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
       guardianLastName: s.guardianLastName || "",
       whatsappConsent: s.whatsappConsent ?? false,
       fiscalCode: s.fiscalCode || "",
+      tessera: s.tessera || "",
     };
   }, []);
 
@@ -156,15 +156,15 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 const oldDocRef = doc(firestore, 'membership_requests', socio.id);
                 const newDocRef = doc(firestore, 'members', socio.id);
                 
-                const finalData = {
+                const finalData: any = {
                     ...socio,
                     ...dataToSave,
                     id: socio.id,
                     membershipStatus: 'active' as const,
                     joinDate: values.joinDate ? new Date(values.joinDate).toISOString() : new Date().toISOString(),
-                    expirationDate: new Date(new Date().getFullYear(), 11, 31).toISOString(),
+                    expirationDate: new Date(parseInt(values.membershipYear || new Date().getFullYear().toString(), 10), 11, 31).toISOString(),
                 };
-                delete (finalData as any).status;
+                delete finalData.status;
                 
                 batch.set(newDocRef, finalData, { merge: true });
                 batch.delete(oldDocRef);
@@ -197,12 +197,17 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             
             const expirationYear = values.membershipYear ? parseInt(values.membershipYear, 10) : new Date().getFullYear();
 
-            const finalData = {
+            const finalData: any = {
               ...dataToSave,
               joinDate: values.joinDate ? new Date(values.joinDate).toISOString() : (socio.joinDate || null),
               renewalDate: values.renewalDate ? new Date(values.renewalDate).toISOString() : (socio.renewalDate || null),
               expirationDate: new Date(expirationYear, 11, 31).toISOString(),
             };
+            
+            if (newStatus === 'pending') {
+                finalData.tessera = deleteField();
+                finalData.membershipFee = 0;
+            }
 
             batch.set(docRef, finalData, { merge: true });
         }
@@ -292,6 +297,19 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                   </FormItem>
                 )}
               />
+               {currentStatus === "active" && (
+                 <FormField
+                  control={form.control}
+                  name="tessera"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Numero Tessera</FormLabel>
+                      <FormControl><Input {...field} value={field.value || ''}/></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+               )}
               <FormField
                 control={form.control}
                 name="requestDate"
@@ -643,5 +661,3 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
-
-    
