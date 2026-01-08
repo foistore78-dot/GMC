@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useFirestore, setDocumentNonBlocking } from "@/firebase";
 import { doc } from "firebase/firestore";
 import type { Socio } from "@/lib/soci-data";
@@ -54,11 +54,8 @@ const formSchema = z.object({
   guardianLastName: z.string().optional(),
   guardianBirthDate: z.string().optional(),
 }).refine(data => {
-    if (data.birthDate) {
-        const age = differenceInYears(new Date(), new Date(data.birthDate));
-        if (age < 18) {
-            return !!data.guardianFirstName && !!data.guardianLastName && !!data.guardianBirthDate;
-        }
+    if (data.birthDate && isMinor(data.birthDate)) {
+        return !!data.guardianFirstName && !!data.guardianLastName && !!data.guardianBirthDate;
     }
     return true;
 }, {
@@ -111,7 +108,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
   });
 
   const birthDateValue = form.watch('birthDate');
-  const socioIsMinor = useMemo(() => isMinor(birthDateValue), [birthDateValue]);
+  const socioIsMinor = isMinor(birthDateValue);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!firestore) {
@@ -163,7 +160,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
         <div>
           <h3 className="text-lg font-medium text-primary mb-2">Dati Tesseramento</h3>
           <div className="space-y-4 rounded-md border p-4">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+             <div className="grid grid-cols-2 gap-4 items-end">
                 <FormField control={form.control} name="membershipYear" render={({ field }) => (
                     <FormItem><FormLabel>Anno Associativo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )}/>
@@ -377,12 +374,13 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
         <div>
             <h3 className="text-lg font-medium text-primary mb-2">Altre Impostazioni</h3>
              <div className="space-y-4 rounded-md border p-4">
-                 <FormField control={form.control} name="privacyConsent" render={({ field }) => (
+                <FormField control={form.control} name="privacyConsent" render={({ field }) => (
                     <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                         <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange}/></FormControl>
                         <div className="space-y-1 leading-none">
                             <FormLabel>Consenso Privacy</FormLabel>
                             <FormDescription>Il socio ha accettato la privacy policy.</FormDescription>
+                            <FormMessage />
                         </div>
                     </FormItem>
                 )}/>
@@ -400,3 +398,5 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
+
+    
