@@ -54,7 +54,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
 import { useFirestore } from "@/firebase";
-import { doc, deleteDoc, writeBatch, serverTimestamp } from "firebase/firestore";
+import { doc, deleteDoc, writeBatch } from "firebase/firestore";
 import { differenceInYears, format, parseISO, isValid } from 'date-fns';
 import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
 
@@ -168,9 +168,23 @@ const SocioTableRow = ({
   useEffect(() => {
     if (showApproveDialog) {
       const currentYear = new Date().getFullYear();
-      const yearMembers = allMembers.filter(m => m.membershipYear === String(currentYear) && m.tessera);
-      const nextMemberNumberValue = yearMembers.length + 1;
-      setNewMemberNumber(String(nextMemberNumberValue));
+      
+      const yearMemberNumbers = allMembers
+        .filter(m => m.membershipYear === String(currentYear) && m.tessera)
+        .map(m => parseInt(m.tessera!.split('-')[2], 10))
+        .filter(n => !isNaN(n));
+      
+      let nextNumber = 1;
+      const sortedNumbers = yearMemberNumbers.sort((a, b) => a - b);
+      for (const num of sortedNumbers) {
+        if (num === nextNumber) {
+          nextNumber++;
+        } else {
+          break; 
+        }
+      }
+      
+      setNewMemberNumber(String(nextNumber));
       setMembershipFee(socioIsMinor ? 0 : 10);
       setQualifiche(socio.qualifica || []);
     }
@@ -222,7 +236,7 @@ const SocioTableRow = ({
     const newMemberData: Omit<Socio, 'status'> & { membershipStatus: 'active' } = {
         ...socio,
         membershipStatus: 'active' as const,
-        joinDate: serverTimestamp() as any, // Let Firestore set the date
+        joinDate: new Date().toISOString(),
         expirationDate: new Date(new Date().setFullYear(currentYear + 1)).toISOString(),
         membershipYear: String(currentYear),
         tessera: membershipCardNumber,
@@ -370,6 +384,12 @@ const SocioTableRow = ({
               {status === 'pending' && (
                 <DropdownMenuItem onSelect={() => setShowApproveDialog(true)} className="text-green-500 focus:text-green-400 focus:bg-green-500/10">
                     <CheckCircle className="mr-2 h-4 w-4" /> Approva
+                </DropdownMenuItem>
+              )}
+               {status !== 'pending' && (
+                <DropdownMenuItem onClick={() => onEdit(socio)}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Modifica
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
