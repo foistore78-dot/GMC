@@ -46,8 +46,10 @@ export default function AdminPage() {
     const allSoci = [...(membersData || []), ...(requestsData || [])];
     const sociMap = new Map<string, Socio>();
     allSoci.forEach(s => {
-      if (s.id && !sociMap.has(s.id)) {
-        sociMap.set(s.id, s);
+      // Use a consistent ID, preferably from the document itself.
+      const socioId = s.id || `${s.firstName}-${s.lastName}-${s.birthDate}`;
+      if (!sociMap.has(socioId)) {
+        sociMap.set(socioId, s);
       }
     });
     return Array.from(sociMap.values()).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
@@ -93,11 +95,7 @@ export default function AdminPage() {
         </div>
       </main>
 
-       <Sheet open={!!editingSocio} onOpenChange={(isOpen) => {
-           if (!isOpen) {
-             handleCloseSheet();
-           }
-       }}>
+       <Sheet open={!!editingSocio} onOpenChange={(isOpen) => !isOpen && setEditingSocio(null)}>
         <SheetContent className="w-[50vw] sm:max-w-none overflow-auto resize-x min-w-[300px] max-w-[90vw]">
           {editingSocio && (
             <>
