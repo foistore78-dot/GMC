@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { GarageMusicClubLogo } from "./icons/garage-music-club-logo";
 import { Button } from "./ui/button";
 import { useAuth, useUser } from "@/firebase";
@@ -13,7 +13,9 @@ export function Header() {
   const auth = useAuth();
 
   const handleLogout = async () => {
-    await signOut(auth);
+    if (auth) {
+        await signOut(auth);
+    }
     router.push("/");
   };
 
@@ -26,11 +28,16 @@ export function Header() {
             GARAGE MUSIC CLUB
           </span>
         </Link>
-        <nav>
+        <nav className="flex items-center gap-2">
           {user ? (
-            <Button onClick={handleLogout} variant="ghost" className="hover:bg-primary/10 hover:text-primary">
-              Logout
-            </Button>
+            <>
+              <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary">
+                <Link href="/admin">Dashboard</Link>
+              </Button>
+              <Button onClick={handleLogout} variant="ghost" className="hover:bg-destructive/10 hover:text-destructive">
+                Logout
+              </Button>
+            </>
           ) : (
              <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary">
               <Link href="/login">Login Admin</Link>
