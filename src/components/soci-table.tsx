@@ -27,6 +27,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -89,6 +95,14 @@ const statusTranslations: Record<string, string> = {
   pending: 'In attesa',
   rejected: 'Rifiutato',
 };
+
+const QUALIFICA_COLORS: Record<string, string> = {
+  "SOCIO FONDATORE": "text-yellow-400",
+  "VOLONTARIO": "text-sky-400",
+  "MUSICISTA": "text-fuchsia-400",
+  "default": "text-gray-400",
+};
+
 
 const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: string, value?: string | number | null | React.ReactNode }) => {
   if (!value && typeof value !== 'number' && typeof value !== 'object') return null;
@@ -173,9 +187,20 @@ const SocioTableRow = memo(({
                      </div>
                    </DialogContent>
                  </Dialog>
-                 <div className="flex flex-wrap gap-1">
-                    {socio.qualifica?.map(q => <Badge key={q} variant="secondary" className="text-xs normal-case">{q}</Badge>)}
-                 </div>
+                 <div className="flex items-center gap-1">
+                    <TooltipProvider>
+                      {socio.qualifica?.map(q => (
+                        <Tooltip key={q}>
+                          <TooltipTrigger>
+                            <span className={cn("font-bold text-lg", QUALIFICA_COLORS[q] || QUALIFICA_COLORS.default)}>*</span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{q}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </TooltipProvider>
+                  </div>
                  {socioIsMinor && (
                    <Dialog>
                      <DialogTrigger asChild>
