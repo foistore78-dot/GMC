@@ -53,11 +53,9 @@ export default function AdminPage() {
 
   const isLoading = isUserLoading || isMembersLoading || isRequestsLoading;
   
-  // By wrapping setEditingSocio in useCallback, we provide a stable function
-  // reference to SociTable, preventing re-renders.
   const handleEditSocio = useCallback((socio: Socio) => {
     setEditingSocio(socio);
-  }, []); // Empty dependency array means this function is created only once.
+  }, []);
 
   if (isUserLoading || !user) {
     return (
@@ -104,7 +102,6 @@ export default function AdminPage() {
                 <SheetTitle>Modifica Socio: {getFullName(editingSocio)}</SheetTitle>
               </SheetHeader>
               <EditSocioForm
-                key={editingSocio.id}
                 socio={editingSocio} 
                 onClose={() => setEditingSocio(null)}
               />
