@@ -142,26 +142,24 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
 
     try {
         if (newStatus === 'rejected') {
-            // Delete from whichever collection it's in.
             const requestDocRef = doc(firestore, 'membership_requests', socio.id);
             const memberDocRef = doc(firestore, 'members', socio.id);
-            batch.delete(requestDocRef); // It's safe to try to delete from both
+            batch.delete(requestDocRef);
             batch.delete(memberDocRef);
         } else if (originalStatus !== newStatus) {
-            // ----- Moving document between collections -----
             if (newStatus === 'active') { // Moving to 'members'
                 const oldDocRef = doc(firestore, 'membership_requests', socio.id);
                 const newDocRef = doc(firestore, 'members', socio.id);
                 
                 const finalData = {
-                    ...socio, // carry over original data
+                    ...socio,
                     ...dataToSave,
                     id: socio.id,
                     membershipStatus: 'active' as const,
                     joinDate: socio.joinDate || serverTimestamp(),
                     expirationDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
                 };
-                delete (finalData as any).status; // remove request-specific field
+                delete (finalData as any).status;
                 
                 batch.set(newDocRef, finalData, { merge: true });
                 batch.delete(oldDocRef);
@@ -185,7 +183,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 batch.delete(oldDocRef);
             }
         } else {
-            // ----- Updating document in the same collection -----
             const collectionName = newStatus === 'active' ? 'members' : 'membership_requests';
             const docRef = doc(firestore, collectionName, socio.id);
             batch.set(docRef, dataToSave, { merge: true });
@@ -239,11 +236,11 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="active">Attivo</SelectItem>
-                      <SelectItem value="pending">In attesa</SelectItem>
+                      <SelectItem value="pending">Sospeso</SelectItem>
                       <SelectItem value="rejected">Rifiutato</SelectItem>
                     </SelectContent>
                   </Select>
-                  <FormDescription>Attiva, metti in attesa o rifiuta la richiesta.</FormDescription>
+                  <FormDescription>Attiva, metti in sospeso o rifiuta la richiesta.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

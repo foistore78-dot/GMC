@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { SociTable } from "@/components/soci-table";
-import { useUser, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
+import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy } from "firebase/firestore";
 import { Loader2, Users } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
@@ -42,7 +42,6 @@ export default function AdminPage() {
   useEffect(() => {
     const sociMap = new Map<string, Socio>();
 
-    // Requests are processed first, so if an ID is in both, the member (active) data will overwrite it.
     (requestsData || []).forEach(s => {
         if (s?.id) sociMap.set(s.id, { ...s, membershipStatus: 'pending' });
     });
@@ -102,6 +101,7 @@ export default function AdminPage() {
             <SociTable 
                 soci={combinedSoci}
                 onEdit={handleEditSocio}
+                allMembers={membersData || []}
             />
           )}
         </div>

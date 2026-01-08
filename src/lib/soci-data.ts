@@ -27,10 +27,9 @@ export type Socio = {
   isVolunteer?: boolean;
   membershipFee?: number;
   qualifica?: string[];
+  tessera?: string;
 };
 
 // This data is now for type reference and is not used in the application directly.
 // All data is fetched from Firestore.
 export const sociData: Socio[] = [];
-
-    

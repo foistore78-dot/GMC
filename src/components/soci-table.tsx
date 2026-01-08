@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import type { Socio } from "@/lib/soci-data";
 import {
   Table,
@@ -35,7 +35,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -51,7 +51,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
 import { useFirestore } from "@/firebase";
-import { doc, deleteDoc } from "firebase/firestore";
+import { doc, deleteDoc, writeBatch, serverTimestamp } from "firebase/firestore";
 import { differenceInYears, format, parseISO } from 'date-fns';
 
 // Helper Functions
@@ -94,7 +94,7 @@ const formatCurrency = (value: number | undefined | null) => {
 
 const statusTranslations: Record<string, string> = {
   active: 'Attivo',
-  pending: 'In attesa',
+  pending: 'Sospeso',
   rejected: 'Rifiutato',
 };
 
@@ -122,9 +122,11 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
 const SocioTableRow = ({ 
   socio,
   onEdit,
+  allMembers
 }: { 
   socio: Socio; 
   onEdit: (socio: Socio) => void;
+  allMembers: Socio[];
 }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -155,6 +157,50 @@ const SocioTableRow = ({
     }
   };
 
+  const handleApprove = async () => {
+    if (!firestore) return;
+
+    const currentYear = new Date().getFullYear();
+    const yearMembers = allMembers.filter(m => m.membershipYear === String(currentYear));
+    const nextMemberNumber = yearMembers.length + 1;
+    const membershipCardNumber = `GMC-${currentYear}-${nextMemberNumber}`;
+
+    const batch = writeBatch(firestore);
+
+    const requestDocRef = doc(firestore, "membership_requests", socio.id);
+    const memberDocRef = doc(firestore, "members", socio.id);
+
+    const newMemberData = {
+        ...socio,
+        membershipStatus: 'active' as const,
+        status: 'active' as const,
+        joinDate: serverTimestamp(),
+        expirationDate: new Date(new Date().setFullYear(currentYear + 1)).toISOString(),
+        membershipYear: String(currentYear),
+        tessera: membershipCardNumber,
+    };
+    delete (newMemberData as any).requestDate;
+
+    batch.set(memberDocRef, newMemberData, { merge: true });
+    batch.delete(requestDocRef);
+
+    try {
+        await batch.commit();
+        toast({
+            title: "Socio Approvato!",
+            description: `${getFullName(socio)} è ora un membro attivo. N. tessera: ${membershipCardNumber}`,
+        });
+    } catch (error) {
+        console.error("Error approving member:", error);
+        toast({
+            title: "Errore di Approvazione",
+            description: `Impossibile approvare ${getFullName(socio)}. Dettagli: ${(error as Error).message}`,
+            variant: "destructive",
+        });
+    }
+  };
+
+
   const handleEditClick = () => {
     setIsDetailOpen(false);
     onEdit(socio);
@@ -177,6 +223,7 @@ const SocioTableRow = ({
                      </DialogHeader>
                      <div className="py-4 space-y-2 max-h-[60vh] overflow-y-auto p-1 pr-4">
                        <DetailRow icon={<CircleDot />} label="Stato" value={statusTranslations[status]} />
+                       {socio.tessera && <DetailRow icon={<Hash />} label="N. Tessera" value={socio.tessera} />}
                        <DetailRow icon={<User />} label="Nome Completo" value={getFullName(socio)} />
                        <DetailRow icon={<Award />} label="Qualifiche" value={
                           socio.qualifica && socio.qualifica.length > 0
@@ -259,6 +306,15 @@ const SocioTableRow = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Azioni</DropdownMenuLabel>
+              {status === 'pending' && (
+                <DropdownMenuItem onSelect={handleApprove} className="text-green-500 focus:text-green-400 focus:bg-green-500/10">
+                    <CheckCircle className="mr-2 h-4 w-4" /> Approva
+                </DropdownMenuItem>
+              )}
+               <DropdownMenuItem onClick={handleEditClick}>
+                <Pencil className="mr-2 h-4 w-4" /> Modifica
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <AlertDialog>
                   <AlertDialogTrigger asChild>
                      <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
@@ -287,7 +343,7 @@ const SocioTableRow = ({
   );
 };
 
-const SociTableComponent = ({ soci, onEdit }: SociTableProps) => {
+const SociTableComponent = ({ soci, onEdit, allMembers }: SociTableProps) => {
   const [filter, setFilter] = useState('');
 
   const filteredSoci = useMemo(() => soci.filter(socio => {
@@ -327,6 +383,7 @@ const SociTableComponent = ({ soci, onEdit }: SociTableProps) => {
                   key={socio.id} 
                   socio={socio}
                   onEdit={onEdit}
+                  allMembers={allMembers}
                 />
               ))
             ) : (
@@ -346,6 +403,7 @@ const SociTableComponent = ({ soci, onEdit }: SociTableProps) => {
 interface SociTableProps {
   soci: Socio[];
   onEdit: (socio: Socio) => void;
+  allMembers: Socio[];
 }
 
 export const SociTable = SociTableComponent;
