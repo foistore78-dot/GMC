@@ -27,7 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -80,14 +80,14 @@ const statusTranslations: Record<string, string> = {
   rejected: 'Rifiutato',
 };
 
-const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: string, value?: string | number | null }) => {
-  if (!value && typeof value !== 'number') return null;
+const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: string, value?: string | number | null | React.ReactNode }) => {
+  if (!value && typeof value !== 'number' && typeof value !== 'object') return null;
   return (
     <div className="flex items-start gap-3 py-2 border-b border-secondary">
       <div className="text-primary mt-1">{icon}</div>
       <div>
         <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="font-medium">{value}</p>
+        <div className="font-medium">{value}</div>
       </div>
     </div>
   );
@@ -135,7 +135,7 @@ const SocioTableRow = memo(({
   return (
     <TableRow>
         <TableCell className="font-medium">
-           <div className="flex items-center gap-3">
+           <div className="flex items-center gap-3 flex-wrap">
                 <Dialog>
                    <DialogTrigger asChild>
                      <div className="flex items-center gap-2 cursor-pointer group">
@@ -148,8 +148,13 @@ const SocioTableRow = memo(({
                        <DialogTitle className="flex items-center gap-3"><User/> Dettagli Socio</DialogTitle>
                      </DialogHeader>
                      <div className="py-4 space-y-2 max-h-[70vh] overflow-y-auto p-1 pr-4">
+                       <DetailRow icon={<Info />} label="Stato" value={statusTranslations[status] || status} />
                        <DetailRow icon={<User />} label="Nome Completo" value={getFullName(socio)} />
-                       <DetailRow icon={<Award />} label="Qualifica" value={socio.qualifica} />
+                       <DetailRow icon={<Award />} label="Qualifiche" value={
+                          socio.qualifica && socio.qualifica.length > 0
+                            ? <div className="flex flex-wrap gap-1 mt-1">{socio.qualifica.map(q => <Badge key={q} variant="secondary" className="text-xs">{q}</Badge>)}</div>
+                            : "Nessuna"
+                        } />
                        <DetailRow icon={<Mail />} label="Email" value={socio.email} />
                        <DetailRow icon={<Phone />} label="Telefono" value={socio.phone} />
                        <DetailRow icon={<Home />} label="Indirizzo" value={`${socio.address}, ${socio.city} (${socio.province}) ${socio.postalCode}`} />
@@ -162,13 +167,13 @@ const SocioTableRow = memo(({
                      </div>
                    </DialogContent>
                  </Dialog>
-                 {socio.qualifica && (
-                    <Badge variant="secondary" className="text-xs ml-2 normal-case">{socio.qualifica}</Badge>
-                 )}
+                 <div className="flex flex-wrap gap-1">
+                    {socio.qualifica?.map(q => <Badge key={q} variant="secondary" className="text-xs normal-case">{q}</Badge>)}
+                 </div>
                  {socioIsMinor && (
                    <Dialog>
                      <DialogTrigger asChild>
-                       <Badge onClick={(e) => { e.stopPropagation(); }} variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10 ml-2">Minore</Badge>
+                       <Badge onClick={(e) => { e.stopPropagation(); }} variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10">Minore</Badge>
                      </DialogTrigger>
                      <DialogContent>
                        <DialogHeader>

@@ -32,9 +32,12 @@
         "isVolunteer": { "type": "boolean", "description": "Indicates if the member is a volunteer." },
         "membershipFee": { "type": "number", "description": "The membership fee paid by the member." },
         "qualifica": {
-          "type": "string",
-          "description": "Role or qualification of the member in the club.",
-          "enum": ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"]
+          "type": "array",
+          "description": "Roles or qualifications of the member in the club.",
+          "items": {
+            "type": "string",
+            "enum": ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"]
+          }
         }
       },
       "required": [
@@ -70,9 +73,12 @@
         "requestDate": { "type": "string", "description": "Date when the membership request was submitted.", "format": "date-time" },
         "status": { "type": "string", "description": "Status of the membership request (e.g., pending, approved, rejected)." },
         "qualifica": {
-          "type": "string",
-          "description": "Role or qualification of the member in the club.",
-          "enum": ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"]
+           "type": "array",
+          "description": "Roles or qualifications of the member in the club.",
+          "items": {
+            "type": "string",
+            "enum": ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"]
+          }
         }
       },
       "required": [

@@ -6,7 +6,7 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { SociTable, getFullName } from "@/components/soci-table";
 import { useUser, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, query, limit, orderBy, getDocs, startAfter, endBefore, limitToLast } from "firebase/firestore";
+import { collection, query, limit, orderBy, getDocs, startAfter, endBefore, limitToLast, DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
 import { Loader2, Users } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -23,47 +23,75 @@ export default function AdminPage() {
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
   const [soci, setSoci] = useState<Socio[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [lastVisible, setLastVisible] = useState<any>(null);
-  const [firstVisible, setFirstVisible] = useState<any>(null);
-  const [isFirstPage, setIsFirstPage] = useState(true);
-  const [isLastPage, setIsLastPage] = useState(false);
   
+  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [firstVisible, setFirstVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLastPage, setIsLastPage] = useState(false);
+
+
   const membersCollection = useMemoFirebase(() => (firestore) ? collection(firestore, 'members') : null, [firestore]);
   const membershipRequestsCollection = useMemoFirebase(() => (firestore) ? collection(firestore, 'membership_requests') : null, [firestore]);
 
   const fetchSoci = async (direction: 'next' | 'prev' | 'initial' = 'initial') => {
-    if (!firestore) return;
+    if (!firestore || !membersCollection) return;
     setIsLoading(true);
 
-    const collectionsToQuery = [membersCollection, membershipRequestsCollection];
     let allResults: Socio[] = [];
-    let queryConstraints;
-
-    // We can't reliably paginate across multiple collections.
-    // For now we will just load all requests and active members.
-    // A more scalable solution would involve a single collection or a backend process.
-
-    for (const coll of collectionsToQuery) {
-        if (!coll) continue;
-        const q = query(coll, orderBy("firstName"));
-        const querySnapshot = await getDocs(q);
-        const data = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Socio));
-        allResults.push(...data);
-    }
     
-    // Deduplicate and sort
+    // We will primarily paginate on the 'members' collection as it's likely the largest.
+    // Requests will be loaded alongside for status management but won't affect pagination logic.
+    let membersQuery;
+
+    if (direction === 'next' && lastVisible) {
+        membersQuery = query(membersCollection, orderBy("lastName"), startAfter(lastVisible), limit(PAGE_SIZE));
+    } else if (direction === 'prev' && firstVisible) {
+        membersQuery = query(membersCollection, orderBy("lastName", "desc"), startAfter(firstVisible), limit(PAGE_SIZE));
+    } else {
+        setCurrentPage(1);
+        membersQuery = query(membersCollection, orderBy("lastName"), limit(PAGE_SIZE));
+    }
+
+    const membersSnapshot = await getDocs(membersQuery);
+    const membersData = membersSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Socio));
+
+    if (direction === 'prev') {
+        membersData.reverse(); // Reverse to maintain ascending order
+    }
+
+    setLastVisible(membersSnapshot.docs[membersSnapshot.docs.length - 1] || null);
+    setFirstVisible(membersSnapshot.docs[0] || null);
+
+    // Check if it's the last page
+    setIsLastPage(membersSnapshot.docs.length < PAGE_SIZE);
+
+    // Fetch all pending requests - assuming this list is not excessively large.
+    // For very large applications, requests might also need pagination.
+    const requestsQuery = query(membershipRequestsCollection, orderBy("lastName"));
+    const requestsSnapshot = await getDocs(requestsQuery);
+    const requestsData = requestsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Socio));
+
+    // Combine and deduplicate, prioritizing member data over request data if IDs overlap
     const combinedData: { [key: string]: Socio } = {};
-    allResults.forEach(item => {
-        if (item && item.id) combinedData[item.id] = { ...item } as Socio;
+    requestsData.forEach(item => {
+        if (item && item.id) combinedData[item.id] = { ...item };
+    });
+    membersData.forEach(item => {
+        if (item && item.id) combinedData[item.id] = { ...item };
     });
 
-    const sortedData = Object.values(combinedData).sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
+    const finalSociList = [...membersData];
+    const memberIds = new Set(membersData.map(m => m.id));
+    requestsData.forEach(req => {
+        if (!memberIds.has(req.id)) {
+            finalSociList.push(req);
+        }
+    });
 
-    setSoci(sortedData);
+    setSoci(finalSociList.sort((a, b) => (a.lastName || '').localeCompare(b.lastName || '')));
     setIsLoading(false);
   };
-
-
+  
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push("/login");
@@ -72,10 +100,30 @@ export default function AdminPage() {
       fetchSoci();
     }
   }, [user, isUserLoading, router, firestore]);
+
+  const handleNextPage = () => {
+    if (!isLastPage) {
+      setCurrentPage(p => p + 1);
+      fetchSoci('next');
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(p => p - 1);
+      // Firestore's `endBefore` and `limitToLast` are more complex for this simple pagination.
+      // A full re-fetch from the start up to the previous page's start is one way,
+      // but for this implementation we will reset and go to page 1.
+      // For a more robust solution, storing cursors for each page is needed.
+      // Let's reset to the first page for simplicity in this iteration.
+      fetchSoci('initial');
+    }
+  };
   
   const handleCloseSheet = () => {
     setEditingSocio(null);
-    fetchSoci(); // Refetch data
+    // Using reload as a robust way to ensure all state is fresh.
+    window.location.reload();
   };
   
   if (isUserLoading || !user) {
@@ -107,13 +155,33 @@ export default function AdminPage() {
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
              </div>
           ) : (
-            <SociTable 
-                soci={soci}
-                onEdit={setEditingSocio}
-                onSocioDelete={fetchSoci}
-            />
+            <>
+              <SociTable 
+                  soci={soci}
+                  onEdit={setEditingSocio}
+                  onSocioDelete={() => fetchSoci('initial')} // Refetch current view
+              />
+              <div className="flex items-center justify-end space-x-2 py-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePrevPage}
+                  disabled={currentPage === 1}
+                >
+                  Precedente
+                </Button>
+                <span className="text-sm text-muted-foreground">Pagina {currentPage}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNextPage}
+                  disabled={isLastPage}
+                >
+                  Successivo
+                </Button>
+              </div>
+            </>
           )}
-          {/* A more robust pagination for multiple collections is needed in the future */}
         </div>
       </main>
 
@@ -142,3 +210,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    

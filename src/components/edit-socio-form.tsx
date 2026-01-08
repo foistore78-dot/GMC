@@ -29,6 +29,8 @@ import { getStatus, getFullName, isMinor, formatDate } from "./soci-table";
 import { Separator } from "./ui/separator";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
+const QUALIFICHE = ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
+
 const formSchema = z.object({
   firstName: z.string().min(2, { message: "Il nome deve contenere almeno 2 caratteri." }),
   lastName: z.string().min(2, { message: "Il cognome deve contenere almeno 2 caratteri." }),
@@ -48,7 +50,7 @@ const formSchema = z.object({
   membershipYear: z.string().optional(),
   membershipFee: z.coerce.number().optional(),
   status: z.enum(['active', 'pending', 'rejected']),
-  qualifica: z.enum(["NESSUNA", "SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"]).optional(),
+  qualifica: z.array(z.string()).optional(),
   requestDate: z.string().optional(),
   guardianFirstName: z.string().optional(),
   guardianLastName: z.string().optional(),
@@ -73,7 +75,6 @@ const getDefaultValues = (socio: Socio) => {
     const originalStatus = getStatus(socio);
     const defaultMembershipYear = socio.membershipYear || new Date().getFullYear().toString();
     
-    // This calculation is now done only once
     const socioIsMinor = isMinor(socio.birthDate);
     const calculatedFee = socio.membershipFee ?? (socioIsMinor ? 0 : 10);
     const defaultMembershipFee = socio.membershipFee ?? calculatedFee;
@@ -89,7 +90,7 @@ const getDefaultValues = (socio: Socio) => {
         ...socio,
         phone: socio.phone || '',
         status: originalStatus,
-        qualifica: socio.qualifica || "NESSUNA",
+        qualifica: socio.qualifica || [],
         membershipYear: defaultMembershipYear,
         membershipFee: defaultMembershipFee,
         isVolunteer: socio.isVolunteer || false,
@@ -175,7 +176,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
           description: `I dati di ${getFullName(values)} sono stati salvati.`,
       });
       
-      onClose();
+      window.location.reload();
 
     } catch(error) {
         console.error("Error committing batch:", error);
@@ -220,25 +221,50 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 </FormItem>
               )}
             />
-            <FormField
+             <FormField
               control={form.control}
               name="qualifica"
-              render={({ field }) => (
+              render={() => (
                 <FormItem>
-                  <FormLabel>Qualifica Socio</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Nessuna" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="NESSUNA">Nessuna</SelectItem>
-                      <SelectItem value="SOCIO FONDATORE">Socio Fondatore</SelectItem>
-                      <SelectItem value="VOLONTARIO">Volontario</SelectItem>
-                      <SelectItem value="MUSICISTA">Musicista</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="mb-4">
+                    <FormLabel className="text-base">Qualifiche Socio</FormLabel>
+                    <FormDescription>
+                      Seleziona una o più qualifiche per il socio.
+                    </FormDescription>
+                  </div>
+                  {QUALIFICHE.map((item) => (
+                    <FormField
+                      key={item}
+                      control={form.control}
+                      name="qualifica"
+                      render={({ field }) => {
+                        return (
+                          <FormItem
+                            key={item}
+                            className="flex flex-row items-start space-x-3 space-y-0"
+                          >
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value?.includes(item)}
+                                onCheckedChange={(checked) => {
+                                  return checked
+                                    ? field.onChange([...(field.value || []), item])
+                                    : field.onChange(
+                                        (field.value || []).filter(
+                                          (value) => value !== item
+                                        )
+                                      );
+                                }}
+                              />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              {item}
+                            </FormLabel>
+                          </FormItem>
+                        );
+                      }}
+                    />
+                  ))}
                   <FormMessage />
                 </FormItem>
               )}
@@ -391,3 +417,5 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
+
+    
