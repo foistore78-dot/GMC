@@ -50,12 +50,12 @@ export default function AdminPage() {
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "ascending" });
 
   const membersQuery = useMemoFirebase(
-    () => (firestore ? collection(firestore, "members") : null),
-    [firestore]
+    () => (firestore && user ? collection(firestore, "members") : null),
+    [firestore, user]
   );
   const requestsQuery = useMemoFirebase(
-    () => (firestore ? collection(firestore, "membership_requests") : null),
-    [firestore]
+    () => (firestore && user ? collection(firestore, "membership_requests") : null),
+    [firestore, user]
   );
 
   const { data: membersData, isLoading: isMembersLoading } = useCollection<Socio>(membersQuery);
@@ -290,3 +290,4 @@ export default function AdminPage() {
     </div>
   );
 }
+    
