@@ -378,7 +378,13 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             <h3 className="text-lg font-medium text-primary mb-2">Altre Impostazioni</h3>
              <div className="space-y-4 rounded-md border p-4">
                  <FormField control={form.control} name="privacyConsent" render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange}/></FormControl><div className="space-y-1 leading-none"><FormLabel>Consenso Privacy</FormLabel><FormDescription>Il socio ha accettato la privacy policy.</FormDescription></div><FormItem>
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange}/></FormControl>
+                        <div className="space-y-1 leading-none">
+                            <FormLabel>Consenso Privacy</FormLabel>
+                            <FormDescription>Il socio ha accettato la privacy policy.</FormDescription>
+                        </div>
+                    </FormItem>
                 )}/>
             </div>
         </div>
