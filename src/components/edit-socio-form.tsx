@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { differenceInYears } from 'date-fns';
+import { useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,14 +19,15 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
 import { useFirestore } from "@/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, writeBatch, serverTimestamp, deleteDoc } from "firebase/firestore";
 import type { Socio } from "@/lib/soci-data";
 import { Textarea } from "./ui/textarea";
-import { getFullName, isMinor, formatDate } from "./soci-table";
+import { getFullName, isMinor, formatDate, getStatus } from "./soci-table";
 import { Separator } from "./ui/separator";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+
 
 const QUALIFICHE = ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
 
@@ -37,7 +38,7 @@ const formSchema = z.object({
   email: z.string().email({ message: "Inserisci un indirizzo email valido." }),
   phone: z.string().optional(),
   birthPlace: z.string().min(2, { message: "Inserisci un luogo di nascita valido." }),
-  birthDate: z.string().refine((date) => !isNaN(Date.parse(date)), { message: "Inserisci una data di nascita valida." }),
+  birthDate: z.string().refine((date) => date && !isNaN(Date.parse(date)), { message: "Inserisci una data di nascita valida." }),
   fiscalCode: z.string().length(16, { message: "Il codice fiscale deve essere di 16 caratteri." }),
   address: z.string().min(5, { message: "Inserisci un indirizzo valido." }),
   city: z.string().min(2, { message: "Inserisci una città valida." }),
@@ -53,6 +54,7 @@ const formSchema = z.object({
   guardianFirstName: z.string().optional(),
   guardianLastName: z.string().optional(),
   guardianBirthDate: z.string().optional(),
+  status: z.enum(['active', 'pending', 'rejected']),
 }).refine(data => {
     if (data.birthDate && isMinor(data.birthDate)) {
         return !!data.guardianFirstName && !!data.guardianLastName && !!data.guardianBirthDate;
@@ -60,8 +62,9 @@ const formSchema = z.object({
     return true;
 }, {
     message: "Per i minorenni, tutti i dati del tutore sono obbligatori.",
-    path: ["guardianFirstName"],
+    path: ["guardianFirstName"], // This path is somewhat arbitrary, but required.
 });
+
 
 type EditSocioFormProps = {
     socio: Socio;
@@ -69,29 +72,23 @@ type EditSocioFormProps = {
 };
 
 const getDefaultValues = (socio: Socio) => {
-    const defaultMembershipYear = socio.membershipYear || new Date().getFullYear().toString();
-    
     const socioIsMinor = isMinor(socio.birthDate);
     const calculatedFee = socio.membershipFee ?? (socioIsMinor ? 0 : 10);
     const defaultMembershipFee = socio.membershipFee ?? calculatedFee;
     
-    const requestDateValue = socio.requestDate ? formatDate(socio.requestDate, 'yyyy-MM-dd') : new Date().toISOString().split('T')[0];
-    const birthDateValue = socio.birthDate ? formatDate(socio.birthDate, 'yyyy-MM-dd') : '';
-    const guardianBirthDateValue = socio.guardianBirthDate ? formatDate(socio.guardianBirthDate, 'yyyy-MM-dd') : '';
-
     return {
         ...socio,
-        birthDate: birthDateValue,
+        status: getStatus(socio),
+        birthDate: socio.birthDate ? formatDate(socio.birthDate, 'yyyy-MM-dd') : '',
+        guardianBirthDate: socio.guardianBirthDate ? formatDate(socio.guardianBirthDate, 'yyyy-MM-dd') : '',
+        requestDate: socio.requestDate ? formatDate(socio.requestDate, 'yyyy-MM-dd') : new Date().toISOString().split('T')[0],
         phone: socio.phone || '',
         qualifica: socio.qualifica || [],
-        membershipYear: defaultMembershipYear,
+        membershipYear: socio.membershipYear || new Date().getFullYear().toString(),
         membershipFee: defaultMembershipFee,
-        isVolunteer: socio.isVolunteer || false,
         notes: socio.notes || "",
-        requestDate: requestDateValue,
         guardianFirstName: socio.guardianFirstName || "",
         guardianLastName: socio.guardianLastName || "",
-        guardianBirthDate: guardianBirthDateValue,
         privacyConsent: socio.privacyConsent ?? false,
     };
 };
@@ -101,40 +98,82 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firestore = useFirestore();
   
-  const defaultValues = getDefaultValues(socio);
-
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: defaultValues,
+    defaultValues: getDefaultValues(socio),
   });
 
   const birthDateValue = form.watch('birthDate');
   const socioIsMinor = isMinor(birthDateValue);
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  const onSubmit = useCallback(async (values: z.infer<typeof formSchema>) => {
     if (!firestore) {
       toast({ title: "Errore di connessione a Firestore", variant: "destructive" });
       return;
     }
     setIsSubmitting(true);
+    
+    const originalStatus = getStatus(socio);
+    const newStatus = values.status;
+    const { status, ...dataToSave } = values;
+
+    const batch = writeBatch(firestore);
 
     try {
-      const dataToSave = {
-        ...socio, // Start with original socio data
-        ...values, // Override with form values
-        birthDate: values.birthDate ? new Date(values.birthDate).toISOString() : '',
-        requestDate: values.requestDate ? new Date(values.requestDate).toISOString() : new Date().toISOString(),
-        guardianBirthDate: values.guardianBirthDate ? new Date(values.guardianBirthDate).toISOString() : '',
-        membershipFee: values.membershipFee || 0,
-      };
+        if (originalStatus !== newStatus) {
+            const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
+            const oldDocRef = doc(firestore, oldCollection, socio.id);
+            
+            // 1. Delete from the old location
+            batch.delete(oldDocRef);
 
-      const collectionName = socio.membershipStatus === 'active' ? 'members' : 'membership_requests';
-      const docRef = doc(firestore, collectionName, socio.id);
+            if (newStatus === 'rejected') {
+                // If rejected, just delete and we are done.
+                // We'll show a toast and close.
+            } else {
+                // 2. Add to the new location
+                const newCollection = newStatus === 'active' ? 'members' : 'membership_requests';
+                const newDocRef = doc(firestore, newCollection, socio.id);
+                
+                let finalData: any = { 
+                    ...socio, // carry over original data
+                    ...dataToSave, // apply form changes
+                    id: socio.id 
+                };
 
-      await setDoc(docRef, dataToSave, { merge: true });
+                if (newStatus === 'active') {
+                    finalData.membershipStatus = 'active';
+                    finalData.joinDate = socio.joinDate || serverTimestamp();
+                    finalData.expirationDate = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
+                } else { // pending
+                    finalData.status = 'pending';
+                    finalData.requestDate = values.requestDate ? new Date(values.requestDate).toISOString() : serverTimestamp();
+                    // Remove member-specific fields if moving back to requests
+                    delete finalData.membershipStatus;
+                    delete finalData.joinDate;
+                    delete finalData.expirationDate;
+                }
+                batch.set(newDocRef, finalData, { merge: true });
+            }
+
+        } else if (newStatus !== 'rejected') {
+            // Status hasn't changed, just update the document in its current collection
+            const collection = newStatus === 'active' ? 'members' : 'membership_requests';
+            const docRef = doc(firestore, collection, socio.id);
+            batch.set(docRef, dataToSave, { merge: true });
+        } else {
+            // newStatus is 'rejected' and originalStatus was also 'rejected' (or something else)
+            // This case implies we just need to delete the request if it exists.
+             const oldDocRef = doc(firestore, 'membership_requests', socio.id);
+             await deleteDoc(oldDocRef); // Use await for standalone delete
+        }
+      
+      if(newStatus !== 'rejected'){
+        await batch.commit();
+      }
 
       toast({
-          title: "Socio aggiornato!",
+          title: newStatus === 'rejected' ? "Richiesta Rifiutata" : "Socio aggiornato!",
           description: `I dati di ${getFullName(values)} sono stati salvati.`,
       });
       
@@ -150,7 +189,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     } finally {
         setIsSubmitting(false);
     }
-}
+}, [firestore, socio, onClose, toast]);
 
 
   return (
@@ -161,6 +200,32 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
         <div>
           <h3 className="text-lg font-medium text-primary mb-2">Dati Tesseramento</h3>
           <div className="space-y-4 rounded-md border p-4">
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Stato (Logica App)</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona uno stato" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="active">Attivo</SelectItem>
+                        <SelectItem value="pending">In attesa</SelectItem>
+                        <SelectItem value="rejected">Rifiutato</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Cambia lo stato del socio per attivarlo, metterlo in attesa o rifiutarlo.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                 <FormField control={form.control} name="membershipYear" render={({ field }) => (
                     <FormItem><FormLabel>Anno Associativo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>

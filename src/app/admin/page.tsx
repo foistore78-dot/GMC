@@ -20,30 +20,17 @@ export default function AdminPage() {
 
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
 
-  // Define references to the collections
-  const membersCollectionRef = useMemoFirebase(
-    () => (firestore ? collection(firestore, "members") : null),
-    [firestore]
-  );
-  const requestsCollectionRef = useMemoFirebase(
-    () => (firestore ? collection(firestore, "membership_requests") : null),
-    [firestore]
-  );
-
-  // Define queries for the collections
   const membersQuery = useMemoFirebase(
-    () => (membersCollectionRef ? query(membersCollectionRef, orderBy("lastName")) : null),
-    [membersCollectionRef]
+    () => (firestore ? query(collection(firestore, "members"), orderBy("lastName")) : null),
+    [firestore]
   );
   const requestsQuery = useMemoFirebase(
-    () => (requestsCollectionRef ? query(requestsCollectionRef, orderBy("lastName")) : null),
-    [requestsCollectionRef]
+    () => (firestore ? query(collection(firestore, "membership_requests"), orderBy("lastName")) : null),
+    [firestore]
   );
 
-  // Use the useCollection hook to fetch data in real-time
   const { data: membersData, isLoading: isMembersLoading } = useCollection<Socio>(membersQuery);
   const { data: requestsData, isLoading: isRequestsLoading } = useCollection<Socio>(requestsQuery);
-
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -56,18 +43,13 @@ export default function AdminPage() {
   };
   
   const combinedSoci = useMemo(() => {
-    const activeMembers = membersData || [];
-    const pendingRequests = requestsData || [];
-
-    // Combine and deduplicate
+    const allSoci = [...(membersData || []), ...(requestsData || [])];
     const sociMap = new Map<string, Socio>();
-    [...activeMembers, ...pendingRequests].forEach(s => {
-        if(s.id) { // Ensure socio has an id
-            sociMap.set(s.id, s);
-        }
+    allSoci.forEach(s => {
+      if (s.id && !sociMap.has(s.id)) {
+        sociMap.set(s.id, s);
+      }
     });
-    
-    // Sort the combined list
     return Array.from(sociMap.values()).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
   }, [membersData, requestsData]);
 
