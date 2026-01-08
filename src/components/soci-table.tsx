@@ -216,7 +216,7 @@ const SocioTableRow = ({
     <>
     <TableRow>
         <TableCell className="font-mono text-xs text-muted-foreground">
-          {socio.tessera ? socio.tessera.substring(8) : '-'}
+          {socio.tessera ? socio.tessera.split('-').pop() : '-'}
         </TableCell>
         <TableCell className="font-medium">
            <div className="flex items-center gap-3 flex-wrap">
@@ -469,7 +469,7 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortCon
         <Table>
           <TableHeader>
             <TableRow>
-              <SortableHeader label="Tessera" sortKey="tessera" sortConfig={sortConfig} setSortConfig={setSortConfig} />
+              <SortableHeader label="#" sortKey="tessera" sortConfig={sortConfig} setSortConfig={setSortConfig} />
               <SortableHeader label="Nome" sortKey="name" sortConfig={sortConfig} setSortConfig={setSortConfig} />
               <SortableHeader label="Nascita" sortKey="birthDate" sortConfig={sortConfig} setSortConfig={setSortConfig} />
               <SortableHeader label="Stato" sortKey="status" sortConfig={sortConfig} setSortConfig={setSortConfig} />
@@ -503,3 +503,5 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortCon
 
 
 export const SociTable = SociTableComponent;
+
+    
