@@ -34,24 +34,35 @@ export default function AdminPage() {
   const { data: membersData, isLoading: isMembersLoading } = useCollection<Socio>(membersQuery);
   const { data: requestsData, isLoading: isRequestsLoading } = useCollection<Socio>(requestsQuery);
 
+  const [activeSoci, setActiveSoci] = useState<Socio[]>([]);
+  const [pendingSoci, setPendingSoci] = useState<Socio[]>([]);
+
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push("/login");
     }
   }, [user, isUserLoading, router]);
 
-  const activeSoci = useMemo(() => {
-    if (!membersData) return [];
-    return membersData
-      .map(s => ({ ...s, membershipStatus: 'active' as const }))
-      .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+  useEffect(() => {
+    if (membersData) {
+      const sortedMembers = membersData
+        .map(s => ({ ...s, membershipStatus: 'active' as const }))
+        .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+      setActiveSoci(sortedMembers);
+    } else {
+      setActiveSoci([]);
+    }
   }, [membersData]);
 
-  const pendingSoci = useMemo(() => {
-    if (!requestsData) return [];
-     return requestsData
-      .map(s => ({ ...s, membershipStatus: 'pending' as const }))
-      .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+  useEffect(() => {
+    if (requestsData) {
+      const sortedRequests = requestsData
+        .map(s => ({ ...s, membershipStatus: 'pending' as const }))
+        .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+      setPendingSoci(sortedRequests);
+    } else {
+      setPendingSoci([]);
+    }
   }, [requestsData]);
 
   const isLoading = isUserLoading || isMembersLoading || isRequestsLoading;
