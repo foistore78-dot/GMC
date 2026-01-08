@@ -55,7 +55,7 @@ import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
 import { useFirestore } from "@/firebase";
 import { doc, deleteDoc, writeBatch } from "firebase/firestore";
-import { differenceInYears, format, parseISO, isValid } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
 
 
@@ -73,20 +73,29 @@ export const formatDate = (dateString: any, outputFormat: string = 'dd/MM/yyyy')
 
     let date: Date;
 
+    // Check if it's a Firestore Timestamp and convert it
     if (dateString && typeof dateString.toDate === 'function') {
         date = dateString.toDate();
-    } else if (typeof dateString === 'string') {
-        date = parseISO(dateString); 
-    } else if (dateString instanceof Date) {
+    } 
+    // Check if it's already a Date object
+    else if (dateString instanceof Date) {
         date = dateString;
-    } else {
+    } 
+    // Check if it's a string that can be parsed
+    else if (typeof dateString === 'string') {
+        date = parseISO(dateString); 
+    } 
+    // If none of the above, it's an unknown format
+    else {
         return 'N/A';
     }
 
+    // After attempting to get a Date object, check if it's valid
     if (!isValid(date)) {
         return 'N/A';
     }
 
+    // If valid, format it
     try {
         return format(date, outputFormat);
     } catch {
