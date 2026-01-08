@@ -110,7 +110,7 @@
         "path": "/membership_requests/{membershipRequestId}",
         "definition": {
           "entityName": "RichiestaIscrizione",
-          "schema": { "$ref": "#/backend/entities/RichiestaIscrizione" },
+          "schema": { "$ref": "#/entities/RichiestaIscrizione" },
           "description": "Stores membership requests submitted by potential members. No authentication required for creating these, but admin authentication is required to read or modify them.",
           "params": [{ "name": "membershipRequestId", "description": "Unique identifier for the membership request." }]
         }
@@ -119,7 +119,7 @@
         "path": "/members/{memberId}",
         "definition": {
           "entityName": "Socio",
-          "schema": { "$ref": "#/backend/entities/Socio" },
+          "schema": { "$ref": "#/entities/Socio" },
           "description": "Stores information about Garage Music Club members. Only accessible and modifiable by admins. Existence of a document in this collection implies active membership.",
           "params": [{ "name": "memberId", "description": "Unique identifier for the member." }]
         }
@@ -128,7 +128,7 @@
         "path": "/roles_admin/{adminId}",
         "definition": {
           "entityName": "Amministratore",
-          "schema": { "$ref": "#/backend/entities/Amministratore" },
+          "schema": { "$ref": "#/entities/Amministratore" },
           "description": "Indicates admin role. The existence of a document at this path with the user's UID indicates admin privileges. Used for authentication within security rules.",
           "params": [{ "name": "adminId", "description": "The Firebase UID of the administrator." }]
         }
