@@ -7,13 +7,15 @@ import { Footer } from "@/components/footer";
 import { SociTable, type SortConfig } from "@/components/soci-table";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import { Loader2, Users } from "lucide-react";
+import { FileDown, Loader2, Users } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EditSocioForm } from "@/components/edit-socio-form";
 import { getFullName } from "@/components/soci-table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { exportToExcel } from "@/lib/excel-export";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -40,8 +42,6 @@ export default function AdminPage() {
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
   const [activeTab, setActiveTab] = useState("active");
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "ascending" });
-  const [currentPageActive, setCurrentPageActive] = useState(1);
-  const [currentPagePending, setCurrentPagePending] = useState(1);
 
   const membersQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, "members") : null),
@@ -132,9 +132,6 @@ export default function AdminPage() {
   
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
-    // Reset to first page when changing tabs
-    setCurrentPageActive(1);
-    setCurrentPagePending(1);
     if (tab === 'active') {
       setSortConfig({ key: 'tessera', direction: 'ascending' });
     } else {
@@ -144,6 +141,11 @@ export default function AdminPage() {
 
   const handleSocioApproved = () => {
     handleTabChange("active");
+  };
+
+  const handleExport = () => {
+    if (!membersData || !requestsData) return;
+    exportToExcel(membersData, requestsData);
   };
   
   if (isUserLoading || !user) {
@@ -162,11 +164,19 @@ export default function AdminPage() {
     <div className="flex flex-col min-h-screen bg-secondary">
       <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
-        <div className="flex items-center gap-4 mb-8">
-          <Users className="w-10 h-10 text-primary" />
-          <h1 className="font-headline text-4xl md:text-5xl text-primary">
-            Gestione Soci
-          </h1>
+        <div className="flex items-center justify-between gap-4 mb-8 flex-wrap">
+           <div className="flex items-center gap-4">
+              <Users className="w-10 h-10 text-primary" />
+              <h1 className="font-headline text-4xl md:text-5xl text-primary">
+                Gestione Soci
+              </h1>
+           </div>
+           <div>
+             <Button onClick={handleExport} disabled={isLoading}>
+                <FileDown className="mr-2 h-4 w-4" />
+                Esporta Elenco Completo
+             </Button>
+           </div>
         </div>
 
         <div className="bg-background rounded-lg border border-border shadow-lg p-4">
