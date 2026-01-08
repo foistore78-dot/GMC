@@ -48,7 +48,7 @@ const formSchema = z.object({
   membershipYear: z.string().optional(),
   membershipFee: z.coerce.number().optional(),
   status: z.enum(['active', 'pending', 'rejected']),
-  qualifica: z.enum(["", "SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"]).optional(),
+  qualifica: z.enum(["NESSUNA", "SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"]).optional(),
   requestDate: z.string().optional(),
   guardianFirstName: z.string().optional(),
   guardianLastName: z.string().optional(),
@@ -89,7 +89,7 @@ const getDefaultValues = (socio: Socio) => {
         ...socio,
         phone: socio.phone || '',
         status: originalStatus,
-        qualifica: socio.qualifica || "",
+        qualifica: socio.qualifica || "NESSUNA",
         membershipYear: defaultMembershipYear,
         membershipFee: defaultMembershipFee,
         isVolunteer: socio.isVolunteer || false,
@@ -233,7 +233,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Nessuna</SelectItem>
+                      <SelectItem value="NESSUNA">Nessuna</SelectItem>
                       <SelectItem value="SOCIO FONDATORE">Socio Fondatore</SelectItem>
                       <SelectItem value="VOLONTARIO">Volontario</SelectItem>
                       <SelectItem value="MUSICISTA">Musicista</SelectItem>
@@ -391,5 +391,3 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
-
-    

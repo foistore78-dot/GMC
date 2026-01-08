@@ -26,7 +26,7 @@ export type Socio = {
   notes?: string;
   isVolunteer?: boolean;
   membershipFee?: number;
-  qualifica?: 'SOCIO FONDATORE' | 'VOLONTARIO' | 'MUSICISTA' | '';
+  qualifica?: 'SOCIO FONDATORE' | 'VOLONTARIO' | 'MUSICISTA' | 'NESSUNA' | '';
 };
 
 // This data is now for type reference and is not used in the application directly.
