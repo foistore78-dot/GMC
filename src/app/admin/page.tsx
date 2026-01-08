@@ -105,7 +105,6 @@ export default function AdminPage() {
               <EditSocioForm
                 socio={editingSocio} 
                 onClose={() => {
-                  setIsSubmitting(false);
                   setEditingSocio(null);
                 }}
               />
