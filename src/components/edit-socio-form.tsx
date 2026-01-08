@@ -244,21 +244,37 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
               control={form.control}
               name="status"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="space-y-3">
                   <FormLabel>Stato</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona uno stato" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="active">Attivo</SelectItem>
-                      <SelectItem value="pending">Sospeso</SelectItem>
-                      <SelectItem value="rejected">Rifiutato</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>Attiva, metti in sospeso o rifiuta la richiesta.</FormDescription>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      className="flex flex-col space-y-2"
+                    >
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="active" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Attivo</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="pending" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Sospeso</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="rejected" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Rifiutato</FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormDescription>
+                    Attiva, metti in sospeso o rifiuta la richiesta.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -636,5 +652,3 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
-
-    
