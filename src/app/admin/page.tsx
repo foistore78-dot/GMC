@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -38,22 +38,30 @@ export default function AdminPage() {
     }
   }, [user, isUserLoading, router]);
 
-  const allSoci = [...(membersData || []), ...(requestsData || [])];
-  const sociMap = new Map<string, Socio>();
-  allSoci.forEach(s => {
-    if (s && s.id) {
-      if (!sociMap.has(s.id)) {
-          sociMap.set(s.id, s);
+  const combinedSoci = useMemo(() => {
+    const allSoci = [...(membersData || []), ...(requestsData || [])];
+    const sociMap = new Map<string, Socio>();
+    allSoci.forEach(s => {
+      if (s && s.id) {
+        if (!sociMap.has(s.id)) {
+            sociMap.set(s.id, s);
+        }
       }
-    }
-  });
-  const combinedSoci = Array.from(sociMap.values()).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+    });
+    return Array.from(sociMap.values()).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+  }, [membersData, requestsData]);
 
   const isLoading = isUserLoading || isMembersLoading || isRequestsLoading;
   
   const handleEditSocio = (socio: Socio) => {
     setEditingSocio(socio);
   };
+
+  const handleSheetOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      setEditingSocio(null);
+    }
+  }
 
   if (isUserLoading || !user) {
     return (
@@ -92,7 +100,7 @@ export default function AdminPage() {
         </div>
       </main>
 
-       <Sheet open={!!editingSocio} onOpenChange={(isOpen) => !isOpen && setEditingSocio(null)}>
+       <Sheet open={!!editingSocio} onOpenChange={handleSheetOpenChange}>
         <SheetContent className="w-[50vw] sm:max-w-none overflow-auto resize-x min-w-[300px] max-w-[90vw]">
           {editingSocio && (
             <>
