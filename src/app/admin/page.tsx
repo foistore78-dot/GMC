@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -40,17 +40,16 @@ export default function AdminPage() {
 
   const combinedSoci = useMemo(() => {
     const sociMap = new Map<string, Socio>();
-    (membersData || []).forEach(s => s?.id && sociMap.set(s.id, s));
+    (membersData || []).forEach(s => s?.id && sociMap.set(s.id, { ...s, membershipStatus: 'active' }));
     (requestsData || []).forEach(s => s?.id && sociMap.set(s.id, s));
     return Array.from(sociMap.values()).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
   }, [membersData, requestsData]);
 
-
   const isLoading = isUserLoading || isMembersLoading || isRequestsLoading;
   
-  const handleEditSocio = (socio: Socio) => {
+  const handleEditSocio = useCallback((socio: Socio) => {
     setEditingSocio(socio);
-  };
+  }, []);
 
   const handleSheetOpenChange = (isOpen: boolean) => {
     if (!isOpen) {

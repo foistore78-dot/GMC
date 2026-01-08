@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useCallback, useState, useEffect } from "react";
 import { differenceInYears } from "date-fns";
-import { doc, writeBatch, serverTimestamp } from "firebase/firestore";
+import { doc, writeBatch, serverTimestamp, collection } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -46,10 +46,8 @@ const isMinorCheck = (birthDate: string | undefined): boolean => {
 
 const getStatus = (socio: Socio): "active" | "pending" | "rejected" => {
     if (socio.membershipStatus === "active") return "active";
-    if(socio.status) {
-        if (socio.status === 'active' || socio.status === 'pending' || socio.status === 'rejected') {
-            return socio.status;
-        }
+    if(socio.status && ['active', 'pending', 'rejected'].includes(socio.status)) {
+        return socio.status as "active" | "pending" | "rejected";
     }
     return "pending";
 };
@@ -138,39 +136,41 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
 
     const originalStatus = getStatus(socio);
     const newStatus = values.status;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { status, ...dataToSave } = values;
 
     const batch = writeBatch(firestore);
 
     try {
-        const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
-        const oldDocRef = doc(firestore, oldCollection, socio.id);
-
         if (newStatus === 'rejected') {
-            // If the new status is 'rejected', we just delete the document from its original collection.
-            batch.delete(oldDocRef);
+            // Delete from whichever collection it's in.
+            const requestDocRef = doc(firestore, 'membership_requests', socio.id);
+            const memberDocRef = doc(firestore, 'members', socio.id);
+            batch.delete(requestDocRef); // It's safe to try to delete from both
+            batch.delete(memberDocRef);
         } else if (originalStatus !== newStatus) {
-            // Status has changed (and it's not to 'rejected'), so we move the document.
-            // Delete from the old collection.
-            batch.delete(oldDocRef);
-
-            // Add to the new collection.
-            if (newStatus === 'active') {
+            // ----- Moving document between collections -----
+            if (newStatus === 'active') { // Moving to 'members'
+                const oldDocRef = doc(firestore, 'membership_requests', socio.id);
                 const newDocRef = doc(firestore, 'members', socio.id);
+                
                 const finalData = {
-                    ...socio,
+                    ...socio, // carry over original data
                     ...dataToSave,
                     id: socio.id,
                     membershipStatus: 'active' as const,
                     joinDate: socio.joinDate || serverTimestamp(),
                     expirationDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
                 };
-                delete (finalData as any).status;
+                delete (finalData as any).status; // remove request-specific field
+                
                 batch.set(newDocRef, finalData, { merge: true });
-            } else if (newStatus === 'pending') {
+                batch.delete(oldDocRef);
+
+            } else { // Moving to 'membership_requests' (e.g. from active to pending)
+                const oldDocRef = doc(firestore, 'members', socio.id);
                 const newDocRef = doc(firestore, 'membership_requests', socio.id);
-                 const finalData = {
+                
+                const finalData = {
                     ...socio,
                     ...dataToSave,
                     id: socio.id,
@@ -180,11 +180,15 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 delete (finalData as any).membershipStatus;
                 delete (finalData as any).joinDate;
                 delete (finalData as any).expirationDate;
+
                 batch.set(newDocRef, finalData, { merge: true });
+                batch.delete(oldDocRef);
             }
-        } else { 
-             // Status has not changed, just update the document in place.
-             batch.set(oldDocRef, dataToSave, { merge: true });
+        } else {
+            // ----- Updating document in the same collection -----
+            const collectionName = newStatus === 'active' ? 'members' : 'membership_requests';
+            const docRef = doc(firestore, collectionName, socio.id);
+            batch.set(docRef, dataToSave, { merge: true });
         }
         
         await batch.commit();
@@ -575,7 +579,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
               render={({ field }) => (
                 <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                   <FormControl>
-                    <Checkbox
+                     <Checkbox
                       checked={!!field.value}
                       onCheckedChange={(checked) => field.onChange(checked === true)}
                     />
