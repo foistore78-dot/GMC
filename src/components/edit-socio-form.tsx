@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useCallback, useState, useEffect } from "react";
 import { differenceInYears } from "date-fns";
-import { doc, writeBatch, serverTimestamp, collection } from "firebase/firestore";
+import { doc, writeBatch, serverTimestamp, collection, deleteField } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -153,6 +153,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
 
     try {
         if (newStatus === 'rejected') {
+            // Delete from both collections, just in case
             if (socio.id) {
                 const requestDocRef = doc(firestore, 'membership_requests', socio.id);
                 const memberDocRef = doc(firestore, 'members', socio.id);
@@ -160,6 +161,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 batch.delete(memberDocRef);
             }
         } else if (originalStatus !== newStatus) {
+            // Status has changed (active -> pending or pending -> active)
             if (newStatus === 'active') { // Moving from 'pending' to 'members'
                 const oldDocRef = doc(firestore, 'membership_requests', socio.id);
                 const newDocRef = doc(firestore, 'members', socio.id);
@@ -187,7 +189,10 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     id: socio.id,
                     status: 'pending' as const,
                     requestDate: values.requestDate ? new Date(values.requestDate).toISOString() : new Date().toISOString(),
+                    membershipFee: 0, // Reset fee
+                    tessera: deleteField(), // Remove card number
                 };
+                // Clean up active member fields
                 delete finalData.membershipStatus;
                 delete finalData.joinDate;
                 delete finalData.expirationDate;
@@ -196,6 +201,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 batch.delete(oldDocRef);
             }
         } else {
+            // Status has not changed, just update the data in the correct collection
             const collectionName = newStatus === 'active' ? 'members' : 'membership_requests';
             const docRef = doc(firestore, collectionName, socio.id);
             const finalData = {
@@ -250,21 +256,21 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     <RadioGroup
                       onValueChange={field.onChange}
                       value={field.value}
-                      className="flex flex-col space-y-2"
+                      className="flex items-center space-x-4"
                     >
-                      <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormItem className="flex items-center space-x-2">
                         <FormControl>
                           <RadioGroupItem value="active" />
                         </FormControl>
                         <FormLabel className="font-normal">Attivo</FormLabel>
                       </FormItem>
-                      <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormItem className="flex items-center space-x-2">
                         <FormControl>
                           <RadioGroupItem value="pending" />
                         </FormControl>
                         <FormLabel className="font-normal">Sospeso</FormLabel>
                       </FormItem>
-                      <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormItem className="flex items-center space-x-2">
                         <FormControl>
                           <RadioGroupItem value="rejected" />
                         </FormControl>
@@ -652,3 +658,5 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
+
+    

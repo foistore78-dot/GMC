@@ -34,36 +34,26 @@ export default function AdminPage() {
   const { data: membersData, isLoading: isMembersLoading } = useCollection<Socio>(membersQuery);
   const { data: requestsData, isLoading: isRequestsLoading } = useCollection<Socio>(requestsQuery);
 
-  const [activeSoci, setActiveSoci] = useState<Socio[]>([]);
-  const [pendingSoci, setPendingSoci] = useState<Socio[]>([]);
+  const activeSoci = useMemo(() => {
+    if (!membersData) return [];
+    return membersData
+      .map(s => ({ ...s, membershipStatus: 'active' as const }))
+      .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+  }, [membersData]);
+  
+  const pendingSoci = useMemo(() => {
+    if (!requestsData) return [];
+    return requestsData
+      .map(s => ({ ...s, membershipStatus: 'pending' as const }))
+      .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+  }, [requestsData]);
+
 
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push("/login");
     }
   }, [user, isUserLoading, router]);
-
-  useEffect(() => {
-    if (membersData) {
-      const sortedMembers = membersData
-        .map(s => ({ ...s, membershipStatus: 'active' as const }))
-        .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
-      setActiveSoci(sortedMembers);
-    } else {
-      setActiveSoci([]);
-    }
-  }, [membersData]);
-
-  useEffect(() => {
-    if (requestsData) {
-      const sortedRequests = requestsData
-        .map(s => ({ ...s, membershipStatus: 'pending' as const }))
-        .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
-      setPendingSoci(sortedRequests);
-    } else {
-      setPendingSoci([]);
-    }
-  }, [requestsData]);
 
   const isLoading = isUserLoading || isMembersLoading || isRequestsLoading;
 
@@ -137,7 +127,7 @@ export default function AdminPage() {
       </main>
 
        <Sheet open={!!editingSocio} onOpenChange={handleSheetOpenChange}>
-        <SheetContent className="w-[50vw] sm:max-w-none overflow-auto resize-x min-w-[300px] max-w-[90vw]">
+        <SheetContent className="w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl overflow-auto resize-x min-w-[300px] max-w-[90vw]">
           {editingSocio && (
             <>
               <SheetHeader>
@@ -158,3 +148,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    
