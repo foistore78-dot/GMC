@@ -47,6 +47,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
 import { useFirestore } from "@/firebase";
@@ -75,7 +76,7 @@ export const formatDate = (dateString: any, outputFormat: string = 'dd/MM/yyyy')
         // new Date('2024-05-21') can result in a day before depending on timezone, let's fix it.
         if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
             const [year, month, day] = dateString.split('-').map(Number);
-            date = new Date(year, month - 1, day);
+            date = new Date(Date.UTC(year, month - 1, day));
         } else {
             date = d;
         }
@@ -323,9 +324,6 @@ const SocioTableRow = ({
                     <CheckCircle className="mr-2 h-4 w-4" /> Approva
                 </DropdownMenuItem>
               )}
-               <DropdownMenuItem onClick={handleEdit}>
-                <Pencil className="mr-2 h-4 w-4" /> Modifica
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -421,5 +419,3 @@ interface SociTableProps {
 }
 
 export const SociTable = SociTableComponent;
-
-    
