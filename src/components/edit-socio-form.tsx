@@ -20,8 +20,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
-import { useFirestore, setDocumentNonBlocking } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { useFirestore } from "@/firebase";
+import { doc, setDoc } from "firebase/firestore";
 import type { Socio } from "@/lib/soci-data";
 import { Textarea } from "./ui/textarea";
 import { getFullName, isMinor, formatDate } from "./soci-table";
@@ -92,6 +92,7 @@ const getDefaultValues = (socio: Socio) => {
         guardianFirstName: socio.guardianFirstName || "",
         guardianLastName: socio.guardianLastName || "",
         guardianBirthDate: guardianBirthDateValue,
+        privacyConsent: socio.privacyConsent ?? false,
     };
 };
 
@@ -119,8 +120,8 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
 
     try {
       const dataToSave = {
-        ...socio,
-        ...values,
+        ...socio, // Start with original socio data
+        ...values, // Override with form values
         birthDate: values.birthDate ? new Date(values.birthDate).toISOString() : '',
         requestDate: values.requestDate ? new Date(values.requestDate).toISOString() : new Date().toISOString(),
         guardianBirthDate: values.guardianBirthDate ? new Date(values.guardianBirthDate).toISOString() : '',
@@ -130,7 +131,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
       const collectionName = socio.membershipStatus === 'active' ? 'members' : 'membership_requests';
       const docRef = doc(firestore, collectionName, socio.id);
 
-      setDocumentNonBlocking(docRef, dataToSave, { merge: true });
+      await setDoc(docRef, dataToSave, { merge: true });
 
       toast({
           title: "Socio aggiornato!",
@@ -160,11 +161,11 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
         <div>
           <h3 className="text-lg font-medium text-primary mb-2">Dati Tesseramento</h3>
           <div className="space-y-4 rounded-md border p-4">
-             <div className="grid grid-cols-2 gap-4 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                 <FormField control={form.control} name="membershipYear" render={({ field }) => (
                     <FormItem><FormLabel>Anno Associativo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )}/>
-                 <FormField
+                <FormField
                     control={form.control}
                     name="requestDate"
                     render={({ field }) => (
@@ -176,8 +177,8 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                         <FormMessage />
                       </FormItem>
                     )}
-                  />
-             </div>
+                />
+            </div>
              <FormField
               control={form.control}
               name="qualifica"
@@ -225,9 +226,9 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-12 gap-4">
                 <FormField control={form.control} name="membershipFee" render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="col-span-6">
                         <FormLabel>Quota Versata (€)</FormLabel>
                         <FormControl><Input type="number" step="0.01" {...field} value={field.value !== undefined ? Number(field.value).toFixed(2) : ''} /></FormControl>
                         <FormMessage />
@@ -312,18 +313,18 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                                 <FormItem><FormLabel>Cognome Tutore</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
                         </div>
-                        <FormField
-                          control={form.control}
-                          name="guardianBirthDate"
-                          render={({ field }) => (
+                         <FormField
+                            control={form.control}
+                            name="guardianBirthDate"
+                            render={({ field }) => (
                             <FormItem className="flex flex-col">
-                              <FormLabel>Data di Nascita Tutore</FormLabel>
-                              <FormControl>
+                                <FormLabel>Data di Nascita Tutore</FormLabel>
+                                <FormControl>
                                 <Input type="date" {...field} />
-                              </FormControl>
-                              <FormMessage />
+                                </FormControl>
+                                <FormMessage />
                             </FormItem>
-                          )}
+                            )}
                         />
                     </div>
                   </>
