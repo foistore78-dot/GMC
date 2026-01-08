@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useCallback, useState } from "react";
-import { differenceInYears } from 'date-fns';
+import { differenceInYears, parseISO } from 'date-fns';
 
 import { Button } from "@/components/ui/button";
 import {
@@ -35,21 +35,31 @@ const QUALIFICHE = ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
 // This function determines the current status of the member/request
 const getStatus = (socio: Socio): 'active' | 'pending' | 'rejected' => {
     if (socio.membershipStatus === 'active') return 'active';
-    // The status on a request can be pending, or if it was rejected, it would be 'rejected'.
-    // However, rejected requests are deleted, so we mostly deal with 'pending'.
     return socio.status || 'pending';
 };
 
 // This function checks if a person is a minor based on their birth date.
-const isMinorCheck = (birthDate: string | undefined): boolean => {
+const isMinorCheck = (birthDate: string | undefined | null): boolean => {
     if (!birthDate) return false;
     try {
-        // Calculates the difference in years between now and the birth date.
-        return differenceInYears(new Date(), new Date(birthDate)) < 18;
+        const date = parseISO(birthDate);
+        return differenceInYears(new Date(), date) < 18;
     } catch {
         return false;
     }
 };
+
+const toISODateString = (value: any): string | undefined => {
+  if (!value) return undefined;
+  try {
+    const date = value.toDate ? value.toDate() : new Date(value);
+    if (isNaN(date.getTime())) return undefined;
+    return date.toISOString().split('T')[0];
+  } catch {
+    return undefined;
+  }
+};
+
 
 // Zod schema for form validation
 const formSchema = z.object({
@@ -99,9 +109,9 @@ const getDefaultValues = (socio: Socio) => {
     return {
         ...socio,
         status: getStatus(socio),
-        birthDate: socio.birthDate ? formatDate(socio.birthDate, 'yyyy-MM-dd') : '',
-        guardianBirthDate: socio.guardianBirthDate ? formatDate(socio.guardianBirthDate, 'yyyy-MM-dd') : '',
-        requestDate: socio.requestDate ? formatDate(socio.requestDate, 'yyyy-MM-dd') : new Date().toISOString().split('T')[0],
+        birthDate: toISODateString(socio.birthDate) || '',
+        guardianBirthDate: toISODateString(socio.guardianBirthDate) || '',
+        requestDate: toISODateString(socio.requestDate) || new Date().toISOString().split('T')[0],
         phone: socio.phone || '',
         qualifica: socio.qualifica || [],
         membershipYear: socio.membershipYear || new Date().getFullYear().toString(),
@@ -169,7 +179,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
               delete finalData.status; // Remove request-specific status
           } else { // pending
               finalData.status = 'pending';
-              finalData.requestDate = values.requestDate ? new Date(values.requestDate).toISOString() : serverTimestamp();
+              finalData.requestDate = values.requestDate ? toISODateString(values.requestDate) : serverTimestamp();
               // Remove member-specific fields
               delete finalData.membershipStatus;
               delete finalData.joinDate;
@@ -223,7 +233,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Stato</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleziona uno stato" />
@@ -282,9 +292,13 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                                 <Checkbox
                                   checked={field.value?.includes(item)}
                                   onCheckedChange={(checked) => {
-                                    return checked
-                                      ? field.onChange([...(field.value || []), item])
-                                      : field.onChange((field.value || []).filter((value) => value !== item));
+                                    const isChecked = checked === true;
+                                    const currentValue = field.value || [];
+                                    if (isChecked) {
+                                      field.onChange([...currentValue, item]);
+                                    } else {
+                                      field.onChange(currentValue.filter((value) => value !== item));
+                                    }
                                   }}
                                 />
                               </FormControl>
@@ -299,10 +313,24 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 </FormItem>
               )}
             />
-            <FormField control={form.control} name="membershipFee" render={({ field }) => (
+            <FormField 
+                control={form.control} 
+                name="membershipFee" 
+                render={({ field: { onChange, value, ...restField } }) => (
                 <FormItem>
                     <FormLabel>Quota Versata (€)</FormLabel>
-                    <FormControl><Input type="number" step="0.01" {...field} value={field.value !== undefined ? Number(field.value) : ''} /></FormControl>
+                    <FormControl>
+                        <Input 
+                            type="number"
+                            step="0.01"
+                            {...restField}
+                            value={value ?? ''}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                onChange(val === '' ? undefined : parseFloat(val));
+                            }}
+                        />
+                    </FormControl>
                     <FormMessage />
                 </FormItem>
             )}/>
@@ -331,7 +359,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                       <FormItem className="space-y-3">
                         <FormLabel>Genere</FormLabel>
                         <FormControl>
-                          <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex items-center space-x-4">
+                          <RadioGroup onValueChange={field.onChange} value={field.value} className="flex items-center space-x-4">
                             <FormItem className="flex items-center space-x-2 space-y-0">
                               <FormControl><RadioGroupItem value="male" /></FormControl>
                               <FormLabel className="font-normal">Maschio</FormLabel>
@@ -421,7 +449,18 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     )}/>
                 </div>
                  <FormField control={form.control} name="whatsappConsent" render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange}/></FormControl><div className="space-y-1 leading-none"><FormLabel>Consenso WhatsApp</FormLabel><FormDescription>Autorizza l'uso del numero per il gruppo WhatsApp.</FormDescription></div></FormItem>
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                        <FormControl>
+                            <Checkbox 
+                                checked={!!field.value} 
+                                onCheckedChange={(checked) => field.onChange(checked === true)}
+                            />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                            <FormLabel>Consenso WhatsApp</FormLabel>
+                            <FormDescription>Autorizza l'uso del numero per il gruppo WhatsApp.</FormDescription>
+                        </div>
+                    </FormItem>
                 )}/>
             </div>
         </div>
@@ -432,7 +471,12 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
              <div className="space-y-4 rounded-md border p-4">
                  <FormField control={form.control} name="privacyConsent" render={({ field }) => (
                     <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange}/></FormControl>
+                        <FormControl>
+                            <Checkbox 
+                                checked={!!field.value} 
+                                onCheckedChange={(checked) => field.onChange(checked === true)}
+                            />
+                        </FormControl>
                         <div className="space-y-1 leading-none">
                             <FormLabel>Consenso Privacy</FormLabel>
                             <FormDescription>Il socio ha accettato la privacy policy.</FormDescription>
