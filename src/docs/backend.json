@@ -1,12 +1,12 @@
 {
   "entities": {
-    "Member": {
+    "Socio": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Member",
+      "title": "Socio",
       "type": "object",
       "description": "Represents a member of the Garage Music Club.",
       "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the Member entity." },
+        "id": { "type": "string", "description": "Unique identifier for the Socio entity." },
         "gender": { "type": "string", "description": "Gender of the member.", "enum": ["male", "female"] },
         "firstName": { "type": "string", "description": "First name of the member." },
         "lastName": { "type": "string", "description": "Last name of the member." },
@@ -38,13 +38,13 @@
         "joinDate", "expirationDate"
       ]
     },
-    "MembershipRequest": {
+    "RichiestaIscrizione": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "MembershipRequest",
+      "title": "RichiestaIscrizione",
       "type": "object",
       "description": "Represents a membership request submitted by a potential member.",
       "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the MembershipRequest entity." },
+        "id": { "type": "string", "description": "Unique identifier for the RichiestaIscrizione entity." },
         "gender": { "type": "string", "description": "Gender of the applicant.", "enum": ["male", "female"] },
         "firstName": { "type": "string", "description": "First name of the applicant." },
         "lastName": { "type": "string", "description": "Last name of the applicant." },
@@ -70,16 +70,17 @@
         "city", "province", "postalCode", "whatsappConsent", "privacyConsent", "requestDate", "status"
       ]
     },
-    "AdminUser": {
+    "Amministratore": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "AdminUser",
+      "title": "Amministratore",
       "type": "object",
       "description": "Represents an administrator user of the system.  Note: Passwords should be managed by an external authentication service and NOT stored directly.",
       "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the AdminUser entity." },
+        "id": { "type": "string", "description": "Unique identifier for the Amministratore entity." },
         "username": { "type": "string", "description": "Username of the administrator." },
         "email": { "type": "string", "description": "Email address of the administrator.", "format": "email" },
-        "role": { "type": "string", "description": "Role of the administrator (e.g., superadmin, admin)." }
+        "role": { "type": "string", "description": "Role of the administrator (e.g., superadmin, admin)." },
+        "birthDate": { "type": "string", "description": "Date of birth of the admin.", "format": "date" }
       },
       "required": ["id", "username", "email", "role"]
     }
@@ -92,8 +93,8 @@
       {
         "path": "/membership_requests/{membershipRequestId}",
         "definition": {
-          "entityName": "MembershipRequest",
-          "schema": { "$ref": "#/backend/entities/MembershipRequest" },
+          "entityName": "RichiestaIscrizione",
+          "schema": { "$ref": "#/backend/entities/RichiestaIscrizione" },
           "description": "Stores membership requests submitted by potential members. No authentication required for creating these, but admin authentication is required to read or modify them.",
           "params": [{ "name": "membershipRequestId", "description": "Unique identifier for the membership request." }]
         }
@@ -101,8 +102,8 @@
       {
         "path": "/members/{memberId}",
         "definition": {
-          "entityName": "Member",
-          "schema": { "$ref": "#/backend/entities/Member" },
+          "entityName": "Socio",
+          "schema": { "$ref": "#/backend/entities/Socio" },
           "description": "Stores information about Garage Music Club members. Only accessible and modifiable by admins. Existence of a document in this collection implies active membership.",
           "params": [{ "name": "memberId", "description": "Unique identifier for the member." }]
         }
@@ -110,8 +111,8 @@
       {
         "path": "/roles_admin/{adminId}",
         "definition": {
-          "entityName": "AdminUser",
-          "schema": { "$ref": "#/backend/entities/AdminUser" },
+          "entityName": "Amministratore",
+          "schema": { "$ref": "#/backend/entities/Amministratore" },
           "description": "Indicates admin role. The existence of a document at this path with the user's UID indicates admin privileges. Used for authentication within security rules.",
           "params": [{ "name": "adminId", "description": "The Firebase UID of the administrator." }]
         }

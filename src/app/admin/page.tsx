@@ -1,53 +1,81 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
-import { MembersTable, getFullName } from "@/components/members-table";
-import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { SociTable, getFullName } from "@/components/soci-table";
+import { useUser, useFirestore, useMemoFirebase } from "@/firebase";
+import { collection, query, limit, orderBy, getDocs, startAfter, endBefore, limitToLast } from "firebase/firestore";
 import { Loader2, Users } from "lucide-react";
-import type { Member } from "@/lib/members-data";
+import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { EditMemberForm } from "@/components/edit-member-form";
+import { EditSocioForm } from "@/components/edit-socio-form";
+import { Button } from "@/components/ui/button";
+
+const PAGE_SIZE = 10;
 
 export default function AdminPage() {
   const router = useRouter();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
-  const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
+  const [soci, setSoci] = useState<Socio[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [lastVisible, setLastVisible] = useState<any>(null);
+  const [firstVisible, setFirstVisible] = useState<any>(null);
+  const [isFirstPage, setIsFirstPage] = useState(true);
+  const [isLastPage, setIsLastPage] = useState(false);
   
   const membersCollection = useMemoFirebase(() => (firestore) ? collection(firestore, 'members') : null, [firestore]);
-  const { data: members, isLoading: isLoadingMembers } = useCollection<Member>(membersCollection);
-
   const membershipRequestsCollection = useMemoFirebase(() => (firestore) ? collection(firestore, 'membership_requests') : null, [firestore]);
-  const { data: membershipRequests, isLoading: isLoadingRequests } = useCollection<any>(membershipRequestsCollection);
+
+  const fetchSoci = async (direction: 'next' | 'prev' | 'initial' = 'initial') => {
+    if (!firestore) return;
+    setIsLoading(true);
+
+    const collectionsToQuery = [membersCollection, membershipRequestsCollection];
+    let allResults: Socio[] = [];
+    let queryConstraints;
+
+    // We can't reliably paginate across multiple collections.
+    // For now we will just load all requests and active members.
+    // A more scalable solution would involve a single collection or a backend process.
+
+    for (const coll of collectionsToQuery) {
+        if (!coll) continue;
+        const q = query(coll, orderBy("firstName"));
+        const querySnapshot = await getDocs(q);
+        const data = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Socio));
+        allResults.push(...data);
+    }
+    
+    // Deduplicate and sort
+    const combinedData: { [key: string]: Socio } = {};
+    allResults.forEach(item => {
+        if (item && item.id) combinedData[item.id] = { ...item } as Socio;
+    });
+
+    const sortedData = Object.values(combinedData).sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
+
+    setSoci(sortedData);
+    setIsLoading(false);
+  };
+
 
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push("/login");
     }
-  }, [user, isUserLoading, router]);
-
-  const allMembers = useMemo(() => {
-    const combinedData: { [key: string]: Member } = {};
-
-    (membershipRequests || []).forEach(item => {
-        if (item && item.id) combinedData[item.id] = { ...item } as Member;
-    });
-
-    (members || []).forEach(item => {
-        if (item && item.id) combinedData[item.id] = { ...item } as Member;
-    });
-
-    return Object.values(combinedData).sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
-  }, [members, membershipRequests]);
-
+    if (firestore) {
+      fetchSoci();
+    }
+  }, [user, isUserLoading, router, firestore]);
+  
   const handleCloseSheet = () => {
-    setEditingMember(null);
-    window.location.reload();
+    setEditingSocio(null);
+    fetchSoci(); // Refetch data
   };
   
   if (isUserLoading || !user) {
@@ -69,42 +97,41 @@ export default function AdminPage() {
         <div className="flex items-center gap-4 mb-8">
           <Users className="w-10 h-10 text-primary" />
           <h1 className="font-headline text-4xl md:text-5xl text-primary">
-            Gestione Membri
+            Gestione Soci
           </h1>
         </div>
 
         <div className="bg-background rounded-lg border border-border shadow-lg p-4">
-          {(isLoadingMembers || isLoadingRequests) ? (
+          {isLoading ? (
              <div className="flex justify-center items-center h-64">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
              </div>
           ) : (
-            <MembersTable 
-                members={allMembers}
-                onEdit={setEditingMember}
-                onMemberDelete={() => window.location.reload()}
+            <SociTable 
+                soci={soci}
+                onEdit={setEditingSocio}
+                onSocioDelete={fetchSoci}
             />
           )}
+          {/* A more robust pagination for multiple collections is needed in the future */}
         </div>
       </main>
 
-       <Sheet open={!!editingMember} onOpenChange={(isOpen) => {
+       <Sheet open={!!editingSocio} onOpenChange={(isOpen) => {
            if (!isOpen) {
              handleCloseSheet();
            }
        }}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-xl md:w-[50vw] lg:w-[40vw]">
-          {editingMember && (
+          {editingSocio && (
             <>
               <SheetHeader>
-                <SheetTitle>Modifica Membro: {getFullName(editingMember)}</SheetTitle>
+                <SheetTitle>Modifica Socio: {getFullName(editingSocio)}</SheetTitle>
               </SheetHeader>
-              <EditMemberForm 
-                key={editingMember.id}
-                member={editingMember} 
+              <EditSocioForm
+                key={editingSocio.id}
+                socio={editingSocio} 
                 onClose={handleCloseSheet}
-                onMemberUpdate={handleCloseSheet}
-                onMemberDelete={handleCloseSheet}
               />
             </>
           )}

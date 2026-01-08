@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, memo } from "react";
-import type { Member } from "@/lib/members-data";
+import type { Socio } from "@/lib/soci-data";
 import {
   Table,
   TableBody,
@@ -47,10 +47,10 @@ import { doc, deleteDoc } from "firebase/firestore";
 import { differenceInYears, format, parseISO } from 'date-fns';
 
 // Helper Functions
-export const getFullName = (member: any) => `${member.firstName || ''} ${member.lastName || ''}`.trim();
-export const getStatus = (member: any): 'active' | 'pending' | 'rejected' => {
-    if (member.membershipStatus === 'active') return 'active';
-    return member.status || 'pending';
+export const getFullName = (socio: any) => `${socio.firstName || ''} ${socio.lastName || ''}`.trim();
+export const getStatus = (socio: any): 'active' | 'pending' | 'rejected' => {
+    if (socio.membershipStatus === 'active') return 'active';
+    return socio.status || 'pending';
 };
 export const isMinor = (birthDate: string | Date | undefined) => birthDate ? differenceInYears(new Date(), new Date(birthDate)) < 18 : false;
 export const formatDate = (dateString: any, outputFormat: string = 'dd/MM/yyyy') => {
@@ -93,40 +93,40 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
   );
 };
 
-const MemberTableRow = memo(({ 
-  member,
+const SocioTableRow = memo(({ 
+  socio,
   onEdit,
   onDelete,
 }: { 
-  member: Member; 
-  onEdit: (member: Member) => void;
+  socio: Socio; 
+  onEdit: (socio: Socio) => void;
   onDelete: (id: string) => void;
 }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
   
-  const status = getStatus(member);
-  const memberIsMinor = isMinor(member.birthDate);
-  const defaultFee = member.membershipFee ?? (isMinor(member.birthDate) ? 0 : 10);
+  const status = getStatus(socio);
+  const socioIsMinor = isMinor(socio.birthDate);
+  const defaultFee = socio.membershipFee ?? (isMinor(socio.birthDate) ? 0 : 10);
 
   const handleDelete = async () => {
     if (!firestore) return;
     
     const collectionName = status === 'active' ? 'members' : 'membership_requests';
-    const docRef = doc(firestore, collectionName, member.id);
+    const docRef = doc(firestore, collectionName, socio.id);
     
     try {
       await deleteDoc(docRef);
       toast({
-          title: "Membro rimosso",
-          description: `${getFullName(member)} è stato rimosso dalla lista.`,
+          title: "Socio rimosso",
+          description: `${getFullName(socio)} è stato rimosso dalla lista.`,
       });
-      onDelete(member.id);
+      onDelete(socio.id);
     } catch (error) {
-        console.error("Error deleting member:", error);
+        console.error("Error deleting socio:", error);
         toast({
             title: "Errore",
-            description: "Non è stato possibile rimuovere il membro.",
+            description: "Non è stato possibile rimuovere il socio.",
             variant: "destructive"
         });
     }
@@ -139,29 +139,29 @@ const MemberTableRow = memo(({
                 <Dialog>
                    <DialogTrigger asChild>
                      <div className="flex items-center gap-2 cursor-pointer group">
-                        {member.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500" />}
-                        <span className="group-hover:text-primary transition-colors">{getFullName(member)}</span>
+                        {socio.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500" />}
+                        <span className="group-hover:text-primary transition-colors">{getFullName(socio)}</span>
                      </div>
                    </DialogTrigger>
                    <DialogContent className="max-w-md">
                      <DialogHeader>
-                       <DialogTitle className="flex items-center gap-3"><User/> Dettagli Membro</DialogTitle>
+                       <DialogTitle className="flex items-center gap-3"><User/> Dettagli Socio</DialogTitle>
                      </DialogHeader>
                      <div className="py-4 space-y-2 max-h-[70vh] overflow-y-auto p-1 pr-4">
-                       <DetailRow icon={<User />} label="Nome Completo" value={getFullName(member)} />
-                       <DetailRow icon={<Mail />} label="Email" value={member.email} />
-                       <DetailRow icon={<Phone />} label="Telefono" value={member.phone} />
-                       <DetailRow icon={<Home />} label="Indirizzo" value={`${member.address}, ${member.city} (${member.province}) ${member.postalCode}`} />
-                       <DetailRow icon={<Hash />} label="Codice Fiscale" value={member.fiscalCode} />
-                       <DetailRow icon={<Calendar />} label="Anno Associativo" value={member.membershipYear || new Date().getFullYear()} />
-                       <DetailRow icon={<Calendar />} label="Data Richiesta" value={formatDate(member.requestDate)} />
+                       <DetailRow icon={<User />} label="Nome Completo" value={getFullName(socio)} />
+                       <DetailRow icon={<Mail />} label="Email" value={socio.email} />
+                       <DetailRow icon={<Phone />} label="Telefono" value={socio.phone} />
+                       <DetailRow icon={<Home />} label="Indirizzo" value={`${socio.address}, ${socio.city} (${socio.province}) ${socio.postalCode}`} />
+                       <DetailRow icon={<Hash />} label="Codice Fiscale" value={socio.fiscalCode} />
+                       <DetailRow icon={<Calendar />} label="Anno Associativo" value={socio.membershipYear || new Date().getFullYear()} />
+                       <DetailRow icon={<Calendar />} label="Data Richiesta" value={formatDate(socio.requestDate)} />
                        <DetailRow icon={<Euro />} label="Quota Versata" value={`€ ${defaultFee}`} />
-                       {member.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
-                       <DetailRow icon={<StickyNote />} label="Note" value={member.notes} />
+                       {socio.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
+                       <DetailRow icon={<StickyNote />} label="Note" value={socio.notes} />
                      </div>
                    </DialogContent>
                  </Dialog>
-                 {memberIsMinor && (
+                 {socioIsMinor && (
                    <Dialog>
                      <DialogTrigger asChild>
                        <Badge onClick={(e) => { e.stopPropagation(); }} variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10 ml-2">Minore</Badge>
@@ -171,8 +171,8 @@ const MemberTableRow = memo(({
                          <DialogTitle className="flex items-center gap-2"><ShieldCheck/> Dettagli Tutore</DialogTitle>
                        </DialogHeader>
                        <div className="py-4">
-                         <DetailRow icon={<User />} label="Nome Tutore" value={`${member.guardianFirstName} ${member.guardianLastName}`} />
-                         <DetailRow icon={<Calendar />} label="Data di Nascita Tutore" value={formatDate(member.guardianBirthDate)} />
+                         <DetailRow icon={<User />} label="Nome Tutore" value={`${socio.guardianFirstName} ${socio.guardianLastName}`} />
+                         <DetailRow icon={<Calendar />} label="Data di Nascita Tutore" value={formatDate(socio.guardianBirthDate)} />
                        </div>
                      </DialogContent>
                    </Dialog>
@@ -180,8 +180,8 @@ const MemberTableRow = memo(({
            </div>
         </TableCell>
         <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
-          <div>{formatDate(member.birthDate)}</div>
-          <div className="text-xs">{member.birthPlace}</div>
+          <div>{formatDate(socio.birthDate)}</div>
+          <div className="text-xs">{socio.birthPlace}</div>
         </TableCell>
         <TableCell>
           <Badge
@@ -205,7 +205,7 @@ const MemberTableRow = memo(({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-              <DropdownMenuItem onSelect={() => onEdit(member)}>
+              <DropdownMenuItem onSelect={() => onEdit(socio)}>
                 <Pencil className="mr-2 h-4 w-4" /> Modifica
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -219,7 +219,7 @@ const MemberTableRow = memo(({
                     <AlertDialogHeader>
                       <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Questa azione non può essere annullata. Questo rimuoverà permanentemente {getFullName(member)} dalla lista.
+                        Questa azione non può essere annullata. Questo rimuoverà permanentemente {getFullName(socio)} dalla lista.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -236,24 +236,24 @@ const MemberTableRow = memo(({
       </TableRow>
   );
 });
-MemberTableRow.displayName = 'MemberTableRow';
+SocioTableRow.displayName = 'SocioTableRow';
 
 
-interface MembersTableProps {
-  members: Member[];
-  onEdit: (member: Member) => void;
-  onMemberDelete: (id: string) => void;
+interface SociTableProps {
+  soci: Socio[];
+  onEdit: (socio: Socio) => void;
+  onSocioDelete: (id: string) => void;
 }
 
-export function MembersTable({ members, onEdit, onMemberDelete }: MembersTableProps) {
+export function SociTable({ soci, onEdit, onSocioDelete }: SociTableProps) {
   const [filter, setFilter] = useState('');
 
-  const filteredMembers = useMemo(() => members.filter(member => {
-    const fullName = getFullName(member) || '';
-    const email = member.email || '';
+  const filteredSoci = useMemo(() => soci.filter(socio => {
+    const fullName = getFullName(socio) || '';
+    const email = socio.email || '';
     return fullName.toLowerCase().includes(filter.toLowerCase()) ||
            email.toLowerCase().includes(filter.toLowerCase());
-  }), [members, filter]);
+  }), [soci, filter]);
   
   return (
     <div>
@@ -279,19 +279,19 @@ export function MembersTable({ members, onEdit, onMemberDelete }: MembersTablePr
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredMembers.length > 0 ? (
-              filteredMembers.map((member) => (
-                <MemberTableRow 
-                  key={member.id} 
-                  member={member}
+            {filteredSoci.length > 0 ? (
+              filteredSoci.map((socio) => (
+                <SocioTableRow 
+                  key={socio.id} 
+                  socio={socio}
                   onEdit={onEdit}
-                  onDelete={onMemberDelete}
+                  onDelete={onSocioDelete}
                 />
               ))
             ) : (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center">
-                  Nessun membro trovato.
+                  Nessun socio trovato.
                 </TableCell>
               </TableRow>
             )}

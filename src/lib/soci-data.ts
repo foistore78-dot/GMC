@@ -1,4 +1,4 @@
-export type Member = {
+export type Socio = {
   id: string;
   gender: 'male' | 'female';
   firstName: string;
@@ -30,4 +30,4 @@ export type Member = {
 
 // This data is now just for type reference and is not used in the application directly.
 // All data is fetched from Firestore.
-export const membersData: Member[] = [];
+export const sociData: Socio[] = [];
