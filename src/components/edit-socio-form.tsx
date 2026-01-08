@@ -201,7 +201,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
               name="status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Stato Socio</FormLabel>
+                  <FormLabel>Stato Socio (Qualifica)</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -366,5 +366,3 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
-
-    
