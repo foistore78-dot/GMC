@@ -270,7 +270,6 @@ const SocioTableRow = ({
                      <div className="flex items-center gap-2 cursor-pointer group">
                         {socio.tessera && <span className="font-mono text-xs text-muted-foreground">{socio.tessera.substring(4)}</span>}
                         <span className="group-hover:text-primary transition-colors">{getFullName(socio)}</span>
-                        {socio.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500" />}
                      </div>
                    </DialogTrigger>
                    <DialogContent className="max-w-md">
@@ -280,7 +279,12 @@ const SocioTableRow = ({
                      <div className="py-4 space-y-2 max-h-[60vh] overflow-y-auto p-1 pr-4">
                        <DetailRow icon={<CircleDot />} label="Stato" value={statusTranslations[status]} />
                        {socio.tessera && <DetailRow icon={<Hash />} label="N. Tessera" value={socio.tessera} />}
-                       <DetailRow icon={<User />} label="Nome Completo" value={getFullName(socio)} />
+                       <DetailRow icon={<User />} label="Nome Completo" value={
+                         <div className="flex items-center gap-2">
+                           {getFullName(socio)}
+                           {socio.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500" />}
+                         </div>
+                       } />
                        <DetailRow icon={<Award />} label="Qualifiche" value={
                           socio.qualifica && socio.qualifica.length > 0
                             ? <div className="flex flex-wrap gap-1 mt-1">{socio.qualifica.map(q => <Badge key={q} variant="secondary" className="text-xs">{q}</Badge>)}</div>
@@ -363,9 +367,6 @@ const SocioTableRow = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-               <DropdownMenuItem onSelect={() => onEdit(socio)}>
-                 <Pencil className="mr-2 h-4 w-4" /> Modifica
-              </DropdownMenuItem>
               {status === 'pending' && (
                 <DropdownMenuItem onSelect={() => setShowApproveDialog(true)} className="text-green-500 focus:text-green-400 focus:bg-green-500/10">
                     <CheckCircle className="mr-2 h-4 w-4" /> Approva
