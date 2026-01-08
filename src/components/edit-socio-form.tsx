@@ -27,13 +27,6 @@ import { Textarea } from "./ui/textarea";
 import { getFullName, formatDate } from "./soci-table";
 import { Separator } from "./ui/separator";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 export const QUALIFICHE = ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
 
@@ -73,7 +66,6 @@ const formSchema = z
     province: z.string().length(2, { message: "La sigla della provincia deve essere di 2 caratteri." }),
     postalCode: z.string().length(5, { message: "Il CAP deve essere di 5 caratteri." }),
     whatsappConsent: z.boolean().default(false),
-    privacyConsent: z.boolean().default(true),
     notes: z.string().optional(),
     membershipYear: z.string().optional(),
     membershipFee: z.coerce.number().optional(),
@@ -125,7 +117,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
       notes: s.notes || "",
       guardianFirstName: s.guardianFirstName || "",
       guardianLastName: s.guardianLastName || "",
-      privacyConsent: s.privacyConsent ?? true,
       whatsappConsent: s.whatsappConsent ?? false,
       fiscalCode: s.fiscalCode || "",
     };
@@ -153,7 +144,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
 
     try {
         if (newStatus === 'rejected') {
-            // Delete from both collections, just in case
             if (socio.id) {
                 const requestDocRef = doc(firestore, 'membership_requests', socio.id);
                 const memberDocRef = doc(firestore, 'members', socio.id);
@@ -161,7 +151,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 batch.delete(memberDocRef);
             }
         } else if (originalStatus !== newStatus) {
-            // Status has changed (active -> pending or pending -> active)
             if (newStatus === 'active') { // Moving from 'pending' to 'members'
                 const oldDocRef = doc(firestore, 'membership_requests', socio.id);
                 const newDocRef = doc(firestore, 'members', socio.id);
@@ -189,10 +178,9 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     id: socio.id,
                     status: 'pending' as const,
                     requestDate: values.requestDate ? new Date(values.requestDate).toISOString() : new Date().toISOString(),
-                    membershipFee: 0, // Reset fee
-                    tessera: deleteField(), // Remove card number
+                    membershipFee: 0,
+                    tessera: deleteField(),
                 };
-                // Clean up active member fields
                 delete finalData.membershipStatus;
                 delete finalData.joinDate;
                 delete finalData.expirationDate;
@@ -635,5 +623,3 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
-
-    

@@ -56,10 +56,10 @@ export const formatDate = (dateString: any, outputFormat: string = 'dd/MM/yyyy')
 
     if (dateString && typeof dateString.toDate === 'function') {
         date = dateString.toDate();
-    } else if (dateString instanceof Date) {
-        date = dateString;
     } else if (typeof dateString === 'string') {
         date = parseISO(dateString);
+    } else if (dateString instanceof Date) {
+        date = dateString;
     } else {
         return 'N/A';
     }

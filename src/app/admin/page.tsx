@@ -22,7 +22,7 @@ export default function AdminPage() {
 
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
   const [activeTab, setActiveTab] = useState("pending");
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "ascending" });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "requestDate", direction: "descending" });
 
   const membersQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, "members") : null),
