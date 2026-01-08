@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import type { Socio } from './soci-data';
-import { collection, writeBatch, Firestore, doc } from 'firebase/firestore';
+import { collection, writeBatch, Firestore, doc, getDocs, query } from 'firebase/firestore';
 import { parse } from 'date-fns';
 
 const parseDate = (dateStr: string | number | undefined): string | null => {
@@ -115,24 +115,25 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
         const membersJson = XLSX.utils.sheet_to_json(membersSheet);
         
         if (membersJson.length === 0) {
-          // If the main sheet is empty, check the requests sheet as a fallback
-           const requestsSheetName = 'Richieste Iscrizione';
-           if(workbook.Sheets[requestsSheetName]) {
-                const requestsJson = XLSX.utils.sheet_to_json(workbook.Sheets[requestsSheetName]);
-                if(requestsJson.length > 0) {
-                    membersJson.push(...requestsJson);
-                } else {
-                     throw new Error("Il foglio 'Soci Attivi e Scaduti' è vuoto.");
-                }
-           } else {
-             throw new Error("Il foglio 'Soci Attivi e Scaduti' è vuoto.");
-           }
+          throw new Error("Il foglio 'Soci Attivi e Scaduti' è vuoto.");
         }
+        
+        // Fetch existing members to check for updates
+        const membersCollection = collection(firestore, 'members');
+        const existingMembersQuery = query(membersCollection);
+        const querySnapshot = await getDocs(existingMembersQuery);
+        const existingMembersMap = new Map<string, {id: string, data: Socio}>();
+        querySnapshot.forEach(doc => {
+            const member = doc.data() as Socio;
+            if(member.tessera) {
+                existingMembersMap.set(member.tessera, {id: doc.id, data: member});
+            }
+        });
+
 
         const batch = writeBatch(firestore);
         let importedCount = 0;
         let errorCount = 0;
-        const membersCollection = collection(firestore, 'members');
 
         for (const row of membersJson) {
             try {
@@ -145,13 +146,22 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
                     continue; // Go to the next row
                 }
                 
-                // All imported members go to 'members' collection
-                const newDocRef = doc(membersCollection); // Correctly get a new document reference
-                batch.set(newDocRef, {
-                    ...socioData,
-                    id: newDocRef.id, // Ensure ID is set
-                    membershipStatus: 'active', // All imported are considered active
-                });
+                // Check if member already exists based on tessera
+                if (socioData.tessera && existingMembersMap.has(socioData.tessera)) {
+                    // Update existing member
+                    const existingMember = existingMembersMap.get(socioData.tessera)!;
+                    const docRef = doc(firestore, 'members', existingMember.id);
+                    batch.set(docRef, { ...existingMember.data, ...socioData }, { merge: true });
+                } else {
+                    // Create new member
+                    const newDocRef = doc(membersCollection);
+                    batch.set(newDocRef, {
+                        ...socioData,
+                        id: newDocRef.id,
+                        membershipStatus: 'active',
+                    });
+                }
+
 
                 importedCount++;
 
