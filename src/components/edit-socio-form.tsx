@@ -28,7 +28,7 @@ import { getFullName, formatDate } from "./soci-table";
 import { Separator } from "./ui/separator";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
-export const QUALIFICHE = ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
+export const QUALIFICHE = ["FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
 
 export const isMinorCheck = (birthDate: string | undefined | Date): boolean => {
   if (!birthDate) return false;
@@ -668,3 +668,5 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
+
+    

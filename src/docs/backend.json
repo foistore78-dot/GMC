@@ -37,7 +37,7 @@
           "description": "Roles or qualifications of the member in the club.",
           "items": {
             "type": "string",
-            "enum": ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"]
+            "enum": ["FONDATORE", "VOLONTARIO", "MUSICISTA"]
           }
         },
         "tessera": { "type": "string", "description": "Unique membership card number (e.g., GMC-2024-1)." }
@@ -79,7 +79,7 @@
           "description": "Roles or qualifications of the member in the club.",
           "items": {
             "type": "string",
-            "enum": ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"]
+            "enum": ["FONDATORE", "VOLONTARIO", "MUSICISTA"]
           }
         }
       },

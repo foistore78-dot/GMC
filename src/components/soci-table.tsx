@@ -102,7 +102,7 @@ const statusTranslations: Record<string, string> = {
 };
 
 const QUALIFICA_COLORS: Record<string, string> = {
-  "SOCIO FONDATORE": "text-yellow-400",
+  "FONDATORE": "text-yellow-400",
   "VOLONTARIO": "text-sky-400",
   "MUSICISTA": "text-fuchsia-400",
   "default": "text-gray-400",
@@ -731,3 +731,5 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortCon
 
 
 export const SociTable = SociTableComponent;
+
+    

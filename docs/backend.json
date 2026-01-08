@@ -30,7 +30,15 @@
         "membershipYear": { "type": "string", "description": "The solar year of the membership." },
         "notes": { "type": "string", "description": "Administrative notes about the member." },
         "isVolunteer": { "type": "boolean", "description": "Indicates if the member is a volunteer." },
-        "membershipFee": { "type": "number", "description": "The membership fee paid by the member." }
+        "membershipFee": { "type": "number", "description": "The membership fee paid by the member." },
+        "qualifica": {
+          "type": "array",
+          "description": "Roles or qualifications of the member in the club.",
+          "items": {
+            "type": "string",
+            "enum": ["FONDATORE", "VOLONTARIO", "MUSICISTA"]
+          }
+        }
       },
       "required": [
         "id", "gender", "firstName", "lastName", "birthPlace", "birthDate", "address",
@@ -121,3 +129,5 @@
     "reasoning": "The Firestore data structure is designed to manage members and membership requests for the Garage Music Club. It prioritizes security, scalability, and ease of debugging. Key design decisions include:\n\n1.  **Authorization Independence:** The structure avoids hierarchical authorization dependencies, crucial for atomic operations and debuggability. There are no `get()` calls in rules dependent on parent documents.\n2.  **Structural Segregation:** Public membership requests are stored separately from secure member data, enforcing distinct security requirements. Admin user roles are managed via document existence.\n3.  **Access Modeling:** Public membership requests don't need authentication. Secure member management is achieved through path-based ownership and global admin roles. Membership is reflected through existence in the `/members/{memberId}` collection.\n4.  **Data Clarity:** Each entity has a clear schema and status field.\n\n**QAPs (Rules are not Filters):** The segregated structure allows for secure `list` operations.  Membership requests can be listed publicly without authentication, while member data listing requires admin authentication, which is verified by checking the existence of their UID in `/roles_admin/{uid}`.\n\n**Denormalization:**  No explicit denormalization is required given the requirements and data model.  If collaborative features were added in the future (e.g., band projects), a membership map would be denormalized to subcollections to ensure authorization independence."
   }
 }
+
+    
