@@ -27,7 +27,6 @@ import { Textarea } from "./ui/textarea";
 import { getFullName, isMinor, formatDate } from "./soci-table";
 import { Separator } from "./ui/separator";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
-import { DatePicker } from "./ui/date-picker";
 
 const QUALIFICHE = ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
 
@@ -46,7 +45,6 @@ const formSchema = z.object({
   postalCode: z.string().length(5, { message: "Il CAP deve essere di 5 caratteri." }),
   whatsappConsent: z.boolean().default(false),
   privacyConsent: z.boolean().refine(val => val === true, { message: "Devi accettare l'informativa."}),
-  isVolunteer: z.boolean().default(false),
   notes: z.string().optional(),
   membershipYear: z.string().optional(),
   membershipFee: z.coerce.number().optional(),
@@ -165,54 +163,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
         <div>
           <h3 className="text-lg font-medium text-primary mb-2">Dati Tesseramento</h3>
           <div className="space-y-4 rounded-md border p-4">
-             <FormField
-              control={form.control}
-              name="qualifica"
-              render={() => (
-                <FormItem>
-                  <div className="mb-4">
-                    <FormLabel className="text-base">Qualifiche Socio</FormLabel>
-                    <FormDescription>
-                      Seleziona una o più qualifiche per il socio.
-                    </FormDescription>
-                  </div>
-                  {QUALIFICHE.map((item) => (
-                    <FormField
-                      key={item}
-                      control={form.control}
-                      name="qualifica"
-                      render={({ field }) => {
-                        return (
-                          <FormItem
-                            key={item}
-                            className="flex flex-row items-start space-x-3 space-y-0"
-                          >
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value?.includes(item)}
-                                onCheckedChange={(checked) => {
-                                  return checked
-                                    ? field.onChange([...(field.value || []), item])
-                                    : field.onChange(
-                                        (field.value || []).filter(
-                                          (value) => value !== item
-                                        )
-                                      );
-                                }}
-                              />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                              {item}
-                            </FormLabel>
-                          </FormItem>
-                        );
-                      }}
-                    />
-                  ))}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                <FormField control={form.control} name="membershipYear" render={({ field }) => (
                   <FormItem><FormLabel>Anno Associativo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -223,18 +173,64 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Data Richiesta</FormLabel>
-                      <DatePicker 
-                        value={field.value}
-                        onChange={(date) => field.onChange(date?.toISOString().split('T')[0])}
-                      />
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              <FormField control={form.control} name="membershipFee" render={({ field }) => (
-                  <FormItem><FormLabel>Quota Versata (€)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
-              )}/>
             </div>
+             <FormField
+              control={form.control}
+              name="qualifica"
+              render={() => (
+                <FormItem>
+                  <div className="mb-4">
+                    <FormLabel className="text-base">Qualifiche Socio</FormLabel>
+                  </div>
+                  <div className="space-y-2">
+                    {QUALIFICHE.map((item) => (
+                      <FormField
+                        key={item}
+                        control={form.control}
+                        name="qualifica"
+                        render={({ field }) => {
+                          return (
+                            <FormItem
+                              key={item}
+                              className="flex flex-row items-start space-x-3 space-y-0"
+                            >
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value?.includes(item)}
+                                  onCheckedChange={(checked) => {
+                                    return checked
+                                      ? field.onChange([...(field.value || []), item])
+                                      : field.onChange(
+                                          (field.value || []).filter(
+                                            (value) => value !== item
+                                          )
+                                        );
+                                  }}
+                                />
+                              </FormControl>
+                              <FormLabel className="font-normal">
+                                {item}
+                              </FormLabel>
+                            </FormItem>
+                          );
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField control={form.control} name="membershipFee" render={({ field }) => (
+                <FormItem><FormLabel>Quota Versata (€)</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value?.toFixed(2)} /></FormControl><FormMessage /></FormItem>
+            )}/>
             <FormField control={form.control} name="notes" render={({ field }) => (
                 <FormItem><FormLabel>Note Amministrative</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
             )}/>
@@ -286,10 +282,9 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                       render={({ field }) => (
                         <FormItem className="flex flex-col">
                           <FormLabel>Data di Nascita</FormLabel>
-                           <DatePicker 
-                            value={field.value}
-                            onChange={(date) => field.onChange(date?.toISOString().split('T')[0])}
-                          />
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -320,10 +315,9 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                           render={({ field }) => (
                             <FormItem className="flex flex-col">
                               <FormLabel>Data di Nascita Tutore</FormLabel>
-                              <DatePicker 
-                                value={field.value}
-                                onChange={(date) => field.onChange(date?.toISOString().split('T')[0])}
-                              />
+                              <FormControl>
+                                <Input type="date" {...field} />
+                              </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -377,9 +371,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
         <div>
             <h3 className="text-lg font-medium text-primary mb-2">Altre Impostazioni</h3>
              <div className="space-y-4 rounded-md border p-4">
-                <FormField control={form.control} name="isVolunteer" render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange}/></FormControl><div className="space-y-1 leading-none"><FormLabel>Volontario</FormLabel><FormDescription>Il socio è disponibile per attività di volontariato.</FormDescription></div></FormItem>
-                )}/>
                  <FormField control={form.control} name="privacyConsent" render={({ field }) => (
                     <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange}/></FormControl><div className="space-y-1 leading-none"><FormLabel>Consenso Privacy</FormLabel><FormDescription>Il socio ha accettato la privacy policy.</FormDescription></div></FormItem>
                 )}/>
@@ -397,5 +388,3 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
-
-    

@@ -123,6 +123,11 @@ export default function AdminPage() {
     );
   }
 
+  const getStatus = (socio: any): 'active' | 'pending' | 'rejected' => {
+    if (socio.membershipStatus === 'active') return 'active';
+    return socio.status || 'pending';
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-secondary">
       <Header />
@@ -195,11 +200,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-function getStatus(socio: any): 'active' | 'pending' | 'rejected' {
-    if (socio.membershipStatus === 'active') return 'active';
-    return socio.status || 'pending';
-}
-    
-
-    
