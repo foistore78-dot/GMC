@@ -77,7 +77,7 @@ export const translations = {
         },
       },
       guardian: {
-        title: "Dati del Tutore (per minorenni)",
+        title: "Dati del Tutore (per mladoletne)",
         description: "Essendo minorenne, è necessario inserire i dati di un genitore o tutore legale.",
         firstName: "Nome del Tutore",
         firstNamePlaceholder: "Luigi",
@@ -107,6 +107,7 @@ export const translations = {
       postalCodeLength: "Il CAP deve essere di 5 caratteri.",
       privacyConsentRequired: "Devi accettare l'informativa sulla privacy per continuare.",
       guardianRequired: "Per i minorenni, tutti i dati del tutore sono obbligatori.",
+      optionalField: "Campo opzionale",
     },
     submission: {
       success: {
@@ -232,6 +233,7 @@ export const translations = {
       postalCodeLength: "The postal code must be 5 characters.",
       privacyConsentRequired: "You must accept the privacy policy to continue.",
       guardianRequired: "For minors, all guardian details are mandatory.",
+      optionalField: "Optional field",
     },
     submission: {
       success: {
@@ -357,6 +359,7 @@ export const translations = {
       postalCodeLength: "Poštna številka mora vsebovati 5 znakov.",
       privacyConsentRequired: "Za nadaljevanje morate sprejeti pravilnik o zasebnosti.",
       guardianRequired: "Za mladoletne so vsi podatki skrbnika obvezni.",
+      optionalField: "Izbirno polje",
     },
     submission: {
       success: {

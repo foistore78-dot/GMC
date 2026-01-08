@@ -58,7 +58,7 @@ const formSchema = z
     firstName: z.string().min(2, { message: "Il nome deve contenere almeno 2 caratteri." }),
     lastName: z.string().min(2, { message: "Il cognome deve contenere almeno 2 caratteri." }),
     gender: z.enum(["male", "female"], { required_error: "È richiesto il genere." }),
-    email: z.string().email({ message: "Inserisci un indirizzo email valido." }),
+    email: z.string().email({ message: "Inserisci un indirizzo email valido." }).optional().or(z.literal('')),
     phone: z.string().optional(),
     birthPlace: z.string().min(2, { message: "Inserisci un luogo di nascita valido." }),
     birthDate: z.string().refine((date) => date && !isNaN(Date.parse(date)), { message: "Inserisci una data di nascita valida." }),
@@ -113,6 +113,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
       requestDate: s.requestDate ? formatDate(s.requestDate, "yyyy-MM-dd") : new Date().toISOString().split("T")[0],
       joinDate: s.joinDate ? formatDate(s.joinDate, "yyyy-MM-dd") : "",
       phone: s.phone || "",
+      email: s.email || "",
       qualifica: s.qualifica || [],
       membershipYear: s.membershipYear || new Date().getFullYear().toString(),
       membershipFee: s.membershipFee ?? (isMinor ? 0 : 10),
@@ -443,6 +444,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 <FormItem>
                   <FormLabel>Codice Fiscale</FormLabel>
                   <FormControl><Input {...field} value={field.value || ''} /></FormControl>
+                   <FormDescription>Campo opzionale</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -553,7 +555,8 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>
-                    <FormControl><Input type="email" {...field} /></FormControl>
+                    <FormControl><Input type="email" {...field} value={field.value || ''} /></FormControl>
+                     <FormDescription>Campo opzionale</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -565,6 +568,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                   <FormItem>
                     <FormLabel>Telefono</FormLabel>
                     <FormControl><Input {...field} value={field.value || ''}/></FormControl>
+                     <FormDescription>Campo opzionale</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -625,5 +629,3 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
-
-    

@@ -45,8 +45,8 @@ export function MembershipForm() {
     }),
     firstName: z.string().min(2, { message: t('validation.firstNameMin') }),
     lastName: z.string().min(2, { message: t('validation.lastNameMin') }),
-    email: z.string().email({ message: t('validation.emailInvalid') }),
-    phone: z.string().min(10, { message: t('validation.phoneInvalid') }),
+    email: z.string().email({ message: t('validation.emailInvalid') }).optional().or(z.literal('')),
+    phone: z.string().optional(),
     birthPlace: z.string().min(2, { message: t('validation.birthPlaceInvalid') }),
     birthDate: z.string().refine((date) => !isNaN(Date.parse(date)), { message: t('validation.birthDateInvalid') }),
     fiscalCode: z.string().optional(),
@@ -369,6 +369,7 @@ export function MembershipForm() {
                         <FormItem>
                           <FormLabel>{t('steps.fiscalCode.label')}</FormLabel>
                           <FormControl><Input placeholder="RSSMRA80A01H501U" {...field} /></FormControl>
+                          <FormDescription>{t('validation.optionalField')}</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -435,6 +436,7 @@ export function MembershipForm() {
                         <FormItem>
                           <FormLabel>{t('steps.contact.email')}</FormLabel>
                           <FormControl><Input placeholder={t('steps.contact.emailPlaceholder')} {...field} /></FormControl>
+                          <FormDescription>{t('validation.optionalField')}</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -446,6 +448,7 @@ export function MembershipForm() {
                         <FormItem>
                           <FormLabel>{t('steps.contact.phone')}</FormLabel>
                           <FormControl><Input placeholder="+39 333 1234567" {...field} /></FormControl>
+                           <FormDescription>{t('validation.optionalField')}</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -522,5 +525,3 @@ export function MembershipForm() {
     </>
   );
 }
-
-    
