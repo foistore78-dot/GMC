@@ -103,7 +103,7 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
   );
 };
 
-const SocioTableRow = memo(({ 
+const SocioTableRow = ({ 
   socio,
   onEdit,
 }: { 
@@ -251,8 +251,7 @@ const SocioTableRow = memo(({
         </TableCell>
       </TableRow>
   );
-});
-SocioTableRow.displayName = 'SocioTableRow';
+};
 
 
 interface SociTableProps {
