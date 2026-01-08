@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -19,6 +19,7 @@ export default function AdminPage() {
   const firestore = useFirestore();
 
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
+  const [combinedSoci, setCombinedSoci] = useState<Socio[]>([]);
 
   const membersQuery = useMemoFirebase(
     () => (firestore ? query(collection(firestore, "members"), orderBy("lastName")) : null),
@@ -31,32 +32,44 @@ export default function AdminPage() {
 
   const { data: membersData, isLoading: isMembersLoading } = useCollection<Socio>(membersQuery);
   const { data: requestsData, isLoading: isRequestsLoading } = useCollection<Socio>(requestsQuery);
-  
+
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push("/login");
     }
   }, [user, isUserLoading, router]);
 
-  const combinedSoci = useMemo(() => {
+  useEffect(() => {
     const sociMap = new Map<string, Socio>();
-    (membersData || []).forEach(s => s?.id && sociMap.set(s.id, { ...s, membershipStatus: 'active' }));
-    (requestsData || []).forEach(s => s?.id && sociMap.set(s.id, s));
-    return Array.from(sociMap.values()).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+
+    // Requests are processed first, so if an ID is in both, the member (active) data will overwrite it.
+    (requestsData || []).forEach(s => {
+        if (s?.id) sociMap.set(s.id, { ...s, membershipStatus: 'pending' });
+    });
+
+    (membersData || []).forEach(s => {
+        if (s?.id) sociMap.set(s.id, { ...s, membershipStatus: 'active' });
+    });
+
+    const sortedSoci = Array.from(sociMap.values()).sort((a, b) => 
+        (a.lastName || '').localeCompare(b.lastName || '')
+    );
+    
+    setCombinedSoci(sortedSoci);
   }, [membersData, requestsData]);
-
-  const isLoading = isUserLoading || isMembersLoading || isRequestsLoading;
   
-  const handleEditSocio = useCallback((socio: Socio) => {
-    setEditingSocio(socio);
-  }, []);
+  const isLoading = isUserLoading || isMembersLoading || isRequestsLoading;
 
+  const handleEditSocio = (socio: Socio) => {
+    setEditingSocio(socio);
+  };
+  
   const handleSheetOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
       setEditingSocio(null);
     }
   };
-
+  
   if (isUserLoading || !user) {
     return (
       <div className="flex flex-col min-h-screen bg-secondary">
