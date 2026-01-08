@@ -62,7 +62,7 @@ const formSchema = z
     phone: z.string().optional(),
     birthPlace: z.string().min(2, { message: "Inserisci un luogo di nascita valido." }),
     birthDate: z.string().refine((date) => date && !isNaN(Date.parse(date)), { message: "Inserisci una data di nascita valida." }),
-    fiscalCode: z.string().length(16, { message: "Il codice fiscale deve essere di 16 caratteri." }),
+    fiscalCode: z.string().optional(),
     address: z.string().min(5, { message: "Inserisci un indirizzo valido." }),
     city: z.string().min(2, { message: "Inserisci una città valida." }),
     province: z.string().length(2, { message: "La sigla della provincia deve essere di 2 caratteri." }),
@@ -121,6 +121,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
       guardianLastName: s.guardianLastName || "",
       privacyConsent: s.privacyConsent ?? true,
       whatsappConsent: s.whatsappConsent ?? false,
+      fiscalCode: s.fiscalCode || "",
     };
   }, []);
 
@@ -441,7 +442,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Codice Fiscale</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
+                  <FormControl><Input {...field} value={field.value || ''} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -624,3 +625,5 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
+
+    

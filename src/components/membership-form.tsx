@@ -49,7 +49,7 @@ export function MembershipForm() {
     phone: z.string().min(10, { message: t('validation.phoneInvalid') }),
     birthPlace: z.string().min(2, { message: t('validation.birthPlaceInvalid') }),
     birthDate: z.string().refine((date) => !isNaN(Date.parse(date)), { message: t('validation.birthDateInvalid') }),
-    fiscalCode: z.string().length(16, { message: t('validation.fiscalCodeLength') }),
+    fiscalCode: z.string().optional(),
     address: z.string().min(5, { message: t('validation.addressInvalid') }),
     city: z.string().min(2, { message: t('validation.cityInvalid') }),
     province: z.string().length(2, { message: t('validation.provinceLength') }),
@@ -522,3 +522,5 @@ export function MembershipForm() {
     </>
   );
 }
+
+    
