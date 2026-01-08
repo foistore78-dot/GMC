@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,20 +32,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 
 const QUALIFICHE = ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
 
+// This function determines the current status of the member/request
 const getStatus = (socio: Socio): 'active' | 'pending' | 'rejected' => {
     if (socio.membershipStatus === 'active') return 'active';
+    // The status on a request can be pending, or if it was rejected, it would be 'rejected'.
+    // However, rejected requests are deleted, so we mostly deal with 'pending'.
     return socio.status || 'pending';
 };
 
+// This function checks if a person is a minor based on their birth date.
 const isMinorCheck = (birthDate: string | undefined): boolean => {
     if (!birthDate) return false;
     try {
+        // Calculates the difference in years between now and the birth date.
         return differenceInYears(new Date(), new Date(birthDate)) < 18;
     } catch {
         return false;
     }
 };
 
+// Zod schema for form validation
 const formSchema = z.object({
   firstName: z.string().min(2, { message: "Il nome deve contenere almeno 2 caratteri." }),
   lastName: z.string().min(2, { message: "Il cognome deve contenere almeno 2 caratteri." }),
@@ -84,9 +91,10 @@ type EditSocioFormProps = {
     onClose: () => void;
 };
 
+// Gets default values for the form from the socio object.
 const getDefaultValues = (socio: Socio) => {
-    const socioIsMinor = isMinorCheck(socio.birthDate);
-    const calculatedFee = socio.membershipFee ?? (socioIsMinor ? 0 : 10);
+    const isMinor = isMinorCheck(socio.birthDate);
+    const fee = socio.membershipFee ?? (isMinor ? 0 : 10);
     
     return {
         ...socio,
@@ -97,11 +105,11 @@ const getDefaultValues = (socio: Socio) => {
         phone: socio.phone || '',
         qualifica: socio.qualifica || [],
         membershipYear: socio.membershipYear || new Date().getFullYear().toString(),
-        membershipFee: socio.membershipFee ?? calculatedFee,
+        membershipFee: fee,
         notes: socio.notes || "",
         guardianFirstName: socio.guardianFirstName || "",
         guardianLastName: socio.guardianLastName || "",
-        privacyConsent: socio.privacyConsent ?? false,
+        privacyConsent: socio.privacyConsent ?? true, // Assume consent if editing
     };
 };
 
@@ -116,8 +124,9 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
   });
 
   const birthDateValue = form.watch('birthDate');
-  const socioIsMinor = isMinorCheck(birthDateValue);
+  const isMinor = isMinorCheck(birthDateValue);
 
+  // Form submission handler
   const onSubmit = useCallback(async (values: z.infer<typeof formSchema>) => {
     if (!firestore) {
       toast({ title: "Errore di connessione a Firestore", variant: "destructive" });
@@ -127,50 +136,56 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     
     const originalStatus = getStatus(socio);
     const newStatus = values.status;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { status, ...dataToSave } = values;
 
     const batch = writeBatch(firestore);
 
     try {
-        if (originalStatus !== newStatus) {
-            const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
-            const oldDocRef = doc(firestore, oldCollection, socio.id);
-            
-            if (newStatus === 'rejected') {
-                batch.delete(oldDocRef);
-            } else {
-                batch.delete(oldDocRef);
-                const newCollection = newStatus === 'active' ? 'members' : 'membership_requests';
-                const newDocRef = doc(firestore, newCollection, socio.id);
-                
-                let finalData: any = { 
-                    ...socio,
-                    ...dataToSave,
-                    id: socio.id 
-                };
+      // Logic to handle status change
+      if (originalStatus !== newStatus) {
+        // Determine the source collection based on original status
+        const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
+        const oldDocRef = doc(firestore, oldCollection, socio.id);
 
-                if (newStatus === 'active') {
-                    finalData.membershipStatus = 'active';
-                    finalData.joinDate = socio.joinDate || serverTimestamp();
-                    finalData.expirationDate = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
-                    delete finalData.status;
-                } else {
-                    finalData.status = 'pending';
-                    finalData.requestDate = values.requestDate ? new Date(values.requestDate).toISOString() : serverTimestamp();
-                    delete finalData.membershipStatus;
-                    delete finalData.joinDate;
-                    delete finalData.expirationDate;
-                }
-                batch.set(newDocRef, finalData, { merge: true });
-            }
-        } else if (newStatus !== 'rejected') {
-            const collection = newStatus === 'active' ? 'members' : 'membership_requests';
-            const docRef = doc(firestore, collection, socio.id);
-            batch.set(docRef, dataToSave, { merge: true });
-        } else { // newStatus is 'rejected'
-             const docRef = doc(firestore, 'membership_requests', socio.id);
-             batch.delete(docRef);
+        // First, delete the old document from its original location
+        batch.delete(oldDocRef);
+
+        // If the new status is not 'rejected', create a new document in the target collection
+        if (newStatus !== 'rejected') {
+          const newCollection = newStatus === 'active' ? 'members' : 'membership_requests';
+          const newDocRef = doc(firestore, newCollection, socio.id);
+          
+          let finalData: Partial<Socio> & typeof dataToSave = { 
+              ...socio, // carry over old data
+              ...dataToSave, // apply new data
+              id: socio.id 
+          };
+
+          if (newStatus === 'active') {
+              finalData.membershipStatus = 'active';
+              finalData.joinDate = socio.joinDate || serverTimestamp();
+              finalData.expirationDate = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
+              delete finalData.status; // Remove request-specific status
+          } else { // pending
+              finalData.status = 'pending';
+              finalData.requestDate = values.requestDate ? new Date(values.requestDate).toISOString() : serverTimestamp();
+              // Remove member-specific fields
+              delete finalData.membershipStatus;
+              delete finalData.joinDate;
+              delete finalData.expirationDate;
+          }
+          batch.set(newDocRef, finalData, { merge: true });
         }
+      } else if (newStatus !== 'rejected') {
+        // If status hasn't changed, just update the document in its current collection
+        const collection = newStatus === 'active' ? 'members' : 'membership_requests';
+        const docRef = doc(firestore, collection, socio.id);
+        batch.set(docRef, dataToSave, { merge: true });
+      } else { // newStatus is 'rejected' and original was also 'rejected' or 'pending'
+          const docRef = doc(firestore, 'membership_requests', socio.id);
+          batch.delete(docRef);
+      }
       
       await batch.commit();
 
@@ -179,26 +194,26 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
           description: `I dati di ${getFullName(values)} sono stati salvati.`,
       });
       
-      onClose();
+      onClose(); // Close the form on success
 
     } catch(error) {
         console.error("Error updating document:", error);
         toast({ 
           title: "Errore durante l'aggiornamento", 
-          description: `Impossibile salvare le modifiche per ${getFullName(values)}. Dettagli: ${(error as Error).message}`, 
+          description: `Impossibile salvare le modifiche per ${getFullName(values)}.`, 
           variant: "destructive" 
         });
     } finally {
         setIsSubmitting(false);
     }
-}, [firestore, socio, onClose, toast]);
+  }, [firestore, socio, onClose, toast]);
 
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-h-[85vh] overflow-y-auto p-1 pr-4 mt-4">
+      <form onSubmit={form.handleSubmit(onSubmit, (errors) => console.log(errors))} className="space-y-6 max-h-[85vh] overflow-y-auto p-1 pr-4 mt-4">
         
-        {/* --- DATI TESSERAMENTO --- */}
+        {/* --- Membership Data --- */}
         <div>
           <h3 className="text-lg font-medium text-primary mb-2">Dati Tesseramento</h3>
           <div className="space-y-4 rounded-md border p-4">
@@ -207,7 +222,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Stato (Logica App)</FormLabel>
+                    <FormLabel>Stato</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -221,7 +236,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Cambia lo stato del socio per attivarlo, metterlo in attesa o rifiutarlo.
+                      Attiva, metti in attesa o rifiuta la richiesta.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -262,27 +277,18 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                         name="qualifica"
                         render={({ field }) => {
                           return (
-                            <FormItem
-                              key={item}
-                              className="flex flex-row items-start space-x-3 space-y-0"
-                            >
+                            <FormItem key={item} className="flex flex-row items-start space-x-3 space-y-0">
                               <FormControl>
                                 <Checkbox
                                   checked={field.value?.includes(item)}
                                   onCheckedChange={(checked) => {
                                     return checked
                                       ? field.onChange([...(field.value || []), item])
-                                      : field.onChange(
-                                          (field.value || []).filter(
-                                            (value) => value !== item
-                                          )
-                                        );
+                                      : field.onChange((field.value || []).filter((value) => value !== item));
                                   }}
                                 />
                               </FormControl>
-                              <FormLabel className="font-normal">
-                                {item}
-                              </FormLabel>
+                              <FormLabel className="font-normal">{item}</FormLabel>
                             </FormItem>
                           );
                         }}
@@ -293,22 +299,20 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-12 gap-4">
-                <FormField control={form.control} name="membershipFee" render={({ field }) => (
-                    <FormItem className="col-span-6">
-                        <FormLabel>Quota Versata (€)</FormLabel>
-                        <FormControl><Input type="number" step="0.01" {...field} value={field.value !== undefined ? Number(field.value).toFixed(2) : ''} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )}/>
-            </div>
+            <FormField control={form.control} name="membershipFee" render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Quota Versata (€)</FormLabel>
+                    <FormControl><Input type="number" step="0.01" {...field} value={field.value !== undefined ? Number(field.value) : ''} /></FormControl>
+                    <FormMessage />
+                </FormItem>
+            )}/>
             <FormField control={form.control} name="notes" render={({ field }) => (
                 <FormItem><FormLabel>Note Amministrative</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
             )}/>
           </div>
         </div>
         
-        {/* --- DATI ANAGRAFICI --- */}
+        {/* --- Personal Data --- */}
         <div>
             <h3 className="text-lg font-medium text-primary mb-2">Dati Anagrafici</h3>
             <div className="space-y-4 rounded-md border p-4">
@@ -327,11 +331,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                       <FormItem className="space-y-3">
                         <FormLabel>Genere</FormLabel>
                         <FormControl>
-                          <RadioGroup
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                            className="flex items-center space-x-4"
-                          >
+                          <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex items-center space-x-4">
                             <FormItem className="flex items-center space-x-2 space-y-0">
                               <FormControl><RadioGroupItem value="male" /></FormControl>
                               <FormLabel className="font-normal">Maschio</FormLabel>
@@ -347,19 +347,13 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     )}
                   />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                    <FormField
-                      control={form.control}
-                      name="birthDate"
-                      render={({ field }) => (
+                    <FormField control={form.control} name="birthDate" render={({ field }) => (
                         <FormItem className="flex flex-col">
                           <FormLabel>Data di Nascita</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
+                          <FormControl><Input type="date" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
-                      )}
-                    />
+                    )}/>
                     <FormField control={form.control} name="birthPlace" render={({ field }) => (
                         <FormItem><FormLabel>Luogo di Nascita</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )}/>
@@ -367,7 +361,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 <FormField control={form.control} name="fiscalCode" render={({ field }) => (
                     <FormItem><FormLabel>Codice Fiscale</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )}/>
-                {socioIsMinor && (
+                {isMinor && (
                   <>
                     <Separator className="my-6" />
                     <div className="p-4 border border-yellow-500/30 rounded-lg bg-yellow-500/10 space-y-4">
@@ -380,26 +374,20 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                                 <FormItem><FormLabel>Cognome Tutore</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
                         </div>
-                         <FormField
-                            control={form.control}
-                            name="guardianBirthDate"
-                            render={({ field }) => (
+                         <FormField control={form.control} name="guardianBirthDate" render={({ field }) => (
                             <FormItem className="flex flex-col">
                                 <FormLabel>Data di Nascita Tutore</FormLabel>
-                                <FormControl>
-                                <Input type="date" {...field} />
-                                </FormControl>
+                                <FormControl><Input type="date" {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
-                            )}
-                        />
+                         )}/>
                     </div>
                   </>
                 )}
             </div>
         </div>
 
-        {/* --- DATI RESIDENZA --- */}
+        {/* --- Residence Data --- */}
         <div>
             <h3 className="text-lg font-medium text-primary mb-2">Dati di Residenza</h3>
             <div className="space-y-4 rounded-md border p-4">
@@ -420,7 +408,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             </div>
         </div>
         
-        {/* --- CONTATTI --- */}
+        {/* --- Contact Info --- */}
         <div>
             <h3 className="text-lg font-medium text-primary mb-2">Contatti</h3>
             <div className="space-y-4 rounded-md border p-4">
@@ -438,9 +426,9 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             </div>
         </div>
 
-        {/* --- ALTRE IMPOSTAZIONI --- */}
+        {/* --- Privacy Consent --- */}
         <div>
-            <h3 className="text-lg font-medium text-primary mb-2">Altre Impostazioni</h3>
+            <h3 className="text-lg font-medium text-primary mb-2">Consenso Privacy</h3>
              <div className="space-y-4 rounded-md border p-4">
                  <FormField control={form.control} name="privacyConsent" render={({ field }) => (
                     <FormItem className="flex flex-row items-start space-x-3 space-y-0">
@@ -455,7 +443,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             </div>
         </div>
 
-        <div className="flex justify-end pt-4 sticky bottom-0 bg-background pb-4">
+        <div className="flex justify-end pt-4 sticky bottom-0 bg-secondary/80 backdrop-blur-sm pb-4 rounded-b-lg">
           <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>Annulla</Button>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -466,3 +454,5 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
+
+    
