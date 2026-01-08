@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import type { Socio } from './soci-data';
-import { collection, writeBatch, Firestore } from 'firebase/firestore';
+import { collection, writeBatch, Firestore, doc } from 'firebase/firestore';
 import { parse } from 'date-fns';
 
 const parseDate = (dateStr: string | number | undefined): string | null => {
@@ -107,6 +107,7 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
         const batch = writeBatch(firestore);
         let importedCount = 0;
         let errorCount = 0;
+        const membersCollection = collection(firestore, 'members');
 
         for (const row of membersJson) {
             try {
@@ -120,7 +121,7 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
                 }
                 
                 // All imported members go to 'members' collection
-                const newDocRef = collection(firestore, 'members').doc();
+                const newDocRef = doc(membersCollection);
                 batch.set(newDocRef, {
                     ...socioData,
                     id: newDocRef.id, // Ensure ID is set
