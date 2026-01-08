@@ -1,10 +1,12 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo, useEffect } from "react";
 import { differenceInYears } from "date-fns";
+import { doc, writeBatch, serverTimestamp, deleteDoc } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +23,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useFirestore } from "@/firebase";
-import { doc, writeBatch, serverTimestamp } from "firebase/firestore";
 import type { Socio } from "@/lib/soci-data";
 import { Textarea } from "./ui/textarea";
 import { getFullName, formatDate } from "./soci-table";
@@ -37,65 +38,41 @@ import {
 
 const QUALIFICHE = ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
 
-// Determina lo status corrente del socio
-const getStatus = (socio: Socio): "active" | "pending" | "rejected" => {
-  if (socio.membershipStatus === "active") return "active";
-  return socio.status || "pending";
-};
-
-// Controlla se è minorenne
 const isMinorCheck = (birthDate: string | undefined): boolean => {
   if (!birthDate) return false;
-  try {
-    return differenceInYears(new Date(), new Date(birthDate)) < 18;
-  } catch {
-    return false;
-  }
+  const date = new Date(birthDate);
+  if (isNaN(date.getTime())) return false;
+  return differenceInYears(new Date(), date) < 18;
 };
 
-// Schema Zod
+const getStatus = (socio: Socio): "active" | "pending" | "rejected" => {
+    if (socio.membershipStatus === "active") return "active";
+    if(socio.status) {
+        // This handles cases where status might be something else from old data
+        if (socio.status === 'active' || socio.status === 'pending' || socio.status === 'rejected') {
+            return socio.status;
+        }
+    }
+    return "pending";
+};
+
+
 const formSchema = z
   .object({
-    firstName: z
-      .string()
-      .min(2, { message: "Il nome deve contenere almeno 2 caratteri." }),
-    lastName: z
-      .string()
-      .min(2, { message: "Il cognome deve contenere almeno 2 caratteri." }),
-    gender: z.enum(["male", "female"], {
-      required_error: "È richiesto il genere.",
-    }),
-    email: z
-      .string()
-      .email({ message: "Inserisci un indirizzo email valido." }),
+    firstName: z.string().min(2, { message: "Il nome deve contenere almeno 2 caratteri." }),
+    lastName: z.string().min(2, { message: "Il cognome deve contenere almeno 2 caratteri." }),
+    gender: z.enum(["male", "female"], { required_error: "È richiesto il genere." }),
+    email: z.string().email({ message: "Inserisci un indirizzo email valido." }),
     phone: z.string().optional(),
-    birthPlace: z
-      .string()
-      .min(2, { message: "Inserisci un luogo di nascita valido." }),
-    birthDate: z
-      .string()
-      .refine((date) => date && !isNaN(Date.parse(date)), {
-        message: "Inserisci una data di nascita valida.",
-      }),
-    fiscalCode: z
-      .string()
-      .length(16, { message: "Il codice fiscale deve essere di 16 caratteri." }),
-    address: z
-      .string()
-      .min(5, { message: "Inserisci un indirizzo valido." }),
-    city: z
-      .string()
-      .min(2, { message: "Inserisci una città valida." }),
-    province: z
-      .string()
-      .length(2, { message: "La sigla della provincia deve essere di 2 caratteri." }),
-    postalCode: z
-      .string()
-      .length(5, { message: "Il CAP deve essere di 5 caratteri." }),
+    birthPlace: z.string().min(2, { message: "Inserisci un luogo di nascita valido." }),
+    birthDate: z.string().refine((date) => date && !isNaN(Date.parse(date)), { message: "Inserisci una data di nascita valida." }),
+    fiscalCode: z.string().length(16, { message: "Il codice fiscale deve essere di 16 caratteri." }),
+    address: z.string().min(5, { message: "Inserisci un indirizzo valido." }),
+    city: z.string().min(2, { message: "Inserisci una città valida." }),
+    province: z.string().length(2, { message: "La sigla della provincia deve essere di 2 caratteri." }),
+    postalCode: z.string().length(5, { message: "Il CAP deve essere di 5 caratteri." }),
     whatsappConsent: z.boolean().default(false),
-    privacyConsent: z
-      .boolean()
-      .refine((val) => val === true, { message: "Devi accettare l'informativa." }),
+    privacyConsent: z.boolean().refine((val) => val === true, { message: "Devi accettare l'informativa." }),
     notes: z.string().optional(),
     membershipYear: z.string().optional(),
     membershipFee: z.coerce.number().optional(),
@@ -109,11 +86,7 @@ const formSchema = z
   .refine(
     (data) => {
       if (isMinorCheck(data.birthDate)) {
-        return (
-          !!data.guardianFirstName &&
-          !!data.guardianLastName &&
-          !!data.guardianBirthDate
-        );
+        return !!data.guardianFirstName && !!data.guardianLastName && !!data.guardianBirthDate;
       }
       return true;
     },
@@ -128,37 +101,30 @@ type EditSocioFormProps = {
   onClose: () => void;
 };
 
-// Default values dal socio
-const getDefaultValues = (socio: Socio) => {
-  const isMinor = isMinorCheck(socio.birthDate);
-  const fee = socio.membershipFee ?? (isMinor ? 0 : 10);
-
-  return {
-    ...socio,
-    status: getStatus(socio),
-    birthDate: socio.birthDate ? formatDate(socio.birthDate, "yyyy-MM-dd") : "",
-    guardianBirthDate: socio.guardianBirthDate
-      ? formatDate(socio.guardianBirthDate, "yyyy-MM-dd")
-      : "",
-    requestDate: socio.requestDate
-      ? formatDate(socio.requestDate, "yyyy-MM-dd")
-      : new Date().toISOString().split("T")[0],
-    phone: socio.phone || "",
-    qualifica: socio.qualifica || [],
-    membershipYear: socio.membershipYear || new Date().getFullYear().toString(),
-    membershipFee: fee,
-    notes: socio.notes || "",
-    guardianFirstName: socio.guardianFirstName || "",
-    guardianLastName: socio.guardianLastName || "",
-    privacyConsent: socio.privacyConsent ?? true,
-    whatsappConsent: socio.whatsappConsent ?? false,
-  };
-};
-
 export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firestore = useFirestore();
+
+  const getDefaultValues = useCallback((s: Socio) => {
+    const isMinor = isMinorCheck(s.birthDate);
+    return {
+      ...s,
+      status: getStatus(s),
+      birthDate: s.birthDate ? formatDate(s.birthDate, "yyyy-MM-dd") : "",
+      guardianBirthDate: s.guardianBirthDate ? formatDate(s.guardianBirthDate, "yyyy-MM-dd") : "",
+      requestDate: s.requestDate ? formatDate(s.requestDate, "yyyy-MM-dd") : new Date().toISOString().split("T")[0],
+      phone: s.phone || "",
+      qualifica: s.qualifica || [],
+      membershipYear: s.membershipYear || new Date().getFullYear().toString(),
+      membershipFee: s.membershipFee ?? (isMinor ? 0 : 10),
+      notes: s.notes || "",
+      guardianFirstName: s.guardianFirstName || "",
+      guardianLastName: s.guardianLastName || "",
+      privacyConsent: s.privacyConsent ?? true,
+      whatsappConsent: s.whatsappConsent ?? false,
+    };
+  }, []);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -168,102 +134,84 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
   const birthDateValue = form.watch("birthDate");
   const isMinor = isMinorCheck(birthDateValue);
 
-  const onSubmit = useCallback(
-    async (values: z.infer<typeof formSchema>) => {
-      if (!firestore) {
-        toast({
-          title: "Errore di connessione a Firestore",
-          variant: "destructive",
-        });
-        return;
-      }
-      setIsSubmitting(true);
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!firestore) return;
+    setIsSubmitting(true);
 
-      const originalStatus = getStatus(socio);
-      const newStatus = values.status;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { status, ...dataToSave } = values;
+    const originalStatus = getStatus(socio);
+    const newStatus = values.status;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { status, ...dataToSave } = values;
 
-      const batch = writeBatch(firestore);
+    const batch = writeBatch(firestore);
 
-      try {
+    try {
+        const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
+        const oldDocRef = doc(firestore, oldCollection, socio.id);
+
         if (originalStatus !== newStatus) {
-          const oldCollection =
-            originalStatus === "active" ? "members" : "membership_requests";
-          const oldDocRef = doc(firestore, oldCollection, socio.id);
-          batch.delete(oldDocRef);
+            batch.delete(oldDocRef);
 
-          if (newStatus !== "rejected") {
-            const newCollection =
-              newStatus === "active" ? "members" : "membership_requests";
-            const newDocRef = doc(firestore, newCollection, socio.id);
-
-            let finalData: Partial<Socio> & typeof dataToSave = {
-              ...socio,
-              ...dataToSave,
-              id: socio.id,
-            };
-
-            if (newStatus === "active") {
-              finalData.membershipStatus = "active";
-              finalData.joinDate = socio.joinDate || serverTimestamp();
-              finalData.expirationDate = new Date(
-                new Date().setFullYear(new Date().getFullYear() + 1)
-              ).toISOString();
-              delete finalData.status;
-            } else {
-              finalData.status = "pending";
-              finalData.requestDate = values.requestDate
-                ? new Date(values.requestDate).toISOString()
-                : serverTimestamp();
-              delete finalData.membershipStatus;
-              delete finalData.joinDate;
-              delete finalData.expirationDate;
+            if (newStatus === 'active') {
+                const newDocRef = doc(firestore, 'members', socio.id);
+                const finalData = {
+                    ...socio,
+                    ...dataToSave,
+                    id: socio.id,
+                    membershipStatus: 'active' as const,
+                    joinDate: socio.joinDate || serverTimestamp(),
+                    expirationDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
+                };
+                delete (finalData as any).status;
+                batch.set(newDocRef, finalData, { merge: true });
+            } else if (newStatus === 'pending') {
+                const newDocRef = doc(firestore, 'membership_requests', socio.id);
+                 const finalData = {
+                    ...socio,
+                    ...dataToSave,
+                    id: socio.id,
+                    status: 'pending' as const,
+                    requestDate: values.requestDate ? new Date(values.requestDate).toISOString() : serverTimestamp(),
+                };
+                delete (finalData as any).membershipStatus;
+                delete (finalData as any).joinDate;
+                delete (finalData as any).expirationDate;
+                batch.set(newDocRef, finalData, { merge: true });
             }
-
-            batch.set(newDocRef, finalData, { merge: true });
-          }
-        } else if (newStatus !== "rejected") {
-          const collection =
-            newStatus === "active" ? "members" : "membership_requests";
-          const docRef = doc(firestore, collection, socio.id);
-          batch.set(docRef, dataToSave, { merge: true });
-        } else {
-          const docRef = doc(firestore, "membership_requests", socio.id);
-          batch.delete(docRef);
+        } else { // status has not changed
+             if (newStatus !== 'rejected') {
+                batch.set(oldDocRef, dataToSave, { merge: true });
+             } else {
+                batch.delete(oldDocRef);
+             }
         }
-
+        
         await batch.commit();
 
         toast({
-          title: newStatus === "rejected" ? "Richiesta Rifiutata" : "Socio aggiornato!",
-          description: `I dati di ${getFullName(values)} sono stati salvati.`,
+            title: newStatus === 'rejected' ? "Richiesta Rifiutata" : "Socio aggiornato!",
+            description: `I dati di ${getFullName(values)} sono stati salvati.`,
         });
 
-        setIsSubmitting(false);
-        onClose();
-      } catch (error) {
+    } catch (error) {
         console.error("Error updating document:", error);
         toast({
-          title: "Errore durante l'aggiornamento",
-          description: `Impossibile salvare le modifiche per ${getFullName(
-            values
-          )}.`,
-          variant: "destructive",
+            title: "Errore durante l'aggiornamento",
+            description: `Impossibile salvare le modifiche per ${getFullName(values)}. Dettagli: ${(error as Error).message}`,
+            variant: "destructive",
         });
+    } finally {
         setIsSubmitting(false);
-      }
-    },
-    [firestore, socio, onClose, toast]
-  );
+        onClose();
+    }
+  };
 
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onSubmit, (errors) => console.log(errors))}
+        onSubmit={form.handleSubmit(onSubmit)}
         className="space-y-6 max-h-[85vh] overflow-y-auto p-1 pr-4 mt-4"
       >
-        {/* --- Dati Tesseramento --- */}
         <div>
           <h3 className="text-lg font-medium text-primary mb-2">Dati Tesseramento</h3>
           <div className="space-y-4 rounded-md border p-4">
@@ -285,24 +233,19 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                       <SelectItem value="rejected">Rifiutato</SelectItem>
                     </SelectContent>
                   </Select>
-                  <FormDescription>
-                    Attiva, metti in attesa o rifiuta la richiesta.
-                  </FormDescription>
+                  <FormDescription>Attiva, metti in attesa o rifiuta la richiesta.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-              <FormField
+               <FormField
                 control={form.control}
                 name="membershipYear"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Anno Associativo</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
+                    <FormControl><Input {...field} value={field.value || ''}/></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -313,23 +256,18 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Data Richiesta</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
+                    <FormControl><Input type="date" {...field} value={field.value || ''}/></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-
             <FormField
               control={form.control}
               name="qualifica"
               render={() => (
                 <FormItem>
-                  <div className="mb-4">
-                    <FormLabel className="text-base">Qualifiche Socio</FormLabel>
-                  </div>
+                  <div className="mb-4"><FormLabel className="text-base">Qualifiche Socio</FormLabel></div>
                   <div className="space-y-2">
                     {QUALIFICHE.map((item) => (
                       <FormField
@@ -342,14 +280,11 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                               <Checkbox
                                 checked={field.value?.includes(item) ?? false}
                                 onCheckedChange={(checked) => {
-                                  if (checked === true) {
-                                    field.onChange([...(field.value || []), item]);
+                                  const value = field.value || [];
+                                  if (checked) {
+                                    field.onChange([...value, item]);
                                   } else {
-                                    field.onChange(
-                                      (field.value || []).filter(
-                                        (value: string) => value !== item
-                                      )
-                                    );
+                                    field.onChange(value.filter((v) => v !== item));
                                   }
                                 }}
                               />
@@ -364,7 +299,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 </FormItem>
               )}
             />
-
             <FormField
               control={form.control}
               name="membershipFee"
@@ -375,10 +309,10 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     <Input
                       type="number"
                       step="0.01"
-                      value={field.value ?? ""}
+                      value={field.value ?? ''}
                       onChange={(e) => {
                         const val = e.target.value;
-                        field.onChange(val === "" ? undefined : Number(val));
+                        field.onChange(val === '' ? undefined : Number(val));
                       }}
                     />
                   </FormControl>
@@ -386,24 +320,19 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 </FormItem>
               )}
             />
-
-            <FormField
+             <FormField
               control={form.control}
               name="notes"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Note Amministrative</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} />
-                  </FormControl>
+                  <FormControl><Textarea {...field} value={field.value || ''} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
         </div>
-
-        {/* --- Dati Anagrafici --- */}
         <div>
           <h3 className="text-lg font-medium text-primary mb-2">Dati Anagrafici</h3>
           <div className="space-y-4 rounded-md border p-4">
@@ -414,9 +343,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Nome</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
+                    <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -427,15 +354,12 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Cognome</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
+                    <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-
             <FormField
               control={form.control}
               name="gender"
@@ -443,21 +367,13 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 <FormItem className="space-y-3">
                   <FormLabel>Genere</FormLabel>
                   <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      value={field.value}
-                      className="flex items-center space-x-4"
-                    >
+                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex items-center space-x-4">
                       <FormItem className="flex items-center space-x-2 space-y-0">
-                        <FormControl>
-                          <RadioGroupItem value="male" />
-                        </FormControl>
+                        <FormControl><RadioGroupItem value="male" /></FormControl>
                         <FormLabel className="font-normal">Maschio</FormLabel>
                       </FormItem>
                       <FormItem className="flex items-center space-x-2 space-y-0">
-                        <FormControl>
-                          <RadioGroupItem value="female" />
-                        </FormControl>
+                        <FormControl><RadioGroupItem value="female" /></FormControl>
                         <FormLabel className="font-normal">Femmina</FormLabel>
                       </FormItem>
                     </RadioGroup>
@@ -466,17 +382,14 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 </FormItem>
               )}
             />
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-              <FormField
+               <FormField
                 control={form.control}
                 name="birthDate"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Data di Nascita</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
+                    <FormControl><Input type="date" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -487,36 +400,28 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Luogo di Nascita</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
+                    <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-
-            <FormField
+             <FormField
               control={form.control}
               name="fiscalCode"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Codice Fiscale</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
+                  <FormControl><Input {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
             {isMinor && (
               <>
                 <Separator className="my-6" />
                 <div className="p-4 border border-yellow-500/30 rounded-lg bg-yellow-500/10 space-y-4">
-                  <h3 className="text-md font-semibold text-yellow-300">
-                    Dati del Tutore (Socio Minorenne)
-                  </h3>
+                  <h3 className="text-md font-semibold text-yellow-300">Dati del Tutore (Socio Minorenne)</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -524,9 +429,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Nome Tutore</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
+                          <FormControl><Input {...field} value={field.value || ''}/></FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -537,24 +440,19 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Cognome Tutore</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
+                          <FormControl><Input {...field} value={field.value || ''}/></FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
-
                   <FormField
                     control={form.control}
                     name="guardianBirthDate"
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
                         <FormLabel>Data di Nascita Tutore</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
+                        <FormControl><Input type="date" {...field} value={field.value || ''}/></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -564,8 +462,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             )}
           </div>
         </div>
-
-        {/* --- Dati di Residenza --- */}
         <div>
           <h3 className="text-lg font-medium text-primary mb-2">Dati di Residenza</h3>
           <div className="space-y-4 rounded-md border p-4">
@@ -575,23 +471,19 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Indirizzo</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
+                  <FormControl><Input {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
             <div className="grid grid-cols-12 gap-4">
-              <FormField
+               <FormField
                 control={form.control}
                 name="city"
                 render={({ field }) => (
                   <FormItem className="col-span-12 sm:col-span-7">
                     <FormLabel>Città</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
+                    <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -602,9 +494,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem className="col-span-6 sm:col-span-2">
                     <FormLabel>Prov.</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
+                    <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -615,9 +505,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem className="col-span-6 sm:col-span-3">
                     <FormLabel>CAP</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
+                    <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -625,8 +513,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             </div>
           </div>
         </div>
-
-        {/* --- Contatti --- */}
         <div>
           <h3 className="text-lg font-medium text-primary mb-2">Contatti</h3>
           <div className="space-y-4 rounded-md border p-4">
@@ -637,9 +523,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" {...field} />
-                    </FormControl>
+                    <FormControl><Input type="email" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -650,15 +534,12 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Telefono</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
+                    <FormControl><Input {...field} value={field.value || ''}/></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-
             <FormField
               control={form.control}
               name="whatsappConsent"
@@ -667,26 +548,20 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                   <FormControl>
                     <Checkbox
                       checked={!!field.value}
-                      onCheckedChange={(checked) =>
-                        field.onChange(checked === true)
-                      }
+                      onCheckedChange={(checked) => field.onChange(checked === true)}
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
                     <FormLabel>Consenso WhatsApp</FormLabel>
-                    <FormDescription>
-                      Autorizza l&apos;uso del numero per il gruppo WhatsApp.
-                    </FormDescription>
+                    <FormDescription>Autorizza l&apos;uso del numero per il gruppo WhatsApp.</FormDescription>
                   </div>
                 </FormItem>
               )}
             />
           </div>
         </div>
-
-        {/* --- Privacy --- */}
         <div>
-          <h3 className="text-lg font-medium text-primary mb-2">Consenso Privacy</h3>
+           <h3 className="text-lg font-medium text-primary mb-2">Consenso Privacy</h3>
           <div className="space-y-4 rounded-md border p-4">
             <FormField
               control={form.control}
@@ -696,16 +571,12 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                   <FormControl>
                     <Checkbox
                       checked={!!field.value}
-                      onCheckedChange={(checked) =>
-                        field.onChange(checked === true)
-                      }
+                      onCheckedChange={(checked) => field.onChange(checked === true)}
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
                     <FormLabel>Consenso Privacy</FormLabel>
-                    <FormDescription>
-                      Il socio ha accettato la privacy policy.
-                    </FormDescription>
+                    <FormDescription>Il socio ha accettato la privacy policy.</FormDescription>
                     <FormMessage />
                   </div>
                 </FormItem>
@@ -713,16 +584,8 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             />
           </div>
         </div>
-
         <div className="flex justify-end pt-4 sticky bottom-0 bg-secondary/80 backdrop-blur-sm pb-4 rounded-b-lg">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onClose}
-            disabled={isSubmitting}
-          >
-            Annulla
-          </Button>
+          <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>Annulla</Button>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Salva Modifiche
@@ -732,3 +595,4 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
+
