@@ -193,6 +193,9 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             title: newStatus === 'rejected' ? "Richiesta Rifiutata" : "Socio aggiornato!",
             description: `I dati di ${getFullName(values)} sono stati salvati.`,
         });
+        
+        setIsSubmitting(false);
+        onClose();
 
     } catch (error) {
         console.error("Error updating document:", error);
@@ -201,9 +204,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             description: `Impossibile salvare le modifiche per ${getFullName(values)}. Dettagli: ${(error as Error).message}`,
             variant: "destructive",
         });
-    } finally {
         setIsSubmitting(false);
-        onClose();
     }
   };
   
