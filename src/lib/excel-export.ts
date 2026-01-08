@@ -33,7 +33,8 @@ const formatForExcel = (data: Socio[], isMember: boolean) => {
       'Data Scadenza': formatDate(socio.expirationDate),
       'Quota Versata (€)': socio.membershipFee,
       'Qualifiche': socio.qualifica?.join(', ') || '',
-      'Tutore': socio.guardianFirstName ? `${socio.guardianLastName} ${socio.guardianFirstName}` : '',
+      'Tutore': socio.guardianFirstName ? `${socio.guardianLastName || ''} ${socio.guardianFirstName || ''}`.trim() : '',
+      'Data Nascita Tutore': socio.guardianBirthDate ? formatDate(socio.guardianBirthDate) : '',
       'Note': socio.notes
     };
   });
