@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useCallback, useState } from "react";
+import { differenceInYears } from 'date-fns';
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,13 +24,26 @@ import { useFirestore } from "@/firebase";
 import { doc, writeBatch, serverTimestamp, deleteDoc } from "firebase/firestore";
 import type { Socio } from "@/lib/soci-data";
 import { Textarea } from "./ui/textarea";
-import { getFullName, isMinor, formatDate, getStatus } from "./soci-table";
+import { getFullName, formatDate } from "./soci-table";
 import { Separator } from "./ui/separator";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
-
 const QUALIFICHE = ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
+
+const getStatus = (socio: Socio): 'active' | 'pending' | 'rejected' => {
+    if (socio.membershipStatus === 'active') return 'active';
+    return socio.status || 'pending';
+};
+
+const isMinorCheck = (birthDate: string | undefined): boolean => {
+    if (!birthDate) return false;
+    try {
+        return differenceInYears(new Date(), new Date(birthDate)) < 18;
+    } catch {
+        return false;
+    }
+};
 
 const formSchema = z.object({
   firstName: z.string().min(2, { message: "Il nome deve contenere almeno 2 caratteri." }),
@@ -56,15 +70,14 @@ const formSchema = z.object({
   guardianBirthDate: z.string().optional(),
   status: z.enum(['active', 'pending', 'rejected']),
 }).refine(data => {
-    if (data.birthDate && isMinor(data.birthDate)) {
+    if (isMinorCheck(data.birthDate)) {
         return !!data.guardianFirstName && !!data.guardianLastName && !!data.guardianBirthDate;
     }
     return true;
 }, {
     message: "Per i minorenni, tutti i dati del tutore sono obbligatori.",
-    path: ["guardianFirstName"], // This path is somewhat arbitrary, but required.
+    path: ["guardianFirstName"],
 });
-
 
 type EditSocioFormProps = {
     socio: Socio;
@@ -72,9 +85,8 @@ type EditSocioFormProps = {
 };
 
 const getDefaultValues = (socio: Socio) => {
-    const socioIsMinor = isMinor(socio.birthDate);
+    const socioIsMinor = isMinorCheck(socio.birthDate);
     const calculatedFee = socio.membershipFee ?? (socioIsMinor ? 0 : 10);
-    const defaultMembershipFee = socio.membershipFee ?? calculatedFee;
     
     return {
         ...socio,
@@ -85,7 +97,7 @@ const getDefaultValues = (socio: Socio) => {
         phone: socio.phone || '',
         qualifica: socio.qualifica || [],
         membershipYear: socio.membershipYear || new Date().getFullYear().toString(),
-        membershipFee: defaultMembershipFee,
+        membershipFee: socio.membershipFee ?? calculatedFee,
         notes: socio.notes || "",
         guardianFirstName: socio.guardianFirstName || "",
         guardianLastName: socio.guardianLastName || "",
@@ -104,7 +116,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
   });
 
   const birthDateValue = form.watch('birthDate');
-  const socioIsMinor = isMinor(birthDateValue);
+  const socioIsMinor = isMinorCheck(birthDateValue);
 
   const onSubmit = useCallback(async (values: z.infer<typeof formSchema>) => {
     if (!firestore) {
@@ -124,20 +136,16 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
             const oldDocRef = doc(firestore, oldCollection, socio.id);
             
-            // 1. Delete from the old location
-            batch.delete(oldDocRef);
-
             if (newStatus === 'rejected') {
-                // If rejected, just delete and we are done.
-                // We'll show a toast and close.
+                batch.delete(oldDocRef);
             } else {
-                // 2. Add to the new location
+                batch.delete(oldDocRef);
                 const newCollection = newStatus === 'active' ? 'members' : 'membership_requests';
                 const newDocRef = doc(firestore, newCollection, socio.id);
                 
                 let finalData: any = { 
-                    ...socio, // carry over original data
-                    ...dataToSave, // apply form changes
+                    ...socio,
+                    ...dataToSave,
                     id: socio.id 
                 };
 
@@ -145,32 +153,26 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     finalData.membershipStatus = 'active';
                     finalData.joinDate = socio.joinDate || serverTimestamp();
                     finalData.expirationDate = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
-                } else { // pending
+                    delete finalData.status;
+                } else {
                     finalData.status = 'pending';
                     finalData.requestDate = values.requestDate ? new Date(values.requestDate).toISOString() : serverTimestamp();
-                    // Remove member-specific fields if moving back to requests
                     delete finalData.membershipStatus;
                     delete finalData.joinDate;
                     delete finalData.expirationDate;
                 }
                 batch.set(newDocRef, finalData, { merge: true });
             }
-
         } else if (newStatus !== 'rejected') {
-            // Status hasn't changed, just update the document in its current collection
             const collection = newStatus === 'active' ? 'members' : 'membership_requests';
             const docRef = doc(firestore, collection, socio.id);
             batch.set(docRef, dataToSave, { merge: true });
-        } else {
-            // newStatus is 'rejected' and originalStatus was also 'rejected' (or something else)
-            // This case implies we just need to delete the request if it exists.
-             const oldDocRef = doc(firestore, 'membership_requests', socio.id);
-             await deleteDoc(oldDocRef); // Use await for standalone delete
+        } else { // newStatus is 'rejected'
+             const docRef = doc(firestore, 'membership_requests', socio.id);
+             batch.delete(docRef);
         }
       
-      if(newStatus !== 'rejected'){
-        await batch.commit();
-      }
+      await batch.commit();
 
       toast({
           title: newStatus === 'rejected' ? "Richiesta Rifiutata" : "Socio aggiornato!",
