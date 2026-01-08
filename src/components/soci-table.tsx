@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, memo } from "react";
@@ -120,7 +119,7 @@ const SocioTableRow = memo(({
   const handleDelete = async () => {
     if (!firestore) return;
     
-    const collectionName = status === 'active' ? 'members' : 'membership_requests';
+    const collectionName = getStatus(socio) === 'active' ? 'members' : 'membership_requests';
     const docRef = doc(firestore, collectionName, socio.id);
     
     try {
@@ -129,7 +128,6 @@ const SocioTableRow = memo(({
           title: "Socio rimosso",
           description: `${getFullName(socio)} è stato rimosso dalla lista.`,
       });
-      // No need for onDelete callback, useCollection will update the UI
     } catch (error) {
         console.error("Error deleting socio:", error);
         toast({
@@ -261,7 +259,7 @@ interface SociTableProps {
   onEdit: (socio: Socio) => void;
 }
 
-export function SociTable({ soci, onEdit }: SociTableProps) {
+const SociTableComponent = ({ soci, onEdit }: SociTableProps) => {
   const [filter, setFilter] = useState('');
 
   const filteredSoci = useMemo(() => soci.filter(socio => {
@@ -317,5 +315,5 @@ export function SociTable({ soci, onEdit }: SociTableProps) {
   );
 }
 
-
+export const SociTable = memo(SociTableComponent);
     

@@ -1,10 +1,9 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useCallback, useState, useMemo, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { differenceInYears } from "date-fns";
 import { doc, writeBatch, serverTimestamp, deleteDoc } from "firebase/firestore";
 
@@ -48,7 +47,6 @@ const isMinorCheck = (birthDate: string | undefined): boolean => {
 const getStatus = (socio: Socio): "active" | "pending" | "rejected" => {
     if (socio.membershipStatus === "active") return "active";
     if(socio.status) {
-        // This handles cases where status might be something else from old data
         if (socio.status === 'active' || socio.status === 'pending' || socio.status === 'rejected') {
             return socio.status;
         }
@@ -149,9 +147,15 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
         const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
         const oldDocRef = doc(firestore, oldCollection, socio.id);
 
-        if (originalStatus !== newStatus) {
+        if (newStatus === 'rejected') {
+            // If the new status is 'rejected', we just delete the document from its original collection.
+            batch.delete(oldDocRef);
+        } else if (originalStatus !== newStatus) {
+            // Status has changed (and it's not to 'rejected'), so we move the document.
+            // Delete from the old collection.
             batch.delete(oldDocRef);
 
+            // Add to the new collection.
             if (newStatus === 'active') {
                 const newDocRef = doc(firestore, 'members', socio.id);
                 const finalData = {
@@ -178,12 +182,9 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 delete (finalData as any).expirationDate;
                 batch.set(newDocRef, finalData, { merge: true });
             }
-        } else { // status has not changed
-             if (newStatus !== 'rejected') {
-                batch.set(oldDocRef, dataToSave, { merge: true });
-             } else {
-                batch.delete(oldDocRef);
-             }
+        } else { 
+             // Status has not changed, just update the document in place.
+             batch.set(oldDocRef, dataToSave, { merge: true });
         }
         
         await batch.commit();
@@ -205,6 +206,10 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
         onClose();
     }
   };
+  
+  useEffect(() => {
+    form.reset(getDefaultValues(socio));
+  }, [socio, form, getDefaultValues]);
 
   return (
     <Form {...form}>
@@ -595,4 +600,3 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
-
