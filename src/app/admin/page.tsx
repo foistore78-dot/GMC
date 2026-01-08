@@ -16,7 +16,7 @@ import { getFullName } from "@/components/soci-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { exportToExcel } from "@/lib/excel-export";
-import { importFromExcel } from "@/lib/excel-import";
+import { importFromExcel, type ImportResult } from "@/lib/excel-import";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -176,10 +176,18 @@ export default function AdminPage() {
     if (file && firestore) {
       setIsImporting(true);
       try {
-        const { importedCount, errorCount } = await importFromExcel(file, firestore);
+        const result: ImportResult = await importFromExcel(file, firestore);
+        const { createdCount, updatedTessere, errorCount } = result;
+        
+        let description = `Creati ${createdCount} nuovi soci. Aggiornati ${updatedTessere.length} soci esistenti.`;
+        if (errorCount > 0) {
+          description += ` ${errorCount} righe con errori sono state saltate.`;
+        }
+
         toast({
           title: "Importazione Completata",
-          description: `${importedCount} soci importati con successo. ${errorCount > 0 ? `${errorCount} errori riscontrati.` : ''}`,
+          description: description,
+          duration: 8000,
         });
       } catch (error) {
         console.error("Import error:", error);

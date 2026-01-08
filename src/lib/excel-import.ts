@@ -84,8 +84,13 @@ const excelRowToSocio = (row: any): PartialSocioWithStatus => {
     return { ...socio, statusForImport };
 };
 
+export interface ImportResult {
+  createdCount: number;
+  updatedTessere: string[];
+  errorCount: number;
+}
 
-export const importFromExcel = async (file: File, firestore: Firestore): Promise<{ importedCount: number; errorCount: number }> => {
+export const importFromExcel = async (file: File, firestore: Firestore): Promise<ImportResult> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
@@ -99,11 +104,10 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
             throw new Error('Il file Excel non contiene fogli di lavoro.');
         }
 
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const worksheet = workbook.Sheets[sheetName] ?? workbook.Sheets[workbook.SheetNames[0]];
         
         if (!worksheet) {
-            // This case should ideally not happen if SheetNames is not empty, but it's good practice
-            throw new Error(`Impossibile leggere il primo foglio di lavoro dal file.`);
+            throw new Error(`Il file Excel deve contenere un foglio chiamato "${sheetName}" o almeno un foglio di lavoro.`);
         }
 
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
@@ -133,7 +137,8 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
 
 
         const batch = writeBatch(firestore);
-        let importedCount = 0;
+        let createdCount = 0;
+        const updatedTessere: string[] = [];
         let errorCount = 0;
 
         for (const row of jsonData) {
@@ -150,14 +155,20 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
                 
                 let docRef;
                 let existingData: Partial<Socio> = {};
+                let wasFound = false;
 
                 if (isMember) { // 'active' or 'expired'
                     if (socioData.tessera && existingMembersMap.has(socioData.tessera)) {
                         const existing = existingMembersMap.get(socioData.tessera)!;
                         docRef = doc(firestore, 'members', existing.id);
                         existingData = existing.data;
+                        wasFound = true;
+                        if (!updatedTessere.includes(socioData.tessera)) {
+                            updatedTessere.push(socioData.tessera);
+                        }
                     } else {
                         docRef = doc(membersCollection); // Create new member if no tessera or not found
+                        createdCount++;
                     }
                     const dataToSet: any = {
                         ...existingData,
@@ -175,8 +186,10 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
                         const existing = existingRequestsMap.get(requestKey)!;
                         docRef = doc(firestore, 'membership_requests', existing.id);
                         existingData = existing.data;
+                        wasFound = true;
                     } else {
                         docRef = doc(requestsCollection); // Create new request
+                        createdCount++;
                     }
                      const dataToSet: any = {
                         ...existingData,
@@ -189,8 +202,6 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
                     batch.set(docRef, dataToSet, { merge: true });
                 }
 
-                importedCount++;
-
             } catch (singleError) {
                 console.error("Errore durante l'elaborazione di una riga:", row, singleError);
                 errorCount++;
@@ -198,7 +209,7 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
         }
 
         await batch.commit();
-        resolve({ importedCount, errorCount });
+        resolve({ createdCount, updatedTessere, errorCount });
 
       } catch (error) {
         console.error("Errore durante l'elaborazione del file Excel", error);
