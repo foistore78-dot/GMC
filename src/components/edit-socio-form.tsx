@@ -1,11 +1,10 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useCallback, useState } from "react";
-import { differenceInYears, parseISO } from 'date-fns';
+import { differenceInYears } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,256 +21,308 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useFirestore } from "@/firebase";
-import { doc, writeBatch, serverTimestamp, deleteDoc } from "firebase/firestore";
+import { doc, writeBatch, serverTimestamp } from "firebase/firestore";
 import type { Socio } from "@/lib/soci-data";
 import { Textarea } from "./ui/textarea";
 import { getFullName, formatDate } from "./soci-table";
 import { Separator } from "./ui/separator";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 
 const QUALIFICHE = ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
 
-// This function determines the current status of the member/request
-const getStatus = (socio: Socio): 'active' | 'pending' | 'rejected' => {
-    if (socio.membershipStatus === 'active') return 'active';
-    return socio.status || 'pending';
+// Determina lo status corrente del socio
+const getStatus = (socio: Socio): "active" | "pending" | "rejected" => {
+  if (socio.membershipStatus === "active") return "active";
+  return socio.status || "pending";
 };
 
-// This function checks if a person is a minor based on their birth date.
-const isMinorCheck = (birthDate: string | undefined | null): boolean => {
-    if (!birthDate) return false;
-    try {
-        const date = parseISO(birthDate);
-        return differenceInYears(new Date(), date) < 18;
-    } catch {
-        return false;
-    }
-};
-
-const toISODateString = (value: any): string | undefined => {
-  if (!value) return undefined;
+// Controlla se è minorenne
+const isMinorCheck = (birthDate: string | undefined): boolean => {
+  if (!birthDate) return false;
   try {
-    const date = value.toDate ? value.toDate() : new Date(value);
-    if (isNaN(date.getTime())) return undefined;
-    return date.toISOString().split('T')[0];
+    return differenceInYears(new Date(), new Date(birthDate)) < 18;
   } catch {
-    return undefined;
+    return false;
   }
 };
 
-
-// Zod schema for form validation
-const formSchema = z.object({
-  firstName: z.string().min(2, { message: "Il nome deve contenere almeno 2 caratteri." }),
-  lastName: z.string().min(2, { message: "Il cognome deve contenere almeno 2 caratteri." }),
-  gender: z.enum(["male", "female"], { required_error: "È richiesto il genere." }),
-  email: z.string().email({ message: "Inserisci un indirizzo email valido." }),
-  phone: z.string().optional(),
-  birthPlace: z.string().min(2, { message: "Inserisci un luogo di nascita valido." }),
-  birthDate: z.string().refine((date) => date && !isNaN(Date.parse(date)), { message: "Inserisci una data di nascita valida." }),
-  fiscalCode: z.string().length(16, { message: "Il codice fiscale deve essere di 16 caratteri." }),
-  address: z.string().min(5, { message: "Inserisci un indirizzo valido." }),
-  city: z.string().min(2, { message: "Inserisci una città valida." }),
-  province: z.string().length(2, { message: "La sigla della provincia deve essere di 2 caratteri." }),
-  postalCode: z.string().length(5, { message: "Il CAP deve essere di 5 caratteri." }),
-  whatsappConsent: z.boolean().default(false),
-  privacyConsent: z.boolean().refine(val => val === true, { message: "Devi accettare l'informativa."}),
-  notes: z.string().optional(),
-  membershipYear: z.string().optional(),
-  membershipFee: z.coerce.number().optional(),
-  qualifica: z.array(z.string()).optional(),
-  requestDate: z.string().optional(),
-  guardianFirstName: z.string().optional(),
-  guardianLastName: z.string().optional(),
-  guardianBirthDate: z.string().optional(),
-  status: z.enum(['active', 'pending', 'rejected']),
-}).refine(data => {
-    if (isMinorCheck(data.birthDate)) {
-        return !!data.guardianFirstName && !!data.guardianLastName && !!data.guardianBirthDate;
+// Schema Zod
+const formSchema = z
+  .object({
+    firstName: z
+      .string()
+      .min(2, { message: "Il nome deve contenere almeno 2 caratteri." }),
+    lastName: z
+      .string()
+      .min(2, { message: "Il cognome deve contenere almeno 2 caratteri." }),
+    gender: z.enum(["male", "female"], {
+      required_error: "È richiesto il genere.",
+    }),
+    email: z
+      .string()
+      .email({ message: "Inserisci un indirizzo email valido." }),
+    phone: z.string().optional(),
+    birthPlace: z
+      .string()
+      .min(2, { message: "Inserisci un luogo di nascita valido." }),
+    birthDate: z
+      .string()
+      .refine((date) => date && !isNaN(Date.parse(date)), {
+        message: "Inserisci una data di nascita valida.",
+      }),
+    fiscalCode: z
+      .string()
+      .length(16, { message: "Il codice fiscale deve essere di 16 caratteri." }),
+    address: z
+      .string()
+      .min(5, { message: "Inserisci un indirizzo valido." }),
+    city: z
+      .string()
+      .min(2, { message: "Inserisci una città valida." }),
+    province: z
+      .string()
+      .length(2, { message: "La sigla della provincia deve essere di 2 caratteri." }),
+    postalCode: z
+      .string()
+      .length(5, { message: "Il CAP deve essere di 5 caratteri." }),
+    whatsappConsent: z.boolean().default(false),
+    privacyConsent: z
+      .boolean()
+      .refine((val) => val === true, { message: "Devi accettare l'informativa." }),
+    notes: z.string().optional(),
+    membershipYear: z.string().optional(),
+    membershipFee: z.coerce.number().optional(),
+    qualifica: z.array(z.string()).optional(),
+    requestDate: z.string().optional(),
+    guardianFirstName: z.string().optional(),
+    guardianLastName: z.string().optional(),
+    guardianBirthDate: z.string().optional(),
+    status: z.enum(["active", "pending", "rejected"]),
+  })
+  .refine(
+    (data) => {
+      if (isMinorCheck(data.birthDate)) {
+        return (
+          !!data.guardianFirstName &&
+          !!data.guardianLastName &&
+          !!data.guardianBirthDate
+        );
+      }
+      return true;
+    },
+    {
+      message: "Per i minorenni, tutti i dati del tutore sono obbligatori.",
+      path: ["guardianFirstName"],
     }
-    return true;
-}, {
-    message: "Per i minorenni, tutti i dati del tutore sono obbligatori.",
-    path: ["guardianFirstName"],
-});
+  );
 
 type EditSocioFormProps = {
-    socio: Socio;
-    onClose: () => void;
+  socio: Socio;
+  onClose: () => void;
 };
 
-// Gets default values for the form from the socio object.
+// Default values dal socio
 const getDefaultValues = (socio: Socio) => {
-    const isMinor = isMinorCheck(socio.birthDate);
-    const fee = socio.membershipFee ?? (isMinor ? 0 : 10);
-    
-    return {
-        ...socio,
-        status: getStatus(socio),
-        birthDate: toISODateString(socio.birthDate) || '',
-        guardianBirthDate: toISODateString(socio.guardianBirthDate) || '',
-        requestDate: toISODateString(socio.requestDate) || new Date().toISOString().split('T')[0],
-        phone: socio.phone || '',
-        qualifica: socio.qualifica || [],
-        membershipYear: socio.membershipYear || new Date().getFullYear().toString(),
-        membershipFee: fee,
-        notes: socio.notes || "",
-        guardianFirstName: socio.guardianFirstName || "",
-        guardianLastName: socio.guardianLastName || "",
-        privacyConsent: socio.privacyConsent ?? true, // Assume consent if editing
-    };
+  const isMinor = isMinorCheck(socio.birthDate);
+  const fee = socio.membershipFee ?? (isMinor ? 0 : 10);
+
+  return {
+    ...socio,
+    status: getStatus(socio),
+    birthDate: socio.birthDate ? formatDate(socio.birthDate, "yyyy-MM-dd") : "",
+    guardianBirthDate: socio.guardianBirthDate
+      ? formatDate(socio.guardianBirthDate, "yyyy-MM-dd")
+      : "",
+    requestDate: socio.requestDate
+      ? formatDate(socio.requestDate, "yyyy-MM-dd")
+      : new Date().toISOString().split("T")[0],
+    phone: socio.phone || "",
+    qualifica: socio.qualifica || [],
+    membershipYear: socio.membershipYear || new Date().getFullYear().toString(),
+    membershipFee: fee,
+    notes: socio.notes || "",
+    guardianFirstName: socio.guardianFirstName || "",
+    guardianLastName: socio.guardianLastName || "",
+    privacyConsent: socio.privacyConsent ?? true,
+    whatsappConsent: socio.whatsappConsent ?? false,
+  };
 };
 
 export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firestore = useFirestore();
-  
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: getDefaultValues(socio),
   });
 
-  const birthDateValue = form.watch('birthDate');
+  const birthDateValue = form.watch("birthDate");
   const isMinor = isMinorCheck(birthDateValue);
 
-  // Form submission handler
-  const onSubmit = useCallback(async (values: z.infer<typeof formSchema>) => {
-    if (!firestore) {
-      toast({ title: "Errore di connessione a Firestore", variant: "destructive" });
-      return;
-    }
-    setIsSubmitting(true);
-    
-    const originalStatus = getStatus(socio);
-    const newStatus = values.status;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { status, ...dataToSave } = values;
+  const onSubmit = useCallback(
+    async (values: z.infer<typeof formSchema>) => {
+      if (!firestore) {
+        toast({
+          title: "Errore di connessione a Firestore",
+          variant: "destructive",
+        });
+        return;
+      }
+      setIsSubmitting(true);
 
-    const batch = writeBatch(firestore);
+      const originalStatus = getStatus(socio);
+      const newStatus = values.status;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { status, ...dataToSave } = values;
 
-    try {
-      // Logic to handle status change
-      if (originalStatus !== newStatus) {
-        // Determine the source collection based on original status
-        const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
-        const oldDocRef = doc(firestore, oldCollection, socio.id);
+      const batch = writeBatch(firestore);
 
-        // First, delete the old document from its original location
-        batch.delete(oldDocRef);
+      try {
+        if (originalStatus !== newStatus) {
+          const oldCollection =
+            originalStatus === "active" ? "members" : "membership_requests";
+          const oldDocRef = doc(firestore, oldCollection, socio.id);
+          batch.delete(oldDocRef);
 
-        // If the new status is not 'rejected', create a new document in the target collection
-        if (newStatus !== 'rejected') {
-          const newCollection = newStatus === 'active' ? 'members' : 'membership_requests';
-          const newDocRef = doc(firestore, newCollection, socio.id);
-          
-          let finalData: Partial<Socio> & typeof dataToSave = { 
-              ...socio, // carry over old data
-              ...dataToSave, // apply new data
-              id: socio.id 
-          };
+          if (newStatus !== "rejected") {
+            const newCollection =
+              newStatus === "active" ? "members" : "membership_requests";
+            const newDocRef = doc(firestore, newCollection, socio.id);
 
-          if (newStatus === 'active') {
-              finalData.membershipStatus = 'active';
+            let finalData: Partial<Socio> & typeof dataToSave = {
+              ...socio,
+              ...dataToSave,
+              id: socio.id,
+            };
+
+            if (newStatus === "active") {
+              finalData.membershipStatus = "active";
               finalData.joinDate = socio.joinDate || serverTimestamp();
-              finalData.expirationDate = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
-              delete finalData.status; // Remove request-specific status
-          } else { // pending
-              finalData.status = 'pending';
-              finalData.requestDate = values.requestDate ? toISODateString(values.requestDate) : serverTimestamp();
-              // Remove member-specific fields
+              finalData.expirationDate = new Date(
+                new Date().setFullYear(new Date().getFullYear() + 1)
+              ).toISOString();
+              delete finalData.status;
+            } else {
+              finalData.status = "pending";
+              finalData.requestDate = values.requestDate
+                ? new Date(values.requestDate).toISOString()
+                : serverTimestamp();
               delete finalData.membershipStatus;
               delete finalData.joinDate;
               delete finalData.expirationDate;
+            }
+
+            batch.set(newDocRef, finalData, { merge: true });
           }
-          batch.set(newDocRef, finalData, { merge: true });
-        }
-      } else if (newStatus !== 'rejected') {
-        // If status hasn't changed, just update the document in its current collection
-        const collection = newStatus === 'active' ? 'members' : 'membership_requests';
-        const docRef = doc(firestore, collection, socio.id);
-        batch.set(docRef, dataToSave, { merge: true });
-      } else { // newStatus is 'rejected' and original was also 'rejected' or 'pending'
-          const docRef = doc(firestore, 'membership_requests', socio.id);
+        } else if (newStatus !== "rejected") {
+          const collection =
+            newStatus === "active" ? "members" : "membership_requests";
+          const docRef = doc(firestore, collection, socio.id);
+          batch.set(docRef, dataToSave, { merge: true });
+        } else {
+          const docRef = doc(firestore, "membership_requests", socio.id);
           batch.delete(docRef);
-      }
-      
-      await batch.commit();
+        }
 
-      toast({
-          title: newStatus === 'rejected' ? "Richiesta Rifiutata" : "Socio aggiornato!",
+        await batch.commit();
+
+        toast({
+          title: newStatus === "rejected" ? "Richiesta Rifiutata" : "Socio aggiornato!",
           description: `I dati di ${getFullName(values)} sono stati salvati.`,
-      });
-      
-      onClose(); // Close the form on success
-
-    } catch(error) {
-        console.error("Error updating document:", error);
-        toast({ 
-          title: "Errore durante l'aggiornamento", 
-          description: `Impossibile salvare le modifiche per ${getFullName(values)}.`, 
-          variant: "destructive" 
         });
-    } finally {
-        setIsSubmitting(false);
-    }
-  }, [firestore, socio, onClose, toast]);
 
+        setIsSubmitting(false);
+        onClose();
+      } catch (error) {
+        console.error("Error updating document:", error);
+        toast({
+          title: "Errore durante l'aggiornamento",
+          description: `Impossibile salvare le modifiche per ${getFullName(
+            values
+          )}.`,
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+      }
+    },
+    [firestore, socio, onClose, toast]
+  );
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit, (errors) => console.log(errors))} className="space-y-6 max-h-[85vh] overflow-y-auto p-1 pr-4 mt-4">
-        
-        {/* --- Membership Data --- */}
+      <form
+        onSubmit={form.handleSubmit(onSubmit, (errors) => console.log(errors))}
+        className="space-y-6 max-h-[85vh] overflow-y-auto p-1 pr-4 mt-4"
+      >
+        {/* --- Dati Tesseramento --- */}
         <div>
           <h3 className="text-lg font-medium text-primary mb-2">Dati Tesseramento</h3>
           <div className="space-y-4 rounded-md border p-4">
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Stato</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona uno stato" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="active">Attivo</SelectItem>
+                      <SelectItem value="pending">In attesa</SelectItem>
+                      <SelectItem value="rejected">Rifiutato</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Attiva, metti in attesa o rifiuta la richiesta.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
               <FormField
                 control={form.control}
-                name="status"
+                name="membershipYear"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Stato</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona uno stato" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="active">Attivo</SelectItem>
-                        <SelectItem value="pending">In attesa</SelectItem>
-                        <SelectItem value="rejected">Rifiutato</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      Attiva, metti in attesa o rifiuta la richiesta.
-                    </FormDescription>
+                    <FormLabel>Anno Associativo</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                <FormField control={form.control} name="membershipYear" render={({ field }) => (
-                    <FormItem><FormLabel>Anno Associativo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )}/>
-                <FormField
-                    control={form.control}
-                    name="requestDate"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Data Richiesta</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                />
+              <FormField
+                control={form.control}
+                name="requestDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Data Richiesta</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-             <FormField
+
+            <FormField
               control={form.control}
               name="qualifica"
               render={() => (
@@ -285,27 +336,27 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                         key={item}
                         control={form.control}
                         name="qualifica"
-                        render={({ field }) => {
-                          return (
-                            <FormItem key={item} className="flex flex-row items-start space-x-3 space-y-0">
-                              <FormControl>
-                                <Checkbox
-                                  checked={field.value?.includes(item)}
-                                  onCheckedChange={(checked) => {
-                                    const isChecked = checked === true;
-                                    const currentValue = field.value || [];
-                                    if (isChecked) {
-                                      field.onChange([...currentValue, item]);
-                                    } else {
-                                      field.onChange(currentValue.filter((value) => value !== item));
-                                    }
-                                  }}
-                                />
-                              </FormControl>
-                              <FormLabel className="font-normal">{item}</FormLabel>
-                            </FormItem>
-                          );
-                        }}
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value?.includes(item) ?? false}
+                                onCheckedChange={(checked) => {
+                                  if (checked === true) {
+                                    field.onChange([...(field.value || []), item]);
+                                  } else {
+                                    field.onChange(
+                                      (field.value || []).filter(
+                                        (value: string) => value !== item
+                                      )
+                                    );
+                                  }
+                                }}
+                              />
+                            </FormControl>
+                            <FormLabel className="font-normal">{item}</FormLabel>
+                          </FormItem>
+                        )}
                       />
                     ))}
                   </div>
@@ -313,182 +364,365 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 </FormItem>
               )}
             />
-            <FormField 
-                control={form.control} 
-                name="membershipFee" 
-                render={({ field: { onChange, value, ...restField } }) => (
+
+            <FormField
+              control={form.control}
+              name="membershipFee"
+              render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Quota Versata (€)</FormLabel>
-                    <FormControl>
-                        <Input 
-                            type="number"
-                            step="0.01"
-                            {...restField}
-                            value={value ?? ''}
-                            onChange={(e) => {
-                                const val = e.target.value;
-                                onChange(val === '' ? undefined : parseFloat(val));
-                            }}
-                        />
-                    </FormControl>
-                    <FormMessage />
+                  <FormLabel>Quota Versata (€)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={field.value ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        field.onChange(val === "" ? undefined : Number(val));
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
-            )}/>
-            <FormField control={form.control} name="notes" render={({ field }) => (
-                <FormItem><FormLabel>Note Amministrative</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
-            )}/>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Note Amministrative</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
         </div>
-        
-        {/* --- Personal Data --- */}
+
+        {/* --- Dati Anagrafici --- */}
         <div>
-            <h3 className="text-lg font-medium text-primary mb-2">Dati Anagrafici</h3>
-            <div className="space-y-4 rounded-md border p-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="firstName" render={({ field }) => (
-                        <FormItem><FormLabel>Nome</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )}/>
-                    <FormField control={form.control} name="lastName" render={({ field }) => (
-                        <FormItem><FormLabel>Cognome</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )}/>
-                </div>
-                 <FormField
-                    control={form.control}
-                    name="gender"
-                    render={({ field }) => (
-                      <FormItem className="space-y-3">
-                        <FormLabel>Genere</FormLabel>
+          <h3 className="text-lg font-medium text-primary mb-2">Dati Anagrafici</h3>
+          <div className="space-y-4 rounded-md border p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="firstName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cognome</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="gender"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Genere</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      className="flex items-center space-x-4"
+                    >
+                      <FormItem className="flex items-center space-x-2 space-y-0">
                         <FormControl>
-                          <RadioGroup onValueChange={field.onChange} value={field.value} className="flex items-center space-x-4">
-                            <FormItem className="flex items-center space-x-2 space-y-0">
-                              <FormControl><RadioGroupItem value="male" /></FormControl>
-                              <FormLabel className="font-normal">Maschio</FormLabel>
-                            </FormItem>
-                            <FormItem className="flex items-center space-x-2 space-y-0">
-                              <FormControl><RadioGroupItem value="female" /></FormControl>
-                              <FormLabel className="font-normal">Femmina</FormLabel>
-                            </FormItem>
-                          </RadioGroup>
+                          <RadioGroupItem value="male" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Maschio</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="female" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Femmina</FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+              <FormField
+                control={form.control}
+                name="birthDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Data di Nascita</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="birthPlace"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Luogo di Nascita</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="fiscalCode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Codice Fiscale</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {isMinor && (
+              <>
+                <Separator className="my-6" />
+                <div className="p-4 border border-yellow-500/30 rounded-lg bg-yellow-500/10 space-y-4">
+                  <h3 className="text-md font-semibold text-yellow-300">
+                    Dati del Tutore (Socio Minorenne)
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="guardianFirstName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nome Tutore</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="guardianLastName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cognome Tutore</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="guardianBirthDate"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Data di Nascita Tutore</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                    <FormField control={form.control} name="birthDate" render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>Data di Nascita</FormLabel>
-                          <FormControl><Input type="date" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                    )}/>
-                    <FormField control={form.control} name="birthPlace" render={({ field }) => (
-                        <FormItem><FormLabel>Luogo di Nascita</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )}/>
                 </div>
-                <FormField control={form.control} name="fiscalCode" render={({ field }) => (
-                    <FormItem><FormLabel>Codice Fiscale</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )}/>
-                {isMinor && (
-                  <>
-                    <Separator className="my-6" />
-                    <div className="p-4 border border-yellow-500/30 rounded-lg bg-yellow-500/10 space-y-4">
-                        <h3 className="text-md font-semibold text-yellow-300">Dati del Tutore (Socio Minorenne)</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField control={form.control} name="guardianFirstName" render={({ field }) => (
-                                <FormItem><FormLabel>Nome Tutore</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                            )}/>
-                            <FormField control={form.control} name="guardianLastName" render={({ field }) => (
-                                <FormItem><FormLabel>Cognome Tutore</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                            )}/>
-                        </div>
-                         <FormField control={form.control} name="guardianBirthDate" render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                                <FormLabel>Data di Nascita Tutore</FormLabel>
-                                <FormControl><Input type="date" {...field} /></FormControl>
-                                <FormMessage />
-                            </FormItem>
-                         )}/>
-                    </div>
-                  </>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* --- Dati di Residenza --- */}
+        <div>
+          <h3 className="text-lg font-medium text-primary mb-2">Dati di Residenza</h3>
+          <div className="space-y-4 rounded-md border p-4">
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Indirizzo</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="grid grid-cols-12 gap-4">
+              <FormField
+                control={form.control}
+                name="city"
+                render={({ field }) => (
+                  <FormItem className="col-span-12 sm:col-span-7">
+                    <FormLabel>Città</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )}
+              />
+              <FormField
+                control={form.control}
+                name="province"
+                render={({ field }) => (
+                  <FormItem className="col-span-6 sm:col-span-2">
+                    <FormLabel>Prov.</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="postalCode"
+                render={({ field }) => (
+                  <FormItem className="col-span-6 sm:col-span-3">
+                    <FormLabel>CAP</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
+          </div>
         </div>
 
-        {/* --- Residence Data --- */}
+        {/* --- Contatti --- */}
         <div>
-            <h3 className="text-lg font-medium text-primary mb-2">Dati di Residenza</h3>
-            <div className="space-y-4 rounded-md border p-4">
-                 <FormField control={form.control} name="address" render={({ field }) => (
-                    <FormItem><FormLabel>Indirizzo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )}/>
-                 <div className="grid grid-cols-12 gap-4">
-                     <FormField control={form.control} name="city" render={({ field }) => (
-                        <FormItem className="col-span-12 sm:col-span-7"><FormLabel>Città</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )}/>
-                    <FormField control={form.control} name="province" render={({ field }) => (
-                        <FormItem className="col-span-6 sm:col-span-2"><FormLabel>Prov.</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )}/>
-                    <FormField control={form.control} name="postalCode" render={({ field }) => (
-                        <FormItem className="col-span-6 sm:col-span-3"><FormLabel>CAP</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )}/>
-                </div>
+          <h3 className="text-lg font-medium text-primary mb-2">Contatti</h3>
+          <div className="space-y-4 rounded-md border p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefono</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-        </div>
-        
-        {/* --- Contact Info --- */}
-        <div>
-            <h3 className="text-lg font-medium text-primary mb-2">Contatti</h3>
-            <div className="space-y-4 rounded-md border p-4">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="email" render={({ field }) => (
-                        <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
-                    )}/>
-                    <FormField control={form.control} name="phone" render={({ field }) => (
-                        <FormItem><FormLabel>Telefono</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )}/>
-                </div>
-                 <FormField control={form.control} name="whatsappConsent" render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                        <FormControl>
-                            <Checkbox 
-                                checked={!!field.value} 
-                                onCheckedChange={(checked) => field.onChange(checked === true)}
-                            />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                            <FormLabel>Consenso WhatsApp</FormLabel>
-                            <FormDescription>Autorizza l'uso del numero per il gruppo WhatsApp.</FormDescription>
-                        </div>
-                    </FormItem>
-                )}/>
-            </div>
+
+            <FormField
+              control={form.control}
+              name="whatsappConsent"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                  <FormControl>
+                    <Checkbox
+                      checked={!!field.value}
+                      onCheckedChange={(checked) =>
+                        field.onChange(checked === true)
+                      }
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>Consenso WhatsApp</FormLabel>
+                    <FormDescription>
+                      Autorizza l&apos;uso del numero per il gruppo WhatsApp.
+                    </FormDescription>
+                  </div>
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
 
-        {/* --- Privacy Consent --- */}
+        {/* --- Privacy --- */}
         <div>
-            <h3 className="text-lg font-medium text-primary mb-2">Consenso Privacy</h3>
-             <div className="space-y-4 rounded-md border p-4">
-                 <FormField control={form.control} name="privacyConsent" render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                        <FormControl>
-                            <Checkbox 
-                                checked={!!field.value} 
-                                onCheckedChange={(checked) => field.onChange(checked === true)}
-                            />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                            <FormLabel>Consenso Privacy</FormLabel>
-                            <FormDescription>Il socio ha accettato la privacy policy.</FormDescription>
-                            <FormMessage />
-                        </div>
-                    </FormItem>
-                )}/>
-            </div>
+          <h3 className="text-lg font-medium text-primary mb-2">Consenso Privacy</h3>
+          <div className="space-y-4 rounded-md border p-4">
+            <FormField
+              control={form.control}
+              name="privacyConsent"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={!!field.value}
+                      onCheckedChange={(checked) =>
+                        field.onChange(checked === true)
+                      }
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>Consenso Privacy</FormLabel>
+                    <FormDescription>
+                      Il socio ha accettato la privacy policy.
+                    </FormDescription>
+                    <FormMessage />
+                  </div>
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
 
         <div className="flex justify-end pt-4 sticky bottom-0 bg-secondary/80 backdrop-blur-sm pb-4 rounded-b-lg">
-          <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>Annulla</Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onClose}
+            disabled={isSubmitting}
+          >
+            Annulla
+          </Button>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Salva Modifiche
@@ -498,5 +732,3 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
-
-    

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -38,24 +38,22 @@ export default function AdminPage() {
     }
   }, [user, isUserLoading, router]);
 
-  const combinedSoci = useMemo(() => {
-    const allSoci = [...(membersData || []), ...(requestsData || [])];
-    const sociMap = new Map<string, Socio>();
-    allSoci.forEach(s => {
-      if (s && s.id) {
-        if (!sociMap.has(s.id)) {
-            sociMap.set(s.id, s);
-        }
+  const allSoci = [...(membersData || []), ...(requestsData || [])];
+  const sociMap = new Map<string, Socio>();
+  allSoci.forEach(s => {
+    if (s && s.id) {
+      if (!sociMap.has(s.id)) {
+          sociMap.set(s.id, s);
       }
-    });
-    return Array.from(sociMap.values()).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
-  }, [membersData, requestsData]);
+    }
+  });
+  const combinedSoci = Array.from(sociMap.values()).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
 
   const isLoading = isUserLoading || isMembersLoading || isRequestsLoading;
   
-  const handleEditSocio = useCallback((socio: Socio) => {
+  const handleEditSocio = (socio: Socio) => {
     setEditingSocio(socio);
-  }, []);
+  };
 
   if (isUserLoading || !user) {
     return (
