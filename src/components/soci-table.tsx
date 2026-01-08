@@ -159,10 +159,6 @@ const SocioTableRow = ({
     setIsDetailOpen(false);
     onEdit(socio);
   };
-
-  const handleEdit = () => {
-      onEdit(socio);
-  };
   
   return (
     <TableRow>
@@ -266,9 +262,6 @@ const SocioTableRow = ({
               <DropdownMenuItem onSelect={() => setIsDetailOpen(true)}>
                 <User className="mr-2 h-4 w-4" /> Vedi Dettagli
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={handleEdit}>
-                <Pencil className="mr-2 h-4 w-4" /> Modifica
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -352,6 +345,11 @@ const SociTableComponent = ({ soci, onEdit }: SociTableProps) => {
       </div>
     </div>
   );
+}
+
+interface SociTableProps {
+  soci: Socio[];
+  onEdit: (socio: Socio) => void;
 }
 
 export const SociTable = SociTableComponent;
