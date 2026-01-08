@@ -143,8 +143,11 @@ const SocioTableRow = ({
   const [newMemberNumber, setNewMemberNumber] = useState("");
   const [membershipFee, setMembershipFee] = useState(10);
   const [qualifiche, setQualifiche] = useState<string[]>([]);
+  const [feePaid, setFeePaid] = useState(false);
+  
   const [renewalFee, setRenewalFee] = useState(10);
   const [renewalQualifiche, setRenewalQualifiche] = useState<string[]>([]);
+  const [renewalFeePaid, setRenewalFeePaid] = useState(false);
 
 
   const status = getStatus(socio);
@@ -172,6 +175,7 @@ const SocioTableRow = ({
       setNewMemberNumber(String(nextNumber));
       setMembershipFee(socioIsMinor ? 0 : 10);
       setQualifiche(socio.qualifica || []);
+      setFeePaid(false); // Reset checkbox
     }
   }, [showApproveDialog, allMembers, socioIsMinor, socio.qualifica]);
 
@@ -179,11 +183,12 @@ const SocioTableRow = ({
     if(showRenewDialog) {
        setRenewalFee(isMinor(socio.birthDate) ? 0 : 10);
        setRenewalQualifiche(socio.qualifica || []);
+       setRenewalFeePaid(false); // Reset checkbox
     }
   }, [showRenewDialog, socio.birthDate, socio.qualifica]);
 
   const handleApprove = async () => {
-    if (!firestore || isApproving) return;
+    if (!firestore || isApproving || !feePaid) return;
 
     setIsApproving(true);
     const currentYear = new Date().getFullYear();
@@ -205,7 +210,7 @@ const SocioTableRow = ({
         tessera: membershipCardNumber,
         membershipFee: membershipFee,
         qualifica: qualifiche,
-        requestDate: socio.requestDate || new Date().toISOString(), // Preserve requestDate
+        requestDate: socio.requestDate || new Date().toISOString(),
     };
 
     batch.set(memberDocRef, newMemberData, { merge: true });
@@ -232,7 +237,7 @@ const SocioTableRow = ({
   };
 
   const handleRenew = async () => {
-    if (!firestore || isRenewing) return;
+    if (!firestore || isRenewing || !renewalFeePaid) return;
     setIsRenewing(true);
 
     const currentYear = new Date().getFullYear();
@@ -424,7 +429,7 @@ const SocioTableRow = ({
             <DialogHeader>
                 <DialogTitle>Approva Socio e Completa Iscrizione</DialogTitle>
                 <DialogDescription>
-                    Stai per approvare {getFullName(socio)} come membro attivo. Completa i dati di tesseramento.
+                    Stai per approvare <strong className="text-foreground">{getFullName(socio)}</strong> come membro attivo. Completa i dati di tesseramento.
                 </DialogDescription>
             </DialogHeader>
             <div className="grid gap-6 py-4">
@@ -465,7 +470,7 @@ const SocioTableRow = ({
                     <Label htmlFor="membership-fee" className="text-right">
                         Quota (€)
                     </Label>
-                    <div className="col-span-3">
+                    <div className="col-span-3 flex items-center gap-4">
                       <Input
                           id="membership-fee"
                           type="number"
@@ -473,12 +478,16 @@ const SocioTableRow = ({
                           onChange={(e) => setMembershipFee(Number(e.target.value))}
                           className="w-28"
                       />
+                       <div className="flex items-center space-x-2">
+                          <Checkbox id="fee-paid" checked={feePaid} onCheckedChange={(checked) => setFeePaid(!!checked)} />
+                          <Label htmlFor="fee-paid" className="text-sm font-medium">Quota Versata</Label>
+                      </div>
                     </div>
                 </div>
             </div>
             <DialogFooter>
                 <Button variant="ghost" onClick={() => setShowApproveDialog(false)}>Annulla</Button>
-                <Button onClick={handleApprove} disabled={isApproving}>
+                <Button onClick={handleApprove} disabled={isApproving || !feePaid}>
                     {isApproving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Conferma e Approva
                 </Button>
@@ -490,7 +499,7 @@ const SocioTableRow = ({
             <DialogHeader>
                 <DialogTitle>Rinnova Iscrizione Socio</DialogTitle>
                 <DialogDescription>
-                    Stai per rinnovare l&apos;iscrizione di {getFullName(socio)} per l&apos;anno in corso.
+                    Stai per rinnovare l'iscrizione di <strong className="text-foreground">{getFullName(socio)}</strong> per l'anno in corso.
                 </DialogDescription>
             </DialogHeader>
             <div className="grid gap-6 py-4">
@@ -515,7 +524,7 @@ const SocioTableRow = ({
                     <Label htmlFor="renewal-fee" className="text-right">
                         Quota Rinnovo (€)
                     </Label>
-                    <div className="col-span-3">
+                    <div className="col-span-3 flex items-center gap-4">
                         <Input
                             id="renewal-fee"
                             type="number"
@@ -523,12 +532,16 @@ const SocioTableRow = ({
                             onChange={(e) => setRenewalFee(Number(e.target.value))}
                             className="w-28"
                         />
+                         <div className="flex items-center space-x-2">
+                            <Checkbox id="renewal-fee-paid" checked={renewalFeePaid} onCheckedChange={(checked) => setRenewalFeePaid(!!checked)} />
+                            <Label htmlFor="renewal-fee-paid" className="text-sm font-medium">Quota Versata</Label>
+                        </div>
                     </div>
                 </div>
             </div>
             <DialogFooter>
                 <Button variant="ghost" onClick={() => setShowRenewDialog(false)}>Annulla</Button>
-                <Button onClick={handleRenew} disabled={isRenewing}>
+                <Button onClick={handleRenew} disabled={isRenewing || !renewalFeePaid}>
                     {isRenewing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Conferma Rinnovo
                 </Button>
