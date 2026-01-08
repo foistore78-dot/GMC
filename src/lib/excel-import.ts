@@ -91,32 +91,32 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: 'binary' });
 
-        const membersSheet = workbook.Sheets['Soci Attivi e Scaduti'];
-        const requestsSheet = workbook.Sheets['Richieste Iscrizione'];
+        const membersSheetName = 'Soci Attivi e Scaduti';
+        const membersSheet = workbook.Sheets[membersSheetName];
         
-        const membersJson = membersSheet ? XLSX.utils.sheet_to_json(membersSheet) : [];
-        const requestsJson = requestsSheet ? XLSX.utils.sheet_to_json(requestsSheet) : [];
-        
-        const allRows = [...membersJson, ...requestsJson];
+        if (!membersSheet) {
+          throw new Error(`Il file Excel deve contenere un foglio chiamato "${membersSheetName}".`);
+        }
 
-        if (allRows.length === 0) {
-          throw new Error("Il file Excel è vuoto o non contiene fogli validi.");
+        const membersJson = XLSX.utils.sheet_to_json(membersSheet);
+        
+        if (membersJson.length === 0) {
+          throw new Error("Il foglio 'Soci Attivi e Scaduti' è vuoto.");
         }
 
         const batch = writeBatch(firestore);
-        const membersCollection = collection(firestore, 'members');
         let importedCount = 0;
         let errorCount = 0;
 
-        for (const row of allRows) {
+        for (const row of membersJson) {
             try {
                 const socioData = excelRowToSocio(row);
 
-                // Basic validation
+                // Basic validation: skip row if essential data is missing but continue the loop
                 if (!socioData.firstName || !socioData.lastName || !socioData.birthDate) {
-                    console.warn("Skipping row due to missing required data:", row);
+                    console.warn("Riga saltata per mancanza di dati obbligatori (nome, cognome, data di nascita):", row);
                     errorCount++;
-                    continue;
+                    continue; // Go to the next row
                 }
                 
                 // All imported members go to 'members' collection
@@ -124,13 +124,13 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
                 batch.set(newDocRef, {
                     ...socioData,
                     id: newDocRef.id, // Ensure ID is set
-                    membershipStatus: 'active',
+                    membershipStatus: 'active', // All imported are considered active
                 });
 
                 importedCount++;
 
             } catch (singleError) {
-                console.error("Error processing row:", row, singleError);
+                console.error("Errore durante l'elaborazione di una riga:", row, singleError);
                 errorCount++;
             }
         }
@@ -139,13 +139,13 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
         resolve({ importedCount, errorCount });
 
       } catch (error) {
-        console.error("Failed to process Excel file", error);
+        console.error("Errore durante l'elaborazione del file Excel", error);
         reject(error);
       }
     };
 
     reader.onerror = (error) => {
-      console.error("File reading error:", error);
+      console.error("Errore di lettura del file:", error);
       reject(error);
     };
 
