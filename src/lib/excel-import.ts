@@ -35,11 +35,25 @@ const parseDate = (dateStr: string | number | undefined): string | null => {
 
 const excelRowToSocio = (row: any): Partial<Socio> => {
     const addressString = row['Indirizzo'] || '';
-    const addressParts = addressString.split(',').map((s:string) => s.trim());
-    const lastPart = addressParts.length > 1 ? addressParts[addressParts.length - 1].split(' ') : [];
-    const city = lastPart.length > 1 ? lastPart.slice(0, -1).join(' ').replace(/\(\w+\)/, '').trim() : (addressParts[1] || '');
-    const postalCodeMatch = addressString.match(/(\d{5})/);
-    const provinceMatch = addressString.match(/\((\w{2})\)/);
+    
+    // Improved address parsing logic
+    const addressMatch = addressString.match(/^(.*?),?\s*(\d{5})\s*(.*?)\s*\((\w{2})\)$/);
+
+    let address = '';
+    let postalCode = '';
+    let city = '';
+    let province = '';
+
+    if (addressMatch) {
+        address = addressMatch[1]?.trim() || '';
+        postalCode = addressMatch[2]?.trim() || '';
+        city = addressMatch[3]?.trim() || '';
+        province = addressMatch[4]?.trim() || '';
+    } else {
+        // Fallback for simpler cases or if format is just address
+        const parts = addressString.split(',');
+        address = parts[0]?.trim() || '';
+    }
 
     const socio: Partial<Socio> = {
         tessera: row['N. Tessera'] === 'N/A' ? undefined : row['N. Tessera'],
@@ -49,10 +63,10 @@ const excelRowToSocio = (row: any): Partial<Socio> => {
         birthDate: parseDate(row['Data di Nascita']) || undefined,
         birthPlace: row['Luogo di Nascita'],
         fiscalCode: row['Codice Fiscale'],
-        address: addressParts[0] || '',
+        address: address,
         city: city,
-        province: provinceMatch ? provinceMatch[1] : '',
-        postalCode: postalCodeMatch ? postalCodeMatch[0] : '',
+        province: province,
+        postalCode: postalCode,
         email: row['Email'],
         phone: row['Telefono'],
         whatsappConsent: (row['Consenso WhatsApp'] || '').toUpperCase() === 'SI',
@@ -101,7 +115,18 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
         const membersJson = XLSX.utils.sheet_to_json(membersSheet);
         
         if (membersJson.length === 0) {
-          throw new Error("Il foglio 'Soci Attivi e Scaduti' è vuoto.");
+          // If the main sheet is empty, check the requests sheet as a fallback
+           const requestsSheetName = 'Richieste Iscrizione';
+           if(workbook.Sheets[requestsSheetName]) {
+                const requestsJson = XLSX.utils.sheet_to_json(workbook.Sheets[requestsSheetName]);
+                if(requestsJson.length > 0) {
+                    membersJson.push(...requestsJson);
+                } else {
+                     throw new Error("Il foglio 'Soci Attivi e Scaduti' è vuoto.");
+                }
+           } else {
+             throw new Error("Il foglio 'Soci Attivi e Scaduti' è vuoto.");
+           }
         }
 
         const batch = writeBatch(firestore);
@@ -121,7 +146,7 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
                 }
                 
                 // All imported members go to 'members' collection
-                const newDocRef = doc(membersCollection);
+                const newDocRef = doc(membersCollection); // Correctly get a new document reference
                 batch.set(newDocRef, {
                     ...socioData,
                     id: newDocRef.id, // Ensure ID is set
