@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { SociTable, type SortConfig } from "@/components/soci-table";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import { FileDown, Loader2, Users } from "lucide-react";
+import { collection }s from "firebase/firestore";
+import { FileDown, FileUp, Loader2, Users } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,6 +16,8 @@ import { getFullName } from "@/components/soci-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { exportToExcel } from "@/lib/excel-export";
+import { importFromExcel } from "@/lib/excel-import";
+import { useToast } from "@/hooks/use-toast";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -36,9 +38,12 @@ const getTesseraYear = (tessera: string | undefined) => {
 
 export default function AdminPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
-
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [isImporting, setIsImporting] = useState(false);
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
   const [activeTab, setActiveTab] = useState("active");
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "ascending" });
@@ -147,6 +152,35 @@ export default function AdminPage() {
     if (!membersData || !requestsData) return;
     exportToExcel(membersData, requestsData);
   };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && firestore) {
+      setIsImporting(true);
+      try {
+        const { importedCount, errorCount } = await importFromExcel(file, firestore);
+        toast({
+          title: "Importazione Completata",
+          description: `${importedCount} soci importati con successo. ${errorCount > 0 ? `${errorCount} errori riscontrati.` : ''}`,
+        });
+      } catch (error) {
+        console.error("Import error:", error);
+        toast({
+          title: "Errore durante l'importazione",
+          description: (error as Error).message || "Si è verificato un problema.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsImporting(false);
+        // Reset file input
+        if(fileInputRef.current) fileInputRef.current.value = "";
+      }
+    }
+  };
   
   if (isUserLoading || !user) {
     return (
@@ -170,12 +204,6 @@ export default function AdminPage() {
               <h1 className="font-headline text-4xl md:text-5xl text-primary">
                 Gestione Soci
               </h1>
-           </div>
-           <div>
-             <Button onClick={handleExport} disabled={isLoading}>
-                <FileDown className="mr-2 h-4 w-4" />
-                Esporta Elenco Completo
-             </Button>
            </div>
         </div>
 
@@ -220,6 +248,23 @@ export default function AdminPage() {
             </Tabs>
           )}
         </div>
+        <div className="mt-8 flex justify-start gap-4">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+              accept=".xlsx, .xls"
+            />
+             <Button onClick={handleImportClick} disabled={isLoading || isImporting}>
+                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
+                {isImporting ? "Importazione..." : "Importa da Excel"}
+             </Button>
+             <Button onClick={handleExport} variant="outline" disabled={isLoading}>
+                <FileDown className="mr-2 h-4 w-4" />
+                Esporta Elenco Completo
+             </Button>
+           </div>
       </main>
 
        <Sheet open={!!editingSocio} onOpenChange={handleSheetOpenChange}>
