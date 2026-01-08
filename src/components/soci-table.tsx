@@ -145,6 +145,7 @@ const SocioTableRow = ({
   const [qualifiche, setQualifiche] = useState<string[]>([]);
   const [feePaid, setFeePaid] = useState(false);
   
+  const [newRenewalMemberNumber, setNewRenewalMemberNumber] = useState("");
   const [renewalFee, setRenewalFee] = useState(10);
   const [renewalQualifiche, setRenewalQualifiche] = useState<string[]>([]);
   const [renewalFeePaid, setRenewalFeePaid] = useState(false);
@@ -181,11 +182,27 @@ const SocioTableRow = ({
 
   useEffect(() => {
     if(showRenewDialog) {
+       const currentYear = new Date().getFullYear();
+       const yearMemberNumbers = allMembers
+        .filter(m => m.membershipYear === String(currentYear) && m.tessera)
+        .map(m => parseInt(m.tessera!.split('-')[2], 10))
+        .filter(n => !isNaN(n));
+      
+      let nextNumber = 1;
+      const sortedNumbers = yearMemberNumbers.sort((a, b) => a - b);
+      for (const num of sortedNumbers) {
+        if (num === nextNumber) {
+          nextNumber++;
+        } else {
+          break; 
+        }
+      }
+       setNewRenewalMemberNumber(String(nextNumber));
        setRenewalFee(isMinor(socio.birthDate) ? 0 : 10);
        setRenewalQualifiche(socio.qualifica || []);
        setRenewalFeePaid(false); // Reset checkbox
     }
-  }, [showRenewDialog, socio.birthDate, socio.qualifica]);
+  }, [showRenewDialog, socio.birthDate, socio.qualifica, allMembers]);
 
   const handleApprove = async () => {
     if (!firestore || isApproving || !feePaid) return;
@@ -241,21 +258,7 @@ const SocioTableRow = ({
     setIsRenewing(true);
 
     const currentYear = new Date().getFullYear();
-    const yearMemberNumbers = allMembers
-        .filter(m => m.membershipYear === String(currentYear) && m.tessera)
-        .map(m => parseInt(m.tessera!.split('-')[2], 10))
-        .filter(n => !isNaN(n));
-      
-    let nextNumber = 1;
-    const sortedNumbers = yearMemberNumbers.sort((a, b) => a - b);
-    for (const num of sortedNumbers) {
-      if (num === nextNumber) {
-        nextNumber++;
-      } else {
-        break; 
-      }
-    }
-    const newTessera = `GMC-${currentYear}-${nextNumber}`;
+    const newTessera = `GMC-${currentYear}-${newRenewalMemberNumber}`;
 
     const today = new Date();
     const renewalNote = `Associato dall'anno ${socio.membershipYear} con tessera ${socio.tessera}, quota ${formatCurrency(socio.membershipFee)}. rinnovato in data ${formatDate(today)}.`;
@@ -503,6 +506,22 @@ const SocioTableRow = ({
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-6 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="renewal-membership-number" className="text-right">
+                                N. Tessera
+                            </Label>
+                            <div className="col-span-3">
+                              <Input
+                                  id="renewal-membership-number"
+                                  value={`GMC-${new Date().getFullYear()}-${newRenewalMemberNumber}`}
+                                  onChange={(e) => {
+                                      const parts = e.target.value.split('-');
+                                      setNewRenewalMemberNumber(parts[parts.length - 1] || '');
+                                  }}
+                                  className="w-40"
+                              />
+                            </div>
+                        </div>
                         <div className="grid grid-cols-4 items-start gap-4">
                             <Label className="text-right pt-2">Qualifiche</Label>
                             <div className="col-span-3 space-y-2">
@@ -731,5 +750,3 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortCon
 
 
 export const SociTable = SociTableComponent;
-
-    
