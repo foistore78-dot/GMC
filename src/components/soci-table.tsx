@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, memo } from "react";
@@ -103,7 +104,7 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
   );
 };
 
-const SocioTableRow = ({ 
+const SocioTableRow = memo(({ 
   socio,
   onEdit,
 }: { 
@@ -251,7 +252,8 @@ const SocioTableRow = ({
         </TableCell>
       </TableRow>
   );
-};
+});
+SocioTableRow.displayName = 'SocioTableRow';
 
 
 interface SociTableProps {
@@ -314,3 +316,6 @@ export function SociTable({ soci, onEdit }: SociTableProps) {
     </div>
   );
 }
+
+
+    
