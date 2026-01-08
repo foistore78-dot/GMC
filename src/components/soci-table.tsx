@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, memo } from "react";
+import { useState, useMemo } from "react";
 import type { Socio } from "@/lib/soci-data";
 import {
   Table,
@@ -119,7 +119,7 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
   );
 };
 
-const SocioTableRow = memo(({ 
+const SocioTableRow = ({ 
   socio,
   onEdit,
 }: { 
@@ -289,7 +289,7 @@ const SocioTableRow = memo(({
         </TableCell>
       </TableRow>
   );
-});
+};
 SocioTableRow.displayName = 'SocioTableRow';
 
 
@@ -298,7 +298,7 @@ interface SociTableProps {
   onEdit: (socio: Socio) => void;
 }
 
-const SociTableComponent = ({ soci, onEdit }: SociTableProps) => {
+export const SociTable = ({ soci, onEdit }: SociTableProps) => {
   const [filter, setFilter] = useState('');
 
   const filteredSoci = useMemo(() => soci.filter(socio => {
@@ -353,5 +353,3 @@ const SociTableComponent = ({ soci, onEdit }: SociTableProps) => {
     </div>
   );
 }
-
-export const SociTable = memo(SociTableComponent);

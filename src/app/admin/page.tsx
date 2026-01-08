@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -48,9 +48,9 @@ export default function AdminPage() {
 
   const isLoading = isUserLoading || isMembersLoading || isRequestsLoading;
   
-  const handleEditSocio = useCallback((socio: Socio) => {
+  const handleEditSocio = (socio: Socio) => {
     setEditingSocio(socio);
-  }, []);
+  };
 
   const handleSheetOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -104,7 +104,10 @@ export default function AdminPage() {
               </SheetHeader>
               <EditSocioForm
                 socio={editingSocio} 
-                onClose={() => setEditingSocio(null)}
+                onClose={() => {
+                  setIsSubmitting(false);
+                  setEditingSocio(null);
+                }}
               />
             </>
           )}
