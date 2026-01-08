@@ -27,7 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -53,6 +53,7 @@ export const getStatus = (socio: any): 'active' | 'pending' | 'rejected' => {
     return socio.status || 'pending';
 };
 export const isMinor = (birthDate: string | Date | undefined) => birthDate ? differenceInYears(new Date(), new Date(birthDate)) < 18 : false;
+
 export const formatDate = (dateString: any, outputFormat: string = 'dd/MM/yyyy') => {
   if (!dateString) return 'N/A';
   
@@ -68,11 +69,20 @@ export const formatDate = (dateString: any, outputFormat: string = 'dd/MM/yyyy')
   }
 
   try {
+    // Check if date is valid before formatting
+    if (isNaN(date.getTime())) {
+      return "Data non valida";
+    }
     return format(date, outputFormat);
   } catch {
     return 'Data non valida';
   }
 };
+
+const formatCurrency = (value: number | undefined | null) => {
+    const number = value ?? 0;
+    return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(number);
+}
 
 const statusTranslations: Record<string, string> = {
   active: 'Attivo',
@@ -107,7 +117,6 @@ const SocioTableRow = memo(({
   
   const status = getStatus(socio);
   const socioIsMinor = isMinor(socio.birthDate);
-  const defaultFee = socio.membershipFee ?? (isMinor(socio.birthDate) ? 0 : 10);
 
   const handleDelete = async () => {
     if (!firestore) return;
@@ -148,6 +157,7 @@ const SocioTableRow = memo(({
                        <DialogTitle className="flex items-center gap-3"><User/> Dettagli Socio</DialogTitle>
                      </DialogHeader>
                      <div className="py-4 space-y-2 max-h-[70vh] overflow-y-auto p-1 pr-4">
+                       <DetailRow icon={<CircleDot />} label="Stato" value={statusTranslations[status]} />
                        <DetailRow icon={<User />} label="Nome Completo" value={getFullName(socio)} />
                        <DetailRow icon={<Award />} label="Qualifiche" value={
                           socio.qualifica && socio.qualifica.length > 0
@@ -160,7 +170,7 @@ const SocioTableRow = memo(({
                        <DetailRow icon={<Hash />} label="Codice Fiscale" value={socio.fiscalCode} />
                        <DetailRow icon={<Calendar />} label="Anno Associativo" value={socio.membershipYear || new Date().getFullYear()} />
                        <DetailRow icon={<Calendar />} label="Data Richiesta" value={formatDate(socio.requestDate)} />
-                       <DetailRow icon={<Euro />} label="Quota Versata" value={`€ ${defaultFee}`} />
+                       <DetailRow icon={<Euro />} label="Quota Versata" value={formatCurrency(socio.membershipFee)} />
                        {socio.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
                        <DetailRow icon={<StickyNote />} label="Note" value={socio.notes} />
                      </div>
@@ -309,3 +319,5 @@ export function SociTable({ soci, onEdit, onSocioDelete }: SociTableProps) {
     </div>
   );
 }
+
+    

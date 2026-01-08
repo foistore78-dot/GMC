@@ -80,13 +80,7 @@ const getDefaultValues = (socio: Socio) => {
     const calculatedFee = socio.membershipFee ?? (socioIsMinor ? 0 : 10);
     const defaultMembershipFee = socio.membershipFee ?? calculatedFee;
     
-    let requestDateValue;
-    try {
-        requestDateValue = socio.requestDate ? formatDate(socio.requestDate, 'yyyy-MM-dd') : new Date().toISOString().split('T')[0];
-    } catch {
-        requestDateValue = new Date().toISOString().split('T')[0];
-    }
-    
+    const requestDateValue = socio.requestDate ? formatDate(socio.requestDate, 'yyyy-MM-dd') : new Date().toISOString().split('T')[0];
     const birthDateValue = socio.birthDate ? formatDate(socio.birthDate, 'yyyy-MM-dd') : '';
     const guardianBirthDateValue = socio.guardianBirthDate ? formatDate(socio.guardianBirthDate, 'yyyy-MM-dd') : '';
 
@@ -130,18 +124,17 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
 
     try {
       const dataToSave = {
-        ...socio, // Start with original socio data
-        ...values, // Override with form values
+        ...socio,
+        ...values,
         birthDate: values.birthDate ? new Date(values.birthDate).toISOString() : '',
         requestDate: values.requestDate ? new Date(values.requestDate).toISOString() : new Date().toISOString(),
-        guardianBirthDate: values.guardianBirthDate ? new Date(values.guardianBirthDate).toISOString() : ''
+        guardianBirthDate: values.guardianBirthDate ? new Date(values.guardianBirthDate).toISOString() : '',
+        membershipFee: values.membershipFee || 0,
       };
 
-      // Determine the collection based on the original socio status
       const collectionName = socio.membershipStatus === 'active' ? 'members' : 'membership_requests';
       const docRef = doc(firestore, collectionName, socio.id);
 
-      // Use the non-blocking update
       setDocumentNonBlocking(docRef, dataToSave, { merge: true });
 
       toast({
@@ -404,3 +397,5 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
+
+    
