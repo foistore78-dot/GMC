@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -52,6 +52,12 @@ export default function AdminPage() {
   }, [membersData, requestsData]);
 
   const isLoading = isUserLoading || isMembersLoading || isRequestsLoading;
+  
+  // This is the key fix. By wrapping setEditingSocio in useCallback,
+  // we provide a stable function reference to SociTable, preventing re-renders.
+  const handleEditSocio = useCallback((socio: Socio) => {
+    setEditingSocio(socio);
+  }, []);
 
   if (isUserLoading || !user) {
     return (
@@ -84,7 +90,7 @@ export default function AdminPage() {
           ) : (
             <SociTable 
                 soci={combinedSoci}
-                onEdit={setEditingSocio}
+                onEdit={handleEditSocio}
             />
           )}
         </div>
