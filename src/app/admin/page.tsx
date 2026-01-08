@@ -6,7 +6,7 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { SociTable, type SortConfig } from "@/components/soci-table";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection }s from "firebase/firestore";
+import { collection } from "firebase/firestore";
 import { FileDown, FileUp, Loader2, Users } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
