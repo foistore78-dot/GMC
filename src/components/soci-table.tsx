@@ -73,39 +73,24 @@ export const formatDate = (dateString: any, outputFormat: string = 'dd/MM/yyyy')
 
     let date: Date;
 
-    // Check if it's a Firestore Timestamp and convert it
     if (dateString && typeof dateString.toDate === 'function') {
         date = dateString.toDate();
     } else if (typeof dateString === 'string') {
-        // Handle ISO strings with 'T' (e.g., '2024-05-21T10:00:00.000Z')
-        // and date-only strings (e.g., '2024-05-21')
-        const d = dateString.includes('T') ? parseISO(dateString) : new Date(dateString);
-        
-        // The new Date('yyyy-mm-dd') constructor can be off by one day due to timezones.
-        // To fix this, we parse it as UTC if it's just a date string.
-        if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            const [year, month, day] = dateString.split('-').map(Number);
-            date = new Date(Date.UTC(year, month - 1, day));
-        } else {
-            date = d;
-        }
+        date = parseISO(dateString); 
     } else if (dateString instanceof Date) {
-        // It's already a native JavaScript Date object
         date = dateString;
     } else {
-        return 'N/A'; // Unrecognized format
+        return 'N/A';
     }
 
-    // After all conversions, check if the final date is valid
     if (!isValid(date)) {
         return 'N/A';
     }
 
     try {
-        // Format the valid date
         return format(date, outputFormat);
     } catch {
-        return 'N/A'; // Return N/A if formatting fails for any reason
+        return 'N/A';
     }
 };
 
@@ -380,12 +365,6 @@ const SocioTableRow = ({
               {status === 'pending' && (
                 <DropdownMenuItem onSelect={() => setShowApproveDialog(true)} className="text-green-500 focus:text-green-400 focus:bg-green-500/10">
                     <CheckCircle className="mr-2 h-4 w-4" /> Approva
-                </DropdownMenuItem>
-              )}
-               {status !== 'pending' && (
-                <DropdownMenuItem onClick={() => onEdit(socio)}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Modifica
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
