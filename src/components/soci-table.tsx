@@ -64,26 +64,40 @@ export const isMinor = (birthDate: string | Date | undefined) => birthDate ? dif
 
 export const formatDate = (dateString: any, outputFormat: string = 'dd/MM/yyyy') => {
   if (!dateString) return 'N/A';
-  
+
   let date;
+  // Handle Firestore Timestamp
   if (dateString && typeof dateString.toDate === 'function') {
     date = dateString.toDate();
-  } else {
+  } 
+  // Handle ISO string or "yyyy-MM-dd"
+  else if (typeof dateString === 'string') {
     try {
-      date = typeof dateString === 'string' && dateString.includes('T') ? parseISO(dateString) : new Date(dateString);
+      // parseISO handles 'yyyy-MM-ddTHH:mm:ss.sssZ'
+      // new Date() can handle 'yyyy-MM-dd'
+      date = dateString.includes('T') ? parseISO(dateString) : new Date(dateString);
     } catch {
-      return String(dateString);
+      return String(dateString); // Return original if parsing fails
     }
+  } 
+  // Handle native Date object
+  else if (dateString instanceof Date) {
+    date = dateString;
+  } 
+  // If it's not a recognizable format, return N/A
+  else {
+    return 'N/A';
+  }
+
+  // Check if the final date is valid before formatting
+  if (isNaN(date.getTime())) {
+    return "Data non valida";
   }
 
   try {
-    // Check if date is valid before formatting
-    if (isNaN(date.getTime())) {
-      return "Data non valida";
-    }
     return format(date, outputFormat);
   } catch {
-    return 'Data non valida';
+    return 'Formato non valido';
   }
 };
 
@@ -236,6 +250,7 @@ const SocioTableRow = ({
                        <DetailRow icon={<Hash />} label="Codice Fiscale" value={socio.fiscalCode} />
                        <DetailRow icon={<Calendar />} label="Anno Associativo" value={socio.membershipYear || new Date().getFullYear()} />
                        <DetailRow icon={<Calendar />} label="Data Richiesta" value={formatDate(socio.requestDate)} />
+                       <DetailRow icon={<Calendar />} label="Data Ammissione" value={formatDate(socio.joinDate)} />
                        <DetailRow icon={<Euro />} label="Quota Versata" value={formatCurrency(socio.membershipFee)} />
                        {socio.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
                        <DetailRow icon={<StickyNote />} label="Note" value={socio.notes} />
@@ -409,3 +424,5 @@ interface SociTableProps {
 }
 
 export const SociTable = SociTableComponent;
+
+    
