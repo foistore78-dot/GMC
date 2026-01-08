@@ -27,7 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -149,6 +149,7 @@ const SocioTableRow = memo(({
                      </DialogHeader>
                      <div className="py-4 space-y-2 max-h-[70vh] overflow-y-auto p-1 pr-4">
                        <DetailRow icon={<User />} label="Nome Completo" value={getFullName(socio)} />
+                       <DetailRow icon={<Award />} label="Qualifica" value={socio.qualifica} />
                        <DetailRow icon={<Mail />} label="Email" value={socio.email} />
                        <DetailRow icon={<Phone />} label="Telefono" value={socio.phone} />
                        <DetailRow icon={<Home />} label="Indirizzo" value={`${socio.address}, ${socio.city} (${socio.province}) ${socio.postalCode}`} />
@@ -161,6 +162,9 @@ const SocioTableRow = memo(({
                      </div>
                    </DialogContent>
                  </Dialog>
+                 {socio.qualifica && (
+                    <Badge variant="secondary" className="text-xs ml-2 normal-case">{socio.qualifica}</Badge>
+                 )}
                  {socioIsMinor && (
                    <Dialog>
                      <DialogTrigger asChild>
@@ -301,3 +305,5 @@ export function SociTable({ soci, onEdit, onSocioDelete }: SociTableProps) {
     </div>
   );
 }
+
+    

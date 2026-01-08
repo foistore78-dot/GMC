@@ -48,6 +48,7 @@ const formSchema = z.object({
   membershipYear: z.string().optional(),
   membershipFee: z.coerce.number().optional(),
   status: z.enum(['active', 'pending', 'rejected']),
+  qualifica: z.enum(["", "SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"]).optional(),
   requestDate: z.string().optional(),
   guardianFirstName: z.string().optional(),
   guardianLastName: z.string().optional(),
@@ -88,6 +89,7 @@ const getDefaultValues = (socio: Socio) => {
         ...socio,
         phone: socio.phone || '',
         status: originalStatus,
+        qualifica: socio.qualifica || "",
         membershipYear: defaultMembershipYear,
         membershipFee: defaultMembershipFee,
         isVolunteer: socio.isVolunteer || false,
@@ -201,7 +203,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
               name="status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Stato Socio (Qualifica)</FormLabel>
+                  <FormLabel>Stato (Logica App)</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -212,6 +214,29 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                       <SelectItem value="active">Attivo</SelectItem>
                       <SelectItem value="pending">In attesa</SelectItem>
                       <SelectItem value="rejected">Rifiutato</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="qualifica"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Qualifica Socio</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Nessuna" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="">Nessuna</SelectItem>
+                      <SelectItem value="SOCIO FONDATORE">Socio Fondatore</SelectItem>
+                      <SelectItem value="VOLONTARIO">Volontario</SelectItem>
+                      <SelectItem value="MUSICISTA">Musicista</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -366,3 +391,5 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
+
+    
