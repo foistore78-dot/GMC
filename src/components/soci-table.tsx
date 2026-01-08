@@ -200,7 +200,6 @@ const SocioTableRow = ({
     }
   };
 
-
   const handleEditClick = () => {
     setIsDetailOpen(false);
     onEdit(socio);
@@ -213,6 +212,7 @@ const SocioTableRow = ({
                 <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
                    <DialogTrigger asChild>
                      <div className="flex items-center gap-2 cursor-pointer group">
+                        {socio.tessera && <span className="font-mono text-xs text-muted-foreground">{socio.tessera.substring(4)}</span>}
                         {socio.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500" />}
                         <span className="group-hover:text-primary transition-colors">{getFullName(socio)}</span>
                      </div>
@@ -311,7 +311,7 @@ const SocioTableRow = ({
                     <CheckCircle className="mr-2 h-4 w-4" /> Approva
                 </DropdownMenuItem>
               )}
-               <DropdownMenuItem onClick={handleEditClick}>
+               <DropdownMenuItem onClick={() => onEdit(socio)}>
                 <Pencil className="mr-2 h-4 w-4" /> Modifica
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -349,8 +349,10 @@ const SociTableComponent = ({ soci, onEdit, allMembers }: SociTableProps) => {
   const filteredSoci = useMemo(() => soci.filter(socio => {
     const fullName = getFullName(socio) || '';
     const email = socio.email || '';
+    const tessera = socio.tessera || '';
     return fullName.toLowerCase().includes(filter.toLowerCase()) ||
-           email.toLowerCase().includes(filter.toLowerCase());
+           email.toLowerCase().includes(filter.toLowerCase()) ||
+           tessera.toLowerCase().includes(filter.toLowerCase());
   }), [soci, filter]);
   
   return (
@@ -359,7 +361,7 @@ const SociTableComponent = ({ soci, onEdit, allMembers }: SociTableProps) => {
         <div className="relative w-full max-w-sm">
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Filtra per nome o email..."
+            placeholder="Filtra per nome, email, tessera..."
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
             className="pl-10"
