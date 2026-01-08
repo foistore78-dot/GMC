@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useCallback, useState, useEffect } from "react";
 import { differenceInYears } from "date-fns";
-import { doc, writeBatch, serverTimestamp, deleteDoc } from "firebase/firestore";
+import { doc, writeBatch, serverTimestamp } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
 import {
