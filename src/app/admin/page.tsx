@@ -15,6 +15,8 @@ import { EditSocioForm } from "@/components/edit-socio-form";
 import { getFullName } from "@/components/soci-table";
 import { Badge } from "@/components/ui/badge";
 
+const ITEMS_PER_PAGE = 10;
+
 const getTesseraNumber = (tessera: string | undefined) => {
   if (!tessera) return Infinity;
   const parts = tessera.split('-');
@@ -38,6 +40,8 @@ export default function AdminPage() {
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
   const [activeTab, setActiveTab] = useState("active");
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "ascending" });
+  const [currentPageActive, setCurrentPageActive] = useState(1);
+  const [currentPagePending, setCurrentPagePending] = useState(1);
 
   const membersQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, "members") : null),
@@ -128,6 +132,9 @@ export default function AdminPage() {
   
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
+    // Reset to first page when changing tabs
+    setCurrentPageActive(1);
+    setCurrentPagePending(1);
     if (tab === 'active') {
       setSortConfig({ key: 'tessera', direction: 'ascending' });
     } else {
@@ -187,6 +194,7 @@ export default function AdminPage() {
                     onSocioApproved={handleSocioApproved}
                     sortConfig={sortConfig}
                     setSortConfig={setSortConfig}
+                    itemsPerPage={ITEMS_PER_PAGE}
                 />
               </TabsContent>
               <TabsContent value="active">
@@ -196,6 +204,7 @@ export default function AdminPage() {
                     allMembers={membersData || []}
                     sortConfig={sortConfig}
                     setSortConfig={setSortConfig}
+                    itemsPerPage={ITEMS_PER_PAGE}
                 />
               </TabsContent>
             </Tabs>
@@ -225,5 +234,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-    

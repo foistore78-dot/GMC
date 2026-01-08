@@ -28,7 +28,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { RefreshCw, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2 } from "lucide-react";
+import { RefreshCw, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
@@ -568,6 +568,7 @@ interface SociTableProps {
   onSocioApproved?: () => void;
   sortConfig: SortConfig;
   setSortConfig: Dispatch<SetStateAction<SortConfig>>;
+  itemsPerPage: number;
 }
 
 const SortableHeader = ({
@@ -604,8 +605,9 @@ const SortableHeader = ({
   );
 };
 
-const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortConfig, setSortConfig }: SociTableProps) => {
+const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortConfig, setSortConfig, itemsPerPage }: SociTableProps) => {
   const [filter, setFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const filteredSoci = useMemo(() => soci.filter(socio => {
     if (!socio) return false;
@@ -629,7 +631,30 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortCon
       (birthDate !== 'N/A' && birthDate.includes(searchString))
     );
   }), [soci, filter]);
+
+  useEffect(() => {
+      setCurrentPage(1);
+  }, [filter, soci]);
   
+  const totalPages = Math.ceil(filteredSoci.length / itemsPerPage);
+  const paginatedSoci = filteredSoci.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+  );
+
+
+  const handleNextPage = () => {
+      if (currentPage < totalPages) {
+          setCurrentPage(currentPage + 1);
+      }
+  };
+
+  const handlePreviousPage = () => {
+      if (currentPage > 1) {
+          setCurrentPage(currentPage - 1);
+      }
+  };
+
   return (
     <div>
       <div className="flex items-center py-4">
@@ -655,8 +680,8 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortCon
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredSoci.length > 0 ? (
-              filteredSoci.map((socio) => (
+            {paginatedSoci.length > 0 ? (
+              paginatedSoci.map((socio) => (
                 <SocioTableRow 
                   key={socio.id} 
                   socio={socio}
@@ -674,6 +699,31 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortCon
             )}
           </TableBody>
         </Table>
+      </div>
+      <div className="flex items-center justify-between space-x-2 py-4">
+          <div className="text-sm text-muted-foreground">
+              Pagina {currentPage} di {totalPages > 0 ? totalPages : 1}
+          </div>
+          <div className="space-x-2">
+              <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 1}
+              >
+                  <ChevronLeft className="mr-2 h-4 w-4" />
+                  Precedente
+              </Button>
+              <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNextPage}
+                  disabled={currentPage >= totalPages}
+              >
+                  Successivo
+                  <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+          </div>
       </div>
     </div>
   );
