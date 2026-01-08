@@ -259,10 +259,6 @@ const SocioTableRow = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-              <DropdownMenuItem onSelect={() => setIsDetailOpen(true)}>
-                <User className="mr-2 h-4 w-4" /> Vedi Dettagli
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
               <AlertDialog>
                   <AlertDialogTrigger asChild>
                      <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
