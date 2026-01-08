@@ -38,15 +38,14 @@ export const isMinorCheck = (birthDate: string | undefined | Date): boolean => {
 };
 
 const getStatus = (socio: Socio): "active" | "pending" | "rejected" => {
-    // If it's an active member, status is 'active'
+    // If it has a membershipStatus field, it's from the 'members' collection.
     if (socio.membershipStatus === "active") {
         return "active";
     }
-    // For pending requests, the status can be 'pending' or 'rejected'
+    // Otherwise it's from 'membership_requests'
     if (socio.status === 'rejected') {
         return 'rejected';
     }
-    // Default for non-active members is 'pending'
     return "pending";
 };
 
@@ -177,7 +176,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     ...dataToSave,
                     id: socio.id,
                     status: 'pending' as const,
-                    requestDate: values.requestDate ? new Date(values.requestDate).toISOString() : new Date().toISOString(),
+                    requestDate: socio.requestDate || new Date().toISOString(),
                     membershipFee: 0,
                     tessera: deleteField(),
                 };

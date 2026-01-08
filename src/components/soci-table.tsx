@@ -180,7 +180,6 @@ const SocioTableRow = ({
         membershipFee: membershipFee,
         qualifica: qualifiche,
     };
-    delete (newMemberData as any).requestDate;
     delete (newMemberData as any).status;
 
     batch.set(memberDocRef, newMemberData, { merge: true });
