@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { differenceInYears } from 'date-fns';
+import { differenceInYears, formatISO } from 'date-fns';
 
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { getStatus, getFullName, isMinor, formatDate } from "./soci-table";
 import { Separator } from "./ui/separator";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
+import { DatePicker } from "./ui/date-picker";
 
 const QUALIFICHE = ["SOCIO FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
 
@@ -56,9 +57,11 @@ const formSchema = z.object({
   guardianLastName: z.string().optional(),
   guardianBirthDate: z.string().optional(),
 }).refine(data => {
-    const age = differenceInYears(new Date(), new Date(data.birthDate));
-    if (age < 18) {
-        return !!data.guardianFirstName && !!data.guardianLastName && !!data.guardianBirthDate;
+    if (data.birthDate) {
+        const age = differenceInYears(new Date(), new Date(data.birthDate));
+        if (age < 18) {
+            return !!data.guardianFirstName && !!data.guardianLastName && !!data.guardianBirthDate;
+        }
     }
     return true;
 }, {
@@ -85,10 +88,14 @@ const getDefaultValues = (socio: Socio) => {
     } catch {
         requestDateValue = new Date().toISOString().split('T')[0];
     }
+    
+    // Ensure dates are in 'yyyy-MM-dd' string format for native input, or full ISO string for custom picker
+    const birthDateValue = socio.birthDate ? formatDate(socio.birthDate, 'yyyy-MM-dd') : '';
+    const guardianBirthDateValue = socio.guardianBirthDate ? formatDate(socio.guardianBirthDate, 'yyyy-MM-dd') : '';
 
     return {
         ...socio,
-        birthDate: formatDate(socio.birthDate, 'yyyy-MM-dd'),
+        birthDate: birthDateValue,
         phone: socio.phone || '',
         status: originalStatus,
         qualifica: socio.qualifica || [],
@@ -99,7 +106,7 @@ const getDefaultValues = (socio: Socio) => {
         requestDate: requestDateValue,
         guardianFirstName: socio.guardianFirstName || "",
         guardianLastName: socio.guardianLastName || "",
-        guardianBirthDate: socio.guardianBirthDate ? formatDate(socio.guardianBirthDate, 'yyyy-MM-dd') : "",
+        guardianBirthDate: guardianBirthDateValue,
     };
 };
 
@@ -115,7 +122,8 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     defaultValues: defaultValues,
   });
 
-  const socioIsMinor = isMinor(socio.birthDate);
+  const birthDateValue = form.watch('birthDate');
+  const socioIsMinor = useMemo(() => isMinor(birthDateValue), [birthDateValue]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!firestore) {
@@ -131,6 +139,14 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     const batch = writeBatch(firestore);
 
     try {
+      // Data transformation to ensure dates are stored as ISO strings
+      const dataWithIsoDates = {
+          ...dataToSave,
+          birthDate: values.birthDate ? new Date(values.birthDate).toISOString() : '',
+          requestDate: values.requestDate ? new Date(values.requestDate).toISOString() : new Date().toISOString(),
+          guardianBirthDate: values.guardianBirthDate ? new Date(values.guardianBirthDate).toISOString() : ''
+      };
+
       if (originalStatus !== newStatus) {
         const oldCollection = originalStatus === 'active' ? 'members' : 'membership_requests';
         const oldDocRef = doc(firestore, oldCollection, socio.id);
@@ -142,7 +158,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
         if (newStatus !== 'rejected') {
             const newCollection = newStatus === 'active' ? 'members' : 'membership_requests';
             const newDocRef = doc(firestore, newCollection, socio.id);
-            let finalData: any = { ...socio, ...dataToSave, id: socio.id };
+            let finalData: any = { ...socio, ...dataWithIsoDates, id: socio.id };
 
             if (newStatus === 'active') {
                 finalData.membershipStatus = 'active';
@@ -151,7 +167,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 delete finalData.status;
             } else { // pending
                 finalData.status = newStatus;
-                finalData.requestDate = values.requestDate ? new Date(values.requestDate).toISOString() : new Date().toISOString();
+                // requestDate is already in dataWithIsoDates
                 delete finalData.membershipStatus;
                 delete finalData.joinDate;
                 delete finalData.expirationDate;
@@ -161,13 +177,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
       } else if (newStatus !== 'rejected') {
         const collection = newStatus === 'active' ? 'members' : 'membership_requests';
         const docRef = doc(firestore, collection, socio.id);
-        let dataWithCorrectDate = {
-            ...dataToSave,
-            birthDate: new Date(values.birthDate).toISOString(),
-            requestDate: values.requestDate ? new Date(values.requestDate).toISOString() : socio.requestDate,
-            guardianBirthDate: values.guardianBirthDate ? new Date(values.guardianBirthDate).toISOString() : socio.guardianBirthDate
-        };
-        batch.set(docRef, dataWithCorrectDate, { merge: true });
+        batch.set(docRef, dataWithIsoDates, { merge: true });
       }
 
       await batch.commit();
@@ -177,7 +187,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
           description: `I dati di ${getFullName(values)} sono stati salvati.`,
       });
       
-      window.location.reload();
+      onClose();
 
     } catch(error) {
         console.error("Error committing batch:", error);
@@ -274,9 +284,20 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                <FormField control={form.control} name="membershipYear" render={({ field }) => (
                   <FormItem><FormLabel>Anno Associativo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
               )}/>
-              <FormField control={form.control} name="requestDate" render={({ field }) => (
-                  <FormItem><FormLabel>Data Richiesta</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
-              )}/>
+               <FormField
+                  control={form.control}
+                  name="requestDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Data Richiesta</FormLabel>
+                      <DatePicker 
+                        value={field.value}
+                        onChange={(date) => field.onChange(date?.toISOString().split('T')[0])}
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               <FormField control={form.control} name="membershipFee" render={({ field }) => (
                   <FormItem><FormLabel>Quota Versata (€)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
               )}/>
@@ -326,9 +347,20 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     )}
                   />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="birthDate" render={({ field }) => (
-                        <FormItem><FormLabel>Data di Nascita</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
-                    )}/>
+                    <FormField
+                      control={form.control}
+                      name="birthDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Data di Nascita</FormLabel>
+                           <DatePicker 
+                            value={field.value}
+                            onChange={(date) => field.onChange(date?.toISOString().split('T')[0])}
+                          />
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     <FormField control={form.control} name="birthPlace" render={({ field }) => (
                         <FormItem><FormLabel>Luogo di Nascita</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )}/>
@@ -349,9 +381,20 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                                 <FormItem><FormLabel>Cognome Tutore</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
                         </div>
-                        <FormField control={form.control} name="guardianBirthDate" render={({ field }) => (
-                            <FormItem><FormLabel>Data di Nascita Tutore</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
-                        )}/>
+                        <FormField
+                          control={form.control}
+                          name="guardianBirthDate"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                              <FormLabel>Data di Nascita Tutore</FormLabel>
+                              <DatePicker 
+                                value={field.value}
+                                onChange={(date) => field.onChange(date?.toISOString().split('T')[0])}
+                              />
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                     </div>
                   </>
                 )}
