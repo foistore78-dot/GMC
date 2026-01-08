@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useFirestore } from "@/firebase";
 import { doc, writeBatch } from "firebase/firestore";
 import type { Socio } from "@/lib/soci-data";
