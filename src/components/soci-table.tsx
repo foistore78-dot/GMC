@@ -70,13 +70,16 @@ export const formatDate = (dateString: any, outputFormat: string = 'dd/MM/yyyy')
 
     let date: Date;
 
+    // Check if it's a Firestore Timestamp and convert it
     if (dateString && typeof dateString.toDate === 'function') {
-        // Firestore Timestamp
         date = dateString.toDate();
     } else if (typeof dateString === 'string') {
-        // ISO string like '2024-05-21T10:00:00.000Z' or 'yyyy-MM-dd'
+        // Handle ISO strings with 'T' (e.g., '2024-05-21T10:00:00.000Z')
+        // and date-only strings (e.g., '2024-05-21')
         const d = dateString.includes('T') ? parseISO(dateString) : new Date(dateString);
-        // new Date('2024-05-21') can result in a day before depending on timezone, let's fix it.
+        
+        // The new Date('yyyy-mm-dd') constructor can be off by one day due to timezones.
+        // To fix this, we parse it as UTC if it's just a date string.
         if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
             const [year, month, day] = dateString.split('-').map(Number);
             date = new Date(Date.UTC(year, month - 1, day));
@@ -84,20 +87,22 @@ export const formatDate = (dateString: any, outputFormat: string = 'dd/MM/yyyy')
             date = d;
         }
     } else if (dateString instanceof Date) {
-        // Native Date object
+        // It's already a native JavaScript Date object
         date = dateString;
     } else {
         return 'N/A'; // Unrecognized format
     }
 
+    // After all conversions, check if the final date is valid
     if (!isValid(date)) {
-        return 'N/A'; // Invalid date
+        return 'N/A';
     }
 
     try {
+        // Format the valid date
         return format(date, outputFormat);
     } catch {
-        return 'N/A';
+        return 'N/A'; // Return N/A if formatting fails for any reason
     }
 };
 
