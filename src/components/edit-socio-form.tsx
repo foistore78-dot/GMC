@@ -101,12 +101,13 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
 
   const getDefaultValues = useCallback((s: Socio) => {
     const isMinor = isMinorCheck(s.birthDate);
+    const initialStatus = getStatus(s);
     return {
       ...s,
-      status: getStatus(s),
+      status: initialStatus,
       birthDate: s.birthDate ? formatDate(s.birthDate, "yyyy-MM-dd") : "",
       guardianBirthDate: s.guardianBirthDate ? formatDate(s.guardianBirthDate, "yyyy-MM-dd") : "",
-      requestDate: s.requestDate ? formatDate(s.requestDate, "yyyy-MM-dd") : new Date().toISOString().split("T")[0],
+      requestDate: s.requestDate ? formatDate(s.requestDate, "yyyy-MM-dd") : (initialStatus === 'pending' ? new Date().toISOString().split("T")[0] : ''),
       joinDate: s.joinDate ? formatDate(s.joinDate, "yyyy-MM-dd") : "",
       renewalDate: s.renewalDate ? formatDate(s.renewalDate, "yyyy-MM-dd") : "",
       phone: s.phone || "",
@@ -152,6 +153,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 batch.delete(memberDocRef);
             }
         } else if (originalStatus !== newStatus) {
+            // This logic handles transitions between collections (pending <-> active)
             if (newStatus === 'active') { // Moving from 'pending' to 'members'
                 const oldDocRef = doc(firestore, 'membership_requests', socio.id);
                 const newDocRef = doc(firestore, 'members', socio.id);
@@ -164,7 +166,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     joinDate: values.joinDate ? new Date(values.joinDate).toISOString() : new Date().toISOString(),
                     expirationDate: new Date(parseInt(values.membershipYear || new Date().getFullYear().toString(), 10), 11, 31).toISOString(),
                 };
-                delete finalData.status;
+                delete finalData.status; // Remove the temporary 'status' field
                 
                 batch.set(newDocRef, finalData, { merge: true });
                 batch.delete(oldDocRef);
@@ -178,7 +180,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     ...dataToSave,
                     id: socio.id,
                     status: 'pending' as const,
-                    requestDate: socio.requestDate || new Date().toISOString(),
+                    requestDate: socio.requestDate || new Date().toISOString(), // Keep original or set new
                     membershipFee: 0,
                     tessera: deleteField(),
                     renewalDate: deleteField(),
@@ -201,7 +203,9 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
               ...dataToSave,
               joinDate: values.joinDate ? new Date(values.joinDate).toISOString() : (socio.joinDate || null),
               renewalDate: values.renewalDate ? new Date(values.renewalDate).toISOString() : (socio.renewalDate || null),
+              // Crucially, always recalculate expiration date based on membershipYear
               expirationDate: new Date(expirationYear, 11, 31).toISOString(),
+              privacyConsent: socio.privacyConsent, // Ensure privacyConsent is not dropped
             };
             
             if (newStatus === 'pending') {
@@ -307,6 +311,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     <FormItem>
                       <FormLabel>Numero Tessera</FormLabel>
                       <FormControl><Input {...field} value={field.value || ''}/></FormControl>
+                      <FormDescription>Es. GMC-2024-1</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
