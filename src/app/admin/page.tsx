@@ -6,7 +6,7 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { SociTable, type SortConfig } from "@/components/soci-table";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, orderBy } from "firebase/firestore";
+import { collection } from "firebase/firestore";
 import { Loader2, Users } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -15,14 +15,29 @@ import { EditSocioForm } from "@/components/edit-socio-form";
 import { getFullName } from "@/components/soci-table";
 import { Badge } from "@/components/ui/badge";
 
+const getTesseraNumber = (tessera: string | undefined) => {
+  if (!tessera) return Infinity;
+  const parts = tessera.split('-');
+  const num = parseInt(parts[parts.length - 1], 10);
+  return isNaN(num) ? Infinity : num;
+};
+
+const getTesseraYear = (tessera: string | undefined) => {
+    if (!tessera) return 0;
+    const parts = tessera.split('-');
+    if (parts.length < 3) return 0;
+    const year = parseInt(parts[1], 10);
+    return isNaN(year) ? 0 : year;
+};
+
 export default function AdminPage() {
   const router = useRouter();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
-  const [activeTab, setActiveTab] = useState("pending");
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "requestDate", direction: "descending" });
+  const [activeTab, setActiveTab] = useState("active");
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "ascending" });
 
   const membersQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, "members") : null),
@@ -35,13 +50,6 @@ export default function AdminPage() {
 
   const { data: membersData, isLoading: isMembersLoading } = useCollection<Socio>(membersQuery);
   const { data: requestsData, isLoading: isRequestsLoading } = useCollection<Socio>(requestsQuery);
-
-  const getTesseraNumber = (tessera: string | undefined) => {
-    if (!tessera) return Infinity;
-    const parts = tessera.split('-');
-    const num = parseInt(parts[parts.length - 1], 10);
-    return isNaN(num) ? Infinity : num;
-  };
   
   const sortedMembers = useMemo(() => {
     if (!membersData) return [];
@@ -51,8 +59,13 @@ export default function AdminPage() {
       let bValue: any;
       
       if (key === 'tessera') {
-        aValue = getTesseraNumber(a.tessera);
-        bValue = getTesseraNumber(b.tessera);
+          const yearA = getTesseraYear(a.tessera);
+          const yearB = getTesseraYear(b.tessera);
+          if (yearA !== yearB) {
+              return direction === 'ascending' ? yearA - yearB : yearB - yearA;
+          }
+          aValue = getTesseraNumber(a.tessera);
+          bValue = getTesseraNumber(b.tessera);
       } else if (key === 'name') {
         aValue = `${a.lastName} ${a.firstName}`;
         bValue = `${b.lastName} ${b.firstName}`;
@@ -157,13 +170,13 @@ export default function AdminPage() {
           ) : (
             <Tabs value={activeTab} onValueChange={handleTabChange}>
               <TabsList className="mb-4">
-                <TabsTrigger value="pending">
-                  Soci in Sospeso
-                  <Badge variant="secondary" className="ml-2">{sortedRequests.length}</Badge>
-                </TabsTrigger>
-                <TabsTrigger value="active">
+                 <TabsTrigger value="active">
                   Soci Attivi
                   <Badge variant="secondary" className="ml-2">{sortedMembers.length}</Badge>
+                </TabsTrigger>
+                <TabsTrigger value="pending">
+                  Richieste di Iscrizione
+                  <Badge variant="secondary" className="ml-2">{sortedRequests.length}</Badge>
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="pending">
@@ -212,3 +225,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    

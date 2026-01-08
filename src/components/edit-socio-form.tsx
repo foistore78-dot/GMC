@@ -71,6 +71,7 @@ const formSchema = z
     qualifica: z.array(z.string()).optional(),
     requestDate: z.string().optional(),
     joinDate: z.string().optional(),
+    renewalDate: z.string().optional(),
     guardianFirstName: z.string().optional(),
     guardianLastName: z.string().optional(),
     guardianBirthDate: z.string().optional(),
@@ -108,6 +109,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
       guardianBirthDate: s.guardianBirthDate ? formatDate(s.guardianBirthDate, "yyyy-MM-dd") : "",
       requestDate: s.requestDate ? formatDate(s.requestDate, "yyyy-MM-dd") : new Date().toISOString().split("T")[0],
       joinDate: s.joinDate ? formatDate(s.joinDate, "yyyy-MM-dd") : "",
+      renewalDate: s.renewalDate ? formatDate(s.renewalDate, "yyyy-MM-dd") : "",
       phone: s.phone || "",
       email: s.email || "",
       qualifica: s.qualifica || [],
@@ -160,7 +162,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     id: socio.id,
                     membershipStatus: 'active' as const,
                     joinDate: values.joinDate ? new Date(values.joinDate).toISOString() : new Date().toISOString(),
-                    expirationDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
+                    expirationDate: new Date(new Date().getFullYear(), 11, 31).toISOString(),
                 };
                 delete (finalData as any).status;
                 
@@ -179,6 +181,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     requestDate: socio.requestDate || new Date().toISOString(),
                     membershipFee: 0,
                     tessera: deleteField(),
+                    renewalDate: deleteField(),
                 };
                 delete finalData.membershipStatus;
                 delete finalData.joinDate;
@@ -194,6 +197,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             const finalData = {
               ...dataToSave,
               joinDate: values.joinDate ? new Date(values.joinDate).toISOString() : (socio.joinDate || null),
+              renewalDate: values.renewalDate ? new Date(values.renewalDate).toISOString() : (socio.renewalDate || null),
             };
 
             batch.set(docRef, finalData, { merge: true });
@@ -296,6 +300,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 )}
               />
                {currentStatus === "active" && (
+                <>
                 <FormField
                   control={form.control}
                   name="joinDate"
@@ -307,6 +312,18 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     </FormItem>
                   )}
                 />
+                 <FormField
+                  control={form.control}
+                  name="renewalDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Data Rinnovo</FormLabel>
+                      <FormControl><Input type="date" {...field} value={field.value || ''} readOnly className="bg-muted/50"/></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                </>
               )}
             </div>
             <FormField
@@ -622,3 +639,5 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
+
+    

@@ -15,6 +15,7 @@ export type Socio = {
   joinDate?: string;
   requestDate?: string;
   expirationDate?: string;
+  renewalDate?: string;
   membershipStatus?: 'pending' | 'active' | 'rejected';
   status?: 'pending' | 'active' | 'rejected';
   whatsappConsent: boolean;
@@ -100,3 +101,5 @@ export const sociData: Socio[] = [
         "guardianBirthDate": "1975-04-10"
     }
 ];
+
+    

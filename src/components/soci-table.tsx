@@ -28,23 +28,36 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2 } from "lucide-react";
+import { RefreshCw, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
 import { useFirestore } from "@/firebase";
-import { doc, deleteDoc, writeBatch } from "firebase/firestore";
-import { format, parseISO, isValid } from 'date-fns';
+import { doc, writeBatch, updateDoc } from "firebase/firestore";
+import { format, parseISO, isValid, isBefore, startOfToday } from 'date-fns';
 import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
 
 
 // Helper Functions
 export const getFullName = (socio: any) => `${socio.lastName || ''} ${socio.firstName || ''}`.trim();
 
-export const getStatus = (socio: any): 'active' | 'pending' | 'rejected' => {
-    if (socio.membershipStatus === 'active') return 'active';
+const isExpired = (socio: Socio): boolean => {
+    if (socio.membershipStatus !== 'active' || !socio.expirationDate) {
+        return false;
+    }
+    const expirationDate = new Date(socio.expirationDate);
+    return isBefore(expirationDate, startOfToday());
+};
+
+export const getStatus = (socio: any): 'active' | 'pending' | 'rejected' | 'expired' => {
+    if (socio.membershipStatus === 'active') {
+        if (isExpired(socio)) {
+            return 'expired';
+        }
+        return 'active';
+    }
     if (socio.status === 'rejected') return 'rejected';
     return socio.status || 'pending';
 };
@@ -85,6 +98,7 @@ const statusTranslations: Record<string, string> = {
   active: 'Attivo',
   pending: 'Sospeso',
   rejected: 'Rifiutato',
+  expired: 'Scaduto'
 };
 
 const QUALIFICA_COLORS: Record<string, string> = {
@@ -123,10 +137,13 @@ const SocioTableRow = ({
   const { toast } = useToast();
   const [isApproving, setIsApproving] = useState(false);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
+  const [isRenewing, setIsRenewing] = useState(false);
+  const [showRenewDialog, setShowRenewDialog] = useState(false);
   
   const [newMemberNumber, setNewMemberNumber] = useState("");
   const [membershipFee, setMembershipFee] = useState(10);
   const [qualifiche, setQualifiche] = useState<string[]>([]);
+  const [renewalFee, setRenewalFee] = useState(10);
 
 
   const status = getStatus(socio);
@@ -157,6 +174,11 @@ const SocioTableRow = ({
     }
   }, [showApproveDialog, allMembers, socioIsMinor, socio.qualifica]);
 
+  useEffect(() => {
+    if(showRenewDialog) {
+       setRenewalFee(isMinor(socio.birthDate) ? 0 : 10);
+    }
+  }, [showRenewDialog, socio.birthDate]);
 
   const handleApprove = async () => {
     if (!firestore || isApproving) return;
@@ -170,17 +192,19 @@ const SocioTableRow = ({
     const requestDocRef = doc(firestore, "membership_requests", socio.id);
     const memberDocRef = doc(firestore, "members", socio.id);
 
-    const newMemberData: Omit<Socio, 'status'> & { membershipStatus: 'active' } = {
-        ...socio,
+    const { status, ...restOfSocio } = socio;
+
+    const newMemberData: Omit<Socio, 'status'> = {
+        ...restOfSocio,
         joinDate: new Date().toISOString(),
         membershipStatus: 'active' as const,
-        expirationDate: new Date(new Date().setFullYear(currentYear + 1)).toISOString(),
+        expirationDate: new Date(currentYear, 11, 31).toISOString(),
         membershipYear: String(currentYear),
         tessera: membershipCardNumber,
         membershipFee: membershipFee,
         qualifica: qualifiche,
+        requestDate: socio.requestDate || new Date().toISOString(), // Preserve requestDate
     };
-    delete (newMemberData as any).status;
 
     batch.set(memberDocRef, newMemberData, { merge: true });
     batch.delete(requestDocRef);
@@ -204,6 +228,61 @@ const SocioTableRow = ({
       setIsApproving(false);
     }
   };
+
+  const handleRenew = async () => {
+    if (!firestore || isRenewing) return;
+    setIsRenewing(true);
+
+    const currentYear = new Date().getFullYear();
+    const yearMemberNumbers = allMembers
+        .filter(m => m.membershipYear === String(currentYear) && m.tessera)
+        .map(m => parseInt(m.tessera!.split('-')[2], 10))
+        .filter(n => !isNaN(n));
+      
+    let nextNumber = 1;
+    const sortedNumbers = yearMemberNumbers.sort((a, b) => a - b);
+    for (const num of sortedNumbers) {
+      if (num === nextNumber) {
+        nextNumber++;
+      } else {
+        break; 
+      }
+    }
+    const newTessera = `GMC-${currentYear}-${nextNumber}`;
+
+    const today = new Date();
+    const renewalNote = `Associato dall'anno ${socio.membershipYear} con tessera ${socio.tessera}, quota ${formatCurrency(socio.membershipFee)}. rinnovato in data ${formatDate(today)}.`;
+    const updatedNotes = socio.notes ? `${socio.notes}\n${renewalNote}` : renewalNote;
+    
+    const memberDocRef = doc(firestore, "members", socio.id);
+
+    try {
+        await updateDoc(memberDocRef, {
+            membershipYear: String(currentYear),
+            tessera: newTessera,
+            membershipFee: renewalFee,
+            expirationDate: new Date(currentYear, 11, 31).toISOString(),
+            renewalDate: today.toISOString(),
+            notes: updatedNotes,
+        });
+
+        toast({
+            title: "Rinnovo Effettuato!",
+            description: `${getFullName(socio)} è stato rinnovato per l'anno ${currentYear}. Nuova tessera: ${newTessera}`,
+        });
+        setShowRenewDialog(false);
+
+    } catch (error) {
+        console.error("Error renewing member:", error);
+        toast({
+            title: "Errore di Rinnovo",
+            description: `Impossibile rinnovare ${getFullName(socio)}. Dettagli: ${(error as Error).message}`,
+            variant: "destructive",
+        });
+    } finally {
+        setIsRenewing(false);
+    }
+  };
   
   const handleQualificaChange = (qualifica: string, checked: boolean) => {
     setQualifiche(prev => 
@@ -211,11 +290,13 @@ const SocioTableRow = ({
     );
   };
   
+  const tesseraDisplay = socio.tessera ? `${socio.tessera.split('-')[1]}-${socio.tessera.split('-')[2]}` : '-';
+
   return (
     <>
     <TableRow>
-        <TableCell className="font-mono text-xs text-muted-foreground">
-          {socio.tessera ? socio.tessera.split('-').pop() : '-'}
+        <TableCell className="font-mono text-xs">
+          {tesseraDisplay}
         </TableCell>
         <TableCell className="font-medium">
            <div className="flex items-center gap-3 flex-wrap">
@@ -251,9 +332,10 @@ const SocioTableRow = ({
                        <DetailRow icon={<Calendar />} label="Anno Associativo" value={socio.membershipYear || new Date().getFullYear()} />
                        <DetailRow icon={<Calendar />} label="Data Richiesta" value={formatDate(socio.requestDate)} />
                        {socio.membershipStatus === 'active' && <DetailRow icon={<Calendar />} label="Data Ammissione" value={formatDate(socio.joinDate)} />}
+                       {socio.renewalDate && <DetailRow icon={<Calendar />} label="Data Rinnovo" value={formatDate(socio.renewalDate)} />}
                        <DetailRow icon={<Euro />} label="Quota Versata" value={formatCurrency(status === 'pending' ? 0 : socio.membershipFee)} />
                        {socio.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
-                       <DetailRow icon={<StickyNote />} label="Note" value={socio.notes} />
+                       <DetailRow icon={<StickyNote />} label="Note" value={<pre className="text-wrap font-sans">{socio.notes}</pre>} />
                      </div>
                       <DialogFooter>
                           <DialogClose asChild>
@@ -305,6 +387,7 @@ const SocioTableRow = ({
             className={cn({
               "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30": status === "active",
               "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30": status === "pending",
+              "bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30": status === "expired",
               "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30": status === "rejected",
             })}
           >
@@ -316,6 +399,12 @@ const SocioTableRow = ({
                 <Button variant="ghost" size="sm" onClick={() => setShowApproveDialog(true)} className="text-green-500 hover:text-green-500 hover:bg-green-500/10">
                     <CheckCircle className="mr-2 h-4 w-4" />
                     Approva
+                </Button>
+            )}
+            {status === 'expired' && (
+                <Button variant="ghost" size="sm" onClick={() => setShowRenewDialog(true)} className="text-orange-500 hover:text-orange-500 hover:bg-orange-500/10">
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Rinnova
                 </Button>
             )}
         </TableCell>
@@ -385,6 +474,39 @@ const SocioTableRow = ({
             </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={showRenewDialog} onOpenChange={setShowRenewDialog}>
+        <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+                <DialogTitle>Rinnova Iscrizione Socio</DialogTitle>
+                <DialogDescription>
+                    Stai per rinnovare l&apos;iscrizione di {getFullName(socio)} per l&apos;anno in corso.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-6 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="renewal-fee" className="text-right">
+                        Quota Rinnovo (€)
+                    </Label>
+                    <div className="col-span-3">
+                        <Input
+                            id="renewal-fee"
+                            type="number"
+                            value={renewalFee}
+                            onChange={(e) => setRenewalFee(Number(e.target.value))}
+                            className="w-28"
+                        />
+                    </div>
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="ghost" onClick={() => setShowRenewDialog(false)}>Annulla</Button>
+                <Button onClick={handleRenew} disabled={isRenewing}>
+                    {isRenewing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Conferma Rinnovo
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
     </>
   );
 };
@@ -409,11 +531,13 @@ const SortableHeader = ({
   sortKey,
   sortConfig,
   setSortConfig,
+  className,
 }: {
   label: string;
   sortKey: SortConfig['key'];
   sortConfig: SortConfig;
   setSortConfig: Dispatch<SetStateAction<SortConfig>>;
+  className?: string;
 }) => {
   const isCurrentSortKey = sortConfig.key === sortKey;
   const direction = isCurrentSortKey ? sortConfig.direction : 'none';
@@ -427,7 +551,7 @@ const SortableHeader = ({
   };
 
   return (
-    <TableHead>
+    <TableHead className={className}>
       <Button variant="ghost" onClick={handleSort} className="px-2 py-1 h-auto">
         {label}
         <ArrowUpDown className={cn("ml-2 h-4 w-4", direction === 'none' && "text-muted-foreground/50")} />
@@ -468,10 +592,10 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortCon
         <Table>
           <TableHeader>
             <TableRow>
-              <SortableHeader label="#" sortKey="tessera" sortConfig={sortConfig} setSortConfig={setSortConfig} />
+              <SortableHeader label="Tessera" sortKey="tessera" sortConfig={sortConfig} setSortConfig={setSortConfig} className="w-[120px]" />
               <SortableHeader label="Nome" sortKey="name" sortConfig={sortConfig} setSortConfig={setSortConfig} />
-              <SortableHeader label="Nascita" sortKey="birthDate" sortConfig={sortConfig} setSortConfig={setSortConfig} />
-              <SortableHeader label="Stato" sortKey="status" sortConfig={sortConfig} setSortConfig={setSortConfig} />
+              <SortableHeader label="Nascita" sortKey="birthDate" sortConfig={sortConfig} setSortConfig={setSortConfig} className="hidden md:table-cell" />
+              <SortableHeader label="Stato" sortKey="membershipStatus" sortConfig={sortConfig} setSortConfig={setSortConfig} />
               <TableHead className="text-right">Azioni</TableHead>
             </TableRow>
           </TableHeader>
