@@ -144,6 +144,7 @@ const SocioTableRow = ({
   const [membershipFee, setMembershipFee] = useState(10);
   const [qualifiche, setQualifiche] = useState<string[]>([]);
   const [renewalFee, setRenewalFee] = useState(10);
+  const [renewalQualifiche, setRenewalQualifiche] = useState<string[]>([]);
 
 
   const status = getStatus(socio);
@@ -177,8 +178,9 @@ const SocioTableRow = ({
   useEffect(() => {
     if(showRenewDialog) {
        setRenewalFee(isMinor(socio.birthDate) ? 0 : 10);
+       setRenewalQualifiche(socio.qualifica || []);
     }
-  }, [showRenewDialog, socio.birthDate]);
+  }, [showRenewDialog, socio.birthDate, socio.qualifica]);
 
   const handleApprove = async () => {
     if (!firestore || isApproving) return;
@@ -261,6 +263,7 @@ const SocioTableRow = ({
             membershipYear: String(currentYear),
             tessera: newTessera,
             membershipFee: renewalFee,
+            qualifica: renewalQualifiche,
             expirationDate: new Date(currentYear, 11, 31).toISOString(),
             renewalDate: today.toISOString(),
             notes: updatedNotes,
@@ -289,7 +292,13 @@ const SocioTableRow = ({
       checked ? [...prev, qualifica] : prev.filter(q => q !== qualifica)
     );
   };
-  
+   
+  const handleRenewalQualificaChange = (qualifica: string, checked: boolean) => {
+    setRenewalQualifiche(prev => 
+      checked ? [...prev, qualifica] : prev.filter(q => q !== qualifica)
+    );
+  };
+
   const tesseraDisplay = socio.tessera ? `${socio.tessera.split('-')[1]}-${socio.tessera.split('-')[2]}` : '-';
 
   return (
@@ -423,13 +432,15 @@ const SocioTableRow = ({
                     <Label htmlFor="membership-number" className="text-right">
                         N. Tessera
                     </Label>
-                    <div className="col-span-3 flex items-center gap-2">
-                      <span className="text-muted-foreground text-sm">GMC-{new Date().getFullYear()}-</span>
+                    <div className="col-span-3">
                       <Input
                           id="membership-number"
-                          value={newMemberNumber}
-                          onChange={(e) => setNewMemberNumber(e.target.value)}
-                          className="w-20"
+                          value={`GMC-${new Date().getFullYear()}-${newMemberNumber}`}
+                          onChange={(e) => {
+                              const parts = e.target.value.split('-');
+                              setNewMemberNumber(parts[parts.length - 1] || '');
+                          }}
+                          className="w-40"
                       />
                     </div>
                 </div>
@@ -483,6 +494,23 @@ const SocioTableRow = ({
                 </DialogDescription>
             </DialogHeader>
             <div className="grid gap-6 py-4">
+                <div className="grid grid-cols-4 items-start gap-4">
+                    <Label className="text-right pt-2">Qualifiche</Label>
+                    <div className="col-span-3 space-y-2">
+                        {QUALIFICHE.map((q) => (
+                           <div key={q} className="flex items-center space-x-2">
+                                <Checkbox 
+                                    id={`renewal-qualifica-${q}`} 
+                                    checked={renewalQualifiche.includes(q)}
+                                    onCheckedChange={(checked) => handleRenewalQualificaChange(q, !!checked)}
+                                />
+                                <label htmlFor={`renewal-qualifica-${q}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                    {q}
+                                </label>
+                            </div>
+                        ))}
+                    </div>
+                </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="renewal-fee" className="text-right">
                         Quota Rinnovo (€)
@@ -626,5 +654,3 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortCon
 
 
 export const SociTable = SociTableComponent;
-
-    
