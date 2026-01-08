@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import type { Socio } from "@/lib/soci-data";
 import {
   Table,
@@ -159,6 +159,10 @@ const SocioTableRow = ({
     setIsDetailOpen(false);
     onEdit(socio);
   };
+
+  const handleEdit = () => {
+      onEdit(socio);
+  };
   
   return (
     <TableRow>
@@ -262,6 +266,9 @@ const SocioTableRow = ({
               <DropdownMenuItem onSelect={() => setIsDetailOpen(true)}>
                 <User className="mr-2 h-4 w-4" /> Vedi Dettagli
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={handleEdit}>
+                <Pencil className="mr-2 h-4 w-4" /> Modifica
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -290,15 +297,8 @@ const SocioTableRow = ({
       </TableRow>
   );
 };
-SocioTableRow.displayName = 'SocioTableRow';
 
-
-interface SociTableProps {
-  soci: Socio[];
-  onEdit: (socio: Socio) => void;
-}
-
-export const SociTable = ({ soci, onEdit }: SociTableProps) => {
+const SociTableComponent = ({ soci, onEdit }: SociTableProps) => {
   const [filter, setFilter] = useState('');
 
   const filteredSoci = useMemo(() => soci.filter(socio => {
@@ -353,3 +353,5 @@ export const SociTable = ({ soci, onEdit }: SociTableProps) => {
     </div>
   );
 }
+
+export const SociTable = SociTableComponent;
