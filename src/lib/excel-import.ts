@@ -34,27 +34,6 @@ const parseDate = (dateStr: string | number | undefined): string | null => {
 };
 
 const excelRowToSocio = (row: any): Partial<Socio> => {
-    const addressString = row['Indirizzo'] || '';
-    
-    // Improved address parsing logic
-    const addressMatch = addressString.match(/^(.*?),?\s*(\d{5})\s*(.*?)\s*\((\w{2})\)$/);
-
-    let address = '';
-    let postalCode = '';
-    let city = '';
-    let province = '';
-
-    if (addressMatch) {
-        address = addressMatch[1]?.trim() || '';
-        postalCode = addressMatch[2]?.trim() || '';
-        city = addressMatch[3]?.trim() || '';
-        province = addressMatch[4]?.trim() || '';
-    } else {
-        // Fallback for simpler cases or if format is just address
-        const parts = addressString.split(',');
-        address = parts[0]?.trim() || '';
-    }
-
     const socio: Partial<Socio> = {
         tessera: row['N. Tessera'] === 'N/A' ? undefined : row['N. Tessera'],
         lastName: row['Cognome'],
@@ -63,12 +42,12 @@ const excelRowToSocio = (row: any): Partial<Socio> => {
         birthDate: parseDate(row['Data di Nascita']) || undefined,
         birthPlace: row['Luogo di Nascita'],
         fiscalCode: row['Codice Fiscale'],
-        address: address,
-        city: city,
-        province: province,
-        postalCode: postalCode,
+        address: row['Indirizzo'],
+        city: row['Città'],
+        province: row['Provincia'],
+        postalCode: String(row['CAP'] || ''),
         email: row['Email'],
-        phone: row['Telefono'],
+        phone: row['Telefono'] ? String(row['Telefono']) : undefined,
         whatsappConsent: (row['Consenso WhatsApp'] || '').toUpperCase() === 'SI',
         privacyConsent: (row['Consenso Privacy'] || '').toUpperCase() === 'SI',
         membershipYear: row['Anno Associativo'] ? String(row['Anno Associativo']) : undefined,
