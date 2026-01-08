@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Dispatch, SetStateAction } from "react";
 import type { Socio } from "@/lib/soci-data";
 import {
   Table,
@@ -12,14 +12,6 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -36,20 +28,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
@@ -60,7 +41,8 @@ import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
 
 
 // Helper Functions
-export const getFullName = (socio: any) => `${socio.firstName || ''} ${socio.lastName || ''}`.trim();
+export const getFullName = (socio: any) => `${socio.lastName || ''} ${socio.firstName || ''}`.trim();
+
 export const getStatus = (socio: any): 'active' | 'pending' | 'rejected' => {
     if (socio.membershipStatus === 'active') return 'active';
     if (socio.status === 'rejected') return 'rejected';
@@ -73,29 +55,23 @@ export const formatDate = (dateString: any, outputFormat: string = 'dd/MM/yyyy')
 
     let date: Date;
 
-    // Check if it's a Firestore Timestamp and convert it
     if (dateString && typeof dateString.toDate === 'function') {
         date = dateString.toDate();
     } 
-    // Check if it's already a Date object
     else if (dateString instanceof Date) {
         date = dateString;
     } 
-    // Check if it's a string that can be parsed
     else if (typeof dateString === 'string') {
         date = parseISO(dateString); 
     } 
-    // If none of the above, it's an unknown format
     else {
         return 'N/A';
     }
 
-    // After attempting to get a Date object, check if it's valid
     if (!isValid(date)) {
         return 'N/A';
     }
 
-    // If valid, format it
     try {
         return format(date, outputFormat);
     } catch {
@@ -149,7 +125,6 @@ const SocioTableRow = ({
 }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   
@@ -186,36 +161,6 @@ const SocioTableRow = ({
     }
   }, [showApproveDialog, allMembers, socioIsMinor, socio.qualifica]);
 
-  const handleDelete = async () => {
-    if (!firestore || isDeleting) return;
-    setIsDeleting(true);
-    
-    let collectionName;
-    if (status === 'active') {
-        collectionName = 'members';
-    } else { // pending or rejected
-        collectionName = 'membership_requests';
-    }
-
-    const docRef = doc(firestore, collectionName, socio.id);
-    
-    try {
-      await deleteDoc(docRef);
-      toast({
-          title: "Socio rimosso",
-          description: `${getFullName(socio)} è stato rimosso dalla lista.`,
-      });
-    } catch (error) {
-        console.error("Error deleting socio:", error);
-        toast({
-            title: "Errore",
-            description: "Non è stato possibile rimuovere il socio.",
-            variant: "destructive"
-        });
-    } finally {
-        setIsDeleting(false);
-    }
-  };
 
   const handleApprove = async () => {
     if (!firestore || isApproving) return;
@@ -252,7 +197,7 @@ const SocioTableRow = ({
             description: `${getFullName(socio)} è ora un membro attivo. N. tessera: ${membershipCardNumber}`,
         });
         setShowApproveDialog(false);
-        onSocioApproved?.();
+        if (onSocioApproved) onSocioApproved();
     } catch (error) {
         console.error("Error approving member:", error);
         toast({
@@ -442,7 +387,54 @@ const SocioTableRow = ({
   );
 };
 
-const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved }: SociTableProps) => {
+
+export type SortConfig = {
+  key: keyof Socio | 'name' | 'tessera';
+  direction: 'ascending' | 'descending';
+};
+
+interface SociTableProps {
+  soci: Socio[];
+  onEdit: (socio: Socio) => void;
+  allMembers: Socio[];
+  onSocioApproved?: () => void;
+  sortConfig: SortConfig;
+  setSortConfig: Dispatch<SetStateAction<SortConfig>>;
+}
+
+const SortableHeader = ({
+  label,
+  sortKey,
+  sortConfig,
+  setSortConfig,
+}: {
+  label: string;
+  sortKey: SortConfig['key'];
+  sortConfig: SortConfig;
+  setSortConfig: Dispatch<SetStateAction<SortConfig>>;
+}) => {
+  const isCurrentSortKey = sortConfig.key === sortKey;
+  const direction = isCurrentSortKey ? sortConfig.direction : 'none';
+
+  const handleSort = () => {
+    let newDirection: 'ascending' | 'descending' = 'ascending';
+    if (isCurrentSortKey && sortConfig.direction === 'ascending') {
+      newDirection = 'descending';
+    }
+    setSortConfig({ key: sortKey, direction: newDirection });
+  };
+
+  return (
+    <TableHead>
+      <Button variant="ghost" onClick={handleSort} className="px-2 py-1 h-auto">
+        {label}
+        <ArrowUpDown className={cn("ml-2 h-4 w-4", direction === 'none' && "text-muted-foreground/50")} />
+      </Button>
+    </TableHead>
+  );
+};
+
+const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortConfig, setSortConfig }: SociTableProps) => {
   const [filter, setFilter] = useState('');
 
   const filteredSoci = useMemo(() => soci.filter(socio => {
@@ -474,9 +466,9 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved }: SociT
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead className="hidden md:table-cell">Nascita</TableHead>
-              <TableHead>Stato</TableHead>
+              <SortableHeader label="Nome" sortKey="name" sortConfig={sortConfig} setSortConfig={setSortConfig} />
+              <SortableHeader label="Nascita" sortKey="birthDate" sortConfig={sortConfig} setSortConfig={setSortConfig} />
+              <SortableHeader label="Stato" sortKey="status" sortConfig={sortConfig} setSortConfig={setSortConfig} />
               <TableHead className="text-right">Azioni</TableHead>
             </TableRow>
           </TableHeader>
@@ -505,11 +497,5 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved }: SociT
   );
 }
 
-interface SociTableProps {
-  soci: Socio[];
-  onEdit: (socio: Socio) => void;
-  allMembers: Socio[];
-  onSocioApproved?: () => void;
-}
 
 export const SociTable = SociTableComponent;
