@@ -180,7 +180,7 @@ export default function AdminPage() {
              handleCloseSheet();
            }
        }}>
-        <SheetContent className="w-[50vw] sm:max-w-none overflow-y-auto resize-x min-w-[300px] max-w-[90vw]">
+        <SheetContent className="w-[50vw] sm:max-w-none overflow-auto resize-x min-w-[300px] max-w-[90vw]">
           {editingSocio && (
             <>
               <SheetHeader>

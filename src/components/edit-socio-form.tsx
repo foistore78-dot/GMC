@@ -163,24 +163,24 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
         <div>
           <h3 className="text-lg font-medium text-primary mb-2">Dati Tesseramento</h3>
           <div className="space-y-4 rounded-md border p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <FormField control={form.control} name="membershipYear" render={({ field }) => (
-                  <FormItem><FormLabel>Anno Associativo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-              )}/>
-               <FormField
-                  control={form.control}
-                  name="requestDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Data Richiesta</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-            </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                <FormField control={form.control} name="membershipYear" render={({ field }) => (
+                    <FormItem><FormLabel>Anno Associativo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )}/>
+                 <FormField
+                    control={form.control}
+                    name="requestDate"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Data Richiesta</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+             </div>
              <FormField
               control={form.control}
               name="qualifica"
@@ -228,9 +228,15 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 </FormItem>
               )}
             />
-             <FormField control={form.control} name="membershipFee" render={({ field }) => (
-                <FormItem><FormLabel>Quota Versata (€)</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value?.toFixed(2)} /></FormControl><FormMessage /></FormItem>
-            )}/>
+            <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="membershipFee" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Quota Versata (€)</FormLabel>
+                        <FormControl><Input type="number" step="0.01" {...field} value={field.value !== undefined ? Number(field.value).toFixed(2) : ''} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}/>
+            </div>
             <FormField control={form.control} name="notes" render={({ field }) => (
                 <FormItem><FormLabel>Note Amministrative</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
             )}/>
@@ -275,7 +281,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                       </FormItem>
                     )}
                   />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                     <FormField
                       control={form.control}
                       name="birthDate"
@@ -372,7 +378,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             <h3 className="text-lg font-medium text-primary mb-2">Altre Impostazioni</h3>
              <div className="space-y-4 rounded-md border p-4">
                  <FormField control={form.control} name="privacyConsent" render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange}/></FormControl><div className="space-y-1 leading-none"><FormLabel>Consenso Privacy</FormLabel><FormDescription>Il socio ha accettato la privacy policy.</FormDescription></div></FormItem>
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange}/></FormControl><div className="space-y-1 leading-none"><FormLabel>Consenso Privacy</FormLabel><FormDescription>Il socio ha accettato la privacy policy.</FormDescription></div><FormItem>
                 )}/>
             </div>
         </div>
