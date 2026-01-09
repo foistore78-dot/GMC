@@ -11,7 +11,9 @@ export function Footer() {
         <div className="text-sm space-y-1">
           <p>Associazione Culturale “Garage Music Club”</p>
           <p>Sede: Via XXIV Udine n. 43, Gradisca d’Isonzo (GO)</p>
-          <p>Presidente: Paolo Vidoz - Tel: +39 349 225 6701</p>
+          <p>Presidente: Susic Cristiana</p>
+          <p>Vice Presidente: Poterzio Sergio</p>
+          <p>Segretaria: Camauli Giulia</p>
         </div>
         <p className="text-sm mt-4">
           &copy; {new Date().getFullYear()} Garage Music Club. Tutti i diritti riservati.
