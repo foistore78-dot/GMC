@@ -325,7 +325,6 @@ const SocioTableRow = ({
     const newTessera = `GMC-${currentYear}-${newRenewalMemberNumber}`;
 
     const today = new Date();
-    // Correctly use the renewalFee for the note, not the old socio.membershipFee
     const renewalNote = `Rinnovato per l'anno ${currentYear}. Tessera precedente: ${socio.tessera} (${socio.membershipYear}). Quota versata: ${formatCurrency(renewalFee)}.`;
     const updatedNotes = socio.notes ? `${socio.notes}\n\n${renewalNote}` : renewalNote;
     
@@ -849,3 +848,5 @@ const SociTableComponent = ({
 
 
 export const SociTable = SociTableComponent;
+
+    

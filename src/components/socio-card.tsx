@@ -11,10 +11,10 @@ type SocioCardProps = {
 const Field = ({ label, value }: { label: string; value?: string | number | null }) => {
   if (!value && value !== 0) return null;
   return (
-    <div className="flex flex-col">
+    <>
       <p className="text-[8px] uppercase tracking-wider text-gray-500">{label}</p>
-      <p className="font-medium text-[9px]">{value}</p>
-    </div>
+      <p className="font-medium text-[9px] -mt-0.5">{value}</p>
+    </>
   );
 };
 
@@ -46,26 +46,24 @@ export function SocioCard({ socio }: SocioCardProps) {
         <h2 className="text-center font-headline text-sm font-bold mb-1">DOMANDA DI AMMISSIONE A SOCIO</h2>
         
         <div className="border-t border-b py-1 my-1">
-            <div className="col-span-2">
-                <p className="text-[8px] uppercase tracking-wider text-gray-500">Cognome e Nome / Qualifica</p>
-                <p className="font-medium text-base">
-                  {`${socio.lastName} ${socio.firstName}`}
-                  {socio.qualifica && socio.qualifica.length > 0 && <span className="font-normal text-xs"> ({socio.qualifica.join(', ')})</span>}
-                </p>
-            </div>
+            <p className="text-[8px] uppercase tracking-wider text-gray-500">Cognome e Nome / Qualifica</p>
+            <p className="font-medium text-base -mt-0.5">
+              {`${socio.lastName} ${socio.firstName}`}
+              {socio.qualifica && socio.qualifica.length > 0 && <span className="font-normal text-xs"> ({socio.qualifica.join(', ')})</span>}
+            </p>
              <table className="w-full mt-1 text-[9px]">
                 <tbody>
                     <tr>
-                        <td className="w-1/2 pr-2"><Field label="Data di Nascita" value={formatDate(socio.birthDate)} /></td>
-                        <td className="w-1/2 pl-2"><Field label="Luogo di Nascita" value={socio.birthPlace} /></td>
+                        <td className="w-1/2 pr-2 pt-1"><Field label="Data di Nascita" value={formatDate(socio.birthDate)} /></td>
+                        <td className="w-1/2 pl-2 pt-1"><Field label="Luogo di Nascita" value={socio.birthPlace} /></td>
                     </tr>
                      <tr>
-                        <td className="w-1/2 pr-2"><Field label="Codice Fiscale" value={socio.fiscalCode} /></td>
-                        <td className="w-1/2 pl-2"><Field label="Indirizzo di Residenza" value={`${socio.address}, ${socio.postalCode} ${socio.city} (${socio.province})`} /></td>
+                        <td className="w-1/2 pr-2 pt-1"><Field label="Codice Fiscale" value={socio.fiscalCode} /></td>
+                        <td className="w-1/2 pl-2 pt-1"><Field label="Indirizzo di Residenza" value={`${socio.address}, ${socio.postalCode} ${socio.city} (${socio.province})`} /></td>
                     </tr>
                     <tr>
-                        <td className="w-1/2 pr-2"><Field label="Email" value={socio.email} /></td>
-                        <td className="w-1/2 pl-2"><Field label="Telefono" value={socio.phone} /></td>
+                        <td className="w-1/2 pr-2 pt-1"><Field label="Email" value={socio.email} /></td>
+                        <td className="w-1/2 pl-2 pt-1"><Field label="Telefono" value={socio.phone} /></td>
                     </tr>
                 </tbody>
             </table>
@@ -78,8 +76,8 @@ export function SocioCard({ socio }: SocioCardProps) {
                 <table className="w-full text-[9px]">
                     <tbody>
                         <tr>
-                            <td className="w-1/2 pr-2"><Field label="Cognome e Nome Tutore" value={`${socio.guardianLastName} ${socio.guardianFirstName}`} /></td>
-                            <td className="w-1/2 pl-2"><Field label="Data di Nascita Tutore" value={formatDate(socio.guardianBirthDate)} /></td>
+                            <td className="w-1/2 pr-2 pt-1"><Field label="Cognome e Nome Tutore" value={`${socio.guardianLastName} ${socio.guardianFirstName}`} /></td>
+                            <td className="w-1/2 pl-2 pt-1"><Field label="Data di Nascita Tutore" value={formatDate(socio.guardianBirthDate)} /></td>
                         </tr>
                     </tbody>
                 </table>
@@ -100,18 +98,16 @@ export function SocioCard({ socio }: SocioCardProps) {
             </p>
         </div>
         
-        <div className="mt-3 pt-2 border-t border-gray-300 grid grid-cols-2 gap-4 text-[9px]">
-            <div>
-                <p>Data: ____________________</p>
-            </div>
-             <div className="text-center">
+        <div className="mt-3 pt-2 border-t border-gray-300 flex justify-between text-[9px]">
+            <p>Data: ____________________</p>
+            <div className="w-2/5 text-center">
                 <p>Firma del Socio</p>
-                <div className="mt-3 border-b border-gray-400"></div>
+                <div className="mt-4 border-b border-gray-400"></div>
             </div>
             {isMinor && (
-                 <div className="col-span-2 text-center -mt-4">
+                 <div className="w-2/5 text-center">
                     <p>Firma del Genitore/Tutore</p>
-                    <div className="mt-3 border-b border-gray-400"></div>
+                    <div className="mt-4 border-b border-gray-400"></div>
                 </div>
             )}
         </div>
@@ -141,3 +137,5 @@ export function SocioCard({ socio }: SocioCardProps) {
     </div>
   );
 }
+
+    
