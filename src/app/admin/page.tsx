@@ -7,7 +7,7 @@ import { Footer } from "@/components/footer";
 import { SociTable, type SortConfig, getStatus } from "@/components/soci-table";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import { FileDown, FileUp, Loader2, Users, Printer, Filter } from "lucide-react";
+import { FileDown, FileUp, Loader2, Users, Filter } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,18 +21,6 @@ import { Input } from "@/components/ui/input";
 import { exportToExcel } from "@/lib/excel-export";
 import { importFromExcel, type ImportResult } from "@/lib/excel-import";
 import { useToast } from "@/hooks/use-toast";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { SocioPrintCard } from "@/components/socio-print-card";
-
 
 const ITEMS_PER_PAGE = 10;
 
@@ -61,9 +49,6 @@ export default function AdminPage() {
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "ascending" });
   const [hideExpired, setHideExpired] = useState(true);
   
-  const [socioToPrint, setSocioToPrint] = useState<Socio | null>(null);
-  const [showPrintDialog, setShowPrintDialog] = useState(false);
-
   // State for filter and pagination
   const [filter, setFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -182,20 +167,11 @@ export default function AdminPage() {
     }
   };
 
-  const handleSocioApproved = (approvedSocio: Socio) => {
+  const resetToDefaultSort = () => {
     handleTabChange("active");
-    setSocioToPrint(approvedSocio);
-    setShowPrintDialog(true);
     setSortConfig({ key: 'tessera', direction: 'ascending' });
   };
   
-  const handleSocioRenewed = (renewedSocio: Socio) => {
-    handleTabChange("active");
-    setSocioToPrint(renewedSocio);
-    setShowPrintDialog(true);
-    setSortConfig({ key: 'tessera', direction: 'ascending' });
-  };
-
   const handleExport = () => {
     if (!membersData || !requestsData) return;
     exportToExcel(membersData, requestsData);
@@ -204,13 +180,6 @@ export default function AdminPage() {
   const handleImportClick = () => {
     fileInputRef.current?.click();
   };
-  
-  const handlePrintCard = () => {
-    window.print();
-    setShowPrintDialog(false);
-    setSocioToPrint(null);
-  };
-
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -317,10 +286,9 @@ export default function AdminPage() {
                 <SociTable 
                     soci={sortedRequests}
                     onEdit={handleEditSocio}
-                    onPrint={(socio) => { setSocioToPrint(socio); setShowPrintDialog(true); }}
                     allMembers={membersData || []}
-                    onSocioApproved={handleSocioApproved}
-                    onSocioRenewed={handleSocioRenewed}
+                    onSocioApproved={resetToDefaultSort}
+                    onSocioRenewed={resetToDefaultSort}
                     sortConfig={sortConfig}
                     setSortConfig={setSortConfig}
                     itemsPerPage={ITEMS_PER_PAGE}
@@ -333,10 +301,9 @@ export default function AdminPage() {
                 <SociTable 
                     soci={sortedMembers}
                     onEdit={handleEditSocio}
-                    onPrint={(socio) => { setSocioToPrint(socio); setShowPrintDialog(true); }}
                     allMembers={membersData || []}
-                    onSocioApproved={handleSocioApproved}
-                    onSocioRenewed={handleSocioRenewed}
+                    onSocioApproved={resetToDefaultSort}
+                    onSocioRenewed={resetToDefaultSort}
                     sortConfig={sortConfig}
                     setSortConfig={setSortConfig}
                     itemsPerPage={ITEMS_PER_PAGE}
@@ -378,35 +345,13 @@ export default function AdminPage() {
                 socio={editingSocio} 
                 onClose={() => {
                   setEditingSocio(null);
-                  handleTabChange("active");
+                  resetToDefaultSort();
                 }}
               />
             </>
           )}
         </SheetContent>
       </Sheet>
-
-      <AlertDialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Stampa Scheda Socio</AlertDialogTitle>
-            <AlertDialogDescription>
-              Stai per stampare la scheda per {socioToPrint ? getFullName(socioToPrint) : 'il socio'}.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div id="printable-area" className="p-4 bg-white text-black rounded-md">
-            {socioToPrint && <SocioPrintCard socio={socioToPrint} />}
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { setShowPrintDialog(false); setSocioToPrint(null); }}>Annulla</AlertDialogCancel>
-            <AlertDialogAction onClick={handlePrintCard}>
-              <Printer className="mr-2 h-4 w-4" />
-              Stampa
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
 
       <Footer />
     </div>

@@ -28,7 +28,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { RefreshCw, Pencil, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer } from "lucide-react";
+import { RefreshCw, Pencil, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
@@ -38,8 +38,6 @@ import { useFirestore } from "@/firebase";
 import { doc, writeBatch, updateDoc } from "firebase/firestore";
 import { format, parseISO, isValid, isBefore, startOfToday } from 'date-fns';
 import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
-import { SocioCard } from "./socio-card";
-import { createRoot } from 'react-dom/client';
 
 
 // Helper Functions
@@ -157,52 +155,6 @@ const SocioTableRow = ({
 
   const status = getStatus(socio);
   const socioIsMinor = isMinor(socio.birthDate);
-
-  const handlePrint = () => {
-    const printFrame = document.createElement('iframe');
-    printFrame.style.position = 'absolute';
-    printFrame.style.width = '0';
-    printFrame.style.height = '0';
-    printFrame.style.border = '0';
-    document.body.appendChild(printFrame);
-  
-    const frameDoc = printFrame.contentDocument;
-    const frameWindow = printFrame.contentWindow;
-  
-    if (frameDoc && frameWindow) {
-      frameDoc.open();
-      frameDoc.write(`
-        <html>
-          <head>
-            <title>Scheda Socio - ${getFullName(socio)}</title>
-            <link rel="preconnect" href="https://fonts.googleapis.com">
-            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-            <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-            <style>
-              @page { size: A4; margin: 0; }
-              body { margin: 0; font-family: 'Roboto', sans-serif; }
-            </style>
-          </head>
-          <body>
-            <div id="card-container"></div>
-          </body>
-        </html>
-      `);
-      frameDoc.close();
-  
-      const cardContainer = frameDoc.getElementById('card-container');
-      if (cardContainer) {
-        const root = createRoot(cardContainer);
-        root.render(<SocioCard socio={socio} />);
-  
-        setTimeout(() => {
-          frameWindow.focus();
-          frameWindow.print();
-          document.body.removeChild(printFrame);
-        }, 500);
-      }
-    }
-  };
 
   useEffect(() => {
     if (showApproveDialog) {
@@ -467,18 +419,6 @@ const SocioTableRow = ({
           </Badge>
         </TableCell>
         <TableCell className="text-right space-x-1">
-            <TooltipProvider>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrint}>
-                            <Printer className="h-4 w-4" />
-                            <span className="sr-only">Stampa Scheda</span>
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Stampa Scheda</TooltipContent>
-                </Tooltip>
-            </TooltipProvider>
-
             {status === 'pending' && (
               <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
                 <DialogTrigger asChild>
@@ -824,5 +764,3 @@ const SociTableComponent = ({
 
 
 export const SociTable = SociTableComponent;
-
-    
