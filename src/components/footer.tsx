@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { GarageMusicClubLogo } from "./icons/garage-music-club-logo";
 
 export function Footer() {
@@ -15,6 +16,11 @@ export function Footer() {
           <p>Presidente: Susic Cristiana</p>
           <p>Vice Presidente: Poterzio Sergio</p>
           <p>Segretaria: Camauli Giulia</p>
+        </div>
+        <div className="mt-4 text-sm">
+            <Link href="/privacy" className="hover:text-primary transition-colors">
+                Informativa sulla Privacy
+            </Link>
         </div>
         <p className="text-sm mt-4">
           &copy; {new Date().getFullYear()} Garage Music Club. Tutti i diritti riservati.
