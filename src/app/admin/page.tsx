@@ -174,6 +174,8 @@ export default function AdminPage() {
   const handleSheetOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
       setEditingSocio(null);
+       // Reset to default sort order after an edit
+      setSortConfig({ key: "tessera", direction: "descending" });
     }
   };
   
@@ -192,11 +194,13 @@ export default function AdminPage() {
     handleTabChange("active");
     setSocioToPrint(approvedSocio);
     setShowPrintDialog(true);
+    setSortConfig({ key: "tessera", direction: "descending" });
   };
   
   const handleSocioRenewed = (renewedSocio: Socio) => {
     setSocioToPrint(renewedSocio);
     setShowPrintDialog(true);
+    setSortConfig({ key: "tessera", direction: "descending" });
   };
 
   const handleExport = () => {
@@ -424,6 +428,7 @@ export default function AdminPage() {
                 socio={editingSocio} 
                 onClose={() => {
                   setEditingSocio(null);
+                  setSortConfig({ key: "tessera", direction: "descending" });
                 }}
               />
             </>
