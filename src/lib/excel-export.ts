@@ -14,7 +14,7 @@ const formatForExcel = (data: Socio[]) => {
     const status = getStatus(socio);
     return {
       'Stato': statusTranslations[status] || status,
-      'N. Tessera': socio.tessera || '',
+      'N. Tessera': socio.tessera ? (socio.tessera.split('-').pop() || '') : '',
       'Cognome': socio.lastName,
       'Nome': socio.firstName,
       'Genere': socio.gender === 'male' ? 'Maschio' : 'Femmina',
