@@ -59,6 +59,7 @@ export function MembershipForm() {
     guardianLastName: z.string().optional(),
     guardianBirthDate: z.string().optional(),
   }).refine(data => {
+      if (!data.birthDate) return true; // Let the specific field validator handle this
       const age = differenceInYears(new Date(), new Date(data.birthDate));
       if (age < 18) {
           return !!data.guardianFirstName && !!data.guardianLastName && !!data.guardianBirthDate;
@@ -121,6 +122,9 @@ export function MembershipForm() {
     setIsSubmitting(true);
     
     try {
+      if (!firestore) {
+        throw new Error("Firestore is not initialized");
+      }
       const membershipRequestData = {
         ...values,
         requestDate: serverTimestamp(),
@@ -152,8 +156,12 @@ export function MembershipForm() {
     if (!output) return;
 
     if (steps[currentStep].id === 3) {
-      const age = differenceInYears(new Date(), new Date(birthDate));
-      setIsMinor(age < 18);
+      if(birthDate) {
+        const age = differenceInYears(new Date(), new Date(birthDate));
+        setIsMinor(age < 18);
+      } else {
+        setIsMinor(false);
+      }
     }
     
     if (currentStep < steps.length - 1) {

@@ -13,9 +13,6 @@ import { Footer } from '@/components/footer';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, Users, UserPlus, Clock, History } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { format, getMonth, getYear, parseISO } from 'date-fns';
-import { it } from 'date-fns/locale';
-
 
 const StatCard = ({ title, value, icon, link, description }: { title: string, value: number, icon: React.ReactNode, link?: string, description?: string }) => {
   const cardContent = (
@@ -80,9 +77,9 @@ export default function DashboardPage() {
     allMembers.forEach(member => {
         if(member.joinDate) {
             try {
-                const joinDate = parseISO(member.joinDate);
-                if(getYear(joinDate) === currentYear) {
-                    const month = getMonth(joinDate);
+                const joinDate = new Date(member.joinDate);
+                if(joinDate.getFullYear() === currentYear) {
+                    const month = joinDate.getMonth();
                     monthlySignups[month]++;
                 }
             } catch(e) {
@@ -90,9 +87,11 @@ export default function DashboardPage() {
             }
         }
     });
+
+    const monthNames = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
     
     const chartData = monthlySignups.map((count, index) => ({
-      name: format(new Date(currentYear, index), 'MMM', { locale: it }),
+      name: monthNames[index],
       'Nuovi Soci': count,
     }));
 

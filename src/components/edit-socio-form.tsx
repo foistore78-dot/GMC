@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useCallback, useState, useEffect } from "react";
-import { differenceInYears } from "date-fns";
 import { doc, writeBatch, deleteField } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
@@ -34,7 +33,13 @@ export const isMinorCheck = (birthDate: string | undefined | Date): boolean => {
   if (!birthDate) return false;
   const date = new Date(birthDate);
   if (isNaN(date.getTime())) return false;
-  return differenceInYears(new Date(), date) < 18;
+  const today = new Date();
+  let age = today.getFullYear() - date.getFullYear();
+  const m = today.getMonth() - date.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < date.getDate())) {
+      age--;
+  }
+  return age < 18;
 };
 
 const formSchema = z
@@ -702,5 +707,3 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
-
-    

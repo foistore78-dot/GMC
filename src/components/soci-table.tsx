@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useMemo, useEffect, Dispatch, SetStateAction, useCallback } from "react";
@@ -38,18 +36,42 @@ import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
 import { useFirestore } from "@/firebase";
 import { doc, writeBatch } from "firebase/firestore";
-import { format, parseISO, isValid, isBefore, startOfToday } from 'date-fns';
 import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
 
 // Helper Functions
 export const getFullName = (socio: any) => `${socio.lastName || ''} ${socio.firstName || ''}`.trim();
 
+const isDate = (d: any): d is Date => d instanceof Date && !isNaN(d.valueOf());
+
+const parseDate = (dateString: any): Date | null => {
+    if (!dateString) return null;
+    let date;
+
+    if (dateString && typeof dateString.toDate === 'function') {
+        date = dateString.toDate();
+    } else if (typeof dateString === 'string') {
+        date = new Date(dateString);
+    } else if (dateString instanceof Date) {
+        date = dateString;
+    } else {
+        return null;
+    }
+    
+    return isDate(date) ? date : null;
+}
+
+
 const isExpired = (socio: Socio): boolean => {
     if (socio.membershipStatus !== 'active' || !socio.expirationDate) {
         return false;
     }
-    const expirationDate = new Date(socio.expirationDate);
-    return isBefore(expirationDate, startOfToday());
+    const expirationDate = parseDate(socio.expirationDate);
+    if (!expirationDate) return false;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Compare dates only
+    
+    return expirationDate < today;
 };
 
 export const getStatus = (socio: any): 'active' | 'pending' | 'rejected' | 'expired' => {
@@ -64,29 +86,19 @@ export const getStatus = (socio: any): 'active' | 'pending' | 'rejected' | 'expi
 };
 
 
-export const formatDate = (dateString: any, outputFormat: string = 'dd/MM/yyyy') => {
-    if (!dateString) return '';
-    let date: Date;
+export const formatDate = (dateInput: any, outputFormat: string = 'dd/MM/yyyy') => {
+    const date = parseDate(dateInput);
+    if (!date) return '';
 
-    if (dateString && typeof dateString.toDate === 'function') {
-        date = dateString.toDate();
-    } else if (typeof dateString === 'string') {
-        date = parseISO(dateString);
-    } else if (dateString instanceof Date) {
-        date = dateString;
-    } else {
-        return '';
-    }
+    const d = date.getDate().toString().padStart(2, '0');
+    const m = (date.getMonth() + 1).toString().padStart(2, '0');
+    const y = date.getFullYear();
 
-    if (!isValid(date)) {
-        return '';
+    if (outputFormat === 'yyyy-MM-dd') {
+      return `${y}-${m}-${d}`;
     }
-
-    try {
-        return format(date, outputFormat);
-    } catch {
-        return '';
-    }
+    
+    return `${d}/${m}/${y}`;
 };
 
 
@@ -792,11 +804,3 @@ export const SociTable = ({
     </div>
   );
 }
-
-    
-
-    
-
-
-
-

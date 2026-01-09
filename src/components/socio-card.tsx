@@ -1,11 +1,8 @@
-
 "use client";
 
 import type { Socio } from "@/lib/soci-data";
 import { GarageMusicClubLogo } from "./icons/garage-music-club-logo";
 import { formatDate } from "./soci-table";
-import { differenceInYears } from 'date-fns';
-
 
 type SocioCardProps = {
   socio: Socio;
@@ -15,7 +12,14 @@ const isMinorCheck = (birthDate: string | undefined | Date): boolean => {
   if (!birthDate) return false;
   const date = new Date(birthDate);
   if (isNaN(date.getTime())) return false;
-  return differenceInYears(new Date(), date) < 18;
+  
+  const today = new Date();
+  let age = today.getFullYear() - date.getFullYear();
+  const m = today.getMonth() - date.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < date.getDate())) {
+      age--;
+  }
+  return age < 18;
 };
 
 
