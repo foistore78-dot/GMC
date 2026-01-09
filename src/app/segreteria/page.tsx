@@ -253,10 +253,10 @@ export default function SegreteriaPage() {
                                 Clicca qui per scaricare il modulo di domanda di ammissione a socio. Può essere compilato al computer e poi stampato.
                             </p>
                              <Button asChild>
-                                <Link href="https://www.fantastificio.it/wp-content/uploads/2023/11/Modulo-Iscrizione-Associazione-Fantastificio-APS-compilabile.pdf" target="_blank" rel="noopener noreferrer">
+                                <a href="https://www.fantastificio.it/wp-content/uploads/2023/11/Modulo-Iscrizione-Associazione-Fantastificio-APS-compilabile.pdf" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center">
                                     <FileText className="mr-2 h-4 w-4" />
                                     Scarica Modulo PDF
-                                </Link>
+                                </a>
                             </Button>
                         </div>
                     </CardContent>
