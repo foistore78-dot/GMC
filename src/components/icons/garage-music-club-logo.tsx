@@ -4,19 +4,74 @@ export function GarageMusicClubLogo(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      viewBox="0 0 100 100"
       {...props}
     >
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
-      <path d="M12 12.5a2 2 0 1 0 0-5 2 2 0 0 0 0 5Z" />
-      <path d="m11 10 3 5" />
-      <path d="m11 15 3-5" />
+      <g fill="white">
+        <text
+          x="50"
+          y="26"
+          fontFamily="Arial, sans-serif"
+          fontWeight="bold"
+          fontSize="14"
+          textAnchor="middle"
+          fill="white"
+        >
+          GARAGE
+        </text>
+        <text
+          x="50"
+          y="82"
+          fontFamily="Arial, sans-serif"
+          fontWeight="bold"
+          fontSize="10"
+          textAnchor="middle"
+          fill="white"
+        >
+          MUSIC CLUB
+        </text>
+      </g>
+      <circle cx="50" cy="50" r="28" fill="none" stroke="white" strokeWidth="2" />
+      <circle cx="50" cy="50" r="24" fill="black" />
+      <g fill="white">
+        <circle cx="50" cy="50" r="20" fill="white" />
+        <circle cx="50" cy="50" r="17" fill="black" />
+        <circle cx="50" cy="50" r="10" fill="white" />
+        <circle cx="50" cy="50" r="7" fill="black" />
+        <path d="M50 45.5 A 4.5 4.5 0 0 1 50 54.5 A 4.5 4.5 0 0 1 50 45.5" fill="white"/>
+        <path d="M50 45.5 A 5 5 0 0 0 50 54.5" fill="black"/>
+      </g>
+      <path
+        id="curve"
+        d="M20,68 A35,35 0 1,1 80,68"
+        fill="transparent"
+      />
+       <path
+        id="curve-top"
+        d="M20,32 A35,35 0 0,1 80,32"
+        fill="transparent"
+      />
+
+       <g fontSize="4" fontFamily="Arial, sans-serif" fill="white">
+          <text><textPath href="#curve" startOffset="50%" textAnchor="middle">GARAGE.MUSIC.CLUB2024@GMAIL.COM</textPath></text>
+          <text><textPath href="#curve-top" startOffset="18%" textAnchor="middle">C.F: 91050330314</textPath></text>
+           <text><textPath href="#curve" startOffset="10%" textAnchor="middle">34072 GRADISCA D'ISONZO</textPath></text>
+           <text><textPath href="#curve" startOffset="-5%" textAnchor="middle" transform="rotate(180 50 50)">VIA UDINE 43</textPath></text>
+       </g>
+
+       <g stroke="red" strokeWidth="0.8">
+            <path d="M30 40.23 A 20 20 0 0 1 30 59.77" fill="none"/>
+            <path d="M28 41.6 A 22 22 0 0 1 28 58.4" fill="none"/>
+            <path d="M26 42.8 A 24 24 0 0 1 26 57.2" fill="none"/>
+            <path d="M24 44 A 26 26 0 0 1 24 56" fill="none"/>
+            <path d="M22 45.3 A 28 28 0 0 1 22 54.7" fill="none"/>
+
+            <path d="M70 40.23 A 20 20 0 0 0 70 59.77" fill="none"/>
+            <path d="M72 41.6 A 22 22 0 0 0 72 58.4" fill="none"/>
+            <path d="M74 42.8 A 24 24 0 0 0 74 57.2" fill="none"/>
+            <path d="M76 44 A 26 26 0 0 0 76 56" fill="none"/>
+            <path d="M78 45.3 A 28 28 0 0 0 78 54.7" fill="none"/>
+        </g>
     </svg>
   );
 }
