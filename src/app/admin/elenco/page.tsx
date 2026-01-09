@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from 'next/link';
 import { Header } from "@/components/header";
@@ -168,10 +169,13 @@ export default function ElencoSociPage() {
     }
   };
 
-  const handleSocioUpdate = () => {
-    forceMembersRefresh();
-    forceRequestsRefresh();
-  };
+  const handleSocioUpdate = useCallback((switchToTab?: 'active' | 'expired' | 'requests') => {
+      forceMembersRefresh();
+      forceRequestsRefresh();
+      if (switchToTab) {
+          setActiveTab(switchToTab);
+      }
+  }, [forceMembersRefresh, forceRequestsRefresh]);
   
   const handlePrintCard = (socio: Socio) => {
     setSocioToPrint(socio);
@@ -374,3 +378,5 @@ export default function ElencoSociPage() {
     </div>
   );
 }
+
+    

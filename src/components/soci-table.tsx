@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, Dispatch, SetStateAction } from "react";
@@ -137,15 +138,13 @@ const SocioTableRow = ({
   onEdit,
   onPrint,
   allMembers,
-  onSocioApproved,
-  onSocioRenewed,
+  onSocioUpdate,
 }: { 
   socio: Socio; 
   onEdit: (socio: Socio) => void;
   onPrint: (socio: Socio) => void;
   allMembers: Socio[];
-  onSocioApproved: () => void;
-  onSocioRenewed: () => void;
+  onSocioUpdate: (tab?: 'active' | 'expired' | 'requests') => void;
 }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -171,14 +170,20 @@ const SocioTableRow = ({
     if (!isOpen) {
       setApprovedSocioData(null);
       setIsApproving(false);
+      if (approvedSocioData) {
+        onSocioUpdate('active');
+      }
     }
     setShowApproveDialog(isOpen);
   };
   
   const handleRenewDialogChange = (isOpen: boolean) => {
-    if (!isOpen) {
+     if (!isOpen) {
       setRenewedSocioData(null);
       setIsRenewing(false);
+       if (renewedSocioData) {
+        onSocioUpdate();
+      }
     }
     setShowRenewDialog(isOpen);
   };
@@ -231,6 +236,9 @@ const SocioTableRow = ({
     const memberDocRef = doc(firestore, "members", socio.id);
 
     const { status, ...restOfSocio } = socio;
+    
+    // Preserve existing notes
+    const oldNotes = socio.notes || '';
 
     const newMemberData: Socio = {
         ...restOfSocio,
@@ -243,6 +251,7 @@ const SocioTableRow = ({
         membershipFee: membershipFee,
         qualifica: qualifiche,
         requestDate: socio.requestDate || new Date().toISOString(),
+        notes: oldNotes, // Carry over the notes
     };
 
     batch.set(memberDocRef, newMemberData, { merge: true });
@@ -255,7 +264,6 @@ const SocioTableRow = ({
             description: `${getFullName(socio)} è ora un membro attivo. N. tessera: ${membershipCardNumber}`,
         });
         setApprovedSocioData(newMemberData);
-        onSocioApproved();
     } catch (error) {
         console.error("Error approving member:", error);
         toast({
@@ -272,10 +280,11 @@ const SocioTableRow = ({
     setIsRenewing(true);
 
     const memberDocRef = doc(firestore, 'members', socio.id);
-
     const renewalDate = new Date();
     const oldNotes = socio.notes || '';
     const renewalNote = `--- RINNOVO ${formatDate(renewalDate)} ---\nAnno: ${renewalYear}, Quota: €${renewalFee.toFixed(2)}`;
+    
+    // Prepend the new renewal note to existing notes
     const newNotes = `${renewalNote}\n\n${oldNotes}`;
 
     const updatedData = {
@@ -298,7 +307,6 @@ const SocioTableRow = ({
         title: 'Rinnovo Effettuato!',
         description: `Il tesseramento di ${getFullName(socio)} è stato rinnovato per l'anno ${renewalYear}.`,
       });
-      onSocioRenewed();
     } catch (error) {
       console.error('Error renewing member:', error);
       toast({
@@ -306,7 +314,8 @@ const SocioTableRow = ({
         description: `Impossibile rinnovare ${getFullName(socio)}. Dettagli: ${(error as Error).message}`,
         variant: 'destructive',
       });
-      setIsRenewing(false);
+    } finally {
+        setIsRenewing(false);
     }
   };
   
@@ -658,8 +667,7 @@ interface SociTableProps {
   sortConfig: SortConfig;
   setSortConfig: Dispatch<SetStateAction<SortConfig>>;
   itemsPerPage: number;
-  onSocioApproved: () => void;
-  onSocioRenewed: () => void;
+  onSocioUpdate: (tab?: 'active' | 'expired' | 'requests') => void;
   currentPage: number;
   setCurrentPage: Dispatch<SetStateAction<number>>;
 }
@@ -703,8 +711,7 @@ const SociTableComponent = ({
   onEdit, 
   onPrint,
   allMembers, 
-  onSocioApproved,
-  onSocioRenewed,
+  onSocioUpdate,
   sortConfig, 
   setSortConfig, 
   itemsPerPage,
@@ -755,8 +762,7 @@ const SociTableComponent = ({
                   onEdit={onEdit}
                   onPrint={onPrint}
                   allMembers={allMembers}
-                  onSocioApproved={onSocioApproved}
-                  onSocioRenewed={onSocioRenewed}
+                  onSocioUpdate={onSocioUpdate}
                 />
               ))
             ) : (
