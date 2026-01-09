@@ -32,7 +32,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { SocioCard } from "@/components/socio-card";
-import ReactDOMServer from "react-dom/server";
 
 
 const ITEMS_PER_PAGE = 10;
@@ -59,7 +58,7 @@ export default function AdminPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
   const [activeTab, setActiveTab] = useState("active");
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "descending" });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "ascending" });
   const [hideExpired, setHideExpired] = useState(true);
   
   const [socioToPrint, setSocioToPrint] = useState<Socio | null>(null);
@@ -185,7 +184,7 @@ export default function AdminPage() {
     setFilter(''); // Reset filter on tab change
     setCurrentPage(1); // Reset page on tab change
     if (tab === 'active') {
-      setSortConfig({ key: 'tessera', direction: 'descending' });
+      setSortConfig({ key: 'tessera', direction: 'ascending' });
     } else {
       setSortConfig({ key: 'requestDate', direction: 'descending' });
     }
@@ -195,13 +194,13 @@ export default function AdminPage() {
     handleTabChange("active");
     setSocioToPrint(approvedSocio);
     setShowPrintDialog(true);
-    setSortConfig({ key: 'tessera', direction: 'descending' });
+    setSortConfig({ key: 'tessera', direction: 'ascending' });
   };
   
   const handleSocioRenewed = (renewedSocio: Socio) => {
     setSocioToPrint(renewedSocio);
     setShowPrintDialog(true);
-    setSortConfig({ key: "tessera", direction: "descending" });
+    setSortConfig({ key: "tessera", direction: "ascending" });
   };
 
   const handleExport = () => {
@@ -215,54 +214,54 @@ export default function AdminPage() {
   
   const handlePrintCard = () => {
     if (!socioToPrint) return;
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      const cardHtml = ReactDOMServer.renderToString(
-        <>
-          <style>{`
-            @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto:wght@400;500;700&display=swap');
-            body { font-family: 'Roboto', sans-serif; margin: 0; }
-            .font-headline { font-family: 'Orbitron', sans-serif; }
-          `}</style>
-          <SocioCard socio={socioToPrint} />
-        </>
-      );
-      
-      const pageStyles = `
-        @page { size: A4; margin: 0; }
-        body { margin: 0; background: white; color: black; }
-        #printable-card { 
-          width: 210mm; 
-          height: 297mm; 
-          padding: 15mm; 
-          box-sizing: border-box; 
-        }
-      `;
-      
-      printWindow.document.write(`
+
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'absolute';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    document.body.appendChild(printFrame);
+
+    const frameDoc = printFrame.contentDocument;
+    const frameWindow = printFrame.contentWindow;
+    
+    if (frameDoc && frameWindow) {
+      frameDoc.open();
+      frameDoc.write(`
         <html>
           <head>
             <title>Scheda Socio - ${getFullName(socioToPrint)}</title>
-            <style>${pageStyles}</style>
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+            <style>
+              @page { size: A4; margin: 0; }
+              body { margin: 0; }
+            </style>
           </head>
           <body>
-            <div id="printable-card">
-              ${cardHtml}
-            </div>
           </body>
         </html>
       `);
       
-      printWindow.document.close();
-      printWindow.focus();
+      const cardContainer = frameDoc.createElement('div');
+      frameDoc.body.appendChild(cardContainer);
       
-      setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-      }, 500);
+      import('react-dom/server').then(ReactDOMServer => {
+        const cardHtml = ReactDOMServer.renderToString(<SocioCard socio={socioToPrint} />);
+        cardContainer.innerHTML = cardHtml;
+        
+        setTimeout(() => {
+          frameWindow.focus();
+          frameWindow.print();
+          document.body.removeChild(printFrame);
+          setSocioToPrint(null);
+        }, 250); 
+      });
+
+      frameDoc.close();
     }
     setShowPrintDialog(false);
-    setSocioToPrint(null);
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -429,6 +428,7 @@ export default function AdminPage() {
                 socio={editingSocio} 
                 onClose={() => {
                   setEditingSocio(null);
+                  setSortConfig({ key: "tessera", direction: "ascending" });
                 }}
               />
             </>
@@ -459,3 +459,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    

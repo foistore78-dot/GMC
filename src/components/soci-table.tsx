@@ -49,7 +49,6 @@ import { doc, writeBatch, updateDoc } from "firebase/firestore";
 import { format, parseISO, isValid, isBefore, startOfToday } from 'date-fns';
 import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
 import { SocioCard } from "./socio-card";
-import ReactDOMServer from "react-dom/server";
 
 
 // Helper Functions
@@ -169,43 +168,50 @@ const SocioTableRow = ({
   const socioIsMinor = isMinor(socio.birthDate);
 
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      
-      const cardHtml = ReactDOMServer.renderToString(
-          <SocioCard socio={socio} />
-      );
-      
-      const pageStyles = `
-        @page { size: A4; margin: 0; }
-        body { margin: 0; background: white; color: black; font-family: 'Roboto', sans-serif;}
-        .font-headline { font-family: 'Orbitron', sans-serif; }
-      `;
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'absolute';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    document.body.appendChild(printFrame);
 
-      const fontLink = `<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">`;
-      
-      printWindow.document.write(`
+    const frameDoc = printFrame.contentDocument;
+    const frameWindow = printFrame.contentWindow;
+    
+    if (frameDoc && frameWindow) {
+      frameDoc.open();
+      frameDoc.write(`
         <html>
           <head>
             <title>Scheda Socio - ${getFullName(socio)}</title>
-            ${fontLink}
-            <style>${pageStyles}</style>
+             <link rel="preconnect" href="https://fonts.googleapis.com">
+             <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+             <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+            <style>
+              @page { size: A4; margin: 0; }
+              body { margin: 0; }
+            </style>
           </head>
           <body>
-            <div id="printable-card">
-              ${cardHtml}
-            </div>
           </body>
         </html>
       `);
       
-      printWindow.document.close();
-      printWindow.focus();
+      const cardContainer = frameDoc.createElement('div');
+      frameDoc.body.appendChild(cardContainer);
       
-      setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-      }, 500);
+      import('react-dom/server').then(ReactDOMServer => {
+        const cardHtml = ReactDOMServer.renderToString(<SocioCard socio={socio} />);
+        cardContainer.innerHTML = cardHtml;
+        
+        setTimeout(() => {
+          frameWindow.focus();
+          frameWindow.print();
+          document.body.removeChild(printFrame);
+        }, 250); 
+      });
+
+      frameDoc.close();
     }
   };
 
@@ -417,8 +423,7 @@ const SocioTableRow = ({
                             <Button variant="ghost">Chiudi</Button>
                           </DialogClose>
                           <div className="flex gap-2">
-                             <Button variant="outline" onClick={handlePrint}><Printer className="mr-2 h-4 w-4"/> Stampa Scheda</Button>
-                             <Button onClick={() => onEdit(socio)}><Pencil className="mr-2 h-4 w-4" /> Modifica Dati</Button>
+                             <Button variant="outline" onClick={() => onEdit(socio)}><Pencil className="mr-2 h-4 w-4" /> Modifica Dati</Button>
                           </div>
                       </DialogFooter>
                    </DialogContent>
@@ -799,16 +804,6 @@ const SociTableComponent = ({
           </TableBody>
         </Table>
       </div>
-
-      <div className="hidden">
-        {soci.map(socio => (
-            <div key={`card-${socio.id}`} id={`card-${socio.id}`} className="print:block">
-                <SocioCard socio={socio} />
-            </div>
-        ))}
-      </div>
-
-
       <div className="flex items-center justify-between space-x-2 py-4">
         <div className="text-sm text-muted-foreground">
             Pagina {currentPage} di {totalPages > 0 ? totalPages : 1}
@@ -840,3 +835,5 @@ const SociTableComponent = ({
 
 
 export const SociTable = SociTableComponent;
+
+    
