@@ -72,12 +72,9 @@ export default function DashboardPage() {
     
     const expiredMembers = allMembers.filter(mem => getStatus(mem) === 'expired').length;
     
-    // Corrected Logic: Count all members (active and expired) for their respective membership year.
-    const membersByYear = allMembers.reduce((acc, mem) => {
-      const year = mem.membershipYear || 'N/A';
-      acc[year] = (acc[year] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const members_2024 = allMembers.filter(m => m.membershipYear === '2024').length;
+    const members_2025 = allMembers.filter(m => m.membershipYear === '2025').length;
+    const members_2026 = allMembers.filter(m => m.membershipYear === '2026').length;
 
 
     const monthlySignups = Array(12).fill(0);
@@ -103,9 +100,9 @@ export default function DashboardPage() {
     return {
       pendingApproval,
       expiredMembers,
-      members_2024: membersByYear['2024'] || 0,
-      members_2025: membersByYear['2025'] || 0,
-      members_2026: membersByYear['2026'] || 0,
+      members_2024,
+      members_2025,
+      members_2026,
       chartData,
     };
   }, [membersData, requestsData]);
