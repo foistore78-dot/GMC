@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import QRCode from 'react-qr-code';
-import { useUser, useFirestore, useCollection } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { Socio } from '@/lib/soci-data';
 
@@ -31,10 +31,19 @@ export default function SegreteriaPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
   
-  const membersQuery = useCollection(firestore ? collection(firestore, 'members') : null);
-  const requestsQuery = useCollection(firestore ? collection(firestore, 'membership_requests') : null);
+  const membersQueryRef = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'members') : null),
+    [firestore]
+  );
+  const requestsQueryRef = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'membership_requests') : null),
+    [firestore]
+  );
 
-  const isDataLoading = membersQuery.isLoading || requestsQuery.isLoading;
+  const { data: membersData, isLoading: isMembersLoading } = useCollection<Socio>(membersQueryRef);
+  const { data: requestsData, isLoading: isRequestsLoading } = useCollection<Socio>(requestsQueryRef);
+
+  const isDataLoading = isMembersLoading || isRequestsLoading;
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -113,8 +122,8 @@ export default function SegreteriaPage() {
   };
   
   const handleExport = () => {
-    const members = (membersQuery.data as Socio[]) || [];
-    const requests = (requestsQuery.data as Socio[]) || [];
+    const members = (membersData as Socio[]) || [];
+    const requests = (requestsData as Socio[]) || [];
     exportToExcel(members, requests);
   };
 
