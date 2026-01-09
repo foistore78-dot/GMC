@@ -15,10 +15,13 @@ service cloud.firestore {
     }
 
     /**
-     * Checks if the user has an admin role document.
+     * Checks if the user has an admin role document OR is the super admin.
      */
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      // A user is an admin if they have an admin role document OR if their email is the super admin email.
+      return isSignedIn() && 
+             (exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)) || 
+              request.auth.token.email == 'garage.music.club2024@gmail.com');
     }
 
 
