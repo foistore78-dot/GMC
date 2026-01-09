@@ -38,7 +38,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { RefreshCw, Pencil, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer } from "lucide-react";
+import { RefreshCw, Pencil, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
@@ -170,7 +170,7 @@ const SocioTableRow = ({
   const handlePrint = () => {
     const printWindow = window.open('', '_blank', 'height=842,width=595'); // A4 dimensions in pixels approx
     if (printWindow) {
-      printWindow.document.write('<html><head><title>Stampa Scheda Socio</title>');
+      printWindow.document.write(`<html><head><title>Scheda Socio - ${getFullName(socio)}</title>`);
       
       const stylesheets = Array.from(document.styleSheets)
         .map(s => s.href ? `<link rel="stylesheet" href="${s.href}">` : '')
@@ -651,6 +651,9 @@ interface SociTableProps {
   itemsPerPage: number;
   onSocioApproved: (socio: Socio) => void;
   onSocioRenewed: (socio: Socio) => void;
+  filter: string;
+  currentPage: number;
+  setCurrentPage: Dispatch<SetStateAction<number>>;
 }
 
 const SortableHeader = ({
@@ -687,9 +690,19 @@ const SortableHeader = ({
   );
 };
 
-const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, onSocioRenewed, sortConfig, setSortConfig, itemsPerPage }: SociTableProps) => {
-  const [filter, setFilter] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+const SociTableComponent = ({ 
+  soci, 
+  onEdit, 
+  allMembers, 
+  onSocioApproved, 
+  onSocioRenewed, 
+  sortConfig, 
+  setSortConfig, 
+  itemsPerPage,
+  filter,
+  currentPage,
+  setCurrentPage
+}: SociTableProps) => {
 
   const filteredSoci = useMemo(() => {
     const searchString = filter.toLowerCase();
@@ -719,10 +732,6 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, onSocio
       );
     });
   }, [soci, filter]);
-
-  useEffect(() => {
-      setCurrentPage(1);
-  }, [filter, soci]);
   
   const totalPages = Math.ceil(filteredSoci.length / itemsPerPage);
   const paginatedSoci = filteredSoci.slice(
@@ -745,17 +754,6 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, onSocio
 
   return (
     <div>
-      <div className="flex items-center py-4">
-        <div className="relative w-full max-w-sm">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Filtra per nome, cognome, data, tessera..."
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-            className="pl-10"
-          />
-        </div>
-      </div>
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -790,7 +788,7 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, onSocio
         </Table>
       </div>
 
-      {paginatedSoci.map(socio => (
+      {soci.map(socio => (
           <div key={`card-${socio.id}`} id={`card-${socio.id}`} className="hidden print:block">
             <SocioCard socio={socio} />
           </div>

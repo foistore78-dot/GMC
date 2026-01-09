@@ -7,7 +7,7 @@ import { Footer } from "@/components/footer";
 import { SociTable, type SortConfig, getStatus } from "@/components/soci-table";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import { FileDown, FileUp, Loader2, Users, Printer } from "lucide-react";
+import { FileDown, FileUp, Loader2, Users, Printer, Filter } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { exportToExcel } from "@/lib/excel-export";
 import { importFromExcel, type ImportResult } from "@/lib/excel-import";
 import { useToast } from "@/hooks/use-toast";
@@ -62,6 +63,10 @@ export default function AdminPage() {
   const [socioToPrint, setSocioToPrint] = useState<Socio | null>(null);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
 
+  // State for filter and pagination, moved from SociTable
+  const [filter, setFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+
   const membersQuery = useMemoFirebase(
     () => (firestore && user ? collection(firestore, "members") : null),
     [firestore, user]
@@ -73,12 +78,20 @@ export default function AdminPage() {
 
   const { data: membersData, isLoading: isMembersLoading } = useCollection<Socio>(membersQuery);
   const { data: requestsData, isLoading: isRequestsLoading } = useCollection<Socio>(requestsQuery);
+
+  const activeSoci = useMemo(() => {
+    if (!membersData) return [];
+    if (hideExpired) {
+        return membersData.filter(s => getStatus(s) !== 'expired');
+    }
+    return membersData;
+  }, [membersData, hideExpired]);
   
   const sortedMembers = useMemo(() => {
-    if (!membersData) return [];
+    if (!activeSoci) return [];
     const currentYear = new Date().getFullYear();
     
-    const sorted = [...membersData].sort((a, b) => {
+    const sorted = [...activeSoci].sort((a, b) => {
         const { key, direction } = sortConfig;
         
         const yearA = getTesseraYear(a);
@@ -114,15 +127,7 @@ export default function AdminPage() {
     });
     
     return sorted.map(s => ({ ...s, membershipStatus: 'active' as const }));
-  }, [membersData, sortConfig]);
-
-  const visibleMembers = useMemo(() => {
-    if (hideExpired) {
-      return sortedMembers.filter(s => getStatus(s) !== 'expired');
-    }
-    return sortedMembers;
-  }, [sortedMembers, hideExpired]);
-
+  }, [activeSoci, sortConfig]);
 
   const sortedRequests = useMemo(() => {
     if (!requestsData) return [];
@@ -149,6 +154,11 @@ export default function AdminPage() {
     return sorted.map(s => ({ ...s, membershipStatus: 'pending' as const }));
   }, [requestsData, sortConfig]);
 
+  useEffect(() => {
+    // Reset page to 1 when filter or active tab changes
+    setCurrentPage(1);
+  }, [filter, activeTab]);
+
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -170,6 +180,7 @@ export default function AdminPage() {
   
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
+    setFilter(''); // Reset filter on tab change
     if (tab === 'active') {
       setSortConfig({ key: 'tessera', direction: 'descending' });
     } else {
@@ -295,6 +306,8 @@ export default function AdminPage() {
     );
   }
 
+  const dataToShow = activeTab === 'active' ? sortedMembers : sortedRequests;
+
   return (
     <div className="flex flex-col min-h-screen bg-secondary">
       <Header />
@@ -315,16 +328,44 @@ export default function AdminPage() {
              </div>
           ) : (
             <Tabs value={activeTab} onValueChange={handleTabChange}>
-              <TabsList className="mb-4">
-                 <TabsTrigger value="active">
-                  Soci Attivi
-                  <Badge variant="secondary" className="ml-2">{visibleMembers.length}</Badge>
-                </TabsTrigger>
-                <TabsTrigger value="pending">
-                  Richieste di Iscrizione
-                  <Badge variant="secondary" className="ml-2">{sortedRequests.length}</Badge>
-                </TabsTrigger>
-              </TabsList>
+              <div className="flex justify-between items-center flex-wrap gap-4 mb-4">
+                <TabsList>
+                   <TabsTrigger value="active">
+                    Soci Attivi
+                    <Badge variant="secondary" className="ml-2">{activeSoci.length}</Badge>
+                  </TabsTrigger>
+                  <TabsTrigger value="pending">
+                    Richieste di Iscrizione
+                    <Badge variant="secondary" className="ml-2">{sortedRequests.length}</Badge>
+                  </TabsTrigger>
+                </TabsList>
+                <div className="flex items-center gap-4">
+                  {activeTab === 'active' && (
+                    <div className="flex items-center space-x-2">
+                        <Checkbox
+                            id="hide-expired"
+                            checked={hideExpired}
+                            onCheckedChange={(checked) => {
+                                setHideExpired(!!checked);
+                                setCurrentPage(1); // Reset page when toggling filter
+                            }}
+                        />
+                        <Label htmlFor="hide-expired" className="cursor-pointer whitespace-nowrap">
+                            Nascondi scaduti
+                        </Label>
+                    </div>
+                  )}
+                   <div className="relative w-full max-w-sm">
+                      <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Filtra per nome, data, tessera..."
+                        value={filter}
+                        onChange={(event) => setFilter(event.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                </div>
+              </div>
               <TabsContent value="pending" className="rounded-lg bg-yellow-500/5 p-4">
                 <SociTable 
                     soci={sortedRequests}
@@ -335,21 +376,14 @@ export default function AdminPage() {
                     sortConfig={sortConfig}
                     setSortConfig={setSortConfig}
                     itemsPerPage={ITEMS_PER_PAGE}
+                    filter={filter}
+                    currentPage={currentPage}
+                    setCurrentPage={setCurrentPage}
                 />
               </TabsContent>
               <TabsContent value="active" className="rounded-lg p-4">
-                <div className="flex items-center space-x-2 py-4">
-                  <Checkbox
-                    id="hide-expired"
-                    checked={hideExpired}
-                    onCheckedChange={(checked) => setHideExpired(!!checked)}
-                  />
-                  <Label htmlFor="hide-expired" className="cursor-pointer">
-                    Nascondi soci scaduti
-                  </Label>
-                </div>
                 <SociTable 
-                    soci={visibleMembers}
+                    soci={sortedMembers}
                     onEdit={handleEditSocio}
                     allMembers={membersData || []}
                     onSocioApproved={handleSocioApproved}
@@ -357,6 +391,9 @@ export default function AdminPage() {
                     sortConfig={sortConfig}
                     setSortConfig={setSortConfig}
                     itemsPerPage={ITEMS_PER_PAGE}
+                    filter={filter}
+                    currentPage={currentPage}
+                    setCurrentPage={setCurrentPage}
                 />
               </TabsContent>
             </Tabs>
