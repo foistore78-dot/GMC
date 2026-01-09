@@ -137,13 +137,15 @@ const SocioTableRow = ({
   onEdit,
   onPrint,
   allMembers,
-  onSocioUpdate,
+  onSocioApproved,
+  onSocioRenewed,
 }: { 
   socio: Socio; 
   onEdit: (socio: Socio) => void;
   onPrint: (socio: Socio) => void;
   allMembers: Socio[];
-  onSocioUpdate?: () => void;
+  onSocioApproved: () => void;
+  onSocioRenewed: () => void;
 }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -168,6 +170,7 @@ const SocioTableRow = ({
   const handleApproveDialogChange = (isOpen: boolean) => {
     if (!isOpen) {
       setApprovedSocioData(null);
+      setIsApproving(false);
     }
     setShowApproveDialog(isOpen);
   };
@@ -175,6 +178,7 @@ const SocioTableRow = ({
   const handleRenewDialogChange = (isOpen: boolean) => {
     if (!isOpen) {
       setRenewedSocioData(null);
+      setIsRenewing(false);
     }
     setShowRenewDialog(isOpen);
   };
@@ -251,7 +255,7 @@ const SocioTableRow = ({
             description: `${getFullName(socio)} è ora un membro attivo. N. tessera: ${membershipCardNumber}`,
         });
         setApprovedSocioData(newMemberData);
-        onSocioUpdate?.();
+        onSocioApproved();
     } catch (error) {
         console.error("Error approving member:", error);
         toast({
@@ -266,29 +270,35 @@ const SocioTableRow = ({
   const handleRenew = async () => {
     if (!firestore || isRenewing) return;
     setIsRenewing(true);
-  
+
     const memberDocRef = doc(firestore, 'members', socio.id);
-  
+
+    const renewalDate = new Date();
+    const oldNotes = socio.notes || '';
+    const renewalNote = `--- RINNOVO ${formatDate(renewalDate)} ---\nAnno: ${renewalYear}, Quota: €${renewalFee.toFixed(2)}`;
+    const newNotes = `${renewalNote}\n\n${oldNotes}`;
+
     const updatedData = {
-      renewalDate: new Date().toISOString(),
+      renewalDate: renewalDate.toISOString(),
       expirationDate: new Date(parseInt(renewalYear, 10), 11, 31).toISOString(),
       membershipYear: renewalYear,
       membershipFee: renewalFee,
+      notes: newNotes,
     };
-  
+
     try {
       const batch = writeBatch(firestore);
       batch.update(memberDocRef, updatedData);
       await batch.commit();
-  
+
       const newlyRenewedSocio = { ...socio, ...updatedData };
       setRenewedSocioData(newlyRenewedSocio);
-  
+
       toast({
         title: 'Rinnovo Effettuato!',
         description: `Il tesseramento di ${getFullName(socio)} è stato rinnovato per l'anno ${renewalYear}.`,
       });
-      onSocioUpdate?.();
+      onSocioRenewed();
     } catch (error) {
       console.error('Error renewing member:', error);
       toast({
@@ -648,7 +658,8 @@ interface SociTableProps {
   sortConfig: SortConfig;
   setSortConfig: Dispatch<SetStateAction<SortConfig>>;
   itemsPerPage: number;
-  onSocioUpdate: () => void;
+  onSocioApproved: () => void;
+  onSocioRenewed: () => void;
   currentPage: number;
   setCurrentPage: Dispatch<SetStateAction<number>>;
 }
@@ -692,7 +703,8 @@ const SociTableComponent = ({
   onEdit, 
   onPrint,
   allMembers, 
-  onSocioUpdate,
+  onSocioApproved,
+  onSocioRenewed,
   sortConfig, 
   setSortConfig, 
   itemsPerPage,
@@ -743,7 +755,8 @@ const SociTableComponent = ({
                   onEdit={onEdit}
                   onPrint={onPrint}
                   allMembers={allMembers}
-                  onSocioUpdate={onSocioUpdate}
+                  onSocioApproved={onSocioApproved}
+                  onSocioRenewed={onSocioRenewed}
                 />
               ))
             ) : (
@@ -787,3 +800,5 @@ const SociTableComponent = ({
 
 
 export const SociTable = SociTableComponent;
+
+    
