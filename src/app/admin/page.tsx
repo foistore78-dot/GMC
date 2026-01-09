@@ -8,7 +8,7 @@ import { Footer } from "@/components/footer";
 import { SociTable, type SortConfig, getStatus, formatDate } from "@/components/soci-table";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import { FileDown, FileUp, Loader2, Users, Filter, QrCode } from "lucide-react";
+import { Loader2, Users, Filter, QrCode } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,9 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { exportToExcel } from "@/lib/excel-export";
-import { importFromExcel, type ImportResult } from "@/lib/excel-import";
-import { useToast } from "@/hooks/use-toast";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { SocioCard } from "@/components/socio-card";
-import { renderToStaticMarkup } from 'react-dom/server';
+import { renderToString } from 'react-dom/server';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -48,12 +46,9 @@ const getTesseraNumber = (tessera: string | undefined): number => {
 
 export default function AdminPage() {
   const router = useRouter();
-  const { toast } = useToast();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [isImporting, setIsImporting] = useState(false);
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
   const [activeTab, setActiveTab] = useState("active");
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "ascending" });
@@ -77,12 +72,17 @@ export default function AdminPage() {
   const { data: membersData, isLoading: isMembersLoading } = useCollection<Socio>(membersQuery);
   const { data: requestsData, isLoading: isRequestsLoading } = useCollection<Socio>(requestsQuery);
   
+  const allSociFromDb = useMemo(() => {
+    if (!membersData) return [];
+    return membersData;
+  }, [membersData]);
+  
   const filteredMembers = useMemo(() => {
     const searchString = filter.toLowerCase();
-    if (!membersData) return [];
-    if (!searchString) return membersData;
+    if (!allSociFromDb) return [];
+    if (!searchString) return allSociFromDb;
 
-    return membersData.filter(socio => {
+    return allSociFromDb.filter(socio => {
       const fullName = `${socio.firstName || ''} ${socio.lastName || ''}`.toLowerCase();
       const reversedFullName = `${socio.lastName || ''} ${socio.firstName || ''}`.toLowerCase();
       const email = socio.email?.toLowerCase() || '';
@@ -97,7 +97,7 @@ export default function AdminPage() {
         birthDate.includes(searchString)
       );
     });
-  }, [membersData, filter]);
+  }, [allSociFromDb, filter]);
 
   const activeSoci = useMemo(() => {
     if (hideExpired) {
@@ -213,46 +213,6 @@ export default function AdminPage() {
     setSortConfig({ key: 'tessera', direction: 'ascending' });
   };
   
-  const handleExport = () => {
-    if (!membersData || !requestsData) return;
-    exportToExcel(membersData, requestsData);
-  };
-
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && firestore) {
-      setIsImporting(true);
-      try {
-        const result: ImportResult = await importFromExcel(file, firestore);
-        const { createdCount, updatedTessere, errorCount } = result;
-        
-        let description = `Creati ${createdCount} nuovi soci. Aggiornati ${updatedTessere.length} soci esistenti.`;
-        if (errorCount > 0) {
-          description += ` ${errorCount} righe con errori sono state saltate.`;
-        }
-
-        toast({
-          title: "Importazione Completata",
-          description: description,
-          duration: 8000,
-        });
-      } catch (error) {
-        console.error("Import error:", error);
-        toast({
-          title: "Errore durante l'importazione",
-          description: (error as Error).message || "Si è verificato un problema.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsImporting(false);
-        if(fileInputRef.current) fileInputRef.current.value = "";
-      }
-    }
-  };
   
   const handlePrintCard = (socio: Socio) => {
     setSocioToPrint(socio);
@@ -262,36 +222,42 @@ export default function AdminPage() {
   const executePrint = () => {
     if (!socioToPrint) return;
 
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open('', '_blank', 'height=800,width=800');
     if (!printWindow) {
-        alert('Please allow pop-ups for this website');
-        return;
+      alert('Please allow pop-ups for this website');
+      return;
     }
-
-    const staticMarkup = renderToStaticMarkup(<SocioCard socio={socioToPrint} />);
     
+    // Using renderToString which is safe for client-side execution.
+    const staticMarkup = renderToString(<SocioCard socio={socioToPrint} />);
+
     printWindow.document.write(`
         <html>
             <head>
                 <title>Stampa Scheda Socio</title>
                 <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Helvetica+Neue:wght@400;700&display=swap');
                     @media print {
                       body {
                         margin: 0;
-                        -webkit-print-color-adjust: exact; /* Chrome, Safari */
-                        color-adjust: exact; /* Firefox */
+                        -webkit-print-color-adjust: exact;
+                        color-adjust: exact;
                       }
+                    }
+                    body {
+                       font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
                     }
                 </style>
             </head>
             <body>${staticMarkup}</body>
         </html>
     `);
-
-    printWindow.document.close();
-    printWindow.focus(); 
     
+    printWindow.document.close();
+    
+    // The timeout helps ensure all content (especially images if any) is loaded.
     setTimeout(() => {
+        printWindow.focus();
         printWindow.print();
         printWindow.close();
     }, 500);
@@ -323,6 +289,13 @@ export default function AdminPage() {
                 Gestione Soci
               </h1>
            </div>
+           <Button asChild variant="outline">
+              <Link href="/segreteria">
+                <QrCode className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Area Segreteria</span>
+                <span className="sm:hidden">Segreteria</span>
+              </Link>
+            </Button>
         </div>
 
         <div className="bg-background rounded-lg border border-border shadow-lg p-2 sm:p-4">
@@ -336,11 +309,9 @@ export default function AdminPage() {
                 <TabsList className="self-start">
                    <TabsTrigger value="active" className="text-xs sm:text-sm">
                     Soci Attivi
-                    <Badge variant="secondary" className="ml-2">{filteredMembers.length}</Badge>
                   </TabsTrigger>
                   <TabsTrigger value="pending" className="text-xs sm:text-sm">
                     Richieste
-                    <Badge variant="secondary" className="ml-2">{sortedRequests.length}</Badge>
                   </TabsTrigger>
                 </TabsList>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
@@ -401,32 +372,6 @@ export default function AdminPage() {
               </TabsContent>
             </Tabs>
           )}
-        </div>
-        <div className="mt-8 flex flex-col sm:flex-row justify-start items-stretch sm:items-center gap-4">
-            <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            className="hidden"
-            accept=".xlsx, .xls"
-            />
-            <Button onClick={handleImportClick} disabled={isLoading || isImporting}>
-                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
-                <span className="sm:hidden">Importa</span>
-                <span className="hidden sm:inline">{isImporting ? "Importazione..." : "Importa da Excel"}</span>
-            </Button>
-            <Button onClick={handleExport} variant="outline" disabled={isLoading}>
-                <FileDown className="mr-2 h-4 w-4" />
-                 <span className="sm:hidden">Esporta</span>
-                <span className="hidden sm:inline">Esporta Elenco Completo</span>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/segreteria">
-                <QrCode className="mr-2 h-4 w-4" />
-                <span className="sm:hidden">QR</span>
-                <span className="hidden sm:inline">QR Iscrizioni</span>
-              </Link>
-            </Button>
         </div>
       </main>
 
