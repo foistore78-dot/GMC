@@ -1,12 +1,12 @@
 {
   "entities": {
-    "Member": {
+    "Socio": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Member",
+      "title": "Socio",
       "type": "object",
       "description": "Represents a member of the Garage Music Club.",
       "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the Member entity." },
+        "id": { "type": "string", "description": "Unique identifier for the Socio entity." },
         "gender": { "type": "string", "description": "Gender of the member.", "enum": ["male", "female"] },
         "firstName": { "type": "string", "description": "First name of the member." },
         "lastName": { "type": "string", "description": "Last name of the member." },
@@ -27,6 +27,7 @@
         "membershipStatus": { "type": "string", "description": "Current membership status (e.g., active, pending, expired)." },
         "joinDate": { "type": "string", "description": "Date when the member joined the club.", "format": "date-time" },
         "expirationDate": { "type": "string", "description": "Date when the membership expires.", "format": "date-time" },
+        "renewalDate": { "type": "string", "description": "Date of the last membership renewal.", "format": "date-time" },
         "membershipYear": { "type": "string", "description": "The solar year of the membership." },
         "notes": { "type": "string", "description": "Administrative notes about the member." },
         "isVolunteer": { "type": "boolean", "description": "Indicates if the member is a volunteer." },
@@ -38,7 +39,8 @@
             "type": "string",
             "enum": ["FONDATORE", "VOLONTARIO", "MUSICISTA"]
           }
-        }
+        },
+        "tessera": { "type": "string", "description": "Unique membership card number (e.g., GMC-2024-1)." }
       },
       "required": [
         "id", "gender", "firstName", "lastName", "birthPlace", "birthDate", "address",
@@ -46,13 +48,13 @@
         "joinDate", "expirationDate"
       ]
     },
-    "MembershipRequest": {
+    "RichiestaIscrizione": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "MembershipRequest",
+      "title": "RichiestaIscrizione",
       "type": "object",
       "description": "Represents a membership request submitted by a potential member.",
       "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the MembershipRequest entity." },
+        "id": { "type": "string", "description": "Unique identifier for the RichiestaIscrizione entity." },
         "gender": { "type": "string", "description": "Gender of the applicant.", "enum": ["male", "female"] },
         "firstName": { "type": "string", "description": "First name of the applicant." },
         "lastName": { "type": "string", "description": "Last name of the applicant." },
@@ -71,20 +73,28 @@
         "guardianLastName": { "type": "string", "description": "Last name of the guardian, if the applicant is a minor." },
         "guardianBirthDate": { "type": "string", "description": "Date of birth of the guardian, if the applicant is a minor.", "format": "date" },
         "requestDate": { "type": "string", "description": "Date when the membership request was submitted.", "format": "date-time" },
-        "status": { "type": "string", "description": "Status of the membership request (e.g., pending, approved, rejected)." }
+        "status": { "type": "string", "description": "Status of the membership request (e.g., pending, approved, rejected)." },
+        "qualifica": {
+           "type": "array",
+          "description": "Roles or qualifications of the member in the club.",
+          "items": {
+            "type": "string",
+            "enum": ["FONDATORE", "VOLONTARIO", "MUSICISTA"]
+          }
+        }
       },
       "required": [
         "id", "gender", "firstName", "lastName", "birthPlace", "birthDate", "address",
         "city", "province", "postalCode", "whatsappConsent", "privacyConsent", "requestDate", "status"
       ]
     },
-    "AdminUser": {
+    "Amministratore": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "AdminUser",
+      "title": "Amministratore",
       "type": "object",
       "description": "Represents an administrator user of the system.  Note: Passwords should be managed by an external authentication service and NOT stored directly.",
       "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the AdminUser entity." },
+        "id": { "type": "string", "description": "Unique identifier for the Amministratore entity." },
         "username": { "type": "string", "description": "Username of the administrator." },
         "email": { "type": "string", "description": "Email address of the administrator.", "format": "email" },
         "role": { "type": "string", "description": "Role of the administrator (e.g., superadmin, admin)." },
@@ -94,15 +104,15 @@
     }
   },
   "auth": {
-    "providers": ["password", "anonymous"]
+    "providers": ["password"]
   },
   "firestore": {
     "structure": [
       {
         "path": "/membership_requests/{membershipRequestId}",
         "definition": {
-          "entityName": "MembershipRequest",
-          "schema": { "$ref": "#/backend/entities/MembershipRequest" },
+          "entityName": "RichiestaIscrizione",
+          "schema": { "$ref": "#/entities/RichiestaIscrizione" },
           "description": "Stores membership requests submitted by potential members. No authentication required for creating these, but admin authentication is required to read or modify them.",
           "params": [{ "name": "membershipRequestId", "description": "Unique identifier for the membership request." }]
         }
@@ -110,8 +120,8 @@
       {
         "path": "/members/{memberId}",
         "definition": {
-          "entityName": "Member",
-          "schema": { "$ref": "#/backend/entities/Member" },
+          "entityName": "Socio",
+          "schema": { "$ref": "#/entities/Socio" },
           "description": "Stores information about Garage Music Club members. Only accessible and modifiable by admins. Existence of a document in this collection implies active membership.",
           "params": [{ "name": "memberId", "description": "Unique identifier for the member." }]
         }
@@ -119,8 +129,8 @@
       {
         "path": "/roles_admin/{adminId}",
         "definition": {
-          "entityName": "AdminUser",
-          "schema": { "$ref": "#/backend/entities/AdminUser" },
+          "entityName": "Amministratore",
+          "schema": { "$ref": "#/entities/Amministratore" },
           "description": "Indicates admin role. The existence of a document at this path with the user's UID indicates admin privileges. Used for authentication within security rules.",
           "params": [{ "name": "adminId", "description": "The Firebase UID of the administrator." }]
         }
@@ -129,5 +139,3 @@
     "reasoning": "The Firestore data structure is designed to manage members and membership requests for the Garage Music Club. It prioritizes security, scalability, and ease of debugging. Key design decisions include:\n\n1.  **Authorization Independence:** The structure avoids hierarchical authorization dependencies, crucial for atomic operations and debuggability. There are no `get()` calls in rules dependent on parent documents.\n2.  **Structural Segregation:** Public membership requests are stored separately from secure member data, enforcing distinct security requirements. Admin user roles are managed via document existence.\n3.  **Access Modeling:** Public membership requests don't need authentication. Secure member management is achieved through path-based ownership and global admin roles. Membership is reflected through existence in the `/members/{memberId}` collection.\n4.  **Data Clarity:** Each entity has a clear schema and status field.\n\n**QAPs (Rules are not Filters):** The segregated structure allows for secure `list` operations.  Membership requests can be listed publicly without authentication, while member data listing requires admin authentication, which is verified by checking the existence of their UID in `/roles_admin/{uid}`.\n\n**Denormalization:**  No explicit denormalization is required given the requirements and data model.  If collaborative features were added in the future (e.g., band projects), a membership map would be denormalized to subcollections to ensure authorization independence."
   }
 }
-
-    

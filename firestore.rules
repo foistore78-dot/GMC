@@ -15,18 +15,10 @@ service cloud.firestore {
     }
 
     /**
-     * DEPRECATED: We no longer use a roles collection.
-     * The new rule is that any authenticated user is an admin.
-     */
-    function isAdmin_DEPRECATED() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
-    }
-    
-    /**
-     * Any signed-in user is considered an admin.
+     * Checks if the user has an admin role document.
      */
     function isAdmin() {
-      return isSignedIn();
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
 
@@ -59,11 +51,12 @@ service cloud.firestore {
     }
 
     /**
-     * DEPRECATED: This collection is no longer used for role management.
-     * The `isAdmin()` function now handles authorization.
+     * @description Manages admin role documents. Only admins can read these roles. Writing is disabled to prevent self-promotion.
+     * @path /roles_admin/{adminId}
      */
     match /roles_admin/{adminId} {
-      allow read, write: if false; // Block all access to this collection
+      allow read: if isAdmin();
+      allow write: if false; // Prevent any user from creating or modifying roles
     }
   }
 }
