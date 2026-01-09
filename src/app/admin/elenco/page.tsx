@@ -82,7 +82,7 @@ export default function ElencoSociPage() {
     return membersData;
   }, [membersData]);
   
-  const filteredMembers = useMemo(() => {
+  const searchedMembers = useMemo(() => {
     const searchString = filter.toLowerCase();
     if (!allSociFromDb) return [];
     if (!searchString) return allSociFromDb;
@@ -106,10 +106,10 @@ export default function ElencoSociPage() {
 
   const activeSoci = useMemo(() => {
     if (hideExpired) {
-      return filteredMembers.filter(s => getStatus(s) !== 'expired');
+      return searchedMembers.filter(s => getStatus(s) !== 'expired');
     }
-    return filteredMembers;
-  }, [filteredMembers, hideExpired]);
+    return searchedMembers;
+  }, [searchedMembers, hideExpired]);
   
   const sortedMembers = useMemo(() => {
     return [...activeSoci].sort((a, b) => {
@@ -336,7 +336,7 @@ export default function ElencoSociPage() {
                         </Label>
                     </div>
                   )}
-                   <div className="relative w-full sm:max-w-xs">
+                   <div className="relative w-full sm:max-w-md">
                       <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Filtra per nome, tessera..."
@@ -422,3 +422,5 @@ export default function ElencoSociPage() {
     </div>
   );
 }
+
+    
