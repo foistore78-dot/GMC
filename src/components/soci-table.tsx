@@ -121,6 +121,20 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
   );
 };
 
+const formatPhoneNumberForWhatsApp = (phone: string): string => {
+  // Rimuovi tutti i caratteri non numerici
+  let cleaned = phone.replace(/\D/g, '');
+  // Se inizia con 0039, rimuovilo
+  if (cleaned.startsWith('0039')) {
+    cleaned = cleaned.substring(4);
+  }
+  // Se non inizia con 39, aggiungilo (assumendo sia un numero italiano)
+  if (!cleaned.startsWith('39')) {
+    cleaned = '39' + cleaned;
+  }
+  return cleaned;
+};
+
 const SocioTableRow = ({ 
   socio,
   onEdit,
@@ -331,6 +345,19 @@ const SocioTableRow = ({
       checked ? [...prev, qualifica] : prev.filter(q => q !== qualifica)
     );
   };
+  
+  const handleWhatsAppClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!socio.phone || !socio.whatsappConsent) return;
+    
+    const phoneNumber = formatPhoneNumberForWhatsApp(socio.phone);
+    const groupLink = "https://chat.whatsapp.com/KKes4gzve7T8xET9OD3bm5";
+    const message = `Ciao ${socio.firstName}! Benvenuto/a nel Garage Music Club. Per rimanere sempre aggiornato/a sulle nostre iniziative, eventi e jam session, entra nel nostro gruppo WhatsApp ufficiale cliccando su questo link: ${groupLink}`;
+    
+    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+    
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+  };
 
   const tesseraDisplay = socio.tessera ? `${socio.tessera.split('-')[1]}-${socio.tessera.split('-')[2]}` : '-';
 
@@ -345,7 +372,21 @@ const SocioTableRow = ({
                    <DialogTrigger asChild>
                      <div className="flex items-center gap-2 cursor-pointer group">
                         <span className="group-hover:text-primary transition-colors">{getFullName(socio)}</span>
-                        {socio.whatsappConsent && <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-500 ml-1" />}
+                        {socio.whatsappConsent && socio.phone && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                 <MessageCircle 
+                                   onClick={handleWhatsAppClick}
+                                   className="w-3 h-3 sm:w-4 sm:h-4 text-green-500 ml-1 cursor-pointer hover:scale-125 transition-transform" 
+                                 />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Invia invito al gruppo WhatsApp</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                      </div>
                    </DialogTrigger>
                    <DialogContent className="max-w-md">
