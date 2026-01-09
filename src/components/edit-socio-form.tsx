@@ -24,7 +24,7 @@ import { Loader2 } from "lucide-react";
 import { useFirestore } from "@/firebase";
 import type { Socio } from "@/lib/soci-data";
 import { Textarea } from "./ui/textarea";
-import { getFullName, formatDate } from "./soci-table";
+import { getFullName, formatDate, getStatus as getSocioStatus } from "./soci-table";
 import { Separator } from "./ui/separator";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
@@ -35,16 +35,6 @@ export const isMinorCheck = (birthDate: string | undefined | Date): boolean => {
   const date = new Date(birthDate);
   if (isNaN(date.getTime())) return false;
   return differenceInYears(new Date(), date) < 18;
-};
-
-const getStatus = (socio: Socio): "active" | "pending" | "rejected" => {
-    if (socio.membershipStatus === "active") {
-        return "active";
-    }
-    if (socio.status === 'rejected') {
-        return 'rejected';
-    }
-    return "pending";
 };
 
 
@@ -91,7 +81,7 @@ const formSchema = z
 
 type EditSocioFormProps = {
   socio: Socio;
-  onClose: () => void;
+  onClose: (updatedTab?: 'active' | 'requests' | 'expired') => void;
 };
 
 export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
@@ -101,13 +91,15 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
 
   const getDefaultValues = useCallback((s: Socio) => {
     const isMinor = isMinorCheck(s.birthDate);
-    const initialStatus = getStatus(s);
+    const initialStatus = getSocioStatus(s);
+    const formStatus = initialStatus === 'expired' ? 'active' : initialStatus;
+    
     return {
       ...s,
-      status: initialStatus,
+      status: formStatus,
       birthDate: s.birthDate ? formatDate(s.birthDate, "yyyy-MM-dd") : "",
       guardianBirthDate: s.guardianBirthDate ? formatDate(s.guardianBirthDate, "yyyy-MM-dd") : "",
-      requestDate: s.requestDate ? formatDate(s.requestDate, "yyyy-MM-dd") : (initialStatus === 'pending' ? new Date().toISOString().split("T")[0] : ''),
+      requestDate: s.requestDate ? formatDate(s.requestDate, "yyyy-MM-dd") : (formStatus === 'pending' ? new Date().toISOString().split("T")[0] : ''),
       joinDate: s.joinDate ? formatDate(s.joinDate, "yyyy-MM-dd") : "",
       renewalDate: s.renewalDate ? formatDate(s.renewalDate, "yyyy-MM-dd") : "",
       phone: s.phone || "",
@@ -138,11 +130,12 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     if (!firestore) return;
     setIsSubmitting(true);
 
-    const originalStatus = getStatus(socio);
+    const originalStatus = getSocioStatus(socio) === 'expired' ? 'active' : getSocioStatus(socio);
     const newStatus = values.status;
     const { status, ...dataToSave } = values;
 
     const batch = writeBatch(firestore);
+    let finalTab: 'active' | 'requests' | 'expired' | undefined;
 
     try {
         if (newStatus === 'rejected') {
@@ -152,6 +145,8 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 batch.delete(requestDocRef);
                 batch.delete(memberDocRef);
             }
+            finalTab = 'requests';
+
         } else if (originalStatus !== newStatus) {
             // This logic handles transitions between collections (pending <-> active)
             if (newStatus === 'active') { // Moving from 'pending' to 'members'
@@ -170,6 +165,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 
                 batch.set(newDocRef, finalData, { merge: true });
                 batch.delete(oldDocRef);
+                finalTab = 'active';
 
             } else if (newStatus === 'pending') { // Moving from 'active' to 'membership_requests'
                 const oldDocRef = doc(firestore, 'members', socio.id);
@@ -184,13 +180,14 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     membershipFee: 0,
                     tessera: deleteField(),
                     renewalDate: deleteField(),
+                    joinDate: deleteField(),
+                    expirationDate: deleteField(),
+                    membershipStatus: deleteField(),
                 };
-                delete finalData.membershipStatus;
-                delete finalData.joinDate;
-                delete finalData.expirationDate;
 
                 batch.set(newDocRef, finalData, { merge: true });
                 batch.delete(oldDocRef);
+                finalTab = 'requests';
             }
         } else {
             // Status has not changed, just update the data in the correct collection
@@ -211,8 +208,10 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             if (newStatus === 'pending') {
                 finalData.tessera = deleteField();
                 finalData.membershipFee = 0;
+                finalTab = 'requests';
             } else {
               finalData.tessera = values.tessera;
+              finalTab = 'active';
             }
 
             batch.set(docRef, finalData, { merge: true });
@@ -226,7 +225,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
         });
         
         setIsSubmitting(false);
-        onClose();
+        onClose(finalTab);
 
     } catch (error) {
         console.error("Error updating document:", error);
@@ -658,7 +657,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
         </div>
         
         <div className="flex justify-end pt-4 sticky bottom-0 bg-secondary/80 backdrop-blur-sm pb-4 rounded-b-lg">
-          <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>Annulla</Button>
+          <Button type="button" variant="ghost" onClick={() => onClose()} disabled={isSubmitting}>Annulla</Button>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Salva Modifiche
@@ -668,3 +667,5 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
+
+    

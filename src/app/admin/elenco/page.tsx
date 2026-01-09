@@ -347,9 +347,9 @@ export default function ElencoSociPage() {
               </SheetHeader>
               <EditSocioForm
                 socio={editingSocio} 
-                onClose={() => {
+                onClose={(updatedTab) => {
                   setEditingSocio(null);
-                  handleSocioUpdate();
+                  handleSocioUpdate(updatedTab);
                 }}
               />
             </>
@@ -378,5 +378,7 @@ export default function ElencoSociPage() {
     </div>
   );
 }
+
+    
 
     
