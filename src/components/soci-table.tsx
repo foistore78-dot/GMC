@@ -318,7 +318,7 @@ const SocioTableRow = ({
 
   return (
       <TableRow className={cn("text-xs sm:text-sm", { 'bg-orange-500/10 hover:bg-orange-500/20': status === 'expired' })}>
-        <TableCell className="font-mono">
+        <TableCell className="font-mono hidden sm:table-cell">
           {tesseraDisplay}
         </TableCell>
         <TableCell className="font-medium">
@@ -609,7 +609,6 @@ interface SociTableProps {
   itemsPerPage: number;
   onSocioApproved: (socio: Socio) => void;
   onSocioRenewed: (socio: Socio) => void;
-  filter: string;
   currentPage: number;
   setCurrentPage: Dispatch<SetStateAction<number>>;
 }
@@ -658,42 +657,12 @@ const SociTableComponent = ({
   sortConfig, 
   setSortConfig, 
   itemsPerPage,
-  filter,
   currentPage,
   setCurrentPage
 }: SociTableProps) => {
 
-  const filteredSoci = useMemo(() => {
-    const searchString = filter.toLowerCase();
-    
-    if (!searchString) {
-      return soci;
-    }
-    
-    return soci.filter(socio => {
-      if (!socio) return false;
-      const firstName = socio.firstName?.toLowerCase() || '';
-      const lastName = socio.lastName?.toLowerCase() || '';
-      const fullName = `${firstName} ${lastName}`;
-      const reversedFullName = `${lastName} ${firstName}`;
-      const email = socio.email?.toLowerCase() || '';
-      const tessera = socio.tessera?.toLowerCase() || '';
-      const birthDate = formatDate(socio.birthDate);
-
-      return (
-        firstName.includes(searchString) ||
-        lastName.includes(searchString) ||
-        fullName.includes(searchString) ||
-        reversedFullName.includes(searchString) ||
-        email.includes(searchString) ||
-        tessera.includes(searchString) ||
-        (birthDate !== 'N/A' && birthDate.includes(searchString))
-      );
-    });
-  }, [soci, filter]);
-  
-  const totalPages = Math.ceil(filteredSoci.length / itemsPerPage);
-  const paginatedSoci = filteredSoci.slice(
+  const totalPages = Math.ceil(soci.length / itemsPerPage);
+  const paginatedSoci = soci.slice(
       (currentPage - 1) * itemsPerPage,
       currentPage * itemsPerPage
   );
@@ -715,11 +684,11 @@ const SociTableComponent = ({
 
   return (
     <div>
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <SortableHeader label="Tessera" sortKey="tessera" sortConfig={sortConfig} setSortConfig={setSortConfig} className="w-[100px]" />
+              <SortableHeader label="Tessera" sortKey="tessera" sortConfig={sortConfig} setSortConfig={setSortConfig} className="w-[100px] hidden sm:table-cell" />
               <SortableHeader label="Nome" sortKey="name" sortConfig={sortConfig} setSortConfig={setSortConfig} />
               <SortableHeader label="Nascita" sortKey="birthDate" sortConfig={sortConfig} setSortConfig={setSortConfig} className="hidden md:table-cell" />
               <SortableHeader label="Stato" sortKey="membershipStatus" sortConfig={sortConfig} setSortConfig={setSortConfig} />

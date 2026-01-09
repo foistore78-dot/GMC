@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from 'next/link';
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
-import { SociTable, type SortConfig, getStatus } from "@/components/soci-table";
+import { SociTable, type SortConfig, getStatus, formatDate } from "@/components/soci-table";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, writeBatch, getDocs } from "firebase/firestore";
-import { FileDown, FileUp, Loader2, Users, Filter, QrCode, Trash2 } from "lucide-react";
+import { collection } from "firebase/firestore";
+import { FileDown, FileUp, Loader2, Users, Filter, QrCode } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -76,18 +76,37 @@ export default function AdminPage() {
 
   const { data: membersData, isLoading: isMembersLoading } = useCollection<Socio>(membersQuery);
   const { data: requestsData, isLoading: isRequestsLoading } = useCollection<Socio>(requestsQuery);
+  
+  const filteredMembers = useMemo(() => {
+    const searchString = filter.toLowerCase();
+    if (!membersData) return [];
+    if (!searchString) return membersData;
+
+    return membersData.filter(socio => {
+      const fullName = `${socio.firstName || ''} ${socio.lastName || ''}`.toLowerCase();
+      const reversedFullName = `${socio.lastName || ''} ${socio.firstName || ''}`.toLowerCase();
+      const email = socio.email?.toLowerCase() || '';
+      const tessera = socio.tessera?.toLowerCase() || '';
+      const birthDate = formatDate(socio.birthDate);
+
+      return (
+        fullName.includes(searchString) ||
+        reversedFullName.includes(searchString) ||
+        email.includes(searchString) ||
+        tessera.includes(searchString) ||
+        birthDate.includes(searchString)
+      );
+    });
+  }, [membersData, filter]);
 
   const activeSoci = useMemo(() => {
-    if (!membersData) return [];
     if (hideExpired) {
-        return membersData.filter(s => getStatus(s) !== 'expired');
+      return filteredMembers.filter(s => getStatus(s) !== 'expired');
     }
-    return membersData;
-  }, [membersData, hideExpired]);
+    return filteredMembers;
+  }, [filteredMembers, hideExpired]);
   
   const sortedMembers = useMemo(() => {
-    if (!activeSoci) return [];
-    
     return [...activeSoci].sort((a, b) => {
         const { key, direction } = sortConfig;
         
@@ -116,7 +135,23 @@ export default function AdminPage() {
 
   const sortedRequests = useMemo(() => {
     if (!requestsData) return [];
-    return [...requestsData].sort((a, b) => {
+    const searchString = filter.toLowerCase();
+
+    const filteredRequests = !searchString ? requestsData : requestsData.filter(socio => {
+      const fullName = `${socio.firstName || ''} ${socio.lastName || ''}`.toLowerCase();
+      const reversedFullName = `${socio.lastName || ''} ${socio.firstName || ''}`.toLowerCase();
+      const email = socio.email?.toLowerCase() || '';
+      const birthDate = formatDate(socio.birthDate);
+       return (
+        fullName.includes(searchString) ||
+        reversedFullName.includes(searchString) ||
+        email.includes(searchString) ||
+        birthDate.includes(searchString)
+      );
+    });
+
+
+    return [...filteredRequests].sort((a, b) => {
       const { key, direction } = sortConfig;
       let aValue: any;
       let bValue: any;
@@ -137,7 +172,7 @@ export default function AdminPage() {
       if (aValue > bValue) return asc ? 1 : -1;
       return 0;
     }).map(s => ({ ...s, membershipStatus: 'pending' as const }));
-  }, [requestsData, sortConfig]);
+  }, [requestsData, sortConfig, filter]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -164,7 +199,7 @@ export default function AdminPage() {
   
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
-    setFilter('');
+    // Non resettare il filtro qui
     setCurrentPage(1);
     if (tab === 'active') {
       setSortConfig({ key: 'tessera', direction: 'ascending' });
@@ -227,7 +262,7 @@ export default function AdminPage() {
   const executePrint = () => {
     if (!socioToPrint) return;
 
-    const printWindow = window.open('', '_blank', 'height=800,width=800');
+    const printWindow = window.open('', '_blank');
     if (!printWindow) {
         alert('Please allow pop-ups for this website');
         return;
@@ -240,9 +275,12 @@ export default function AdminPage() {
             <head>
                 <title>Stampa Scheda Socio</title>
                 <style>
-                    body { margin: 0; }
                     @media print {
-                        body { margin: 1cm; }
+                      body {
+                        margin: 0;
+                        -webkit-print-color-adjust: exact; /* Chrome, Safari */
+                        color-adjust: exact; /* Firefox */
+                      }
                     }
                 </style>
             </head>
@@ -252,19 +290,14 @@ export default function AdminPage() {
 
     printWindow.document.close();
     printWindow.focus(); 
-
-    // Use a small timeout to ensure the content is loaded before printing
+    
     setTimeout(() => {
-      try {
         printWindow.print();
-      } catch (e) {
-        console.error("Print failed:", e);
-      } finally {
         printWindow.close();
-        setShowPrintDialog(false);
-        setSocioToPrint(null);
-      }
     }, 500);
+
+    setShowPrintDialog(false);
+    setSocioToPrint(null);
   };
 
   if (isUserLoading || !user) {
@@ -303,7 +336,7 @@ export default function AdminPage() {
                 <TabsList className="self-start">
                    <TabsTrigger value="active" className="text-xs sm:text-sm">
                     Soci Attivi
-                    <Badge variant="secondary" className="ml-2">{activeSoci.length}</Badge>
+                    <Badge variant="secondary" className="ml-2">{filteredMembers.length}</Badge>
                   </TabsTrigger>
                   <TabsTrigger value="pending" className="text-xs sm:text-sm">
                     Richieste
@@ -328,7 +361,7 @@ export default function AdminPage() {
                    <div className="relative w-full sm:max-w-xs">
                       <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
-                        placeholder="Filtra..."
+                        placeholder="Filtra per nome, tessera..."
                         value={filter}
                         onChange={(event) => setFilter(event.target.value)}
                         className="pl-10"
@@ -347,7 +380,6 @@ export default function AdminPage() {
                     sortConfig={sortConfig}
                     setSortConfig={setSortConfig}
                     itemsPerPage={ITEMS_PER_PAGE}
-                    filter={filter}
                     currentPage={currentPage}
                     setCurrentPage={setCurrentPage}
                 />
@@ -363,7 +395,6 @@ export default function AdminPage() {
                     sortConfig={sortConfig}
                     setSortConfig={setSortConfig}
                     itemsPerPage={ITEMS_PER_PAGE}
-                    filter={filter}
                     currentPage={currentPage}
                     setCurrentPage={setCurrentPage}
                 />
