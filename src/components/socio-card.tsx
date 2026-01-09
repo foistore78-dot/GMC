@@ -75,7 +75,10 @@ export function SocioCard({ socio }: SocioCardProps) {
       <div style={{ marginBottom: '20px' }}>
         <h3 style={{ fontSize: '13px', fontWeight: 'bold', margin: '0 0 10px 0', borderBottom: '1px solid #ccc', paddingBottom: '5px' }}>DICHIARAZIONI E CONSENSI</h3>
         <p style={{ fontSize: '10px', lineHeight: '1.5', margin: '0 0 10px 0', textAlign: 'justify' }}>
-          Il/La sottoscritto/a, letta l'informativa sul trattamento dei dati personali, chiede di essere ammesso/a come socio/a all'Associazione Culturale "Garage Music Club", di cui dichiara di aver preso visione dello statuto e dei regolamenti interni e di accettarli integralmente. Si impegna a versare la quota associativa annuale. Dichiara inoltre di acconsentire all'inserimento del proprio numero di telefono nel gruppo WhatsApp dell'associazione per comunicazioni relative alle attività. Dichiara di aver ricevuto, letto e compreso l'informativa sul trattamento dei dati personali e <b>acconsente</b> al trattamento dei propri dati personali per le finalità associative.
+          Il/La sottoscritto/a chiede di essere ammesso/a come socio/a all'Associazione Culturale "Garage Music Club", dichiara di aver preso visione dello statuto e dei regolamenti interni e di accettarli integralmente, e si impegna a versare la quota associativa annuale.
+        </p>
+        <p style={{ fontSize: '10px', lineHeight: '1.5', margin: '0 0 10px 0', textAlign: 'justify', fontWeight: 'bold' }}>
+          Il/La sottoscritto/a dichiara inoltre di aver ricevuto, letto e compreso l'informativa sul trattamento dei dati personali ai sensi dell’art. 13 del Regolamento (UE) 2016/679 e acconsente al trattamento dei propri dati per le finalità associative.
         </p>
       </div>
       
@@ -138,5 +141,3 @@ export function SocioCard({ socio }: SocioCardProps) {
     </div>
   );
 }
-
-    
