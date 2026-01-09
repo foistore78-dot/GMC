@@ -587,7 +587,7 @@ const handleRenew = async () => {
                             </div>
                             <DialogFooter>
                                 <Button variant="ghost" onClick={() => handleRenewDialogChange(false)}>Chiudi</Button>
-                                <Button onClick={()={() => { onPrint(renewedSocioData); handleRenewDialogChange(false); }}>
+                                <Button onClick={() => { onPrint(renewedSocioData); handleRenewDialogChange(false); }}>
                                     <Printer className="mr-2 h-4 w-4" /> Stampa Scheda
                                 </Button>
                             </DialogFooter>
@@ -796,6 +796,7 @@ export const SociTable = ({
     
 
     
+
 
 
 
