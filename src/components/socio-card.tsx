@@ -23,7 +23,7 @@ export function SocioCard({ socio }: SocioCardProps) {
   const isMinor = socio.guardianFirstName && socio.guardianLastName;
 
   return (
-    <div id="printable-card" className="bg-white text-black p-8 font-sans">
+    <div id="printable-card" className="bg-white text-black p-6 font-sans">
       <header className="flex items-center justify-between pb-4 border-b-2 border-gray-800">
         <div className="flex items-center gap-4">
           <GarageMusicClubLogo className="w-20 h-20" />
@@ -39,12 +39,11 @@ export function SocioCard({ socio }: SocioCardProps) {
         </div>
       </header>
 
-      <main className="mt-6">
-        <h2 className="text-center font-headline text-lg font-bold mb-4">DOMANDA DI AMMISSIONE A SOCIO</h2>
+      <main className="mt-4">
+        <h2 className="text-center font-headline text-lg font-bold mb-3">DOMANDA DI AMMISSIONE A SOCIO</h2>
         
-        <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm border-t border-b py-4 my-4">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm border-t border-b py-3 my-3">
             <Field label="Cognome e Nome" value={`${socio.lastName} ${socio.firstName}`} />
-            <Field label="Genere" value={socio.gender === 'male' ? 'Maschio' : 'Femmina'} />
             <Field label="Data di Nascita" value={formatDate(socio.birthDate)} />
             <Field label="Luogo di Nascita" value={socio.birthPlace} />
             <Field label="Codice Fiscale" value={socio.fiscalCode} />
@@ -54,16 +53,16 @@ export function SocioCard({ socio }: SocioCardProps) {
         </div>
 
         {isMinor && (
-           <div className="mt-6">
+           <div className="mt-4">
              <h3 className="font-headline text-md font-bold mb-2">DATI DEL GENITORE O TUTORE (per socio minorenne)</h3>
-             <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm border-t border-b py-4 my-4">
+             <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm border-t border-b py-3 my-3">
                <Field label="Cognome e Nome Tutore" value={`${socio.guardianLastName} ${socio.guardianFirstName}`} />
                <Field label="Data di Nascita Tutore" value={formatDate(socio.guardianBirthDate)} />
              </div>
            </div>
         )}
 
-        <div className="mt-6 text-xs text-gray-700 space-y-2">
+        <div className="mt-4 text-xs text-gray-700 space-y-1">
             <h4 className="font-bold text-sm text-black mb-2">DICHIARAZIONI E CONSENSI</h4>
             <p>
                 Il/La sottoscritto/a, letta l'informativa sul trattamento dei dati personali, chiede di essere ammesso/a come socio/a all'Associazione Culturale "Garage Music Club", di cui dichiara di aver preso visione dello statuto e dei regolamenti interni e di accettarli integralmente. Si impegna a versare la quota associativa annuale.
@@ -76,23 +75,23 @@ export function SocioCard({ socio }: SocioCardProps) {
             </p>
         </div>
         
-        <div className="mt-10 pt-6 border-t border-gray-300 grid grid-cols-2 gap-8 text-sm">
+        <div className="mt-6 pt-4 border-t border-gray-300 grid grid-cols-2 gap-8 text-sm">
             <div>
                 <p>Data: ____________________</p>
             </div>
              <div className="text-center">
                 <p>Firma del Socio</p>
-                <div className="mt-8 border-b border-gray-400"></div>
+                <div className="mt-6 border-b border-gray-400"></div>
             </div>
             {isMinor && (
-                 <div className="col-span-2 text-center mt-4">
+                 <div className="col-span-2 text-center mt-2">
                     <p>Firma del Genitore/Tutore</p>
-                    <div className="mt-8 border-b border-gray-400"></div>
+                    <div className="mt-6 border-b border-gray-400"></div>
                 </div>
             )}
         </div>
         
-        <div className="mt-8 text-center text-xs text-gray-500">
+        <div className="mt-6 text-center text-xs text-gray-500">
              - Riservato all'associazione -
         </div>
          <div className="mt-2 text-sm border p-2 grid grid-cols-3 gap-4">
