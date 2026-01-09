@@ -362,7 +362,7 @@ const SocioTableRow = ({
   const tesseraDisplay = socio.tessera ? `${socio.tessera.split('-')[1]}-${socio.tessera.split('-')[2]}` : '-';
 
   return (
-      <TableRow className={cn("text-xs sm:text-sm", { 'bg-orange-500/10 hover:bg-orange-500/20': status === 'expired' })}>
+      <TableRow className={cn("text-xs sm:text-sm", { 'bg-yellow-500/10 hover:bg-yellow-500/20': status === 'expired' })}>
         <TableCell className="font-mono hidden sm:table-cell">
           {tesseraDisplay}
         </TableCell>
@@ -470,8 +470,8 @@ const SocioTableRow = ({
             variant={status === "active" ? "default" : status === "pending" ? "secondary" : "destructive"}
             className={cn("whitespace-nowrap",{
               "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30": status === "active",
-              "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30": status === "pending",
               "bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30": status === "expired",
+              "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30": status === "pending",
               "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30": status === "rejected",
             })}
           >
@@ -854,3 +854,5 @@ const SociTableComponent = ({
 
 
 export const SociTable = SociTableComponent;
+
+    
