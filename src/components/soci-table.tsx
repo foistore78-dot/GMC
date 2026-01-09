@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, Dispatch, SetStateAction } from "react";
+import { useState, useMemo, useEffect, Dispatch, SetStateAction, useCallback } from "react";
 import type { Socio } from "@/lib/soci-data";
 import {
   Table,
@@ -166,26 +166,39 @@ const SocioTableRow = ({
   const status = getStatus(socio);
   const socioIsMinor = isMinor(socio.birthDate);
 
+  const resetApproveDialog = useCallback(() => {
+    setShowApproveDialog(false);
+    setIsApproving(false);
+    setApprovedSocioData(null);
+  }, []);
+
+  const resetRenewDialog = useCallback(() => {
+      setShowRenewDialog(false);
+      setIsRenewing(false);
+      setRenewedSocioData(null);
+  }, []);
+
+
   const handleApproveDialogChange = (isOpen: boolean) => {
+    setShowApproveDialog(isOpen);
     if (!isOpen) {
-      setApprovedSocioData(null);
-      setIsApproving(false);
+      resetApproveDialog();
+      // Only call update if an approval was actually completed
       if (approvedSocioData) {
         onSocioUpdate('active');
       }
     }
-    setShowApproveDialog(isOpen);
   };
   
   const handleRenewDialogChange = (isOpen: boolean) => {
-     if (!isOpen) {
-      setRenewedSocioData(null);
-      setIsRenewing(false);
-       if (renewedSocioData) {
+    setShowRenewDialog(isOpen);
+    if (!isOpen) {
+      resetRenewDialog();
+      // Only call update if a renewal was actually completed
+      if (renewedSocioData) {
         onSocioUpdate();
       }
     }
-    setShowRenewDialog(isOpen);
   };
 
   useEffect(() => {
@@ -237,9 +250,6 @@ const SocioTableRow = ({
 
     const { status, ...restOfSocio } = socio;
     
-    // Preserve existing notes
-    const oldNotes = socio.notes || '';
-
     const newMemberData: Socio = {
         ...restOfSocio,
         id: socio.id,
@@ -251,7 +261,7 @@ const SocioTableRow = ({
         membershipFee: membershipFee,
         qualifica: qualifiche,
         requestDate: socio.requestDate || new Date().toISOString(),
-        notes: oldNotes, // Carry over the notes
+        notes: socio.notes || '', // Carry over existing notes
     };
 
     batch.set(memberDocRef, newMemberData, { merge: true });
@@ -264,6 +274,7 @@ const SocioTableRow = ({
             description: `${getFullName(socio)} è ora un membro attivo. N. tessera: ${membershipCardNumber}`,
         });
         setApprovedSocioData(newMemberData);
+        // The dialog state will now show the success screen
     } catch (error) {
         console.error("Error approving member:", error);
         toast({
@@ -314,8 +325,7 @@ const SocioTableRow = ({
         description: `Impossibile rinnovare ${getFullName(socio)}. Dettagli: ${(error as Error).message}`,
         variant: 'destructive',
       });
-    } finally {
-        setIsRenewing(false);
+      setIsRenewing(false); // Only reset on error, success flow is handled by state change
     }
   };
   
@@ -706,7 +716,7 @@ const SortableHeader = ({
   );
 };
 
-const SociTableComponent = ({ 
+export const SociTable = ({ 
   soci, 
   onEdit, 
   onPrint,
@@ -803,8 +813,4 @@ const SociTableComponent = ({
     </div>
   );
 }
-
-
-export const SociTable = SociTableComponent;
-
     
