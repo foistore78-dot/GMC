@@ -32,8 +32,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { SocioCard } from "@/components/socio-card";
-import { createRoot } from 'react-dom/client';
-
 
 const ITEMS_PER_PAGE = 10;
 
@@ -229,40 +227,47 @@ export default function AdminPage() {
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      alert('Per favore, consenti i pop-up per stampare la scheda.');
+        alert('Per favore, consenti i pop-up per stampare la scheda.');
+        setShowPrintDialog(false);
+        setSocioToPrint(null);
+        return;
+    }
+    
+    // Create a temporary, invisible iframe to render the component for printing
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentWindow?.document;
+    if (!iframeDoc) {
+      alert('Impossibile creare la finestra di stampa.');
+      document.body.removeChild(iframe);
+      setShowPrintDialog(false);
+      setSocioToPrint(null);
       return;
     }
 
-    const tempContainer = document.createElement('div');
-    document.body.appendChild(tempContainer);
-    
-    const root = createRoot(tempContainer);
+    const cardContainer = iframeDoc.createElement('div');
+    iframeDoc.body.appendChild(cardContainer);
+
+    // This is a way to render a React component into a different DOM tree
+    const root = (iframe.contentWindow as any).ReactDOM.createRoot(cardContainer);
     root.render(<SocioCard socio={socioToPrint} />);
-
-    // Give React time to render the component
+    
+    // Give React time to render and styles to apply
     setTimeout(() => {
-        const cardHtml = tempContainer.innerHTML;
-        printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Stampa Scheda Socio - ${getFullName(socioToPrint)}</title>
-                </head>
-                <body>${cardHtml}</body>
-            </html>
-        `);
-        printWindow.document.close();
-        printWindow.focus();
-        printWindow.print();
-
-        // Clean up the temporary container
-        root.unmount();
-        document.body.removeChild(tempContainer);
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
         
-    }, 500);
-
-    setShowPrintDialog(false);
-    setSocioToPrint(null);
-  };
+        // Clean up after printing
+        document.body.removeChild(iframe);
+        setShowPrintDialog(false);
+        setSocioToPrint(null);
+    }, 500); // 500ms delay to ensure rendering is complete
+};
 
   if (isUserLoading || !user) {
     return (
@@ -282,34 +287,34 @@ export default function AdminPage() {
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="flex items-center justify-between gap-4 mb-8 flex-wrap">
            <div className="flex items-center gap-4">
-              <Users className="w-10 h-10 text-primary" />
-              <h1 className="font-headline text-4xl md:text-5xl text-primary">
+              <Users className="w-8 h-8 md:w-10 md:h-10 text-primary" />
+              <h1 className="font-headline text-3xl md:text-5xl text-primary">
                 Gestione Soci
               </h1>
            </div>
         </div>
 
-        <div className="bg-background rounded-lg border border-border shadow-lg p-4">
+        <div className="bg-background rounded-lg border border-border shadow-lg p-2 sm:p-4">
           {isLoading && sortedMembers.length === 0 && sortedRequests.length === 0 ? (
              <div className="flex justify-center items-center h-64">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
              </div>
           ) : (
             <Tabs value={activeTab} onValueChange={handleTabChange}>
-              <div className="flex justify-between items-center flex-wrap gap-4 mb-4">
-                <TabsList>
-                   <TabsTrigger value="active">
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4">
+                <TabsList className="self-start">
+                   <TabsTrigger value="active" className="text-xs sm:text-sm">
                     Soci Attivi
                     <Badge variant="secondary" className="ml-2">{activeSoci.length}</Badge>
                   </TabsTrigger>
-                  <TabsTrigger value="pending">
-                    Richieste di Iscrizione
+                  <TabsTrigger value="pending" className="text-xs sm:text-sm">
+                    Richieste
                     <Badge variant="secondary" className="ml-2">{sortedRequests.length}</Badge>
                   </TabsTrigger>
                 </TabsList>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
                   {activeTab === 'active' && (
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 self-start">
                         <Checkbox
                             id="hide-expired"
                             checked={hideExpired}
@@ -317,15 +322,15 @@ export default function AdminPage() {
                                 setHideExpired(!!checked);
                             }}
                         />
-                        <Label htmlFor="hide-expired" className="cursor-pointer whitespace-nowrap">
+                        <Label htmlFor="hide-expired" className="cursor-pointer whitespace-nowrap text-sm">
                             Nascondi scaduti
                         </Label>
                     </div>
                   )}
-                   <div className="relative w-full max-w-sm">
+                   <div className="relative w-full sm:max-w-xs">
                       <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
-                        placeholder="Filtra per nome, data, tessera..."
+                        placeholder="Filtra..."
                         value={filter}
                         onChange={(event) => setFilter(event.target.value)}
                         className="pl-10"
@@ -333,7 +338,7 @@ export default function AdminPage() {
                     </div>
                 </div>
               </div>
-              <TabsContent value="pending" className="rounded-lg bg-yellow-500/5 p-4">
+              <TabsContent value="pending" className="rounded-lg bg-yellow-500/5 p-1 sm:p-4">
                 <SociTable 
                     soci={sortedRequests}
                     onEdit={handleEditSocio}
@@ -349,7 +354,7 @@ export default function AdminPage() {
                     setCurrentPage={setCurrentPage}
                 />
               </TabsContent>
-              <TabsContent value="active" className="rounded-lg p-4">
+              <TabsContent value="active" className="rounded-lg p-1 sm:p-4">
                 <SociTable 
                     soci={sortedMembers}
                     onEdit={handleEditSocio}
@@ -368,7 +373,7 @@ export default function AdminPage() {
             </Tabs>
           )}
         </div>
-        <div className="mt-8 flex justify-start items-center gap-4">
+        <div className="mt-8 flex flex-col sm:flex-row justify-start items-stretch sm:items-center gap-4">
             <input
             type="file"
             ref={fileInputRef}
@@ -378,21 +383,23 @@ export default function AdminPage() {
             />
             <Button onClick={handleImportClick} disabled={isLoading || isImporting}>
                 {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
-                {isImporting ? "Importazione..." : "Importa da Excel"}
+                <span className="sm:hidden">Importa</span>
+                <span className="hidden sm:inline">{isImporting ? "Importazione..." : "Importa da Excel"}</span>
             </Button>
             <Button onClick={handleExport} variant="outline" disabled={isLoading}>
                 <FileDown className="mr-2 h-4 w-4" />
-                Esporta Elenco Completo
+                 <span className="sm:hidden">Esporta</span>
+                <span className="hidden sm:inline">Esporta Elenco Completo</span>
             </Button>
         </div>
       </main>
 
        <Sheet open={!!editingSocio} onOpenChange={handleSheetOpenChange}>
-        <SheetContent className="w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl overflow-auto resize-x min-w-[300px] max-w-[90vw]">
+        <SheetContent className="w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl overflow-y-auto min-w-[300px] max-w-[90vw] p-4 sm:p-6">
           {editingSocio && (
             <>
               <SheetHeader>
-                <SheetTitle>Modifica Socio: {getFullName(editingSocio)}</SheetTitle>
+                <SheetTitle className="truncate pr-8">Modifica: {getFullName(editingSocio)}</SheetTitle>
               </SheetHeader>
               <EditSocioForm
                 socio={editingSocio} 
@@ -411,7 +418,7 @@ export default function AdminPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Stampa Scheda Socio</AlertDialogTitle>
             <AlertDialogDescription>
-              Stai per stampare la scheda per <span className="font-bold">{socioToPrint ? getFullName(socioToPrint) : ''}</span>. Questo aprirà una nuova finestra. Vuoi procedere?
+              Stai per stampare la scheda per <span className="font-bold">{socioToPrint ? getFullName(socioToPrint) : ''}</span>. Questo aprirà una nuova finestra di stampa. Vuoi procedere?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

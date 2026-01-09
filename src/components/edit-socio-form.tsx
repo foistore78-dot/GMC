@@ -262,7 +262,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     <RadioGroup
                       onValueChange={field.onChange}
                       value={field.value}
-                      className="flex items-center space-x-4"
+                      className="flex items-center space-x-2 sm:space-x-4"
                     >
                       <FormItem className="flex items-center space-x-2">
                         <FormControl>
@@ -361,14 +361,14 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
               render={() => (
                 <FormItem>
                   <div className="mb-4"><FormLabel className="text-base">Qualifiche Socio</FormLabel></div>
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
                     {QUALIFICHE.map((item) => (
                       <FormField
                         key={item}
                         control={form.control}
                         name="qualifica"
                         render={({ field }) => (
-                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                             <FormControl>
                               <Checkbox
                                 checked={field.value?.includes(item) ?? false}
@@ -640,7 +640,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
               control={form.control}
               name="whatsappConsent"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
                   <FormControl>
                     <Checkbox
                       checked={!!field.value}
@@ -668,5 +668,3 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
-
-    
