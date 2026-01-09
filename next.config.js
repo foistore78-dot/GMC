@@ -35,11 +35,6 @@ const nextConfig = {
       },
     ],
   },
-  serverActions: {
-    bodySizeLimit: '4.5mb',
-    // Allow more time for server actions to complete
-    executionTimeout: 120, // 2 minutes
-  },
 };
 
 module.exports = nextConfig;
