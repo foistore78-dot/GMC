@@ -230,7 +230,7 @@ export default function AdminPage() {
       printWindow.document.write(`
         <html>
           <head>
-            <title>Stampa Scheda Socio</title>
+            <title>Scheda Socio - ${getFullName(socioToPrint)}</title>
             <style>${pageStyles}</style>
           </head>
           <body>
