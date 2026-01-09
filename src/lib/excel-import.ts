@@ -53,7 +53,7 @@ const excelRowToSocio = (row: any): PartialSocioWithStatus => {
         tessera: row['N. Tessera'] || undefined,
         lastName: row['Cognome'],
         firstName: row['Nome'],
-        gender: (row['Genere'] || '').toUpperCase() === 'M' ? 'male' : 'female',
+        gender: (row['Genere'] || '').toLowerCase() === 'maschio' ? 'male' : 'female',
         birthDate: parseDate(row['Data di Nascita']) || undefined,
         birthPlace: row['Luogo di Nascita'],
         fiscalCode: row['Codice Fiscale'] || undefined,

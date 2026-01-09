@@ -17,7 +17,7 @@ const formatForExcel = (data: Socio[]) => {
       'N. Tessera': socio.tessera || '',
       'Cognome': socio.lastName,
       'Nome': socio.firstName,
-      'Genere': socio.gender === 'male' ? 'M' : 'F',
+      'Genere': socio.gender === 'male' ? 'Maschio' : 'Femmina',
       'Data di Nascita': formatDate(socio.birthDate),
       'Luogo di Nascita': socio.birthPlace,
       'Codice Fiscale': socio.fiscalCode || '',
