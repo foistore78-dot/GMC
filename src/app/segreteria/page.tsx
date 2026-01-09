@@ -168,6 +168,15 @@ export default function SegreteriaPage() {
     }
   };
 
+  const handlePdfDownload = () => {
+    const link = document.createElement('a');
+    link.href = 'https://www.fantastificio.it/wp-content/uploads/2023/11/Modulo-Iscrizione-Associazione-Fantastificio-APS-compilabile.pdf';
+    link.setAttribute('download', 'Modulo-Iscrizione-Garage-Music-Club.pdf'); // This suggests a filename to the browser
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (isUserLoading || !user) {
     return (
       <div className="flex flex-col min-h-screen bg-secondary">
@@ -252,15 +261,10 @@ export default function SegreteriaPage() {
                             <p className="text-sm text-muted-foreground mb-4">
                                 Clicca qui per scaricare il modulo di domanda di ammissione a socio. Può essere compilato al computer e poi stampato.
                             </p>
-                             <a
-                                href="https://www.fantastificio.it/wp-content/uploads/2023/11/Modulo-Iscrizione-Associazione-Fantastificio-APS-compilabile.pdf"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={cn(buttonVariants({ variant: "default" }))}
-                              >
+                             <Button onClick={handlePdfDownload} variant="default">
                                 <FileText className="mr-2 h-4 w-4" />
                                 Scarica Modulo PDF
-                              </a>
+                              </Button>
                         </div>
                     </CardContent>
                 </Card>
