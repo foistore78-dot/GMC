@@ -32,7 +32,7 @@ export function SocioCard({ socio }: SocioCardProps) {
   const relevantDateValue = socio.renewalDate || socio.joinDate;
 
   return (
-    <div style={{ background: 'white', color: 'black', width: '100%', maxWidth: '18cm', margin: '0 auto', fontFamily: "'Helvetica', 'Arial', sans-serif", padding: '1cm' }}>
+    <div style={{ background: 'white', color: 'black', width: '100%', maxWidth: '18cm', margin: '0 auto', fontFamily: "'Helvetica Neue', 'Helvetica', 'Arial', sans-serif", padding: '1cm' }}>
       
       {/* Header */}
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
@@ -127,12 +127,16 @@ export function SocioCard({ socio }: SocioCardProps) {
       {socio.notes && (
          <div style={{ marginTop: '20px', paddingTop: '10px', borderTop: '1px dashed #ccc' }}>
             <h4 style={{ fontSize: '11px', fontWeight: 'bold', margin: '0 0 5px 0' }}>NOTE:</h4>
-            <pre style={{ fontSize: '10px', whiteSpace: 'pre-wrap', margin: 0, color: '#333', fontFamily: "'Helvetica', 'Arial', sans-serif" }}>
-              {socio.notes}
-            </pre>
+            <div style={{ fontSize: '10px', whiteSpace: 'pre-wrap', color: '#333' }}>
+              {socio.notes.split('\n').map((line, index) => (
+                <p key={index} style={{ margin: 0 }}>{line}</p>
+              ))}
+            </div>
          </div>
       )}
 
     </div>
   );
 }
+
+    
