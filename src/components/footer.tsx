@@ -6,7 +6,7 @@ export function Footer() {
     <footer className="bg-secondary border-t border-border py-8">
       <div className="container mx-auto px-4 text-center text-muted-foreground">
         <div className="flex justify-center items-center gap-2 mb-4">
-            <GarageMusicClubLogo className="w-6 h-6" />
+            <GarageMusicClubLogo className="w-8 h-8" />
             <p className="font-headline text-lg">Garage Music Club</p>
         </div>
         <div className="text-sm space-y-1">

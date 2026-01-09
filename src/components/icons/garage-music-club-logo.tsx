@@ -15,7 +15,7 @@ export function GarageMusicClubLogo(props: SVGProps<SVGSVGElement>) {
           fontWeight="bold"
           fontSize="14"
           textAnchor="middle"
-          fill="white"
+          fill="currentColor"
         >
           GARAGE
         </text>
@@ -26,19 +26,19 @@ export function GarageMusicClubLogo(props: SVGProps<SVGSVGElement>) {
           fontWeight="bold"
           fontSize="10"
           textAnchor="middle"
-          fill="white"
+          fill="currentColor"
         >
           MUSIC CLUB
         </text>
       </g>
-      <circle cx="50" cy="50" r="28" fill="none" stroke="white" strokeWidth="2" />
+      <circle cx="50" cy="50" r="28" fill="none" stroke="currentColor" strokeWidth="2" />
       <circle cx="50" cy="50" r="24" fill="black" />
-      <g fill="white">
-        <circle cx="50" cy="50" r="20" fill="white" />
+      <g>
+        <circle cx="50" cy="50" r="20" fill="currentColor" />
         <circle cx="50" cy="50" r="17" fill="black" />
-        <circle cx="50" cy="50" r="10" fill="white" />
+        <circle cx="50" cy="50" r="10" fill="currentColor" />
         <circle cx="50" cy="50" r="7" fill="black" />
-        <path d="M50 45.5 A 4.5 4.5 0 0 1 50 54.5 A 4.5 4.5 0 0 1 50 45.5" fill="white"/>
+        <path d="M50 45.5 A 4.5 4.5 0 0 1 50 54.5 A 4.5 4.5 0 0 1 50 45.5" fill="currentColor"/>
         <path d="M50 45.5 A 5 5 0 0 0 50 54.5" fill="black"/>
       </g>
       <path
@@ -52,11 +52,11 @@ export function GarageMusicClubLogo(props: SVGProps<SVGSVGElement>) {
         fill="transparent"
       />
 
-       <g fontSize="4" fontFamily="Arial, sans-serif" fill="white">
+       <g fontSize="4" fontFamily="Arial, sans-serif" fill="currentColor">
           <text><textPath href="#curve" startOffset="50%" textAnchor="middle">GARAGE.MUSIC.CLUB2024@GMAIL.COM</textPath></text>
-          <text><textPath href="#curve-top" startOffset="18%" textAnchor="middle">C.F: 91050330314</textPath></text>
-           <text><textPath href="#curve" startOffset="10%" textAnchor="middle">34072 GRADISCA D'ISONZO</textPath></text>
-           <text><textPath href="#curve" startOffset="-5%" textAnchor="middle" transform="rotate(180 50 50)">VIA UDINE 43</textPath></text>
+          <text><textPath href="#curve-top" startOffset="50%" textAnchor="middle">C.F: 91050330314</textPath></text>
+           <text><textPath href="#curve" startOffset="82%" textAnchor="middle">34072 GRADISCA D'ISONZO</textPath></text>
+           <text><textPath href="#curve" startOffset="18%" textAnchor="middle">VIA UDINE 43</textPath></text>
        </g>
 
        <g stroke="red" strokeWidth="0.8">
