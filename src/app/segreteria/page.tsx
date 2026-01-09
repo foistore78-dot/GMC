@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import QRCode from 'react-qr-code';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
@@ -11,7 +12,7 @@ import type { Socio } from '@/lib/soci-data';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { Button } from '@/components/ui/button';
-import { Loader2, Printer, QrCode as QrCodeIcon, FileUp, FileDown } from 'lucide-react';
+import { Loader2, Printer, QrCode as QrCodeIcon, FileUp, FileDown, FileText } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from "@/hooks/use-toast";
@@ -191,8 +192,9 @@ export default function SegreteriaPage() {
         </div>
 
         <Tabs defaultValue="dati" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
+            <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto">
                 <TabsTrigger value="dati">Gestione Dati</TabsTrigger>
+                <TabsTrigger value="modulistica">Modulistica</TabsTrigger>
                 <TabsTrigger value="link">Link Utili</TabsTrigger>
             </TabsList>
             <TabsContent value="dati">
@@ -231,6 +233,30 @@ export default function SegreteriaPage() {
                                 {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
                                 <span className="sm:hidden">Importa</span>
                                 <span className="hidden sm:inline">{isImporting ? "Importazione..." : "Importa da Excel"}</span>
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="modulistica">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Modulo di Iscrizione PDF</CardTitle>
+                        <CardDescription>
+                            Scarica il modulo di iscrizione in formato PDF compilabile digitalmente.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div>
+                            <h3 className="font-semibold mb-2">Modulo PDF Compilabile</h3>
+                            <p className="text-sm text-muted-foreground mb-4">
+                                Clicca qui per scaricare il modulo di domanda di ammissione a socio. Può essere compilato al computer e poi stampato.
+                            </p>
+                             <Button asChild>
+                                <Link href="https://www.fantastificio.it/wp-content/uploads/2023/11/Modulo-Iscrizione-Associazione-Fantastificio-APS-compilabile.pdf" target="_blank" rel="noopener noreferrer">
+                                    <FileText className="mr-2 h-4 w-4" />
+                                    Scarica Modulo PDF
+                                </Link>
                             </Button>
                         </div>
                     </CardContent>
