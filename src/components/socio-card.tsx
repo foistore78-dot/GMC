@@ -32,7 +32,7 @@ export function SocioCard({ socio }: SocioCardProps) {
   const relevantDateValue = socio.renewalDate || socio.joinDate;
 
   return (
-    <div style={{ background: 'white', color: 'black', width: '100%', maxWidth: '18cm', margin: '0 auto', fontFamily: "'Helvetica Neue', 'Helvetica', 'Arial', sans-serif", padding: '1cm' }}>
+    <div style={{ background: 'white', color: 'black', width: '100%', maxWidth: '18cm', margin: '0 auto', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", padding: '1cm' }}>
       
       {/* Header */}
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
@@ -79,6 +79,12 @@ export function SocioCard({ socio }: SocioCardProps) {
         </p>
         <p style={{ fontSize: '10px', lineHeight: '1.5', margin: '0 0 10px 0', textAlign: 'justify', fontWeight: 'bold' }}>
           Il/La sottoscritto/a dichiara inoltre di aver ricevuto, letto e compreso l'informativa sul trattamento dei dati personali ai sensi dell’art. 13 del Regolamento (UE) 2016/679 e acconsente al trattamento dei propri dati per le finalità associative.
+        </p>
+        <p style={{ fontSize: '10px', lineHeight: '1.5', margin: '0 0 10px 0', textAlign: 'justify' }}>
+          <span style={{ display: 'inline-block', width: '16px', height: '16px', border: '1px solid black', marginRight: '5px', verticalAlign: 'middle', textAlign: 'center', lineHeight: '16px' }}>
+            {socio.whatsappConsent ? 'X' : ''}
+          </span>
+          Acconsente all'utilizzo del numero di telefono per il gruppo WhatsApp dell'associazione per comunicazioni relative alle attività.
         </p>
       </div>
       
