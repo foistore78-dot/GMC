@@ -49,6 +49,7 @@ import { doc, writeBatch, updateDoc } from "firebase/firestore";
 import { format, parseISO, isValid, isBefore, startOfToday } from 'date-fns';
 import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
 import { SocioCard } from "./socio-card";
+import ReactDOMServer from "react-dom/server";
 
 
 // Helper Functions
@@ -170,10 +171,8 @@ const SocioTableRow = ({
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
     if (printWindow) {
-      const cardContainer = document.createElement('div');
       
       // Temporarily render the SocioCard to get its HTML
-      const ReactDOMServer = require('react-dom/server');
       const cardHtml = ReactDOMServer.renderToString(
         <>
           <style>{`
