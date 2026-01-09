@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, Dispatch, SetStateAction } from "react";
@@ -123,13 +122,10 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
 };
 
 const formatPhoneNumberForWhatsApp = (phone: string): string => {
-  // Rimuovi tutti i caratteri non numerici
   let cleaned = phone.replace(/\D/g, '');
-  // Se inizia con 0039, rimuovilo
   if (cleaned.startsWith('0039')) {
     cleaned = cleaned.substring(4);
   }
-  // Se non inizia con 39, aggiungilo (assumendo sia un numero italiano)
   if (!cleaned.startsWith('39')) {
     cleaned = '39' + cleaned;
   }
@@ -141,20 +137,17 @@ const SocioTableRow = ({
   onEdit,
   onPrint,
   allMembers,
-  onSocioApproved,
-  onSocioRenewed,
+  onSocioUpdate,
 }: { 
   socio: Socio; 
   onEdit: (socio: Socio) => void;
   onPrint: (socio: Socio) => void;
   allMembers: Socio[];
-  onSocioApproved?: (socio: Socio) => void;
-  onSocioRenewed?: (socio: Socio) => void;
+  onSocioUpdate?: () => void;
 }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
   
-  // State for Approval Dialog
   const [isApproving, setIsApproving] = useState(false);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [newMemberNumber, setNewMemberNumber] = useState("");
@@ -163,27 +156,27 @@ const SocioTableRow = ({
   const [feePaid, setFeePaid] = useState(false);
   const [approvedSocioData, setApprovedSocioData] = useState<Socio | null>(null);
 
-  // State for Renewal Dialog
   const [isRenewing, setIsRenewing] = useState(false);
   const [showRenewDialog, setShowRenewDialog] = useState(false);
   const [renewalYear, setRenewalYear] = useState("");
   const [renewalFee, setRenewalFee] = useState(10);
   const [renewedSocioData, setRenewedSocioData] = useState<Socio | null>(null);
 
-
   const status = getStatus(socio);
   const socioIsMinor = isMinor(socio.birthDate);
 
-  const resetApproveDialog = () => {
-    setShowApproveDialog(false);
-    setIsApproving(false);
-    setApprovedSocioData(null);
+  const handleApproveDialogChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      setApprovedSocioData(null);
+    }
+    setShowApproveDialog(isOpen);
   };
   
-  const resetRenewDialog = () => {
-      setShowRenewDialog(false);
-      setIsRenewing(false);
+  const handleRenewDialogChange = (isOpen: boolean) => {
+    if (!isOpen) {
       setRenewedSocioData(null);
+    }
+    setShowRenewDialog(isOpen);
   };
 
   useEffect(() => {
@@ -258,7 +251,7 @@ const SocioTableRow = ({
             description: `${getFullName(socio)} è ora un membro attivo. N. tessera: ${membershipCardNumber}`,
         });
         setApprovedSocioData(newMemberData);
-        onSocioApproved?.(newMemberData);
+        onSocioUpdate?.();
     } catch (error) {
         console.error("Error approving member:", error);
         toast({
@@ -266,9 +259,8 @@ const SocioTableRow = ({
             description: `Impossibile approvare ${getFullName(socio)}. Dettagli: ${(error as Error).message}`,
             variant: "destructive",
         });
-    } finally {
-      setIsApproving(false);
-    }
+        setIsApproving(false);
+    } 
   };
 
   const handleRenew = async () => {
@@ -290,13 +282,13 @@ const SocioTableRow = ({
       await batch.commit();
   
       const newlyRenewedSocio = { ...socio, ...updatedData };
-      setRenewedSocioData(newlyRenewedSocio); // Update state to show confirmation
+      setRenewedSocioData(newlyRenewedSocio);
   
       toast({
         title: 'Rinnovo Effettuato!',
         description: `Il tesseramento di ${getFullName(socio)} è stato rinnovato per l'anno ${renewalYear}.`,
       });
-      onSocioRenewed?.(newlyRenewedSocio);
+      onSocioUpdate?.();
     } catch (error) {
       console.error('Error renewing member:', error);
       toast({
@@ -438,8 +430,8 @@ const SocioTableRow = ({
             variant={status === "active" ? "default" : status === "pending" ? "secondary" : "destructive"}
             className={cn("whitespace-nowrap",{
               "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30": status === "active",
-              "bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30": status === "expired",
-              "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30": status === "pending",
+              "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30": status === "expired",
+              "bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30": status === "pending",
               "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30": status === "rejected",
             })}
           >
@@ -460,7 +452,7 @@ const SocioTableRow = ({
             </TooltipProvider>
 
             {status === 'pending' && (
-              <Dialog open={showApproveDialog} onOpenChange={resetApproveDialog}>
+              <Dialog open={showApproveDialog} onOpenChange={handleApproveDialogChange}>
                 <DialogTrigger asChild>
                    <Button variant="ghost" size="sm" className="text-green-500 hover:text-green-500 hover:bg-green-500/10 h-8">
                       <CheckCircle className="h-4 w-4 sm:mr-2" />
@@ -481,8 +473,8 @@ const SocioTableRow = ({
                           <p className="font-bold text-lg text-primary">{approvedSocioData.tessera}</p>
                        </div>
                        <DialogFooter>
-                          <Button variant="ghost" onClick={resetApproveDialog}>Chiudi</Button>
-                          <Button onClick={() => { onPrint(approvedSocioData); resetApproveDialog(); }}>
+                          <Button variant="ghost" onClick={() => handleApproveDialogChange(false)}>Chiudi</Button>
+                          <Button onClick={() => { onPrint(approvedSocioData); handleApproveDialogChange(false); }}>
                              <Printer className="mr-2 h-4 w-4" /> Stampa Scheda
                           </Button>
                        </DialogFooter>
@@ -549,7 +541,7 @@ const SocioTableRow = ({
                           </div>
                       </div>
                       <DialogFooter>
-                          <Button variant="ghost" onClick={() => setShowApproveDialog(false)}>Annulla</Button>
+                          <Button variant="ghost" onClick={() => handleApproveDialogChange(false)}>Annulla</Button>
                           <Button onClick={handleApprove} disabled={isApproving || !feePaid}>
                               {isApproving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                               Conferma e Approva
@@ -561,7 +553,7 @@ const SocioTableRow = ({
               </Dialog>
             )}
             {status === 'expired' && (
-              <Dialog open={showRenewDialog} onOpenChange={resetRenewDialog}>
+              <Dialog open={showRenewDialog} onOpenChange={handleRenewDialogChange}>
                 <DialogTrigger asChild>
                     <Button 
                         variant="ghost" 
@@ -586,8 +578,8 @@ const SocioTableRow = ({
                                 <p className="font-bold text-lg text-primary">{formatDate(renewedSocioData.expirationDate)}</p>
                             </div>
                             <DialogFooter>
-                                <Button variant="ghost" onClick={resetRenewDialog}>Chiudi</Button>
-                                <Button onClick={() => { onPrint(renewedSocioData); resetRenewDialog(); }}>
+                                <Button variant="ghost" onClick={() => handleRenewDialogChange(false)}>Chiudi</Button>
+                                <Button onClick={() => { onPrint(renewedSocioData); handleRenewDialogChange(false); }}>
                                     <Printer className="mr-2 h-4 w-4" /> Stampa Scheda
                                 </Button>
                             </DialogFooter>
@@ -626,7 +618,7 @@ const SocioTableRow = ({
                                 </div>
                             </div>
                             <DialogFooter>
-                                <Button variant="ghost" onClick={() => setShowRenewDialog(false)}>Annulla</Button>
+                                <Button variant="ghost" onClick={() => handleRenewDialogChange(false)}>Annulla</Button>
                                 <Button onClick={handleRenew} disabled={isRenewing}>
                                     {isRenewing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     Conferma Rinnovo
@@ -656,8 +648,7 @@ interface SociTableProps {
   sortConfig: SortConfig;
   setSortConfig: Dispatch<SetStateAction<SortConfig>>;
   itemsPerPage: number;
-  onSocioApproved: (socio: Socio) => void;
-  onSocioRenewed: (socio: Socio) => void;
+  onSocioUpdate: () => void;
   currentPage: number;
   setCurrentPage: Dispatch<SetStateAction<number>>;
 }
@@ -701,8 +692,7 @@ const SociTableComponent = ({
   onEdit, 
   onPrint,
   allMembers, 
-  onSocioApproved, 
-  onSocioRenewed, 
+  onSocioUpdate,
   sortConfig, 
   setSortConfig, 
   itemsPerPage,
@@ -753,8 +743,7 @@ const SociTableComponent = ({
                   onEdit={onEdit}
                   onPrint={onPrint}
                   allMembers={allMembers}
-                  onSocioApproved={onSocioApproved}
-                  onSocioRenewed={onSocioRenewed}
+                  onSocioUpdate={onSocioUpdate}
                 />
               ))
             ) : (

@@ -49,7 +49,6 @@ export default function ElencoSociPage() {
   
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
   
-  // Use URL state for tabs and filters
   const initialTab = searchParams.get("tab") || "active";
   const initialFilter = searchParams.get("filter") || "";
 
@@ -71,30 +70,23 @@ export default function ElencoSociPage() {
     [firestore, user]
   );
 
-  const { data: membersData, isLoading: isMembersLoading, error: membersError } = useCollection<Socio>(membersQuery);
-  const { data: requestsData, isLoading: isRequestsLoading, error: requestsError } = useCollection<Socio>(requestsQuery);
-  
-  // This state is used to force a re-render of the tables when a socio is moved between tabs
-  const [dataVersion, setDataVersion] = useState(0);
+  const { data: membersData, isLoading: isMembersLoading, error: membersError, forceRefresh: forceMembersRefresh } = useCollection<Socio>(membersQuery);
+  const { data: requestsData, isLoading: isRequestsLoading, error: requestsError, forceRefresh: forceRequestsRefresh } = useCollection<Socio>(requestsQuery);
 
-  // Memoize data splitting
   const { allActive, allExpired } = useMemo(() => {
     const allMembers = membersData || [];
     const allActive = allMembers.filter(s => getStatus(s) === 'active');
     const allExpired = allMembers.filter(s => getStatus(s) === 'expired');
     return { allActive, allExpired };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [membersData, dataVersion]);
+  }, [membersData]);
   
   const pendingRequests = useMemo(() => {
-    return requestsData || [];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requestsData, dataVersion]);
+    return (requestsData || []).filter(req => getStatus(req) === 'pending');
+  }, [requestsData]);
 
   const filterAndSortData = (data: Socio[], currentSortConfig: SortConfig, searchFilter: string) => {
     if (!data) return [];
     
-    // 1. Filter by search string
     const searchedData = searchFilter ? data.filter(socio => {
         const searchString = searchFilter.toLowerCase();
         const fullName = `${socio.firstName || ''} ${socio.lastName || ''}`.toLowerCase();
@@ -112,7 +104,6 @@ export default function ElencoSociPage() {
         );
     }) : data;
     
-    // 2. Sort the filtered data
     return [...searchedData].sort((a, b) => {
         const { key, direction } = currentSortConfig;
         let aValue: any;
@@ -140,8 +131,6 @@ export default function ElencoSociPage() {
   const sortedExpired = useMemo(() => filterAndSortData(allExpired, sortConfig, filter).map(s => ({ ...s, membershipStatus: 'expired' as const })), [allExpired, sortConfig, filter]);
   const sortedRequests = useMemo(() => filterAndSortData(pendingRequests, sortConfig, filter).map(s => ({ ...s, membershipStatus: 'pending' as const })), [pendingRequests, sortConfig, filter]);
 
-
-  // Update URL when state changes
   useEffect(() => {
     const params = new URLSearchParams();
     params.set("tab", activeTab);
@@ -171,7 +160,7 @@ export default function ElencoSociPage() {
   
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
-    setFilter(""); // Reset filter on tab change
+    setFilter("");
     if (tab === 'requests') {
       setSortConfig({ key: 'requestDate', direction: 'descending' });
     } else {
@@ -179,9 +168,9 @@ export default function ElencoSociPage() {
     }
   };
 
-  const refreshAndSwitchTab = (tab: 'active' | 'expired' | 'requests') => {
-      setDataVersion(v => v + 1); // Force rememoization of data
-      handleTabChange(tab);
+  const handleSocioUpdate = () => {
+    forceMembersRefresh();
+    forceRequestsRefresh();
   };
   
   const handlePrintCard = (socio: Socio) => {
@@ -198,7 +187,6 @@ export default function ElencoSociPage() {
       return;
     }
     
-    // Use ReactDOMServer to generate static HTML
     const cardHtml = ReactDOMServer.renderToStaticMarkup(<SocioCard socio={socioToPrint} />);
 
     printWindow.document.write(`
@@ -216,6 +204,7 @@ export default function ElencoSociPage() {
             }
             body { font-family: 'Roboto', sans-serif; }
           </style>
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
         </head>
         <body>
           ${cardHtml}
@@ -229,12 +218,11 @@ export default function ElencoSociPage() {
       printWindow.focus();
       printWindow.print();
       printWindow.close();
-    }, 250); // Small delay to ensure content is rendered
+    }, 250); 
 
     setShowPrintDialog(false);
     setSocioToPrint(null);
   };
-
 
   if (isUserLoading || !user) {
     return (
@@ -305,8 +293,7 @@ export default function ElencoSociPage() {
                     onEdit={handleEditSocio}
                     onPrint={handlePrintCard}
                     allMembers={membersData || []}
-                    onSocioApproved={() => refreshAndSwitchTab('active')}
-                    onSocioRenewed={() => refreshAndSwitchTab('active')}
+                    onSocioUpdate={handleSocioUpdate}
                     sortConfig={sortConfig}
                     setSortConfig={setSortConfig}
                     itemsPerPage={ITEMS_PER_PAGE}
@@ -320,8 +307,7 @@ export default function ElencoSociPage() {
                     onEdit={handleEditSocio}
                     onPrint={handlePrintCard}
                     allMembers={membersData || []}
-                    onSocioApproved={() => refreshAndSwitchTab('active')}
-                    onSocioRenewed={() => refreshAndSwitchTab('active')}
+                    onSocioUpdate={handleSocioUpdate}
                     sortConfig={sortConfig}
                     setSortConfig={setSortConfig}
                     itemsPerPage={ITEMS_PER_PAGE}
@@ -335,8 +321,7 @@ export default function ElencoSociPage() {
                     onEdit={handleEditSocio}
                     onPrint={handlePrintCard}
                     allMembers={membersData || []}
-                    onSocioApproved={() => refreshAndSwitchTab('active')}
-                    onSocioRenewed={() => refreshAndSwitchTab('active')}
+                    onSocioUpdate={handleSocioUpdate}
                     sortConfig={sortConfig}
                     setSortConfig={setSortConfig}
                     itemsPerPage={ITEMS_PER_PAGE}
@@ -360,7 +345,7 @@ export default function ElencoSociPage() {
                 socio={editingSocio} 
                 onClose={() => {
                   setEditingSocio(null);
-                  refreshAndSwitchTab(activeTab as any); // Refresh current tab view
+                  handleSocioUpdate();
                 }}
               />
             </>
@@ -389,5 +374,3 @@ export default function ElencoSociPage() {
     </div>
   );
 }
-
-    
