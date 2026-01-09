@@ -123,17 +123,6 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
   );
 };
 
-const formatPhoneNumberForWhatsApp = (phone: string): string => {
-  let cleaned = phone.replace(/\D/g, '');
-  if (cleaned.startsWith('0039')) {
-    cleaned = cleaned.substring(4);
-  }
-  if (!cleaned.startsWith('39')) {
-    cleaned = '39' + cleaned;
-  }
-  return cleaned;
-};
-
 const SocioTableRow = ({ 
   socio,
   onEdit,
@@ -339,15 +328,9 @@ const handleRenew = async () => {
   
   const handleWhatsAppClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!socio.phone || !socio.whatsappConsent) return;
-    
-    const phoneNumber = formatPhoneNumberForWhatsApp(socio.phone);
-    const groupLink = "https://chat.whatsapp.com/KKes4gzve7T8xET9OD3bm5";
-    const message = `Ciao ${socio.firstName}! Benvenuto/a nel Garage Music Club. Per rimanere sempre aggiornato/a sulle nostre iniziative, eventi e jam session, entra nel nostro gruppo WhatsApp ufficiale cliccando su questo link: ${groupLink}`;
-    
-    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
-    
-    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    // Link di invito diretto al gruppo WhatsApp
+    const groupInviteLink = "https://chat.whatsapp.com/KKes4gzve7T8xET9OD3bm5";
+    window.open(groupInviteLink, '_blank', 'noopener,noreferrer');
   };
 
   const tesseraDisplay = socio.tessera ? `${socio.tessera.split('-')[1]}-${socio.tessera.split('-')[2]}` : '-';
@@ -363,7 +346,7 @@ const handleRenew = async () => {
                    <DialogTrigger asChild>
                      <div className="flex items-center gap-2 cursor-pointer group">
                         <span className="group-hover:text-primary transition-colors">{getFullName(socio)}</span>
-                        {socio.whatsappConsent && socio.phone && (
+                        {socio.whatsappConsent && (
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -373,7 +356,7 @@ const handleRenew = async () => {
                                  />
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p>Invia invito al gruppo WhatsApp</p>
+                                <p>Invita al gruppo WhatsApp</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -817,5 +800,7 @@ export const SociTable = ({
     </div>
   );
 }
+
+    
 
     
