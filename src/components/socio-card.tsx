@@ -27,7 +27,7 @@ const Field = ({ label, value }: { label: string; value: string | undefined | nu
 );
 
 const Checkbox = ({ checked }: { checked: boolean }) => (
-    <div style={{
+    <span style={{
         display: 'inline-block',
         width: '12px',
         height: '12px',
@@ -41,7 +41,7 @@ const Checkbox = ({ checked }: { checked: boolean }) => (
         backgroundColor: checked ? '#e0e0e0' : 'white',
     }}>
         {checked ? '✔' : ''}
-    </div>
+    </span>
 );
 
 
@@ -97,14 +97,14 @@ export function SocioCard({ socio }: SocioCardProps) {
             <p style={{ margin: '0 0 10px 0' }}>
                 Il/La sottoscritto/a, letta l'informativa sul trattamento dei dati personali, chiede di essere ammesso/a come socio/a all'Associazione Culturale "Garage Music Club", di cui dichiara di aver preso visione dello statuto e dei regolamenti interni e di accettarli integralmente. Si impegna a versare la quota associativa annuale.
             </p>
-            <p style={{ margin: '0 0 10px 0' }}>
+             <div style={{ marginBottom: '10px' }}>
                 <Checkbox checked={!!socio.whatsappConsent} />
                 <b>Consenso WhatsApp:</b> Acconsente all'inserimento del proprio numero di telefono nel gruppo WhatsApp dell'associazione per comunicazioni relative alle attività.
-            </p>
-            <p style={{ margin: '0' }}>
+            </div>
+            <div>
                 <Checkbox checked={socio.privacyConsent} />
                 <b>Consenso Privacy (Art. 13 GDPR):</b> Dichiara di aver ricevuto, letto e compreso l'informativa sul trattamento dei dati personali e acconsente al trattamento dei propri dati personali per le finalità associative, inclusa la gestione del tesseramento e l'invio di comunicazioni istituzionali. Il consenso è obbligatorio per l'ammissione.
-            </p>
+            </div>
         </div>
       </div>
       
@@ -167,5 +167,3 @@ export function SocioCard({ socio }: SocioCardProps) {
     </div>
   );
 }
-
-    
