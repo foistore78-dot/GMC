@@ -13,9 +13,6 @@ export function Footer() {
           <p>Associazione Culturale “Garage Music Club”</p>
           <p>Sede: Via XXIV Udine n. 43, Gradisca d’Isonzo (GO)</p>
           <p>Email: garage.music.club2024@gmail.com</p>
-          <p>Presidente: Susic Cristiana</p>
-          <p>Vice Presidente: Poterzio Sergio</p>
-          <p>Segretaria: Camauli Giulia</p>
         </div>
         <div className="mt-4 text-sm">
             <Link href="/privacy" className="hover:text-primary transition-colors">
