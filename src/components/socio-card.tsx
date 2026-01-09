@@ -128,11 +128,15 @@ export function SocioCard({ socio }: SocioCardProps) {
          </div>
 
          {socio.notes && (
-            <div className="mt-1 text-[8px] border-t pt-1">
-                <p className="font-bold uppercase text-gray-600">Note:</p>
-                <pre className="text-gray-700 font-sans text-[8px]">{socio.notes}</pre>
-            </div>
-         )}
+          <div className="mt-1 text-[8px] border-t pt-1">
+              <p className="font-bold uppercase text-gray-600">Note:</p>
+              <div className="text-gray-700 font-sans text-[8px]">
+                {socio.notes.split('\n').map((line, index) => (
+                  <p key={index}>{line}</p>
+                ))}
+              </div>
+          </div>
+        )}
       </main>
     </div>
   );
