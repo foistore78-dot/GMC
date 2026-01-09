@@ -68,18 +68,6 @@ export default function PrivacyPage() {
                   difesa in giudizio.
                 </li>
               </ul>
-              <p className="mt-4">
-                Inoltre, solo previo tuo specifico e distinto consenso (art. 7
-                GDPR), per le seguenti Altre Finalità:
-              </p>
-              <ul className="list-disc list-inside pl-4 mt-2 space-y-1">
-                <li>
-                  Inviarti via e-mail, posta e/o sms e/o contatti telefonici,
-                  newsletter, comunicazioni commerciali e/o materiale
-                  pubblicitario su eventi, iniziative e attività
-                  dell'associazione.
-                </li>
-              </ul>
             </section>
 
             <section>
@@ -99,8 +87,7 @@ export default function PrivacyPage() {
               <p className="mt-2">
                 Il Titolare tratterà i dati personali per il tempo necessario
                 per adempiere alle finalità di cui sopra e comunque per non
-                oltre 10 anni dalla cessazione del rapporto associativo e per
-                non oltre 2 anni dalla raccolta dei dati per le Altre Finalità.
+                oltre 10 anni dalla cessazione del rapporto associativo.
               </p>
             </section>
 
@@ -151,13 +138,7 @@ export default function PrivacyPage() {
               <p>
                 Il conferimento dei dati per le Finalità di Servizio di cui
                 all’art. 3 è obbligatorio. In loro assenza, non potremo
-                garantirti l'ammissione e il tesseramento all'associazione. Il
-                conferimento dei dati per le Altre Finalità è invece
-                facoltativo. Puoi quindi decidere di non conferire alcun dato o
-                di negare successivamente la possibilità di trattare dati già
-                forniti: in tal caso, non potrai ricevere newsletter,
-                comunicazioni commerciali e materiale pubblicitario inerenti
-                alle attività dell'associazione.
+                garantirti l'ammissione e il tesseramento all'associazione.
               </p>
             </section>
 
@@ -188,12 +169,9 @@ export default function PrivacyPage() {
                   dei dati trattati in violazione di legge;
                 </li>
                 <li>
-                  Opporti, in tutto o in parte: a) per motivi legittimi al
+                  Opporti, in tutto o in parte per motivi legittimi al
                   trattamento dei dati personali che ti riguardano, ancorché
-                  pertinenti allo scopo della raccolta; b) al trattamento di
-                  dati personali che ti riguardano a fini di invio di materiale
-                  pubblicitario o di vendita diretta o per il compimento di
-                  ricerche di mercato o di comunicazione commerciale.
+                  pertinenti allo scopo della raccolta.
                 </li>
               </ol>
               <p className="mt-2">
