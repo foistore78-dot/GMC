@@ -168,34 +168,53 @@ const SocioTableRow = ({
   const socioIsMinor = isMinor(socio.birthDate);
 
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank', 'height=842,width=595'); // A4 dimensions in pixels approx
+    const printWindow = window.open('', '_blank');
     if (printWindow) {
-      printWindow.document.write(`<html><head><title>Scheda Socio - ${getFullName(socio)}</title>`);
+      const cardContainer = document.createElement('div');
       
-      const stylesheets = Array.from(document.styleSheets)
-        .map(s => s.href ? `<link rel="stylesheet" href="${s.href}">` : '')
-        .join('');
-      printWindow.document.write(stylesheets);
+      // Temporarily render the SocioCard to get its HTML
+      const ReactDOMServer = require('react-dom/server');
+      const cardHtml = ReactDOMServer.renderToString(
+        <>
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto:wght@400;500;700&display=swap');
+            body { font-family: 'Roboto', sans-serif; margin: 0; }
+            .font-headline { font-family: 'Orbitron', sans-serif; }
+          `}</style>
+          <SocioCard socio={socio} />
+        </>
+      );
       
-      const inlineStyles = Array.from(document.querySelectorAll('style'))
-        .map(style => style.outerHTML)
-        .join('');
-      printWindow.document.write(`<style>${inlineStyles}</style>`);
+      const pageStyles = `
+        @page { size: A4; margin: 0; }
+        body { margin: 0; background: white; color: black; }
+        #printable-card { 
+          width: 210mm; 
+          height: 297mm; 
+          padding: 15mm; 
+          box-sizing: border-box; 
+        }
+      `;
       
-      const cardNode = document.getElementById(`card-${socio.id}`);
-
-      if (cardNode) {
-          printWindow.document.write('</head><body>');
-          printWindow.document.write(cardNode.innerHTML);
-          printWindow.document.write('</body></html>');
-          printWindow.document.close();
-
-          setTimeout(() => {
-              printWindow.focus();
-              printWindow.print();
-              printWindow.close();
-          }, 500); 
-      }
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Scheda Socio - ${getFullName(socio)}</title>
+            <style>${pageStyles}</style>
+          </head>
+          <body>
+            ${cardHtml}
+          </body>
+        </html>
+      `);
+      
+      printWindow.document.close();
+      printWindow.focus();
+      
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 500);
     }
   };
 
@@ -743,12 +762,14 @@ const SociTableComponent = ({
   const handleNextPage = () => {
       if (currentPage < totalPages) {
           setCurrentPage(currentPage + 1);
+          window.scrollTo(0, 0);
       }
   };
 
   const handlePreviousPage = () => {
       if (currentPage > 1) {
           setCurrentPage(currentPage - 1);
+          window.scrollTo(0, 0);
       }
   };
 
@@ -788,11 +809,14 @@ const SociTableComponent = ({
         </Table>
       </div>
 
-      {soci.map(socio => (
-          <div key={`card-${socio.id}`} id={`card-${socio.id}`} className="hidden print:block">
-            <SocioCard socio={socio} />
-          </div>
-      ))}
+      <div className="hidden">
+        {soci.map(socio => (
+            <div key={`card-${socio.id}`} id={`card-${socio.id}`} className="print:block">
+                <SocioCard socio={socio} />
+            </div>
+        ))}
+      </div>
+
 
       <div className="flex items-center justify-between space-x-2 py-4">
         <div className="text-sm text-muted-foreground">
