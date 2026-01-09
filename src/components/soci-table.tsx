@@ -30,7 +30,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { RefreshCw, Pencil, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer } from "lucide-react";
+import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
@@ -326,13 +326,6 @@ const handleRenew = async () => {
     );
   };
   
-  const handleWhatsAppClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    // Link di invito diretto al gruppo WhatsApp
-    const groupInviteLink = "https://chat.whatsapp.com/KKes4gzve7T8xET9OD3bm5";
-    window.open(groupInviteLink, '_blank', 'noopener,noreferrer');
-  };
-
   const tesseraDisplay = socio.tessera ? `${socio.tessera.split('-')[1]}-${socio.tessera.split('-')[2]}` : '-';
 
   return (
@@ -346,21 +339,6 @@ const handleRenew = async () => {
                    <DialogTrigger asChild>
                      <div className="flex items-center gap-2 cursor-pointer group">
                         <span className="group-hover:text-primary transition-colors">{getFullName(socio)}</span>
-                        {socio.whatsappConsent && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                 <MessageCircle 
-                                   onClick={handleWhatsAppClick}
-                                   className="w-3 h-3 sm:w-4 sm:h-4 text-green-500 ml-1 cursor-pointer hover:scale-125 transition-transform" 
-                                 />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Invita al gruppo WhatsApp</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
                      </div>
                    </DialogTrigger>
                    <DialogContent className="max-w-md">
