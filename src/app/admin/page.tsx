@@ -37,11 +37,11 @@ import ReactDOMServer from "react-dom/server";
 
 const ITEMS_PER_PAGE = 10;
 
-const getTesseraNumber = (tessera: string | undefined) => {
-  if (!tessera) return Infinity;
+const getTesseraNumber = (tessera: string | undefined): number => {
+  if (!tessera) return -1;
   const parts = tessera.split('-');
   const num = parseInt(parts[parts.length - 1], 10);
-  return isNaN(num) ? Infinity : num;
+  return isNaN(num) ? -1 : num;
 };
 
 const getTesseraYear = (socio: Socio) => {
@@ -108,11 +108,13 @@ export default function AdminPage() {
         let bValue: any;
         
         if (key === 'tessera') {
+            const numA = getTesseraNumber(a.tessera);
+            const numB = getTesseraNumber(b.tessera);
             if (yearA !== yearB) {
                 return direction === 'ascending' ? yearA - yearB : yearB - yearA;
             }
-            aValue = getTesseraNumber(a.tessera);
-            bValue = getTesseraNumber(b.tessera);
+            aValue = numA;
+            bValue = numB;
         } else if (key === 'name') {
             aValue = `${a.lastName} ${a.firstName}`;
             bValue = `${b.lastName} ${b.firstName}`;
@@ -156,7 +158,7 @@ export default function AdminPage() {
   useEffect(() => {
     // Reset page to 1 when filter changes
     setCurrentPage(1);
-  }, [filter]);
+  }, [filter, activeTab, hideExpired]);
 
 
   useEffect(() => {
@@ -174,7 +176,6 @@ export default function AdminPage() {
   const handleSheetOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
       setEditingSocio(null);
-       // Reset to default sort order after an edit
       setSortConfig({ key: "tessera", direction: "descending" });
     }
   };
@@ -216,7 +217,6 @@ export default function AdminPage() {
     if (!socioToPrint) return;
     const printWindow = window.open('', '_blank');
     if (printWindow) {
-      // Temporarily render the SocioCard to get its HTML
       const cardHtml = ReactDOMServer.renderToString(
         <>
           <style>{`
@@ -346,7 +346,6 @@ export default function AdminPage() {
                             checked={hideExpired}
                             onCheckedChange={(checked) => {
                                 setHideExpired(!!checked);
-                                setCurrentPage(1); // Reset page when toggling filter
                             }}
                         />
                         <Label htmlFor="hide-expired" className="cursor-pointer whitespace-nowrap">
