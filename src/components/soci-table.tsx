@@ -13,16 +13,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -49,6 +39,7 @@ import { doc, writeBatch, updateDoc } from "firebase/firestore";
 import { format, parseISO, isValid, isBefore, startOfToday } from 'date-fns';
 import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
 import { SocioCard } from "./socio-card";
+import ReactDOM from "react-dom";
 
 
 // Helper Functions
@@ -75,7 +66,7 @@ export const getStatus = (socio: any): 'active' | 'pending' | 'rejected' | 'expi
 
 
 export const formatDate = (dateString: any, outputFormat: string = 'dd/MM/yyyy') => {
-    if (!dateString) return 'N/A';
+    if (!dateString) return '';
     let date: Date;
 
     if (dateString && typeof dateString.toDate === 'function') {
@@ -85,17 +76,17 @@ export const formatDate = (dateString: any, outputFormat: string = 'dd/MM/yyyy')
     } else if (dateString instanceof Date) {
         date = dateString;
     } else {
-        return 'N/A';
+        return '';
     }
 
     if (!isValid(date)) {
-        return 'N/A';
+        return '';
     }
 
     try {
         return format(date, outputFormat);
     } catch {
-        return 'N/A';
+        return '';
     }
 };
 
@@ -174,44 +165,41 @@ const SocioTableRow = ({
     printFrame.style.height = '0';
     printFrame.style.border = '0';
     document.body.appendChild(printFrame);
-
+  
     const frameDoc = printFrame.contentDocument;
     const frameWindow = printFrame.contentWindow;
-    
+  
     if (frameDoc && frameWindow) {
       frameDoc.open();
       frameDoc.write(`
         <html>
           <head>
             <title>Scheda Socio - ${getFullName(socio)}</title>
-             <link rel="preconnect" href="https://fonts.googleapis.com">
-             <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-             <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
             <style>
               @page { size: A4; margin: 0; }
-              body { margin: 0; }
+              body { margin: 0; font-family: 'Roboto', sans-serif; }
             </style>
           </head>
           <body>
+            <div id="card-container"></div>
           </body>
         </html>
       `);
-      
-      const cardContainer = frameDoc.createElement('div');
-      frameDoc.body.appendChild(cardContainer);
-      
-      import('react-dom/server').then(ReactDOMServer => {
-        const cardHtml = ReactDOMServer.renderToString(<SocioCard socio={socio} />);
-        cardContainer.innerHTML = cardHtml;
-        
+      frameDoc.close();
+  
+      const cardContainer = frameDoc.getElementById('card-container');
+      if (cardContainer) {
+        ReactDOM.render(<SocioCard socio={socio} />, cardContainer);
+  
         setTimeout(() => {
           frameWindow.focus();
           frameWindow.print();
           document.body.removeChild(printFrame);
-        }, 250); 
-      });
-
-      frameDoc.close();
+        }, 500);
+      }
     }
   };
 
@@ -835,5 +823,3 @@ const SociTableComponent = ({
 
 
 export const SociTable = SociTableComponent;
-
-    

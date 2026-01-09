@@ -32,16 +32,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { SocioCard } from "@/components/socio-card";
+import ReactDOM from "react-dom";
 
 
 const ITEMS_PER_PAGE = 10;
 
 const getTesseraNumber = (tessera: string | undefined): number => {
-  if (!tessera) return -1;
+  if (!tessera) return Infinity; // Put soci without tessera at the end
   const parts = tessera.split('-');
-  if (parts.length < 3) return -1;
+  if (parts.length < 3) return Infinity;
   const num = parseInt(parts[parts.length - 1], 10);
-  return isNaN(num) ? -1 : num;
+  return isNaN(num) ? Infinity : num;
 };
 
 const getTesseraYear = (socio: Socio) => {
@@ -90,19 +91,12 @@ export default function AdminPage() {
   
   const sortedMembers = useMemo(() => {
     if (!activeSoci) return [];
-    const currentYear = new Date().getFullYear();
     
     return [...activeSoci].sort((a, b) => {
         const { key, direction } = sortConfig;
         
         const yearA = getTesseraYear(a);
         const yearB = getTesseraYear(b);
-        
-        const isACurrent = yearA === currentYear;
-        const isBCurrent = yearB === currentYear;
-
-        if (isACurrent && !isBCurrent) return -1;
-        if (!isACurrent && isBCurrent) return 1;
 
         let aValue: any;
         let bValue: any;
@@ -116,8 +110,8 @@ export default function AdminPage() {
             aValue = numA;
             bValue = numB;
         } else if (key === 'name') {
-            aValue = `${a.lastName} ${a.firstName}`;
-            bValue = `${b.lastName} ${b.firstName}`;
+            aValue = `${a.lastName} ${a.firstName}`.toLowerCase();
+            bValue = `${b.lastName} ${b.firstName}`.toLowerCase();
         } else {
             aValue = a[key as keyof Socio];
             bValue = b[key as keyof Socio];
@@ -138,11 +132,11 @@ export default function AdminPage() {
       let bValue: any;
 
       if (key === 'name') {
-        aValue = `${a.lastName} ${a.firstName}`;
-        bValue = `${b.lastName} ${b.firstName}`;
-      } else if (key === 'tessera') {
-        aValue = `${a.lastName} ${a.firstName}`;
-        bValue = `${b.lastName} ${b.firstName}`;
+        aValue = `${a.lastName} ${a.firstName}`.toLowerCase();
+        bValue = `${b.lastName} ${b.firstName}`.toLowerCase();
+      } else if (key === 'tessera') { // Cannot sort requests by tessera
+        aValue = `${a.lastName} ${a.firstName}`.toLowerCase();
+        bValue = `${b.lastName} ${b.firstName}`.toLowerCase();
       } else {
          aValue = a[key as keyof Socio];
          bValue = b[key as keyof Socio];
@@ -156,7 +150,6 @@ export default function AdminPage() {
   }, [requestsData, sortConfig]);
 
   useEffect(() => {
-    // Reset page to 1 when filter changes
     setCurrentPage(1);
   }, [filter, activeTab, hideExpired]);
 
@@ -181,8 +174,8 @@ export default function AdminPage() {
   
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
-    setFilter(''); // Reset filter on tab change
-    setCurrentPage(1); // Reset page on tab change
+    setFilter('');
+    setCurrentPage(1);
     if (tab === 'active') {
       setSortConfig({ key: 'tessera', direction: 'ascending' });
     } else {
@@ -198,9 +191,10 @@ export default function AdminPage() {
   };
   
   const handleSocioRenewed = (renewedSocio: Socio) => {
+    handleTabChange("active");
     setSocioToPrint(renewedSocio);
     setShowPrintDialog(true);
-    setSortConfig({ key: "tessera", direction: "ascending" });
+    setSortConfig({ key: 'tessera', direction: 'ascending' });
   };
 
   const handleExport = () => {
@@ -224,7 +218,7 @@ export default function AdminPage() {
 
     const frameDoc = printFrame.contentDocument;
     const frameWindow = printFrame.contentWindow;
-    
+
     if (frameDoc && frameWindow) {
       frameDoc.open();
       frameDoc.write(`
@@ -236,33 +230,33 @@ export default function AdminPage() {
             <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
             <style>
               @page { size: A4; margin: 0; }
-              body { margin: 0; }
+              body { margin: 0; font-family: 'Roboto', sans-serif; }
             </style>
           </head>
           <body>
+            <div id="card-container"></div>
           </body>
         </html>
       `);
+      frameDoc.close();
+
+      const cardContainer = frameDoc.getElementById('card-container');
       
-      const cardContainer = frameDoc.createElement('div');
-      frameDoc.body.appendChild(cardContainer);
-      
-      import('react-dom/server').then(ReactDOMServer => {
-        const cardHtml = ReactDOMServer.renderToString(<SocioCard socio={socioToPrint} />);
-        cardContainer.innerHTML = cardHtml;
-        
+      if(cardContainer) {
+        // Use ReactDOM.render to inject the React component into the iframe
+        ReactDOM.render(<SocioCard socio={socioToPrint} />, cardContainer);
+
         setTimeout(() => {
           frameWindow.focus();
           frameWindow.print();
           document.body.removeChild(printFrame);
           setSocioToPrint(null);
-        }, 250); 
-      });
-
-      frameDoc.close();
+        }, 500); // Increased timeout to ensure fonts and styles are loaded
+      }
     }
     setShowPrintDialog(false);
   };
+
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -428,7 +422,7 @@ export default function AdminPage() {
                 socio={editingSocio} 
                 onClose={() => {
                   setEditingSocio(null);
-                  setSortConfig({ key: "tessera", direction: "ascending" });
+                  handleTabChange("active");
                 }}
               />
             </>
@@ -459,5 +453,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-    
