@@ -47,6 +47,7 @@ export function SocioCard({ socio }: SocioCardProps) {
         
         <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs border-t border-b py-2 my-2">
             <Field label="Cognome e Nome" value={`${socio.lastName} ${socio.firstName}`} />
+            <Field label="Qualifiche" value={socio.qualifica?.join(', ')} />
             <Field label="Data di Nascita" value={formatDate(socio.birthDate)} />
             <Field label="Luogo di Nascita" value={socio.birthPlace} />
             <Field label="Codice Fiscale" value={socio.fiscalCode} />
