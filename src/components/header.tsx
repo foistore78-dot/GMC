@@ -69,10 +69,11 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-full max-w-xs bg-secondary">
+              <SheetTitle className="sr-only">Menu Principale</SheetTitle>
               <div className="flex flex-col h-full pt-8">
                  <div className="p-4 flex items-center gap-3 border-b border-border">
                     <GarageMusicClubLogo className="w-8 h-8 text-white" />
-                    <SheetTitle><span className="font-headline text-lg font-bold text-foreground">MENU</span></SheetTitle>
+                    <div className="font-headline text-lg font-bold text-foreground">MENU</div>
                  </div>
                  <div className="flex flex-col gap-2 p-4 flex-grow">
                     <NavLink href="/"><Home className="mr-2 h-4 w-4" /> Home</NavLink>
