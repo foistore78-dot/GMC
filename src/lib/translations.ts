@@ -26,7 +26,7 @@ export const translations = {
     },
     fee: {
       title: "Quota Associativa",
-      description: "La tessera associativa ha un costo annuale di <b>10€ per i maggiorenni</b>. Per i <b>minorenni</b> l'iscrizione è <b>gratuita</b>.",
+      description: "La tessera associativa ha un costo annuale di <b>10€ per i maggiorenni</b> (con una bibita in omaggio). Per i <b>minorenni</b> l'iscrizione è <b>gratuita</b>.",
     },
     steps: {
       gender: {
@@ -152,7 +152,7 @@ export const translations = {
     },
     fee: {
       title: "Membership Fee",
-      description: "The membership card has an annual cost of <b>€10 for adults</b>. For <b>minors</b>, registration is <b>free</b>.",
+      description: "The membership card has an annual cost of <b>€10 for adults</b> (includes one free drink). For <b>minors</b>, registration is <b>free</b>.",
     },
     steps: {
       gender: {
@@ -278,7 +278,7 @@ export const translations = {
     },
     fee: {
       title: "Članarina",
-      description: "Letna članarina za <b>polnoletne</b> znaša <b>10 €</b>. Za <b>mladoletne</b> je vpis <b>brezplačen</b>.",
+      description: "Letna članarina za <b>polnoletne</b> znaša <b>10 €</b> (vključuje eno brezplačno pijačo). Za <b>mladoletne</b> je vpis <b>brezplačen</b>.",
     },
     steps: {
       gender: {
@@ -379,3 +379,5 @@ export const translations = {
     }
   },
 };
+
+    
