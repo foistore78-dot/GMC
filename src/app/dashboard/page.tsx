@@ -73,7 +73,6 @@ export default function DashboardPage() {
     const expiredMembers = allMembers.filter(mem => getStatus(mem) === 'expired').length;
     
     const members_2024 = allMembers.filter(m => m.membershipYear === '2024').length;
-    const members_2025 = allMembers.filter(m => m.membershipYear === '2025').length;
     const members_2026 = allMembers.filter(m => m.membershipYear === '2026').length;
 
 
@@ -101,7 +100,6 @@ export default function DashboardPage() {
       pendingApproval,
       expiredMembers,
       members_2024,
-      members_2025,
       members_2026,
       chartData,
     };
@@ -132,7 +130,7 @@ export default function DashboardPage() {
           </h1>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
             <StatCard 
                 title="In Attesa di Approvazione"
                 value={stats.pendingApproval}
@@ -146,13 +144,6 @@ export default function DashboardPage() {
                 icon={<Clock className="h-4 w-4 text-muted-foreground" />}
                 link="/admin/elenco?tab=active&hideExpired=false"
                 description="Soci con tesseramento scaduto"
-            />
-            <StatCard 
-                title="Soci (2025)"
-                value={stats.members_2025}
-                icon={<History className="h-4 w-4 text-muted-foreground" />}
-                link="/admin/elenco?filter=2025"
-                description="Iscritti per l'anno prossimo"
             />
             <StatCard 
                 title="Soci (2026)"
