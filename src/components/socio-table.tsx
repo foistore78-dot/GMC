@@ -24,8 +24,8 @@ import {
 } from "@/components/ui/dialog";
 import {
   Tooltip,
-  TooltipContent,
   TooltipProvider,
+  TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { RefreshCw, Pencil, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer } from "lucide-react";
@@ -38,8 +38,6 @@ import { useFirestore } from "@/firebase";
 import { doc, writeBatch, updateDoc } from "firebase/firestore";
 import { format, parseISO, isValid, isBefore, startOfToday } from 'date-fns';
 import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
-import { SocioCard } from "./socio-card";
-
 
 // Helper Functions
 export const getFullName = (socio: any) => `${socio.lastName || ''} ${socio.firstName || ''}`.trim();
@@ -319,8 +317,8 @@ const SocioTableRow = ({
   const tesseraDisplay = socio.tessera ? `${socio.tessera.split('-')[1]}-${socio.tessera.split('-')[2]}` : '-';
 
   return (
-      <TableRow className={cn({ 'bg-orange-500/10 hover:bg-orange-500/20': status === 'expired' })}>
-        <TableCell className="font-mono text-xs">
+      <TableRow className={cn("text-xs sm:text-sm", { 'bg-orange-500/10 hover:bg-orange-500/20': status === 'expired' })}>
+        <TableCell className="font-mono">
           {tesseraDisplay}
         </TableCell>
         <TableCell className="font-medium">
@@ -329,7 +327,7 @@ const SocioTableRow = ({
                    <DialogTrigger asChild>
                      <div className="flex items-center gap-2 cursor-pointer group">
                         <span className="group-hover:text-primary transition-colors">{getFullName(socio)}</span>
-                        {socio.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500 ml-1" />}
+                        {socio.whatsappConsent && <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-500 ml-1" />}
                      </div>
                    </DialogTrigger>
                    <DialogContent className="max-w-md">
@@ -362,7 +360,7 @@ const SocioTableRow = ({
                        {socio.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
                        <DetailRow icon={<StickyNote />} label="Note" value={<pre className="text-wrap font-sans">{socio.notes}</pre>} />
                      </div>
-                      <DialogFooter className="sm:justify-between">
+                      <DialogFooter className="flex-col sm:flex-row sm:justify-between gap-2">
                           <DialogClose asChild>
                             <Button variant="ghost">Chiudi</Button>
                           </DialogClose>
@@ -404,14 +402,14 @@ const SocioTableRow = ({
                  )}
            </div>
         </TableCell>
-        <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
+        <TableCell className="hidden md:table-cell text-muted-foreground">
           <div>{formatDate(socio.birthDate)}</div>
           <div className="text-xs">{socio.birthPlace}</div>
         </TableCell>
         <TableCell>
           <Badge
             variant={status === "active" ? "default" : status === "pending" ? "secondary" : "destructive"}
-            className={cn({
+            className={cn("whitespace-nowrap",{
               "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30": status === "active",
               "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30": status === "pending",
               "bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30": status === "expired",
@@ -425,7 +423,7 @@ const SocioTableRow = ({
             <TooltipProvider>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onPrint(socio)}>
+                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onPrint(socio)}>
                             <Printer className="h-4 w-4" />
                             <span className="sr-only">Stampa Scheda</span>
                         </Button>
@@ -437,9 +435,9 @@ const SocioTableRow = ({
             {status === 'pending' && (
               <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
                 <DialogTrigger asChild>
-                  <Button variant="ghost" size="sm" className="text-green-500 hover:text-green-500 hover:bg-green-500/10">
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Approva
+                   <Button variant="ghost" size="sm" className="text-green-500 hover:text-green-500 hover:bg-green-500/10 h-8">
+                      <CheckCircle className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Approva</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-lg">
@@ -450,8 +448,8 @@ const SocioTableRow = ({
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-6 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="membership-number" className="text-right">
+                        <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+                            <Label htmlFor="membership-number" className="sm:text-right">
                                 N. Tessera
                             </Label>
                             <div className="col-span-3">
@@ -466,8 +464,8 @@ const SocioTableRow = ({
                               />
                             </div>
                         </div>
-                         <div className="grid grid-cols-4 items-start gap-4">
-                            <Label className="text-right pt-2">Qualifiche</Label>
+                         <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-2 sm:gap-4">
+                            <Label className="sm:text-right pt-2">Qualifiche</Label>
                             <div className="col-span-3 space-y-2">
                                 {QUALIFICHE.map((q) => (
                                    <div key={q} className="flex items-center space-x-2">
@@ -483,11 +481,11 @@ const SocioTableRow = ({
                                 ))}
                             </div>
                          </div>
-                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="membership-fee" className="text-right">
+                         <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+                            <Label htmlFor="membership-fee" className="sm:text-right">
                                 Quota (€)
                             </Label>
-                            <div className="col-span-3 flex items-center gap-4">
+                            <div className="col-span-3 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                               <Input
                                   id="membership-fee"
                                   type="number"
@@ -515,9 +513,9 @@ const SocioTableRow = ({
             {status === 'expired' && (
               <Dialog open={showRenewDialog} onOpenChange={setShowRenewDialog}>
                 <DialogTrigger asChild>
-                  <Button variant="ghost" size="sm" className="text-orange-500 hover:text-orange-500 hover:bg-orange-500/10">
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Rinnova
+                  <Button variant="ghost" size="sm" className="text-orange-500 hover:text-orange-500 hover:bg-orange-500/10 h-8">
+                      <RefreshCw className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Rinnova</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-lg">
@@ -528,8 +526,8 @@ const SocioTableRow = ({
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-6 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="renewal-membership-number" className="text-right">
+                        <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+                            <Label htmlFor="renewal-membership-number" className="sm:text-right">
                                 N. Tessera
                             </Label>
                             <div className="col-span-3">
@@ -544,8 +542,8 @@ const SocioTableRow = ({
                               />
                             </div>
                         </div>
-                        <div className="grid grid-cols-4 items-start gap-4">
-                            <Label className="text-right pt-2">Qualifiche</Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-2 sm:gap-4">
+                            <Label className="sm:text-right pt-2">Qualifiche</Label>
                             <div className="col-span-3 space-y-2">
                                 {QUALIFICHE.map((q) => (
                                    <div key={q} className="flex items-center space-x-2">
@@ -561,11 +559,11 @@ const SocioTableRow = ({
                                 ))}
                             </div>
                         </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="renewal-fee" className="text-right">
+                        <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+                            <Label htmlFor="renewal-fee" className="sm:text-right">
                                 Quota Rinnovo (€)
                             </Label>
-                            <div className="col-span-3 flex items-center gap-4">
+                            <div className="col-span-3 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                                 <Input
                                     id="renewal-fee"
                                     type="number"
@@ -642,7 +640,7 @@ const SortableHeader = ({
 
   return (
     <TableHead className={className}>
-      <Button variant="ghost" onClick={handleSort} className="px-2 py-1 h-auto">
+      <Button variant="ghost" onClick={handleSort} className="px-2 py-1 h-auto -ml-2">
         {label}
         <ArrowUpDown className={cn("ml-2 h-4 w-4", direction === 'none' && "text-muted-foreground/50")} />
       </Button>
@@ -717,11 +715,11 @@ const SociTableComponent = ({
 
   return (
     <div>
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <SortableHeader label="Tessera" sortKey="tessera" sortConfig={sortConfig} setSortConfig={setSortConfig} className="w-[120px]" />
+              <SortableHeader label="Tessera" sortKey="tessera" sortConfig={sortConfig} setSortConfig={setSortConfig} className="w-[100px]" />
               <SortableHeader label="Nome" sortKey="name" sortConfig={sortConfig} setSortConfig={setSortConfig} />
               <SortableHeader label="Nascita" sortKey="birthDate" sortConfig={sortConfig} setSortConfig={setSortConfig} className="hidden md:table-cell" />
               <SortableHeader label="Stato" sortKey="membershipStatus" sortConfig={sortConfig} setSortConfig={setSortConfig} />
@@ -762,8 +760,8 @@ const SociTableComponent = ({
                 onClick={handlePreviousPage}
                 disabled={currentPage === 1}
             >
-                <ChevronLeft className="mr-2 h-4 w-4" />
-                Precedente
+                <ChevronLeft className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Precedente</span>
             </Button>
             <Button
                 variant="outline"
@@ -771,8 +769,8 @@ const SociTableComponent = ({
                 onClick={handleNextPage}
                 disabled={currentPage >= totalPages}
             >
-                Successivo
-                <ChevronRight className="ml-2 h-4 w-4" />
+                <span className="hidden sm:inline">Successivo</span>
+                <ChevronRight className="h-4 w-4 sm:ml-2" />
             </Button>
         </div>
       </div>

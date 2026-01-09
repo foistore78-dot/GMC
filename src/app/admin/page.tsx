@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from 'next/link';
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { SociTable, type SortConfig, getStatus } from "@/components/soci-table";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import { FileDown, FileUp, Loader2, Users, Filter, Printer } from "lucide-react";
+import { collection, writeBatch, getDocs } from "firebase/firestore";
+import { FileDown, FileUp, Loader2, Users, Filter, QrCode, Trash2 } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -32,6 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { SocioCard } from "@/components/socio-card";
+import { renderToStaticMarkup } from 'react-dom/server';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -225,49 +227,45 @@ export default function AdminPage() {
   const executePrint = () => {
     if (!socioToPrint) return;
 
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open('', '_blank', 'height=800,width=800');
     if (!printWindow) {
-        alert('Per favore, consenti i pop-up per stampare la scheda.');
-        setShowPrintDialog(false);
-        setSocioToPrint(null);
+        alert('Please allow pop-ups for this website');
         return;
     }
+
+    const staticMarkup = renderToStaticMarkup(<SocioCard socio={socioToPrint} />);
     
-    // Create a temporary, invisible iframe to render the component for printing
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'absolute';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    document.body.appendChild(iframe);
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Stampa Scheda Socio</title>
+                <style>
+                    body { margin: 0; }
+                    @media print {
+                        body { margin: 1cm; }
+                    }
+                </style>
+            </head>
+            <body>${staticMarkup}</body>
+        </html>
+    `);
 
-    const iframeDoc = iframe.contentWindow?.document;
-    if (!iframeDoc) {
-      alert('Impossibile creare la finestra di stampa.');
-      document.body.removeChild(iframe);
-      setShowPrintDialog(false);
-      setSocioToPrint(null);
-      return;
-    }
+    printWindow.document.close();
+    printWindow.focus(); 
 
-    const cardContainer = iframeDoc.createElement('div');
-    iframeDoc.body.appendChild(cardContainer);
-
-    // This is a way to render a React component into a different DOM tree
-    const root = (iframe.contentWindow as any).ReactDOM.createRoot(cardContainer);
-    root.render(<SocioCard socio={socioToPrint} />);
-    
-    // Give React time to render and styles to apply
+    // Use a small timeout to ensure the content is loaded before printing
     setTimeout(() => {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-        
-        // Clean up after printing
-        document.body.removeChild(iframe);
+      try {
+        printWindow.print();
+      } catch (e) {
+        console.error("Print failed:", e);
+      } finally {
+        printWindow.close();
         setShowPrintDialog(false);
         setSocioToPrint(null);
-    }, 500); // 500ms delay to ensure rendering is complete
-};
+      }
+    }, 500);
+  };
 
   if (isUserLoading || !user) {
     return (
@@ -391,6 +389,13 @@ export default function AdminPage() {
                  <span className="sm:hidden">Esporta</span>
                 <span className="hidden sm:inline">Esporta Elenco Completo</span>
             </Button>
+            <Button asChild variant="outline">
+              <Link href="/segreteria">
+                <QrCode className="mr-2 h-4 w-4" />
+                <span className="sm:hidden">QR</span>
+                <span className="hidden sm:inline">QR Iscrizioni</span>
+              </Link>
+            </Button>
         </div>
       </main>
 
@@ -424,7 +429,6 @@ export default function AdminPage() {
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setSocioToPrint(null)}>Annulla</AlertDialogCancel>
             <AlertDialogAction onClick={executePrint}>
-              <Printer className="mr-2 h-4 w-4" />
               Stampa
             </AlertDialogAction>
           </AlertDialogFooter>
