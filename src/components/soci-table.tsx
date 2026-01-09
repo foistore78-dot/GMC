@@ -199,15 +199,8 @@ const SocioTableRow = ({
         .map(m => parseInt(m.tessera!.split('-')[2], 10))
         .filter(n => !isNaN(n));
       
-      let nextNumber = 1;
-      const sortedNumbers = yearMemberNumbers.sort((a, b) => a - b);
-      for (const num of sortedNumbers) {
-        if (num === nextNumber) {
-          nextNumber++;
-        } else {
-          break; 
-        }
-      }
+      const maxNumber = yearMemberNumbers.length > 0 ? Math.max(...yearMemberNumbers) : 0;
+      const nextNumber = maxNumber + 1;
       
       setNewMemberNumber(String(nextNumber));
       setMembershipFee(socioIsMinor ? 0 : 10);
@@ -594,7 +587,7 @@ const handleRenew = async () => {
                             </div>
                             <DialogFooter>
                                 <Button variant="ghost" onClick={() => handleRenewDialogChange(false)}>Chiudi</Button>
-                                <Button onClick={() => { onPrint(renewedSocioData); handleRenewDialogChange(false); }}>
+                                <Button onClick={()={() => { onPrint(renewedSocioData); handleRenewDialogChange(false); }}>
                                     <Printer className="mr-2 h-4 w-4" /> Stampa Scheda
                                 </Button>
                             </DialogFooter>
@@ -803,4 +796,6 @@ export const SociTable = ({
     
 
     
+
+
 
