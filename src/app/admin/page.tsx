@@ -4,10 +4,10 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
-import { SociTable, type SortConfig } from "@/components/soci-table";
+import { SociTable, type SortConfig, getStatus } from "@/components/soci-table";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import { FileDown, FileUp, Loader2, Users, FilterX } from "lucide-react";
+import { FileDown, FileUp, Loader2, Users } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -100,6 +100,13 @@ export default function AdminPage() {
     
     return sorted.map(s => ({ ...s, membershipStatus: 'active' as const }));
   }, [membersData, sortConfig]);
+
+  const visibleMembers = useMemo(() => {
+    if (hideExpired) {
+      return sortedMembers.filter(s => getStatus(s) !== 'expired');
+    }
+    return sortedMembers;
+  }, [sortedMembers, hideExpired]);
 
 
   const sortedRequests = useMemo(() => {
@@ -235,7 +242,7 @@ export default function AdminPage() {
               <TabsList className="mb-4">
                  <TabsTrigger value="active">
                   Soci Attivi
-                  <Badge variant="secondary" className="ml-2">{sortedMembers.length}</Badge>
+                  <Badge variant="secondary" className="ml-2">{visibleMembers.length}</Badge>
                 </TabsTrigger>
                 <TabsTrigger value="pending">
                   Richieste di Iscrizione
@@ -265,13 +272,12 @@ export default function AdminPage() {
                   </Label>
                 </div>
                 <SociTable 
-                    soci={sortedMembers}
+                    soci={visibleMembers}
                     onEdit={handleEditSocio}
                     allMembers={membersData || []}
                     sortConfig={sortConfig}
                     setSortConfig={setSortConfig}
                     itemsPerPage={ITEMS_PER_PAGE}
-                    hideExpired={hideExpired}
                 />
               </TabsContent>
             </Tabs>
