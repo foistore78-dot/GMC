@@ -15,8 +15,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EditSocioForm } from "@/components/edit-socio-form";
 import { getFullName } from "@/components/soci-table";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import ReactDOMServer from 'react-dom/server';
 
@@ -54,11 +52,9 @@ export default function ElencoSociPage() {
   // Use URL state for tabs and filters
   const initialTab = searchParams.get("tab") || "active";
   const initialFilter = searchParams.get("filter") || "";
-  const initialHideExpired = searchParams.get("hideExpired") !== "false";
 
   const [activeTab, setActiveTab] = useState(initialTab);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "ascending" });
-  const [hideExpired, setHideExpired] = useState(initialHideExpired);
   
   const [filter, setFilter] = useState(initialFilter);
   const [currentPage, setCurrentPage] = useState(1);
@@ -78,44 +74,39 @@ export default function ElencoSociPage() {
   const { data: membersData, isLoading: isMembersLoading } = useCollection<Socio>(membersQuery);
   const { data: requestsData, isLoading: isRequestsLoading } = useCollection<Socio>(requestsQuery);
   
-  const allSociFromDb = useMemo(() => {
-    if (!membersData) return [];
-    return membersData;
+  // Memoize data splitting
+  const { allActive, allExpired } = useMemo(() => {
+    const allMembers = membersData || [];
+    const allActive = allMembers.filter(s => getStatus(s) === 'active');
+    const allExpired = allMembers.filter(s => getStatus(s) === 'expired');
+    return { allActive, allExpired };
   }, [membersData]);
   
-  const searchedMembers = useMemo(() => {
-    const searchString = filter.toLowerCase();
-    if (!allSociFromDb) return [];
-    if (!searchString) return allSociFromDb;
 
-    return allSociFromDb.filter(socio => {
-      const fullName = `${socio.firstName || ''} ${socio.lastName || ''}`.toLowerCase();
-      const reversedFullName = `${socio.lastName || ''} ${socio.firstName || ''}`.toLowerCase();
-      const email = socio.email?.toLowerCase() || '';
-      const tessera = socio.tessera?.toLowerCase() || '';
-      const birthDate = formatDate(socio.birthDate);
+  const filterAndSortData = (data: Socio[], currentSortConfig: SortConfig, searchFilter: string) => {
+    if (!data) return [];
+    
+    // 1. Filter by search string
+    const searchedData = searchFilter ? data.filter(socio => {
+        const searchString = searchFilter.toLowerCase();
+        const fullName = `${socio.firstName || ''} ${socio.lastName || ''}`.toLowerCase();
+        const reversedFullName = `${socio.lastName || ''} ${socio.firstName || ''}`.toLowerCase();
+        const email = socio.email?.toLowerCase() || '';
+        const tessera = socio.tessera?.toLowerCase() || '';
+        const birthDate = formatDate(socio.birthDate);
 
-      return (
-        fullName.includes(searchString) ||
-        reversedFullName.includes(searchString) ||
-        email.includes(searchString) ||
-        tessera.includes(searchString) ||
-        birthDate.includes(searchString)
-      );
-    });
-  }, [allSociFromDb, filter]);
-
-  const activeSoci = useMemo(() => {
-    if (hideExpired) {
-      return searchedMembers.filter(s => getStatus(s) !== 'expired');
-    }
-    return searchedMembers;
-  }, [searchedMembers, hideExpired]);
-  
-  const sortedMembers = useMemo(() => {
-    return [...activeSoci].sort((a, b) => {
-        const { key, direction } = sortConfig;
-        
+        return (
+            fullName.includes(searchString) ||
+            reversedFullName.includes(searchString) ||
+            email.includes(searchString) ||
+            tessera.includes(searchString) ||
+            birthDate.includes(searchString)
+        );
+    }) : data;
+    
+    // 2. Sort the filtered data
+    return [...searchedData].sort((a, b) => {
+        const { key, direction } = currentSortConfig;
         let aValue: any;
         let bValue: any;
         
@@ -136,59 +127,22 @@ export default function ElencoSociPage() {
         if (aValue < bValue) return asc ? -1 : 1;
         if (aValue > bValue) return asc ? 1 : -1;
         return 0;
-    }).map(s => ({ ...s, membershipStatus: 'active' as const }));
-  }, [activeSoci, sortConfig]);
-
-  const sortedRequests = useMemo(() => {
-    if (!requestsData) return [];
-    const searchString = filter.toLowerCase();
-
-    const filteredRequests = !searchString ? requestsData : requestsData.filter(socio => {
-      const fullName = `${socio.firstName || ''} ${socio.lastName || ''}`.toLowerCase();
-      const reversedFullName = `${socio.lastName || ''} ${socio.firstName || ''}`.toLowerCase();
-      const email = socio.email?.toLowerCase() || '';
-      const birthDate = formatDate(socio.birthDate);
-       return (
-        fullName.includes(searchString) ||
-        reversedFullName.includes(searchString) ||
-        email.includes(searchString) ||
-        birthDate.includes(searchString)
-      );
     });
+  };
+
+  const sortedActive = useMemo(() => filterAndSortData(allActive, sortConfig, filter).map(s => ({ ...s, membershipStatus: 'active' as const })), [allActive, sortConfig, filter]);
+  const sortedExpired = useMemo(() => filterAndSortData(allExpired, sortConfig, filter).map(s => ({ ...s, membershipStatus: 'expired' as const })), [allExpired, sortConfig, filter]);
+  const sortedRequests = useMemo(() => filterAndSortData(requestsData || [], sortConfig, filter).map(s => ({ ...s, membershipStatus: 'pending' as const })), [requestsData, sortConfig, filter]);
 
 
-    return [...filteredRequests].sort((a, b) => {
-      const { key, direction } = sortConfig;
-      let aValue: any;
-      let bValue: any;
-
-      if (key === 'name') {
-        aValue = `${a.lastName} ${a.firstName}`.toLowerCase();
-        bValue = `${b.lastName} ${b.firstName}`.toLowerCase();
-      } else if (key === 'tessera') { 
-        aValue = `${a.lastName} ${a.firstName}`.toLowerCase();
-        bValue = `${b.lastName} ${b.firstName}`.toLowerCase();
-      } else {
-         aValue = a[key as keyof Socio];
-         bValue = b[key as keyof Socio];
-      }
-
-      const asc = direction === 'ascending';
-      if (aValue < bValue) return asc ? -1 : 1;
-      if (aValue > bValue) return asc ? 1 : -1;
-      return 0;
-    }).map(s => ({ ...s, membershipStatus: 'pending' as const }));
-  }, [requestsData, sortConfig, filter]);
-  
   // Update URL when state changes
   useEffect(() => {
     const params = new URLSearchParams();
     params.set("tab", activeTab);
     if (filter) params.set("filter", filter);
-    if (!hideExpired) params.set("hideExpired", "false");
-    router.replace(`/admin/elenco?${params.toString()}`);
+    router.replace(`/admin/elenco?${params.toString()}`, { scroll: false });
     setCurrentPage(1);
-  }, [filter, activeTab, hideExpired, router]);
+  }, [filter, activeTab, router]);
 
 
   useEffect(() => {
@@ -211,16 +165,16 @@ export default function ElencoSociPage() {
   
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
-    if (tab === 'active') {
-      setSortConfig({ key: 'tessera', direction: 'ascending' });
-    } else {
+    setFilter(""); // Reset filter on tab change
+    if (tab === 'requests') {
       setSortConfig({ key: 'requestDate', direction: 'descending' });
+    } else {
+      setSortConfig({ key: 'tessera', direction: 'ascending' });
     }
   };
 
   const resetToDefaultSort = () => {
     handleTabChange("active");
-    setSortConfig({ key: 'tessera', direction: 'ascending' });
   };
   
   const handlePrintCard = (socio: Socio) => {
@@ -308,7 +262,7 @@ export default function ElencoSociPage() {
         </div>
 
         <div className="bg-background rounded-lg border border-border shadow-lg p-2 sm:p-4">
-          {isLoading && sortedMembers.length === 0 && sortedRequests.length === 0 ? (
+          {isLoading && sortedActive.length === 0 && sortedRequests.length === 0 && sortedExpired.length === 0 ? (
              <div className="flex justify-center items-center h-64">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
              </div>
@@ -316,28 +270,17 @@ export default function ElencoSociPage() {
             <Tabs value={activeTab} onValueChange={handleTabChange}>
               <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4">
                 <TabsList className="self-start">
-                   <TabsTrigger value="active" className="text-xs sm:text-sm">
-                    Soci Attivi
+                   <TabsTrigger value="active" className="text-xs sm:text-sm data-[state=active]:bg-green-500/20 data-[state=active]:text-green-300">
+                    Attivi
                   </TabsTrigger>
-                  <TabsTrigger value="pending" className="text-xs sm:text-sm">
+                  <TabsTrigger value="expired" className="text-xs sm:text-sm data-[state=active]:bg-yellow-500/20 data-[state=active]:text-yellow-300">
+                    In Attesa di Rinnovo
+                  </TabsTrigger>
+                  <TabsTrigger value="requests" className="text-xs sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300">
                     Richieste
                   </TabsTrigger>
                 </TabsList>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
-                  {activeTab === 'active' && (
-                    <div className="flex items-center space-x-2 self-start">
-                        <Checkbox
-                            id="hide-expired"
-                            checked={hideExpired}
-                            onCheckedChange={(checked) => {
-                                setHideExpired(!!checked);
-                            }}
-                        />
-                        <Label htmlFor="hide-expired" className="cursor-pointer whitespace-nowrap text-sm">
-                            Nascondi scaduti
-                        </Label>
-                    </div>
-                  )}
                    <div className="relative w-full sm:max-w-md">
                       <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -349,9 +292,9 @@ export default function ElencoSociPage() {
                     </div>
                 </div>
               </div>
-              <TabsContent value="pending" className="rounded-lg bg-yellow-500/5 p-1 sm:p-4">
-                <SociTable 
-                    soci={sortedRequests}
+              <TabsContent value="active" className="rounded-lg p-1 sm:p-4">
+                 <SociTable 
+                    soci={sortedActive}
                     onEdit={handleEditSocio}
                     onPrint={handlePrintCard}
                     allMembers={membersData || []}
@@ -364,9 +307,24 @@ export default function ElencoSociPage() {
                     setCurrentPage={setCurrentPage}
                 />
               </TabsContent>
-              <TabsContent value="active" className="rounded-lg p-1 sm:p-4">
+               <TabsContent value="expired" className="rounded-lg bg-yellow-500/5 p-1 sm:p-4">
                 <SociTable 
-                    soci={sortedMembers}
+                    soci={sortedExpired}
+                    onEdit={handleEditSocio}
+                    onPrint={handlePrintCard}
+                    allMembers={membersData || []}
+                    onSocioApproved={resetToDefaultSort}
+                    onSocioRenewed={resetToDefaultSort}
+                    sortConfig={sortConfig}
+                    setSortConfig={setSortConfig}
+                    itemsPerPage={ITEMS_PER_PAGE}
+                    currentPage={currentPage}
+                    setCurrentPage={setCurrentPage}
+                />
+              </TabsContent>
+              <TabsContent value="requests" className="rounded-lg bg-orange-500/5 p-1 sm:p-4">
+                <SociTable 
+                    soci={sortedRequests}
                     onEdit={handleEditSocio}
                     onPrint={handlePrintCard}
                     allMembers={membersData || []}
@@ -395,7 +353,7 @@ export default function ElencoSociPage() {
                 socio={editingSocio} 
                 onClose={() => {
                   setEditingSocio(null);
-                  resetToDefaultSort();
+                  handleTabChange(activeTab); // Refresh current tab view
                 }}
               />
             </>
