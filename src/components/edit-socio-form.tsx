@@ -37,6 +37,12 @@ export const isMinorCheck = (birthDate: string | undefined | Date): boolean => {
   return differenceInYears(new Date(), date) < 18;
 };
 
+// Helper function to capitalize strings (e.g., "jOhN" -> "John")
+const capitalize = (s: string) => {
+  if (!s) return "";
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+};
+
 
 const formSchema = z
   .object({
@@ -436,7 +442,15 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Nome</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        onBlur={(e) => {
+                          field.onBlur();
+                          form.setValue("firstName", capitalize(e.target.value));
+                        }}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -447,7 +461,15 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Cognome</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
+                     <FormControl>
+                      <Input
+                        {...field}
+                        onBlur={(e) => {
+                          field.onBlur();
+                          form.setValue("lastName", capitalize(e.target.value));
+                        }}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -493,7 +515,15 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Luogo di Nascita</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        onBlur={(e) => {
+                          field.onBlur();
+                          form.setValue("birthPlace", capitalize(e.target.value));
+                        }}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -505,7 +535,16 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Codice Fiscale</FormLabel>
-                  <FormControl><Input {...field} value={field.value || ''} /></FormControl>
+                   <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value || ''}
+                      onBlur={(e) => {
+                        field.onBlur();
+                        form.setValue("fiscalCode", e.target.value.toUpperCase());
+                      }}
+                    />
+                  </FormControl>
                    <FormDescription>Campo opzionale</FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -523,7 +562,16 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Nome Tutore</FormLabel>
-                          <FormControl><Input {...field} value={field.value || ''}/></FormControl>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value || ''}
+                              onBlur={(e) => {
+                                field.onBlur();
+                                form.setValue("guardianFirstName", capitalize(e.target.value));
+                              }}
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -534,7 +582,16 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Cognome Tutore</FormLabel>
-                          <FormControl><Input {...field} value={field.value || ''}/></FormControl>
+                           <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value || ''}
+                              onBlur={(e) => {
+                                field.onBlur();
+                                form.setValue("guardianLastName", capitalize(e.target.value));
+                              }}
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -577,7 +634,15 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem className="col-span-12 sm:col-span-7">
                     <FormLabel>Città</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        onBlur={(e) => {
+                          field.onBlur();
+                          form.setValue("city", capitalize(e.target.value));
+                        }}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -588,7 +653,15 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem className="col-span-6 sm:col-span-2">
                     <FormLabel>Prov.</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        onBlur={(e) => {
+                          field.onBlur();
+                          form.setValue("province", e.target.value.toUpperCase());
+                        }}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

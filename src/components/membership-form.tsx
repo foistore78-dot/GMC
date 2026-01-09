@@ -30,6 +30,13 @@ import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useLanguage } from "./language-provider";
 
 
+// Helper function to capitalize strings (e.g., "jOhN" -> "John")
+const capitalize = (s: string) => {
+  if (!s) return "";
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+};
+
+
 export function MembershipForm() {
   const { t, language } = useLanguage();
   const { toast } = useToast();
@@ -278,7 +285,16 @@ export function MembershipForm() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t('steps.name.firstName')}</FormLabel>
-                          <FormControl><Input placeholder={t('steps.name.firstNamePlaceholder')} {...field} /></FormControl>
+                          <FormControl>
+                            <Input
+                              placeholder={t('steps.name.firstNamePlaceholder')}
+                              {...field}
+                              onBlur={(e) => {
+                                field.onBlur();
+                                form.setValue("firstName", capitalize(e.target.value));
+                              }}
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -289,7 +305,16 @@ export function MembershipForm() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t('steps.name.lastName')}</FormLabel>
-                          <FormControl><Input placeholder={t('steps.name.lastNamePlaceholder')} {...field} /></FormControl>
+                          <FormControl>
+                            <Input
+                              placeholder={t('steps.name.lastNamePlaceholder')}
+                              {...field}
+                              onBlur={(e) => {
+                                field.onBlur();
+                                form.setValue("lastName", capitalize(e.target.value));
+                              }}
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -316,7 +341,16 @@ export function MembershipForm() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t('steps.birth.place')}</FormLabel>
-                          <FormControl><Input placeholder={t('steps.birth.placePlaceholder')} {...field} /></FormControl>
+                          <FormControl>
+                            <Input
+                              placeholder={t('steps.birth.placePlaceholder')}
+                              {...field}
+                              onBlur={(e) => {
+                                field.onBlur();
+                                form.setValue("birthPlace", capitalize(e.target.value));
+                              }}
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -333,7 +367,16 @@ export function MembershipForm() {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>{t('steps.guardian.firstName')}</FormLabel>
-                                    <FormControl><Input placeholder={t('steps.guardian.firstNamePlaceholder')} {...field} /></FormControl>
+                                    <FormControl>
+                                      <Input
+                                        placeholder={t('steps.guardian.firstNamePlaceholder')}
+                                        {...field}
+                                        onBlur={(e) => {
+                                          field.onBlur();
+                                          form.setValue("guardianFirstName", capitalize(e.target.value));
+                                        }}
+                                      />
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -344,7 +387,16 @@ export function MembershipForm() {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>{t('steps.guardian.lastName')}</FormLabel>
-                                    <FormControl><Input placeholder={t('steps.guardian.lastNamePlaceholder')} {...field} /></FormControl>
+                                     <FormControl>
+                                      <Input
+                                        placeholder={t('steps.guardian.lastNamePlaceholder')}
+                                        {...field}
+                                        onBlur={(e) => {
+                                          field.onBlur();
+                                          form.setValue("guardianLastName", capitalize(e.target.value));
+                                        }}
+                                      />
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -370,7 +422,16 @@ export function MembershipForm() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t('steps.fiscalCode.label')}</FormLabel>
-                          <FormControl><Input placeholder="RSSMRA80A01H501U" {...field} /></FormControl>
+                           <FormControl>
+                            <Input
+                              placeholder="RSSMRA80A01H501U"
+                              {...field}
+                              onBlur={(e) => {
+                                field.onBlur();
+                                form.setValue("fiscalCode", e.target.value.toUpperCase());
+                              }}
+                            />
+                          </FormControl>
                           <FormDescription>{t('validation.optionalField')}</FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -398,7 +459,16 @@ export function MembershipForm() {
                           render={({ field }) => (
                             <FormItem className="sm:col-span-7">
                               <FormLabel>{t('steps.address.city')}</FormLabel>
-                              <FormControl><Input placeholder={t('steps.address.cityPlaceholder')} {...field} /></FormControl>
+                              <FormControl>
+                                <Input
+                                  placeholder={t('steps.address.cityPlaceholder')}
+                                  {...field}
+                                  onBlur={(e) => {
+                                    field.onBlur();
+                                    form.setValue("city", capitalize(e.target.value));
+                                  }}
+                                />
+                              </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -409,7 +479,16 @@ export function MembershipForm() {
                           render={({ field }) => (
                             <FormItem  className="sm:col-span-2">
                               <FormLabel>{t('steps.address.province')}</FormLabel>
-                              <FormControl><Input placeholder="RM" {...field} /></FormControl>
+                               <FormControl>
+                                <Input
+                                  placeholder="RM"
+                                  {...field}
+                                   onBlur={(e) => {
+                                    field.onBlur();
+                                    form.setValue("province", e.target.value.toUpperCase());
+                                  }}
+                                />
+                              </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
