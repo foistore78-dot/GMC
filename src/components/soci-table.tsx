@@ -168,19 +168,34 @@ const SocioTableRow = ({
   const socioIsMinor = isMinor(socio.birthDate);
 
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open('', '_blank', 'height=842,width=595'); // A4 dimensions in pixels approx
     if (printWindow) {
-        const cardNode = document.getElementById(`card-${socio.id}`);
-        if(cardNode) {
+      printWindow.document.write('<html><head><title>Stampa Scheda Socio</title>');
+      
+      const stylesheets = Array.from(document.styleSheets)
+        .map(s => s.href ? `<link rel="stylesheet" href="${s.href}">` : '')
+        .join('');
+      printWindow.document.write(stylesheets);
+      
+      const inlineStyles = Array.from(document.querySelectorAll('style'))
+        .map(style => style.outerHTML)
+        .join('');
+      printWindow.document.write(`<style>${inlineStyles}</style>`);
+      
+      const cardNode = document.getElementById(`card-${socio.id}`);
+
+      if (cardNode) {
+          printWindow.document.write('</head><body>');
           printWindow.document.write(cardNode.innerHTML);
+          printWindow.document.write('</body></html>');
           printWindow.document.close();
-          printWindow.focus();
-          // Timeout to ensure styles are applied
+
           setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-          }, 500);
-        }
+              printWindow.focus();
+              printWindow.print();
+              printWindow.close();
+          }, 500); 
+      }
     }
   };
 
@@ -344,285 +359,280 @@ const SocioTableRow = ({
   const tesseraDisplay = socio.tessera ? `${socio.tessera.split('-')[1]}-${socio.tessera.split('-')[2]}` : '-';
 
   return (
-    <>
-      <div id={`card-${socio.id}`} className="hidden">
-        <SocioCard socio={socio} />
-      </div>
-      <TableRow className={cn({ 'bg-orange-500/10 hover:bg-orange-500/20': status === 'expired' })}>
-        <TableCell className="font-mono text-xs">
-          {tesseraDisplay}
-        </TableCell>
-        <TableCell className="font-medium">
-           <div className="flex items-center gap-3 flex-wrap">
-                <Dialog>
+    <TableRow className={cn({ 'bg-orange-500/10 hover:bg-orange-500/20': status === 'expired' })}>
+      <TableCell className="font-mono text-xs">
+        {tesseraDisplay}
+      </TableCell>
+      <TableCell className="font-medium">
+         <div className="flex items-center gap-3 flex-wrap">
+              <Dialog>
+                 <DialogTrigger asChild>
+                   <div className="flex items-center gap-2 cursor-pointer group">
+                      <span className="group-hover:text-primary transition-colors">{getFullName(socio)}</span>
+                      {socio.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500 ml-1" />}
+                   </div>
+                 </DialogTrigger>
+                 <DialogContent className="max-w-md">
+                   <DialogHeader>
+                     <DialogTitle className="flex items-center gap-3"><User/> Dettagli Socio</DialogTitle>
+                   </DialogHeader>
+                   <div className="py-4 space-y-2 max-h-[60vh] overflow-y-auto p-1 pr-4">
+                     <DetailRow icon={<CircleDot />} label="Stato" value={statusTranslations[status]} />
+                     {socio.tessera && <DetailRow icon={<Hash />} label="N. Tessera" value={socio.tessera} />}
+                     <DetailRow icon={<User />} label="Nome Completo" value={getFullName(socio)} />
+                     <DetailRow icon={<Award />} label="Qualifiche" value={
+                        socio.qualifica && socio.qualifica.length > 0
+                          ? <div className="flex flex-wrap gap-1 mt-1">{socio.qualifica.map(q => <Badge key={q} variant="secondary" className="text-xs">{q}</Badge>)}</div>
+                          : "Nessuna"
+                      } />
+                     <DetailRow icon={<Mail />} label="Email" value={socio.email} />
+                     <DetailRow icon={<Phone />} label="Telefono" value={socio.phone} />
+                     <DetailRow icon={<Home />} label="Indirizzo" value={`${socio.address}, ${socio.city} (${socio.province}) ${socio.postalCode}`} />
+                     <DetailRow icon={<Hash />} label="Codice Fiscale" value={socio.fiscalCode} />
+                      <DetailRow icon={<FileLock2 />} label="Consenso Privacy" value={
+                         <span className={`flex items-center gap-2 ${socio.privacyConsent ? 'text-green-500' : 'text-red-500'}`}>
+                           {socio.privacyConsent ? 'Accettato' : 'Non Accettato'}
+                         </span>
+                      } />
+                     <DetailRow icon={<Calendar />} label="Anno Associativo" value={socio.membershipYear || new Date().getFullYear()} />
+                     <DetailRow icon={<Calendar />} label="Data Richiesta" value={formatDate(socio.requestDate)} />
+                     {socio.membershipStatus === 'active' && <DetailRow icon={<Calendar />} label="Data Ammissione" value={formatDate(socio.joinDate)} />}
+                     {socio.renewalDate && <DetailRow icon={<Calendar />} label="Data Rinnovo" value={formatDate(socio.renewalDate)} />}
+                     <DetailRow icon={<Euro />} label="Quota Versata" value={formatCurrency(status === 'pending' ? 0 : socio.membershipFee)} />
+                     {socio.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
+                     <DetailRow icon={<StickyNote />} label="Note" value={<pre className="text-wrap font-sans">{socio.notes}</pre>} />
+                   </div>
+                    <DialogFooter className="sm:justify-between">
+                        <DialogClose asChild>
+                          <Button variant="ghost">Chiudi</Button>
+                        </DialogClose>
+                        <div className="flex gap-2">
+                           <Button variant="outline" onClick={handlePrint}><Printer className="mr-2 h-4 w-4"/> Stampa Scheda</Button>
+                           <Button onClick={() => onEdit(socio)}><Pencil className="mr-2 h-4 w-4" /> Modifica Dati</Button>
+                        </div>
+                    </DialogFooter>
+                 </DialogContent>
+               </Dialog>
+               <div className="flex items-center gap-1">
+                  <TooltipProvider>
+                    {socio.qualifica?.map(q => (
+                      <Tooltip key={q}>
+                        <TooltipTrigger>
+                          <span className={cn("font-bold text-lg", QUALIFICA_COLORS[q] || QUALIFICA_COLORS.default)}>*</span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{q}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </TooltipProvider>
+                </div>
+               {socioIsMinor && (
+                 <Dialog>
                    <DialogTrigger asChild>
-                     <div className="flex items-center gap-2 cursor-pointer group">
-                        <span className="group-hover:text-primary transition-colors">{getFullName(socio)}</span>
-                        {socio.whatsappConsent && <MessageCircle className="w-4 h-4 text-green-500 ml-1" />}
-                     </div>
+                     <Badge onClick={(e) => { e.stopPropagation(); }} variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10">Minore</Badge>
                    </DialogTrigger>
-                   <DialogContent className="max-w-md">
+                   <DialogContent>
                      <DialogHeader>
-                       <DialogTitle className="flex items-center gap-3"><User/> Dettagli Socio</DialogTitle>
+                       <DialogTitle className="flex items-center gap-2"><ShieldCheck/> Dettagli Tutore</DialogTitle>
                      </DialogHeader>
-                     <div className="py-4 space-y-2 max-h-[60vh] overflow-y-auto p-1 pr-4">
-                       <DetailRow icon={<CircleDot />} label="Stato" value={statusTranslations[status]} />
-                       {socio.tessera && <DetailRow icon={<Hash />} label="N. Tessera" value={socio.tessera} />}
-                       <DetailRow icon={<User />} label="Nome Completo" value={getFullName(socio)} />
-                       <DetailRow icon={<Award />} label="Qualifiche" value={
-                          socio.qualifica && socio.qualifica.length > 0
-                            ? <div className="flex flex-wrap gap-1 mt-1">{socio.qualifica.map(q => <Badge key={q} variant="secondary" className="text-xs">{q}</Badge>)}</div>
-                            : "Nessuna"
-                        } />
-                       <DetailRow icon={<Mail />} label="Email" value={socio.email} />
-                       <DetailRow icon={<Phone />} label="Telefono" value={socio.phone} />
-                       <DetailRow icon={<Home />} label="Indirizzo" value={`${socio.address}, ${socio.city} (${socio.province}) ${socio.postalCode}`} />
-                       <DetailRow icon={<Hash />} label="Codice Fiscale" value={socio.fiscalCode} />
-                        <DetailRow icon={<FileLock2 />} label="Consenso Privacy" value={
-                           <span className={`flex items-center gap-2 ${socio.privacyConsent ? 'text-green-500' : 'text-red-500'}`}>
-                             {socio.privacyConsent ? 'Accettato' : 'Non Accettato'}
-                           </span>
-                        } />
-                       <DetailRow icon={<Calendar />} label="Anno Associativo" value={socio.membershipYear || new Date().getFullYear()} />
-                       <DetailRow icon={<Calendar />} label="Data Richiesta" value={formatDate(socio.requestDate)} />
-                       {socio.membershipStatus === 'active' && <DetailRow icon={<Calendar />} label="Data Ammissione" value={formatDate(socio.joinDate)} />}
-                       {socio.renewalDate && <DetailRow icon={<Calendar />} label="Data Rinnovo" value={formatDate(socio.renewalDate)} />}
-                       <DetailRow icon={<Euro />} label="Quota Versata" value={formatCurrency(status === 'pending' ? 0 : socio.membershipFee)} />
-                       {socio.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
-                       <DetailRow icon={<StickyNote />} label="Note" value={<pre className="text-wrap font-sans">{socio.notes}</pre>} />
+                     <div className="py-4">
+                       <DetailRow icon={<User />} label="Nome Tutore" value={`${socio.guardianFirstName} ${socio.guardianLastName}`} />
+                       <DetailRow icon={<Calendar />} label="Data di Nascita Tutore" value={formatDate(socio.guardianBirthDate)} />
                      </div>
-                      <DialogFooter className="sm:justify-between">
-                          <DialogClose asChild>
-                            <Button variant="ghost">Chiudi</Button>
-                          </DialogClose>
-                          <div className="flex gap-2">
-                             <Button variant="outline" onClick={handlePrint}><Printer className="mr-2 h-4 w-4"/> Stampa Scheda</Button>
-                             <Button onClick={() => onEdit(socio)}><Pencil className="mr-2 h-4 w-4" /> Modifica Dati</Button>
-                          </div>
-                      </DialogFooter>
                    </DialogContent>
                  </Dialog>
-                 <div className="flex items-center gap-1">
-                    <TooltipProvider>
-                      {socio.qualifica?.map(q => (
-                        <Tooltip key={q}>
-                          <TooltipTrigger>
-                            <span className={cn("font-bold text-lg", QUALIFICA_COLORS[q] || QUALIFICA_COLORS.default)}>*</span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{q}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      ))}
-                    </TooltipProvider>
-                  </div>
-                 {socioIsMinor && (
-                   <Dialog>
-                     <DialogTrigger asChild>
-                       <Badge onClick={(e) => { e.stopPropagation(); }} variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10">Minore</Badge>
-                     </DialogTrigger>
-                     <DialogContent>
-                       <DialogHeader>
-                         <DialogTitle className="flex items-center gap-2"><ShieldCheck/> Dettagli Tutore</DialogTitle>
-                       </DialogHeader>
-                       <div className="py-4">
-                         <DetailRow icon={<User />} label="Nome Tutore" value={`${socio.guardianFirstName} ${socio.guardianLastName}`} />
-                         <DetailRow icon={<Calendar />} label="Data di Nascita Tutore" value={formatDate(socio.guardianBirthDate)} />
-                       </div>
-                     </DialogContent>
-                   </Dialog>
-                 )}
-           </div>
-        </TableCell>
-        <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
-          <div>{formatDate(socio.birthDate)}</div>
-          <div className="text-xs">{socio.birthPlace}</div>
-        </TableCell>
-        <TableCell>
-          <Badge
-            variant={status === "active" ? "default" : status === "pending" ? "secondary" : "destructive"}
-            className={cn({
-              "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30": status === "active",
-              "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30": status === "pending",
-              "bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30": status === "expired",
-              "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30": status === "rejected",
-            })}
-          >
-            {statusTranslations[status] || status}
-          </Badge>
-        </TableCell>
-        <TableCell className="text-right space-x-1">
-            <TooltipProvider>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrint}>
-                            <Printer className="h-4 w-4" />
-                            <span className="sr-only">Stampa Scheda</span>
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Stampa Scheda</TooltipContent>
-                </Tooltip>
-            </TooltipProvider>
+               )}
+         </div>
+      </TableCell>
+      <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
+        <div>{formatDate(socio.birthDate)}</div>
+        <div className="text-xs">{socio.birthPlace}</div>
+      </TableCell>
+      <TableCell>
+        <Badge
+          variant={status === "active" ? "default" : status === "pending" ? "secondary" : "destructive"}
+          className={cn({
+            "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30": status === "active",
+            "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30": status === "pending",
+            "bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30": status === "expired",
+            "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30": status === "rejected",
+          })}
+        >
+          {statusTranslations[status] || status}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-right space-x-1">
+          <TooltipProvider>
+              <Tooltip>
+                  <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrint}>
+                          <Printer className="h-4 w-4" />
+                          <span className="sr-only">Stampa Scheda</span>
+                      </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Stampa Scheda</TooltipContent>
+              </Tooltip>
+          </TooltipProvider>
 
-            {status === 'pending' && (
-              <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" size="sm" className="text-green-500 hover:text-green-500 hover:bg-green-500/10">
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Approva
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>Approva Socio e Completa Iscrizione</DialogTitle>
-                        <DialogDescription>
-                            Stai per approvare <strong className="text-foreground">{getFullName(socio)}</strong> come membro attivo. Completa i dati di tesseramento.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-6 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="membership-number" className="text-right">
-                                N. Tessera
-                            </Label>
-                            <div className="col-span-3">
-                              <Input
-                                  id="membership-number"
-                                  value={`GMC-${new Date().getFullYear()}-${newMemberNumber}`}
-                                  onChange={(e) => {
-                                      const parts = e.target.value.split('-');
-                                      setNewMemberNumber(parts[parts.length - 1] || '');
-                                  }}
-                                  className="w-40"
-                              />
+          {status === 'pending' && (
+            <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-green-500 hover:text-green-500 hover:bg-green-500/10">
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Approva
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-lg">
+                  <DialogHeader>
+                      <DialogTitle>Approva Socio e Completa Iscrizione</DialogTitle>
+                      <DialogDescription>
+                          Stai per approvare <strong className="text-foreground">{getFullName(socio)}</strong> come membro attivo. Completa i dati di tesseramento.
+                      </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-6 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="membership-number" className="text-right">
+                              N. Tessera
+                          </Label>
+                          <div className="col-span-3">
+                            <Input
+                                id="membership-number"
+                                value={`GMC-${new Date().getFullYear()}-${newMemberNumber}`}
+                                onChange={(e) => {
+                                    const parts = e.target.value.split('-');
+                                    setNewMemberNumber(parts[parts.length - 1] || '');
+                                }}
+                                className="w-40"
+                            />
+                          </div>
+                      </div>
+                       <div className="grid grid-cols-4 items-start gap-4">
+                          <Label className="text-right pt-2">Qualifiche</Label>
+                          <div className="col-span-3 space-y-2">
+                              {QUALIFICHE.map((q) => (
+                                 <div key={q} className="flex items-center space-x-2">
+                                      <Checkbox 
+                                          id={`qualifica-${q}`} 
+                                          checked={qualifiche.includes(q)}
+                                          onCheckedChange={(checked) => handleQualificaChange(q, !!checked)}
+                                      />
+                                      <label htmlFor={`qualifica-${q}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                          {q}
+                                      </label>
+                                  </div>
+                              ))}
+                          </div>
+                       </div>
+                       <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="membership-fee" className="text-right">
+                              Quota (€)
+                          </Label>
+                          <div className="col-span-3 flex items-center gap-4">
+                            <Input
+                                id="membership-fee"
+                                type="number"
+                                value={membershipFee}
+                                onChange={(e) => setMembershipFee(Number(e.target.value))}
+                                className="w-28"
+                            />
+                             <div className="flex items-center space-x-2">
+                                <Checkbox id="fee-paid" checked={feePaid} onCheckedChange={(checked) => setFeePaid(!!checked)} />
+                                <Label htmlFor="fee-paid" className="text-sm font-medium">Quota Versata</Label>
                             </div>
-                        </div>
-                         <div className="grid grid-cols-4 items-start gap-4">
-                            <Label className="text-right pt-2">Qualifiche</Label>
-                            <div className="col-span-3 space-y-2">
-                                {QUALIFICHE.map((q) => (
-                                   <div key={q} className="flex items-center space-x-2">
-                                        <Checkbox 
-                                            id={`qualifica-${q}`} 
-                                            checked={qualifiche.includes(q)}
-                                            onCheckedChange={(checked) => handleQualificaChange(q, !!checked)}
-                                        />
-                                        <label htmlFor={`qualifica-${q}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                            {q}
-                                        </label>
-                                    </div>
-                                ))}
-                            </div>
-                         </div>
-                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="membership-fee" className="text-right">
-                                Quota (€)
-                            </Label>
-                            <div className="col-span-3 flex items-center gap-4">
+                          </div>
+                      </div>
+                  </div>
+                  <DialogFooter>
+                      <Button variant="ghost" onClick={() => setShowApproveDialog(false)}>Annulla</Button>
+                      <Button onClick={handleApprove} disabled={isApproving || !feePaid}>
+                          {isApproving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Conferma e Approva
+                      </Button>
+                  </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+          {status === 'expired' && (
+            <Dialog open={showRenewDialog} onOpenChange={setShowRenewDialog}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-orange-500 hover:text-orange-500 hover:bg-orange-500/10">
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Rinnova
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-lg">
+                  <DialogHeader>
+                      <DialogTitle>Rinnova Iscrizione Socio</DialogTitle>
+                      <DialogDescription>
+                          Stai per rinnovare l'iscrizione di <strong className="text-foreground">{getFullName(socio)}</strong> per l'anno in corso.
+                      </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-6 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="renewal-membership-number" className="text-right">
+                              N. Tessera
+                          </Label>
+                          <div className="col-span-3">
+                            <Input
+                                id="renewal-membership-number"
+                                value={`GMC-${new Date().getFullYear()}-${newRenewalMemberNumber}`}
+                                onChange={(e) => {
+                                    const parts = e.target.value.split('-');
+                                    setNewRenewalMemberNumber(parts[parts.length - 1] || '');
+                                }}
+                                className="w-40"
+                            />
+                          </div>
+                      </div>
+                      <div className="grid grid-cols-4 items-start gap-4">
+                          <Label className="text-right pt-2">Qualifiche</Label>
+                          <div className="col-span-3 space-y-2">
+                              {QUALIFICHE.map((q) => (
+                                 <div key={q} className="flex items-center space-x-2">
+                                      <Checkbox 
+                                          id={`renewal-qualifica-${q}`} 
+                                          checked={renewalQualifiche.includes(q)}
+                                          onCheckedChange={(checked) => handleRenewalQualificaChange(q, !!checked)}
+                                      />
+                                      <label htmlFor={`renewal-qualifica-${q}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                          {q}
+                                      </label>
+                                  </div>
+                              ))}
+                          </div>
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="renewal-fee" className="text-right">
+                              Quota Rinnovo (€)
+                          </Label>
+                          <div className="col-span-3 flex items-center gap-4">
                               <Input
-                                  id="membership-fee"
+                                  id="renewal-fee"
                                   type="number"
-                                  value={membershipFee}
-                                  onChange={(e) => setMembershipFee(Number(e.target.value))}
+                                  value={renewalFee}
+                                  onChange={(e) => setRenewalFee(Number(e.target.value))}
                                   className="w-28"
                               />
                                <div className="flex items-center space-x-2">
-                                  <Checkbox id="fee-paid" checked={feePaid} onCheckedChange={(checked) => setFeePaid(!!checked)} />
-                                  <Label htmlFor="fee-paid" className="text-sm font-medium">Quota Versata</Label>
+                                  <Checkbox id="renewal-fee-paid" checked={renewalFeePaid} onCheckedChange={(checked) => setRenewalFeePaid(!!checked)} />
+                                  <Label htmlFor="renewal-fee-paid" className="text-sm font-medium">Quota Versata</Label>
                               </div>
-                            </div>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={() => setShowApproveDialog(false)}>Annulla</Button>
-                        <Button onClick={handleApprove} disabled={isApproving || !feePaid}>
-                            {isApproving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Conferma e Approva
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
-            {status === 'expired' && (
-              <Dialog open={showRenewDialog} onOpenChange={setShowRenewDialog}>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" size="sm" className="text-orange-500 hover:text-orange-500 hover:bg-orange-500/10">
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Rinnova
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>Rinnova Iscrizione Socio</DialogTitle>
-                        <DialogDescription>
-                            Stai per rinnovare l'iscrizione di <strong className="text-foreground">{getFullName(socio)}</strong> per l'anno in corso.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-6 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="renewal-membership-number" className="text-right">
-                                N. Tessera
-                            </Label>
-                            <div className="col-span-3">
-                              <Input
-                                  id="renewal-membership-number"
-                                  value={`GMC-${new Date().getFullYear()}-${newRenewalMemberNumber}`}
-                                  onChange={(e) => {
-                                      const parts = e.target.value.split('-');
-                                      setNewRenewalMemberNumber(parts[parts.length - 1] || '');
-                                  }}
-                                  className="w-40"
-                              />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-4 items-start gap-4">
-                            <Label className="text-right pt-2">Qualifiche</Label>
-                            <div className="col-span-3 space-y-2">
-                                {QUALIFICHE.map((q) => (
-                                   <div key={q} className="flex items-center space-x-2">
-                                        <Checkbox 
-                                            id={`renewal-qualifica-${q}`} 
-                                            checked={renewalQualifiche.includes(q)}
-                                            onCheckedChange={(checked) => handleRenewalQualificaChange(q, !!checked)}
-                                        />
-                                        <label htmlFor={`renewal-qualifica-${q}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                            {q}
-                                        </label>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="renewal-fee" className="text-right">
-                                Quota Rinnovo (€)
-                            </Label>
-                            <div className="col-span-3 flex items-center gap-4">
-                                <Input
-                                    id="renewal-fee"
-                                    type="number"
-                                    value={renewalFee}
-                                    onChange={(e) => setRenewalFee(Number(e.target.value))}
-                                    className="w-28"
-                                />
-                                 <div className="flex items-center space-x-2">
-                                    <Checkbox id="renewal-fee-paid" checked={renewalFeePaid} onCheckedChange={(checked) => setRenewalFeePaid(!!checked)} />
-                                    <Label htmlFor="renewal-fee-paid" className="text-sm font-medium">Quota Versata</Label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={() => setShowRenewDialog(false)}>Annulla</Button>
-                        <Button onClick={handleRenew} disabled={isRenewing || !renewalFeePaid}>
-                            {isRenewing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Conferma Rinnovo
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
-        </TableCell>
-      </TableRow>
-    </>
+                          </div>
+                      </div>
+                  </div>
+                  <DialogFooter>
+                      <Button variant="ghost" onClick={() => setShowRenewDialog(false)}>Annulla</Button>
+                      <Button onClick={handleRenew} disabled={isRenewing || !renewalFeePaid}>
+                          {isRenewing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Conferma Rinnovo
+                      </Button>
+                  </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+      </TableCell>
+    </TableRow>
   );
 };
 
@@ -779,6 +789,13 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, onSocio
           </TableBody>
         </Table>
       </div>
+
+      {paginatedSoci.map(socio => (
+          <div key={`card-${socio.id}`} id={`card-${socio.id}`} className="hidden print:block">
+            <SocioCard socio={socio} />
+          </div>
+      ))}
+
       <div className="flex items-center justify-between space-x-2 py-4">
         <div className="text-sm text-muted-foreground">
             Pagina {currentPage} di {totalPages > 0 ? totalPages : 1}
