@@ -22,7 +22,7 @@ const parseDate = (dateStr: string | number | undefined): string | null => {
             if (!isNaN(isoDate.getTime())) {
                 return isoDate.toISOString();
             }
-            throw new Error("Invalid date format");
+            return null; // Return null if all parsing attempts fail
          }
          return parsedDate2.toISOString();
        }
@@ -140,19 +140,22 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
         for (const row of jsonData) {
             try {
                 const { statusForImport, ...socioData } = excelRowToSocio(row);
+
+                if (!socioData.lastName || !socioData.firstName || !socioData.birthDate) {
+                  errorCount++;
+                  continue;
+                }
                 
                 const isMember = statusForImport === 'active' || statusForImport === 'expired';
                 
                 let docRef;
                 let existingData: Partial<Socio> = {};
-                let wasFound = false;
 
                 if (isMember) { // 'active' or 'expired'
                     if (socioData.tessera && existingMembersMap.has(socioData.tessera)) {
                         const existing = existingMembersMap.get(socioData.tessera)!;
                         docRef = doc(firestore, 'members', existing.id);
                         existingData = existing.data;
-                        wasFound = true;
                         if (!updatedTessere.includes(socioData.tessera)) {
                             updatedTessere.push(socioData.tessera);
                         }
@@ -176,7 +179,6 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
                         const existing = existingRequestsMap.get(requestKey)!;
                         docRef = doc(firestore, 'membership_requests', existing.id);
                         existingData = existing.data;
-                        wasFound = true;
                     } else {
                         docRef = doc(requestsCollection); // Create new request
                         createdCount++;
