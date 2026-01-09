@@ -192,49 +192,37 @@ export default function SegreteriaPage() {
         <div className="grid gap-8 lg:grid-cols-2">
             <Card>
                 <CardHeader>
-                    <CardTitle>Gestione Dati</CardTitle>
+                    <CardTitle>Gestione Dati Soci</CardTitle>
                     <CardDescription>
                         Importa o esporta l'elenco completo dei soci utilizzando un file Excel.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                    <div>
-                        <h3 className="font-semibold mb-2">Esporta Elenco Soci</h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                            Scarica l'elenco completo di tutti i soci (attivi e richieste) in un singolo file Excel.
-                        </p>
-                         <Button onClick={handleExport} variant="outline" disabled={isDataLoading}>
+                <CardContent className="space-y-4">
+                     <div className="flex flex-wrap gap-4">
+                        <Button onClick={handleExport} variant="outline" disabled={isDataLoading}>
                             <FileDown className="mr-2 h-4 w-4" />
-                            <span className="sm:hidden">Esporta</span>
-                            <span className="hidden sm:inline">Esporta Elenco Completo</span>
+                            Esporta Elenco
                         </Button>
-                    </div>
-                     <div>
-                        <h3 className="font-semibold mb-2">Importa Elenco Soci</h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                            Aggiungi o aggiorna soci caricando un file Excel (.xlsx, .xls). Assicurati che il file abbia le colonne corrette.
-                        </p>
-                         <input
+                        <Button onClick={handleImportClick} disabled={isDataLoading || isImporting}>
+                            {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
+                            {isImporting ? "Importazione..." : "Importa da Excel"}
+                        </Button>
+                        <input
                             type="file"
                             ref={fileInputRef}
                             onChange={handleFileChange}
                             className="hidden"
                             accept=".xlsx, .xls"
                         />
-                        <Button onClick={handleImportClick} disabled={isDataLoading || isImporting}>
-                            {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
-                            <span className="sm:hidden">Importa</span>
-                            <span className="hidden sm:inline">{isImporting ? "Importazione..." : "Importa da Excel"}</span>
-                        </Button>
                     </div>
                 </CardContent>
             </Card>
             
             <Card>
                 <CardHeader>
-                    <CardTitle>QR Code per Iscrizioni Online</CardTitle>
+                    <CardTitle>QR Code per Iscrizioni</CardTitle>
                     <CardDescription>
-                        Mostra o stampa questo QR code per permettere ai nuovi soci di iscriversi tramite il modulo pubblico.
+                        Mostra o stampa questo QR code per permettere le iscrizioni online.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col items-center gap-6">
