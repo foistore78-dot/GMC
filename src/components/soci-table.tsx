@@ -588,6 +588,7 @@ interface SociTableProps {
   sortConfig: SortConfig;
   setSortConfig: Dispatch<SetStateAction<SortConfig>>;
   itemsPerPage: number;
+  hideExpired?: boolean;
 }
 
 const SortableHeader = ({
@@ -624,36 +625,49 @@ const SortableHeader = ({
   );
 };
 
-const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortConfig, setSortConfig, itemsPerPage }: SociTableProps) => {
+const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortConfig, setSortConfig, itemsPerPage, hideExpired }: SociTableProps) => {
   const [filter, setFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const filteredSoci = useMemo(() => soci.filter(socio => {
-    if (!socio) return false;
+  const filteredSoci = useMemo(() => {
     const searchString = filter.toLowerCase();
     
-    const firstName = socio.firstName?.toLowerCase() || '';
-    const lastName = socio.lastName?.toLowerCase() || '';
-    const fullName = `${firstName} ${lastName}`;
-    const reversedFullName = `${lastName} ${firstName}`;
-    const email = socio.email?.toLowerCase() || '';
-    const tessera = socio.tessera?.toLowerCase() || '';
-    const birthDate = formatDate(socio.birthDate);
+    // If there's a search query, always search through all soci
+    if (searchString) {
+      return soci.filter(socio => {
+        if (!socio) return false;
+        const firstName = socio.firstName?.toLowerCase() || '';
+        const lastName = socio.lastName?.toLowerCase() || '';
+        const fullName = `${firstName} ${lastName}`;
+        const reversedFullName = `${lastName} ${firstName}`;
+        const email = socio.email?.toLowerCase() || '';
+        const tessera = socio.tessera?.toLowerCase() || '';
+        const birthDate = formatDate(socio.birthDate);
 
-    return (
-      firstName.includes(searchString) ||
-      lastName.includes(searchString) ||
-      fullName.includes(searchString) ||
-      reversedFullName.includes(searchString) ||
-      email.includes(searchString) ||
-      tessera.includes(searchString) ||
-      (birthDate !== 'N/A' && birthDate.includes(searchString))
-    );
-  }), [soci, filter]);
+        return (
+          firstName.includes(searchString) ||
+          lastName.includes(searchString) ||
+          fullName.includes(searchString) ||
+          reversedFullName.includes(searchString) ||
+          email.includes(searchString) ||
+          tessera.includes(searchString) ||
+          (birthDate !== 'N/A' && birthDate.includes(searchString))
+        );
+      });
+    }
+
+    // If there's no search query, apply the hideExpired filter if it's active
+    if (hideExpired) {
+      return soci.filter(s => getStatus(s) !== 'expired');
+    }
+
+    // Otherwise, return all soci for the current tab
+    return soci;
+  }, [soci, filter, hideExpired]);
 
   useEffect(() => {
       setCurrentPage(1);
-  }, [filter, soci]);
+  }, [filter, soci, hideExpired]);
   
   const totalPages = Math.ceil(filteredSoci.length / itemsPerPage);
   const paginatedSoci = filteredSoci.slice(

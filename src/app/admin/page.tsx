@@ -7,7 +7,7 @@ import { Footer } from "@/components/footer";
 import { SociTable, type SortConfig } from "@/components/soci-table";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import { FileDown, FileUp, Loader2, Users } from "lucide-react";
+import { FileDown, FileUp, Loader2, Users, FilterX } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,10 +15,11 @@ import { EditSocioForm } from "@/components/edit-socio-form";
 import { getFullName } from "@/components/soci-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { exportToExcel } from "@/lib/excel-export";
 import { importFromExcel, type ImportResult } from "@/lib/excel-import";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -44,6 +45,7 @@ export default function AdminPage() {
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
   const [activeTab, setActiveTab] = useState("active");
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "descending" });
+  const [hideExpired, setHideExpired] = useState(true);
 
   const membersQuery = useMemoFirebase(
     () => (firestore && user ? collection(firestore, "members") : null),
@@ -64,7 +66,6 @@ export default function AdminPage() {
     const sorted = [...membersData].sort((a, b) => {
         const { key, direction } = sortConfig;
         
-        // Primary sort: by year (current year first)
         const yearA = getTesseraYear(a);
         const yearB = getTesseraYear(b);
         
@@ -74,16 +75,13 @@ export default function AdminPage() {
         if (isACurrent && !isBCurrent) return -1;
         if (!isACurrent && isBCurrent) return 1;
 
-        // If both are current or both are not, sort by the selected key
         let aValue: any;
         let bValue: any;
         
         if (key === 'tessera') {
-            // Secondary sort: year descending
             if (yearA !== yearB) {
                 return direction === 'ascending' ? yearA - yearB : yearB - yearA;
             }
-            // Tertiary sort: tessera number
             aValue = getTesseraNumber(a.tessera);
             bValue = getTesseraNumber(b.tessera);
         } else if (key === 'name') {
@@ -115,7 +113,6 @@ export default function AdminPage() {
         aValue = `${a.lastName} ${a.firstName}`;
         bValue = `${b.lastName} ${b.firstName}`;
       } else if (key === 'tessera') {
-        // Pending members don't have a card number, fallback to name
         aValue = `${a.lastName} ${a.firstName}`;
         bValue = `${b.lastName} ${b.firstName}`;
       } else {
@@ -198,7 +195,6 @@ export default function AdminPage() {
         });
       } finally {
         setIsImporting(false);
-        // Reset file input
         if(fileInputRef.current) fileInputRef.current.value = "";
       }
     }
@@ -258,6 +254,16 @@ export default function AdminPage() {
                 />
               </TabsContent>
               <TabsContent value="active" className="rounded-lg p-4">
+                <div className="flex items-center space-x-2 py-4">
+                  <Checkbox
+                    id="hide-expired"
+                    checked={hideExpired}
+                    onCheckedChange={(checked) => setHideExpired(!!checked)}
+                  />
+                  <Label htmlFor="hide-expired" className="cursor-pointer">
+                    Nascondi soci scaduti
+                  </Label>
+                </div>
                 <SociTable 
                     soci={sortedMembers}
                     onEdit={handleEditSocio}
@@ -265,6 +271,7 @@ export default function AdminPage() {
                     sortConfig={sortConfig}
                     setSortConfig={setSortConfig}
                     itemsPerPage={ITEMS_PER_PAGE}
+                    hideExpired={hideExpired}
                 />
               </TabsContent>
             </Tabs>
