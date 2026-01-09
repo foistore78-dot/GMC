@@ -1,44 +1,40 @@
 import * as XLSX from 'xlsx';
 import type { Socio } from './soci-data';
 import { collection, writeBatch, Firestore, doc, getDocs, query } from 'firebase/firestore';
-import { parse } from 'date-fns';
 
-const parseDate = (dateStr: string | number | undefined): string | undefined => {
-  if (!dateStr) return undefined;
-  // Excel sometimes stores dates as numbers (days since 1900).
-  if (typeof dateStr === 'number') {
-    const date = XLSX.SSF.parse_date_code(dateStr);
-    return new Date(date.y, date.m - 1, date.d).toISOString();
-  }
-  if (typeof dateStr === 'string') {
-    try {
-      // Try parsing formats like dd/MM/yyyy or dd.MM.yyyy
-      const parsedDate = parse(dateStr, 'dd/MM/yyyy', new Date());
-       if (isNaN(parsedDate.getTime())) {
-         const parsedDate2 = parse(dateStr, 'dd.MM.yyyy', new Date());
-         if(isNaN(parsedDate2.getTime())) {
-            // Try ISO as last resort before failing
-            const isoDate = new Date(dateStr);
-            if (!isNaN(isoDate.getTime())) {
-                return isoDate.toISOString();
-            }
-            return undefined; // Return undefined if all parsing attempts fail
-         }
-         return parsedDate2.toISOString();
-       }
-      return parsedDate.toISOString();
-    } catch (e) {
-      // Try parsing ISO format as a fallback
-      const isoDate = new Date(dateStr);
-      if (!isNaN(isoDate.getTime())) {
-        return isoDate.toISOString();
-      }
-      console.warn(`Could not parse date: ${dateStr}`);
-      return undefined;
+const parseExcelDate = (excelDate: string | number | undefined): string | undefined => {
+    if (typeof excelDate === 'number') {
+        // Excel stores dates as numbers (days since 1900-01-01, with a known bug for 1900 being a leap year).
+        // The `XLSX.SSF.parse_date_code` function handles this conversion.
+        const date = XLSX.SSF.parse_date_code(excelDate);
+        // new Date(year, month-1, day)
+        return new Date(date.y, date.m - 1, date.d).toISOString();
     }
-  }
-  return undefined;
+    if (typeof excelDate === 'string') {
+        // Handle common string formats like 'dd/MM/yyyy' or ISO strings
+        const parts = excelDate.match(/(\d+)/g);
+        let date;
+        if (parts && parts.length >= 3) {
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10);
+            const year = parseInt(parts[2], 10);
+            if (day > 31) { // Likely a YYYY-MM-DD format
+                date = new Date(Date.UTC(day, month - 1, year));
+            } else { // Likely a DD/MM/YYYY format
+                date = new Date(Date.UTC(year, month - 1, day));
+            }
+        } else {
+            // Fallback for ISO strings or other formats recognized by Date.parse
+            date = new Date(excelDate);
+        }
+
+        if (!isNaN(date.getTime())) {
+            return date.toISOString();
+        }
+    }
+    return undefined;
 };
+
 
 type PartialSocioWithStatus = Partial<Socio> & { statusForImport: 'active' | 'pending' | 'expired' };
 
@@ -50,11 +46,11 @@ const excelRowToSocio = (row: any): PartialSocioWithStatus => {
     if (statusText.toLowerCase() === 'sospeso') statusForImport = 'pending';
 
     const socio: Partial<Socio> = {
-        tessera: row['N. Tessera'] || undefined,
+        tessera: row['N. Tessera'] ? String(row['N. Tessera']) : undefined,
         lastName: row['Cognome'],
         firstName: row['Nome'],
         gender: (row['Genere'] || '').toLowerCase() === 'maschio' ? 'male' : 'female',
-        birthDate: parseDate(row['Data di Nascita']) || undefined,
+        birthDate: parseExcelDate(row['Data di Nascita']) || undefined,
         birthPlace: row['Luogo di Nascita'],
         fiscalCode: row['Codice Fiscale'] || undefined,
         address: row['Indirizzo'],
@@ -66,16 +62,16 @@ const excelRowToSocio = (row: any): PartialSocioWithStatus => {
         whatsappConsent: (row['Consenso WhatsApp'] || '').toUpperCase() === 'SI',
         privacyConsent: (row['Consenso Privacy'] || '').toUpperCase() === 'SI',
         membershipYear: row['Anno Associativo'] ? String(row['Anno Associativo']) : undefined,
-        requestDate: parseDate(row['Data Richiesta']) || undefined,
-        joinDate: parseDate(row['Data Ammissione']) || undefined,
-        renewalDate: parseDate(row['Data Rinnovo']) || undefined,
-        expirationDate: parseDate(row['Data Scadenza']) || undefined,
+        requestDate: parseExcelDate(row['Data Richiesta']) || undefined,
+        joinDate: parseExcelDate(row['Data Ammissione']) || undefined,
+        renewalDate: parseExcelDate(row['Data Rinnovo']) || undefined,
+        expirationDate: parseExcelDate(row['Data Scadenza']) || undefined,
         membershipFee: typeof row['Quota Versata (€)'] === 'number' ? row['Quota Versata (€)'] : 0,
         qualifica: row['Qualifiche'] ? row['Qualifiche'].split(',').map((q: string) => q.trim().toUpperCase()) : [],
         notes: row['Note'] || undefined,
         guardianFirstName: row['Nome Tutore'] || undefined,
         guardianLastName: row['Cognome Tutore'] || undefined,
-        guardianBirthDate: parseDate(row['Data Nascita Tutore']) || undefined,
+        guardianBirthDate: parseExcelDate(row['Data Nascita Tutore']) || undefined,
     };
     
     // Clean up undefined fields
@@ -120,7 +116,9 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
         membersSnapshot.forEach(doc => {
             const member = doc.data() as Socio;
             if(member.tessera) {
-                existingMembersMap.set(member.tessera, {id: doc.id, data: member});
+                // To handle both full tessera "GMC-YEAR-NUM" and just "NUM"
+                const tesseraNum = member.tessera.split('-').pop() || member.tessera;
+                existingMembersMap.set(tesseraNum, {id: doc.id, data: member});
             }
         });
         
@@ -153,20 +151,28 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
                 let existingData: Partial<Socio> = {};
 
                 if (isMember) { // 'active' or 'expired'
-                    if (socioData.tessera && existingMembersMap.has(socioData.tessera)) {
-                        const existing = existingMembersMap.get(socioData.tessera)!;
+                    const tesseraToFind = socioData.tessera ? String(socioData.tessera) : undefined;
+                    
+                    if (tesseraToFind && existingMembersMap.has(tesseraToFind)) {
+                        const existing = existingMembersMap.get(tesseraToFind)!;
                         docRef = doc(firestore, 'members', existing.id);
                         existingData = existing.data;
-                        if (!updatedTessere.includes(socioData.tessera)) {
-                            updatedTessere.push(socioData.tessera);
+                        if (!updatedTessere.includes(tesseraToFind)) {
+                            updatedTessere.push(tesseraToFind);
                         }
                     } else {
                         docRef = doc(membersCollection); // Create new member if no tessera or not found
                         createdCount++;
                     }
+
+                    const year = socioData.membershipYear || new Date().getFullYear().toString();
+                    const tesseraNumber = socioData.tessera || (await getDocs(membersCollection)).size + 1;
+                    const fullTessera = `GMC-${year}-${tesseraNumber}`;
+
                     const dataToSet: any = {
                         ...existingData,
                         ...socioData,
+                        tessera: fullTessera,
                         id: docRef.id,
                         membershipStatus: 'active',
                     };
