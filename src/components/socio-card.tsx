@@ -54,7 +54,7 @@ export function SocioCard({ socio }: SocioCardProps) {
     <div style={{ background: 'white', color: 'black', width: '100%', maxWidth: '18cm', margin: '0 auto', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", padding: '1cm' }}>
       
       {/* Header */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px' }}>
         <tbody>
           <tr>
             <td style={{ verticalAlign: 'middle', width: '60px', paddingRight: '15px' }}>
@@ -74,12 +74,12 @@ export function SocioCard({ socio }: SocioCardProps) {
       </table>
 
       {/* Title */}
-      <div style={{ textAlign: 'center', margin: '20px 0', borderTop: '2px solid black', borderBottom: '2px solid black', padding: '8px 0' }}>
+      <div style={{ textAlign: 'center', margin: '15px 0', borderTop: '2px solid black', borderBottom: '2px solid black', padding: '8px 0' }}>
         <h2 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0, letterSpacing: '1px' }}>DOMANDA DI AMMISSIONE A SOCIO</h2>
       </div>
 
       {/* Main Info */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px 15px', marginBottom: '25px' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px 15px', marginBottom: '20px' }}>
         <Field label="COGNOME E NOME" value={`${socio.lastName || ''} ${socio.firstName || ''}`} />
         <Field label="DATA DI NASCITA" value={formatDate(socio.birthDate)} />
         <Field label="LUOGO DI NASCITA" value={socio.birthPlace} />
@@ -91,13 +91,13 @@ export function SocioCard({ socio }: SocioCardProps) {
       </div>
 
        {/* Consents */}
-       <div style={{ marginBottom: '20px' }}>
+       <div style={{ marginBottom: '15px' }}>
         <h3 style={{ fontSize: '13px', fontWeight: 'bold', margin: '0 0 10px 0', borderBottom: '1px solid #ccc', paddingBottom: '5px' }}>DICHIARAZIONI E CONSENSI</h3>
-        <div style={{ fontSize: '10px', lineHeight: '1.6' }}>
-            <div style={{ margin: '0 0 10px 0' }}>
+        <div style={{ fontSize: '10px', lineHeight: '1.5' }}>
+            <div style={{ margin: '0 0 8px 0' }}>
                 Il/La sottoscritto/a, letta l'informativa sul trattamento dei dati personali, chiede di essere ammesso/a come socio/a all'Associazione Culturale "Garage Music Club", di cui dichiara di aver preso visione dello statuto e dei regolamenti interni e di accettarli integralmente. Si impegna a versare la quota associativa annuale.
             </div>
-             <div style={{ marginBottom: '10px' }}>
+             <div style={{ marginBottom: '8px' }}>
                 <Checkbox checked={!!socio.whatsappConsent} />
                 <b>Consenso WhatsApp:</b> Acconsente all'inserimento del proprio numero di telefono nel gruppo WhatsApp dell'associazione per comunicazioni relative alle attività.
             </div>
@@ -109,7 +109,7 @@ export function SocioCard({ socio }: SocioCardProps) {
       </div>
       
       {/* Signatures */}
-      <table style={{ width: '100%', marginTop: '25px', marginBottom: '25px', fontSize: '12px' }}>
+      <table style={{ width: '100%', marginTop: '20px', marginBottom: '20px', fontSize: '12px' }}>
         <tbody>
           <tr>
             <td style={{ width: '50%' }}>Data: _________________________</td>
@@ -120,14 +120,14 @@ export function SocioCard({ socio }: SocioCardProps) {
 
       {/* Guardian Section (if minor) */}
       {isMinor && (
-        <div style={{ marginTop: '20px', marginBottom: '25px' }}>
+        <div style={{ marginTop: '15px', marginBottom: '20px' }}>
           <h3 style={{ fontSize: '13px', fontWeight: 'bold', margin: '0 0 10px 0', borderTop: '1px solid #000', borderBottom: '1px solid #000', padding: '5px 0', textAlign: 'center' }}>
             PARTE RISERVATA AL GENITORE O A CHI NE FA LE VECI
           </h3>
-          <div style={{ fontSize: '10px', lineHeight: '1.5', margin: '0 0 15px 0', textAlign: 'justify' }}>
-            Il/La sottoscritto/a <b>{`${socio.guardianLastName || ''} ${socio.guardianFirstName || ''}`}</b>, in qualità di genitore/tutore legale del minore sopra indicato, dichiara di approvare la presente domanda di ammissione e di accettare lo statuto e i regolamenti dell'associazione.
+          <div style={{ fontSize: '10px', lineHeight: '1.5', margin: '0 0 10px 0', textAlign: 'justify' }}>
+            Il/La sottoscritto/a <b>{`${socio.guardianLastName || ''} ${socio.guardianFirstName || ''}`}</b>, nato/a a ________________ il <b>{formatDate(socio.guardianBirthDate)}</b>, in qualità di genitore/tutore legale del minore sopra indicato, dichiara di approvare la presente domanda di ammissione e di accettare lo statuto e i regolamenti dell'associazione.
           </div>
-          <table style={{ width: '100%', fontSize: '12px' }}>
+          <table style={{ width: '100%', fontSize: '12px', marginTop: '10px' }}>
             <tbody>
               <tr>
                 <td style={{ width: '50%' }}>Data: _________________________</td>
@@ -139,7 +139,7 @@ export function SocioCard({ socio }: SocioCardProps) {
       )}
 
       {/* Association Box */}
-      <div style={{ border: '2px solid black', padding: '15px', marginTop: 'auto' }}>
+      <div style={{ border: '2px solid black', padding: '15px', marginTop: isMinor ? '10px' : 'auto' }}>
         <p style={{ textAlign: 'center', fontSize: '10px', margin: '-23px 0 15px 0' }}>
             <span style={{ background: 'white', padding: '0 8px', fontWeight: 'bold' }}>- Riservato all'associazione -</span>
         </p>
@@ -154,7 +154,7 @@ export function SocioCard({ socio }: SocioCardProps) {
       
       {/* Notes */}
       {socio.notes && (
-         <div style={{ marginTop: '20px', paddingTop: '10px', borderTop: '1px dashed #ccc' }}>
+         <div style={{ marginTop: '15px', paddingTop: '10px', borderTop: '1px dashed #ccc' }}>
             <h4 style={{ fontSize: '11px', fontWeight: 'bold', margin: '0 0 5px 0' }}>NOTE:</h4>
             <div style={{ fontSize: '10px', whiteSpace: 'pre-wrap', color: '#333' }}>
               {socio.notes.split('\n').map((line, index) => (
