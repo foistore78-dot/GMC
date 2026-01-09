@@ -70,9 +70,9 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-full max-w-xs bg-secondary">
-              <VisuallyHidden>
-                <SheetTitle>Menu Principale</SheetTitle>
-              </VisuallyHidden>
+              <SheetTitle>
+                <VisuallyHidden>Menu Principale</VisuallyHidden>
+              </SheetTitle>
               <div className="flex flex-col h-full pt-8">
                  <div className="p-4 flex items-center gap-3 border-b border-border">
                     <GarageMusicClubLogo className="w-8 h-8 text-white" />
