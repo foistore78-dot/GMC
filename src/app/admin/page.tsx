@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { SocioCard } from "@/components/socio-card";
+import ReactDOMServer from "react-dom/server";
 
 
 const ITEMS_PER_PAGE = 10;
@@ -63,7 +64,7 @@ export default function AdminPage() {
   const [socioToPrint, setSocioToPrint] = useState<Socio | null>(null);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
 
-  // State for filter and pagination, moved from SociTable
+  // State for filter and pagination
   const [filter, setFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -91,7 +92,7 @@ export default function AdminPage() {
     if (!activeSoci) return [];
     const currentYear = new Date().getFullYear();
     
-    const sorted = [...activeSoci].sort((a, b) => {
+    return [...activeSoci].sort((a, b) => {
         const { key, direction } = sortConfig;
         
         const yearA = getTesseraYear(a);
@@ -124,14 +125,12 @@ export default function AdminPage() {
         if (aValue < bValue) return asc ? -1 : 1;
         if (aValue > bValue) return asc ? 1 : -1;
         return 0;
-    });
-    
-    return sorted.map(s => ({ ...s, membershipStatus: 'active' as const }));
+    }).map(s => ({ ...s, membershipStatus: 'active' as const }));
   }, [activeSoci, sortConfig]);
 
   const sortedRequests = useMemo(() => {
     if (!requestsData) return [];
-    const sorted = [...requestsData].sort((a, b) => {
+    return [...requestsData].sort((a, b) => {
       const { key, direction } = sortConfig;
       let aValue: any;
       let bValue: any;
@@ -147,17 +146,17 @@ export default function AdminPage() {
          bValue = b[key as keyof Socio];
       }
 
-      if (aValue < bValue) return direction === 'ascending' ? -1 : 1;
-      if (aValue > bValue) return direction === 'ascending' ? 1 : -1;
+      const asc = direction === 'ascending';
+      if (aValue < bValue) return asc ? -1 : 1;
+      if (aValue > bValue) return asc ? 1 : -1;
       return 0;
-    });
-    return sorted.map(s => ({ ...s, membershipStatus: 'pending' as const }));
+    }).map(s => ({ ...s, membershipStatus: 'pending' as const }));
   }, [requestsData, sortConfig]);
 
   useEffect(() => {
-    // Reset page to 1 when filter or active tab changes
+    // Reset page to 1 when filter changes
     setCurrentPage(1);
-  }, [filter, activeTab]);
+  }, [filter]);
 
 
   useEffect(() => {
@@ -181,6 +180,7 @@ export default function AdminPage() {
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     setFilter(''); // Reset filter on tab change
+    setCurrentPage(1); // Reset page on tab change
     if (tab === 'active') {
       setSortConfig({ key: 'tessera', direction: 'descending' });
     } else {
@@ -212,10 +212,7 @@ export default function AdminPage() {
     if (!socioToPrint) return;
     const printWindow = window.open('', '_blank');
     if (printWindow) {
-      const cardContainer = document.createElement('div');
-      
       // Temporarily render the SocioCard to get its HTML
-      const ReactDOMServer = require('react-dom/server');
       const cardHtml = ReactDOMServer.renderToString(
         <>
           <style>{`
@@ -305,8 +302,6 @@ export default function AdminPage() {
       </div>
     );
   }
-
-  const dataToShow = activeTab === 'active' ? sortedMembers : sortedRequests;
 
   return (
     <div className="flex flex-col min-h-screen bg-secondary">
