@@ -12,9 +12,12 @@ const statusTranslations: Record<string, string> = {
 const formatForExcel = (data: Socio[]) => {
   return data.map(socio => {
     const status = getStatus(socio);
+    const tesseraNumberStr = socio.tessera ? socio.tessera.split('-').pop() || '' : '';
+    const tesseraNumber = tesseraNumberStr ? parseInt(tesseraNumberStr, 10) : undefined;
+
     return {
       'Stato': statusTranslations[status] || status,
-      'N. Tessera': socio.tessera ? (socio.tessera.split('-').pop() || '') : '',
+      'N. Tessera': isNaN(tesseraNumber!) ? '' : tesseraNumber,
       'Cognome': socio.lastName,
       'Nome': socio.firstName,
       'Genere': socio.gender === 'male' ? 'Maschio' : 'Femmina',
