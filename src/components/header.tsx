@@ -8,7 +8,7 @@ import { Button } from "./ui/button";
 import { useAuth, useUser } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { Sheet, SheetTrigger, SheetContent } from "./ui/sheet";
-import { Menu, Home, Shield, QrCode, LogOut } from "lucide-react";
+import { Menu, Home, Shield, QrCode, LogOut, LayoutDashboard, List } from "lucide-react";
 
 export function Header() {
   const router = useRouter();
@@ -43,7 +43,10 @@ export function Header() {
           {user ? (
             <>
               <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary">
-                <Link href="/admin">Dashboard</Link>
+                <Link href="/dashboard">Dashboard</Link>
+              </Button>
+               <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary">
+                <Link href="/admin/elenco">Elenco Soci</Link>
               </Button>
               <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary">
                 <Link href="/segreteria">Segreteria</Link>
@@ -75,7 +78,8 @@ export function Header() {
                     <NavLink href="/"><Home className="mr-2 h-4 w-4" /> Home</NavLink>
                     {user ? (
                       <>
-                        <NavLink href="/admin"><Shield className="mr-2 h-4 w-4" /> Dashboard</NavLink>
+                        <NavLink href="/dashboard"><LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard</NavLink>
+                        <NavLink href="/admin/elenco"><List className="mr-2 h-4 w-4" /> Elenco Soci</NavLink>
                         <NavLink href="/segreteria"><QrCode className="mr-2 h-4 w-4" /> Segreteria</NavLink>
                       </>
                     ) : (

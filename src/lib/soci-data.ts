@@ -7,7 +7,7 @@ export type Socio = {
   phone?: string;
   birthPlace: string;
   birthDate: string;
-  fiscalCode: string;
+  fiscalCode?: string;
   address: string;
   city: string;
   province: string;
