@@ -104,6 +104,13 @@ export function SocioCard({ socio }: SocioCardProps) {
             <Field label={relevantDateLabel} value={formatDate(relevantDateValue)} />
             <Field label="Data Scadenza" value={formatDate(socio.expirationDate)} />
          </div>
+
+         {socio.notes && (
+            <div className="mt-2 text-2xs border-t pt-1">
+                <p className="font-bold uppercase text-gray-600">Note:</p>
+                <p className="text-gray-700 whitespace-pre-wrap">{socio.notes}</p>
+            </div>
+         )}
       </main>
     </div>
   );
