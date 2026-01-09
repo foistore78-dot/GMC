@@ -326,8 +326,9 @@ const SocioTableRow = ({
     const newTessera = `GMC-${currentYear}-${newRenewalMemberNumber}`;
 
     const today = new Date();
-    const renewalNote = `Associato dall'anno ${socio.membershipYear} con tessera ${socio.tessera}, quota ${formatCurrency(socio.membershipFee)}. Rinnovato in data ${formatDate(today)}.`;
-    const updatedNotes = socio.notes ? `${socio.notes}\n${renewalNote}` : renewalNote;
+    // Correctly use the renewalFee for the note, not the old socio.membershipFee
+    const renewalNote = `Rinnovato per l'anno ${currentYear}. Tessera precedente: ${socio.tessera} (${socio.membershipYear}). Quota versata: ${formatCurrency(renewalFee)}.`;
+    const updatedNotes = socio.notes ? `${socio.notes}\n\n${renewalNote}` : renewalNote;
     
     const memberDocRef = doc(firestore, "members", socio.id);
     
