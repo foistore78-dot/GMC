@@ -54,7 +54,7 @@ export default function SegreteriaPage() {
   const handlePrintQr = () => {
     const printContent = qrCodeRef.current;
     if (!printContent) return;
-
+  
     const printWindow = window.open('', '', 'height=800,width=800');
     if (!printWindow) {
       alert('Per favore, consenti i pop-up per questo sito.');
@@ -67,12 +67,16 @@ export default function SegreteriaPage() {
           <title>Stampa QR Code Iscrizioni</title>
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto:wght@400;500;700&display=swap');
+            @page { 
+              size: A4;
+              margin: 2cm;
+            }
             body { 
               font-family: 'Roboto', sans-serif;
               display: flex;
               justify-content: center;
               align-items: center;
-              height: 100vh;
+              height: 100%;
               margin: 0;
             }
             .print-container {
@@ -80,23 +84,21 @@ export default function SegreteriaPage() {
               padding: 2rem;
               border: 2px dashed #ccc;
               border-radius: 10px;
+              width: 100%;
+              max-width: 18cm;
             }
             h1 {
               font-family: 'Orbitron', sans-serif;
-              font-size: 2rem;
+              font-size: 2.5rem;
               margin-bottom: 0.5rem;
             }
             p {
-              font-size: 1rem;
+              font-size: 1.2rem;
               margin-top: 0;
-              margin-bottom: 2rem;
+              margin-bottom: 2.5rem;
               color: #555;
             }
             @media print {
-              body {
-                display: block;
-                padding-top: 5vh;
-              }
               .print-container {
                 border: none;
               }
@@ -112,9 +114,11 @@ export default function SegreteriaPage() {
         </body>
       </html>
     `);
-
+  
     printWindow.document.close();
     printWindow.focus();
+  
+    // Use a timeout to ensure content is fully loaded before printing
     setTimeout(() => {
       printWindow.print();
       printWindow.close();

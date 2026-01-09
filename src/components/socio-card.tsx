@@ -94,9 +94,9 @@ export function SocioCard({ socio }: SocioCardProps) {
        <div style={{ marginBottom: '20px' }}>
         <h3 style={{ fontSize: '13px', fontWeight: 'bold', margin: '0 0 10px 0', borderBottom: '1px solid #ccc', paddingBottom: '5px' }}>DICHIARAZIONI E CONSENSI</h3>
         <div style={{ fontSize: '10px', lineHeight: '1.6' }}>
-            <p style={{ margin: '0 0 10px 0' }}>
+            <div style={{ margin: '0 0 10px 0' }}>
                 Il/La sottoscritto/a, letta l'informativa sul trattamento dei dati personali, chiede di essere ammesso/a come socio/a all'Associazione Culturale "Garage Music Club", di cui dichiara di aver preso visione dello statuto e dei regolamenti interni e di accettarli integralmente. Si impegna a versare la quota associativa annuale.
-            </p>
+            </div>
              <div style={{ marginBottom: '10px' }}>
                 <Checkbox checked={!!socio.whatsappConsent} />
                 <b>Consenso WhatsApp:</b> Acconsente all'inserimento del proprio numero di telefono nel gruppo WhatsApp dell'associazione per comunicazioni relative alle attività.
@@ -124,9 +124,9 @@ export function SocioCard({ socio }: SocioCardProps) {
           <h3 style={{ fontSize: '13px', fontWeight: 'bold', margin: '0 0 10px 0', borderTop: '1px solid #000', borderBottom: '1px solid #000', padding: '5px 0', textAlign: 'center' }}>
             PARTE RISERVATA AL GENITORE O A CHI NE FA LE VECI
           </h3>
-          <p style={{ fontSize: '10px', lineHeight: '1.5', margin: '0 0 15px 0', textAlign: 'justify' }}>
+          <div style={{ fontSize: '10px', lineHeight: '1.5', margin: '0 0 15px 0', textAlign: 'justify' }}>
             Il/La sottoscritto/a <b>{`${socio.guardianLastName || ''} ${socio.guardianFirstName || ''}`}</b>, in qualità di genitore/tutore legale del minore sopra indicato, dichiara di approvare la presente domanda di ammissione e di accettare lo statuto e i regolamenti dell'associazione.
-          </p>
+          </div>
           <table style={{ width: '100%', fontSize: '12px' }}>
             <tbody>
               <tr>
@@ -158,7 +158,7 @@ export function SocioCard({ socio }: SocioCardProps) {
             <h4 style={{ fontSize: '11px', fontWeight: 'bold', margin: '0 0 5px 0' }}>NOTE:</h4>
             <div style={{ fontSize: '10px', whiteSpace: 'pre-wrap', color: '#333' }}>
               {socio.notes.split('\n').map((line, index) => (
-                <p key={index} style={{ margin: 0 }}>{line}</p>
+                <div key={index} style={{ margin: 0 }}>{line}</div>
               ))}
             </div>
          </div>

@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import ReactDOMServer from 'react-dom/server';
 
 import {
   AlertDialog,
@@ -230,43 +231,44 @@ export default function ElencoSociPage() {
   const executePrint = () => {
     if (!socioToPrint) return;
 
-    const printWindow = window.open('', '_blank', 'height=800,width=800');
+    const printWindow = window.open('', '_blank');
     if (!printWindow) {
       alert('Please allow pop-ups for this website');
       return;
     }
+    
+    // Use ReactDOMServer to generate static HTML
+    const cardHtml = ReactDOMServer.renderToStaticMarkup(<SocioCard socio={socioToPrint} />);
 
-    const cardHtml = `
+    printWindow.document.write(`
       <html>
         <head>
           <title>Stampa Scheda Socio</title>
           <style>
-            @import url('https://fonts.googleapis.com/css2?family=Helvetica+Neue:wght@400;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto:wght@400;500;700&display=swap');
             @media print {
-              body { margin: 0; -webkit-print-color-adjust: exact; color-adjust: exact; }
+              body { 
+                margin: 0; 
+                -webkit-print-color-adjust: exact; 
+                color-adjust: exact; 
+              }
             }
-            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+            body { font-family: 'Roboto', sans-serif; }
           </style>
         </head>
         <body>
-          <div id="print-root"></div>
+          ${cardHtml}
         </body>
       </html>
-    `;
-    printWindow.document.write(cardHtml);
+    `);
+
     printWindow.document.close();
-
-    // Use React's client-side rendering capabilities in the new window
-    import('react-dom/client').then(ReactDOM => {
-      const root = ReactDOM.createRoot(printWindow.document.getElementById('print-root')!);
-      root.render(<SocioCard socio={socioToPrint} />);
-
-      setTimeout(() => {
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
-      }, 500); // Timeout helps ensure all content (especially images) is loaded.
-    });
+    
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    }, 250); // Small delay to ensure content is rendered
 
     setShowPrintDialog(false);
     setSocioToPrint(null);
@@ -422,5 +424,3 @@ export default function ElencoSociPage() {
     </div>
   );
 }
-
-    
