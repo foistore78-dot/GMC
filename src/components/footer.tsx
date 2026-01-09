@@ -8,7 +8,12 @@ export function Footer() {
             <GarageMusicClubLogo className="w-6 h-6" />
             <p className="font-headline text-lg">Garage Music Club</p>
         </div>
-        <p className="text-sm">
+        <div className="text-sm space-y-1">
+          <p>Associazione Culturale “Garage Music Club”</p>
+          <p>Sede: Via XXIV Udine n. 43, Gradisca d’Isonzo (GO)</p>
+          <p>Presidente: Paolo Vidoz - Tel: +39 349 225 6701</p>
+        </div>
+        <p className="text-sm mt-4">
           &copy; {new Date().getFullYear()} Garage Music Club. Tutti i diritti riservati.
         </p>
       </div>

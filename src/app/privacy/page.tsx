@@ -20,8 +20,8 @@ export default function PrivacyPage() {
                 1. Titolare del trattamento
               </h2>
               <p>
-                L'Associazione di Promozione Sociale "Garage Music Club," con
-                sede in Gorizia, Via del Carso 10, C.F. 91090330311 (di
+                L'Associazione Culturale "Garage Music Club," con
+                sede in Gradisca d’Isonzo, Via XXIV Udine n. 43 (di
                 seguito, "Titolare"), in qualità di titolare del trattamento, ti
                 informa ai sensi dell'art. 13 Regolamento UE n. 2016/679 (in
                 seguito, "GDPR") che i tuoi dati saranno trattati con le
@@ -211,9 +211,9 @@ export default function PrivacyPage() {
               </h2>
               <p>
                 Potrai in qualsiasi momento esercitare i tuoi diritti inviando
-                una comunicazione a mezzo raccomandata A.R. a: Associazione di
-                Promozione Sociale "Garage Music Club", Via del Carso 10, 34170
-                Gorizia (GO), oppure una e-mail all’indirizzo:
+                una comunicazione a mezzo raccomandata A.R. a: Associazione
+                Culturale "Garage Music Club", Via XXIV Udine n. 43, 34072
+                Gradisca d’Isonzo (GO), oppure una e-mail all’indirizzo:
                 garage.music.club2024@gmail.com.
               </p>
             </section>
