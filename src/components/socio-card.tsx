@@ -9,11 +9,11 @@ type SocioCardProps = {
 };
 
 const Field = ({ label, value }: { label: string; value?: string | number | null }) => {
-  if (!value) return null;
+  if (!value && value !== 0) return null;
   return (
     <div>
-      <p className="text-xs uppercase tracking-wider text-gray-500">{label}</p>
-      <p className="font-medium text-sm">{value}</p>
+      <p className="text-[9px] uppercase tracking-wider text-gray-500">{label}</p>
+      <p className="font-medium text-[10px]">{value}</p>
     </div>
   );
 };
@@ -32,10 +32,10 @@ export function SocioCard({ socio }: SocioCardProps) {
           <GarageMusicClubLogo className="w-16 h-16" />
           <div>
             <h1 className="text-lg font-bold font-headline tracking-wider">GARAGE MUSIC CLUB</h1>
-            <p className="text-2xs">Associazione Culturale</p>
+            <p className="text-[10px]">Associazione Culturale</p>
           </div>
         </div>
-        <div className="text-right text-2xs">
+        <div className="text-right text-[9px]">
           <p>Sede: Via XXIV Udine n. 43, Gradisca d’Isonzo (GO)</p>
           <p>Email: garage.music.club2024@gmail.com</p>
           <p>C.F. 91028120317</p>
@@ -45,9 +45,11 @@ export function SocioCard({ socio }: SocioCardProps) {
       <main className="mt-2">
         <h2 className="text-center font-headline text-base font-bold mb-2">DOMANDA DI AMMISSIONE A SOCIO</h2>
         
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs border-t border-b py-2 my-2">
-            <Field label="Cognome e Nome" value={`${socio.lastName} ${socio.firstName}`} />
-            <Field label="Qualifiche" value={socio.qualifica?.join(', ')} />
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs border-t border-b py-2 my-2">
+            <div className="col-span-2">
+                <p className="text-[9px] uppercase tracking-wider text-gray-500">Cognome e Nome / Qualifica</p>
+                <p className="font-medium text-sm">{`${socio.lastName} ${socio.firstName}`} {socio.qualifica && socio.qualifica.length > 0 && <span className="font-normal text-xs">({socio.qualifica.join(', ')})</span>}</p>
+            </div>
             <Field label="Data di Nascita" value={formatDate(socio.birthDate)} />
             <Field label="Luogo di Nascita" value={socio.birthPlace} />
             <Field label="Codice Fiscale" value={socio.fiscalCode} />
@@ -58,16 +60,16 @@ export function SocioCard({ socio }: SocioCardProps) {
 
         {isMinor && (
            <div className="mt-2">
-             <h3 className="font-headline text-sm font-bold mb-1">DATI DEL GENITORE O TUTORE (per socio minorenne)</h3>
-             <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs border-t border-b py-2 my-2">
+             <h3 className="font-headline text-[11px] font-bold mb-1">DATI DEL GENITORE O TUTORE (per socio minorenne)</h3>
+             <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs border-t border-b py-2 my-2">
                <Field label="Cognome e Nome Tutore" value={`${socio.guardianLastName} ${socio.guardianFirstName}`} />
                <Field label="Data di Nascita Tutore" value={formatDate(socio.guardianBirthDate)} />
              </div>
            </div>
         )}
 
-        <div className="mt-2 text-2xs text-gray-700 space-y-1">
-            <h4 className="font-bold text-xs text-black mb-1">DICHIARAZIONI E CONSENSI</h4>
+        <div className="mt-2 text-[9px] text-gray-700 space-y-1">
+            <h4 className="font-bold text-[10px] text-black mb-1">DICHIARAZIONI E CONSENSI</h4>
             <p>
                 Il/La sottoscritto/a, letta l'informativa sul trattamento dei dati personali, chiede di essere ammesso/a come socio/a all'Associazione Culturale "Garage Music Club", di cui dichiara di aver preso visione dello statuto e dei regolamenti interni e di accettarli integralmente. Si impegna a versare la quota associativa annuale.
             </p>
@@ -79,7 +81,7 @@ export function SocioCard({ socio }: SocioCardProps) {
             </p>
         </div>
         
-        <div className="mt-4 pt-2 border-t border-gray-300 grid grid-cols-2 gap-6 text-xs">
+        <div className="mt-4 pt-2 border-t border-gray-300 grid grid-cols-2 gap-6 text-[10px]">
             <div>
                 <p>Data: ____________________</p>
             </div>
@@ -88,14 +90,14 @@ export function SocioCard({ socio }: SocioCardProps) {
                 <div className="mt-4 border-b border-gray-400"></div>
             </div>
             {isMinor && (
-                 <div className="col-span-2 text-center -mt-2">
+                 <div className="col-span-2 text-center -mt-4">
                     <p>Firma del Genitore/Tutore</p>
                     <div className="mt-4 border-b border-gray-400"></div>
                 </div>
             )}
         </div>
         
-        <div className="mt-4 text-center text-2xs text-gray-500">
+        <div className="mt-4 text-center text-[9px] text-gray-500">
              - Riservato all'associazione -
         </div>
          <div className="mt-1 text-xs border p-1 grid grid-cols-3 gap-x-4 gap-y-1">
@@ -107,7 +109,7 @@ export function SocioCard({ socio }: SocioCardProps) {
          </div>
 
          {socio.notes && (
-            <div className="mt-2 text-2xs border-t pt-1">
+            <div className="mt-2 text-[9px] border-t pt-1">
                 <p className="font-bold uppercase text-gray-600">Note:</p>
                 <p className="text-gray-700 whitespace-pre-wrap">{socio.notes}</p>
             </div>
