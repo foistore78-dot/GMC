@@ -71,17 +71,25 @@ export default function ElencoSociPage() {
     [firestore, user]
   );
 
-  const { data: membersData, isLoading: isMembersLoading } = useCollection<Socio>(membersQuery);
-  const { data: requestsData, isLoading: isRequestsLoading } = useCollection<Socio>(requestsQuery);
+  const { data: membersData, isLoading: isMembersLoading, error: membersError } = useCollection<Socio>(membersQuery);
+  const { data: requestsData, isLoading: isRequestsLoading, error: requestsError } = useCollection<Socio>(requestsQuery);
   
+  // This state is used to force a re-render of the tables when a socio is moved between tabs
+  const [dataVersion, setDataVersion] = useState(0);
+
   // Memoize data splitting
   const { allActive, allExpired } = useMemo(() => {
     const allMembers = membersData || [];
     const allActive = allMembers.filter(s => getStatus(s) === 'active');
     const allExpired = allMembers.filter(s => getStatus(s) === 'expired');
     return { allActive, allExpired };
-  }, [membersData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [membersData, dataVersion]);
   
+  const pendingRequests = useMemo(() => {
+    return requestsData || [];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestsData, dataVersion]);
 
   const filterAndSortData = (data: Socio[], currentSortConfig: SortConfig, searchFilter: string) => {
     if (!data) return [];
@@ -111,10 +119,8 @@ export default function ElencoSociPage() {
         let bValue: any;
         
         if (key === 'tessera') {
-            const numA = getTesseraNumber(a.tessera);
-            const numB = getTesseraNumber(b.tessera);
-            aValue = numA;
-            bValue = numB;
+            aValue = getTesseraNumber(a.tessera);
+            bValue = getTesseraNumber(b.tessera);
         } else if (key === 'name') {
             aValue = `${a.lastName} ${a.firstName}`.toLowerCase();
             bValue = `${b.lastName} ${b.firstName}`.toLowerCase();
@@ -132,7 +138,7 @@ export default function ElencoSociPage() {
 
   const sortedActive = useMemo(() => filterAndSortData(allActive, sortConfig, filter).map(s => ({ ...s, membershipStatus: 'active' as const })), [allActive, sortConfig, filter]);
   const sortedExpired = useMemo(() => filterAndSortData(allExpired, sortConfig, filter).map(s => ({ ...s, membershipStatus: 'expired' as const })), [allExpired, sortConfig, filter]);
-  const sortedRequests = useMemo(() => filterAndSortData(requestsData || [], sortConfig, filter).map(s => ({ ...s, membershipStatus: 'pending' as const })), [requestsData, sortConfig, filter]);
+  const sortedRequests = useMemo(() => filterAndSortData(pendingRequests, sortConfig, filter).map(s => ({ ...s, membershipStatus: 'pending' as const })), [pendingRequests, sortConfig, filter]);
 
 
   // Update URL when state changes
@@ -173,8 +179,9 @@ export default function ElencoSociPage() {
     }
   };
 
-  const resetToDefaultSort = () => {
-    handleTabChange("active");
+  const refreshAndSwitchTab = (tab: 'active' | 'expired' | 'requests') => {
+      setDataVersion(v => v + 1); // Force rememoization of data
+      handleTabChange(tab);
   };
   
   const handlePrintCard = (socio: Socio) => {
@@ -271,13 +278,13 @@ export default function ElencoSociPage() {
               <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4">
                 <TabsList className="self-start">
                    <TabsTrigger value="active" className="text-xs sm:text-sm data-[state=active]:bg-green-500/20 data-[state=active]:text-green-300">
-                    Attivi
+                    Attivi ({sortedActive.length})
                   </TabsTrigger>
                   <TabsTrigger value="expired" className="text-xs sm:text-sm data-[state=active]:bg-yellow-500/20 data-[state=active]:text-yellow-300">
-                    In Attesa di Rinnovo
+                    In Attesa di Rinnovo ({sortedExpired.length})
                   </TabsTrigger>
                   <TabsTrigger value="requests" className="text-xs sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300">
-                    Richieste
+                    Richieste ({sortedRequests.length})
                   </TabsTrigger>
                 </TabsList>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
@@ -298,8 +305,8 @@ export default function ElencoSociPage() {
                     onEdit={handleEditSocio}
                     onPrint={handlePrintCard}
                     allMembers={membersData || []}
-                    onSocioApproved={resetToDefaultSort}
-                    onSocioRenewed={resetToDefaultSort}
+                    onSocioApproved={() => refreshAndSwitchTab('active')}
+                    onSocioRenewed={() => refreshAndSwitchTab('active')}
                     sortConfig={sortConfig}
                     setSortConfig={setSortConfig}
                     itemsPerPage={ITEMS_PER_PAGE}
@@ -313,8 +320,8 @@ export default function ElencoSociPage() {
                     onEdit={handleEditSocio}
                     onPrint={handlePrintCard}
                     allMembers={membersData || []}
-                    onSocioApproved={resetToDefaultSort}
-                    onSocioRenewed={resetToDefaultSort}
+                    onSocioApproved={() => refreshAndSwitchTab('active')}
+                    onSocioRenewed={() => refreshAndSwitchTab('active')}
                     sortConfig={sortConfig}
                     setSortConfig={setSortConfig}
                     itemsPerPage={ITEMS_PER_PAGE}
@@ -328,8 +335,8 @@ export default function ElencoSociPage() {
                     onEdit={handleEditSocio}
                     onPrint={handlePrintCard}
                     allMembers={membersData || []}
-                    onSocioApproved={resetToDefaultSort}
-                    onSocioRenewed={resetToDefaultSort}
+                    onSocioApproved={() => refreshAndSwitchTab('active')}
+                    onSocioRenewed={() => refreshAndSwitchTab('active')}
                     sortConfig={sortConfig}
                     setSortConfig={setSortConfig}
                     itemsPerPage={ITEMS_PER_PAGE}
@@ -353,7 +360,7 @@ export default function ElencoSociPage() {
                 socio={editingSocio} 
                 onClose={() => {
                   setEditingSocio(null);
-                  handleTabChange(activeTab); // Refresh current tab view
+                  refreshAndSwitchTab(activeTab as any); // Refresh current tab view
                 }}
               />
             </>
