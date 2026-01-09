@@ -9,7 +9,7 @@ import { Footer } from "@/components/footer";
 import { SociTable, type SortConfig, getStatus, formatDate } from "@/components/soci-table";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import { Loader2, Users, Filter, QrCode } from "lucide-react";
+import { Loader2, Users, Filter, QrCode, UserPlus } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -251,13 +251,21 @@ export default function ElencoSociPage() {
                 Elenco Soci
               </h1>
            </div>
-           <Button asChild variant="outline">
-              <Link href="/segreteria">
-                <QrCode className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">Area Segreteria</span>
-                <span className="sm:hidden">Segreteria</span>
-              </Link>
-            </Button>
+           <div className="flex items-center gap-2 sm:gap-4">
+               <Button asChild>
+                  <Link href="/#apply">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Nuova Iscrizione
+                  </Link>
+                </Button>
+               <Button asChild variant="outline">
+                  <Link href="/segreteria">
+                    <QrCode className="mr-2 h-4 w-4" />
+                    <span className="hidden sm:inline">Area Segreteria</span>
+                    <span className="sm:hidden">Segreteria</span>
+                  </Link>
+                </Button>
+           </div>
         </div>
 
         <div className="bg-background rounded-lg border border-border shadow-lg p-2 sm:p-4">
@@ -378,7 +386,3 @@ export default function ElencoSociPage() {
     </div>
   );
 }
-
-    
-
-    
