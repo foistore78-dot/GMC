@@ -11,7 +11,7 @@ import { getStatus } from '@/components/soci-table';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Users, UserPlus, UserClock, History } from 'lucide-react';
+import { Loader2, Users, UserPlus, Clock, History } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { format, getMonth, getYear, parseISO } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -84,10 +84,14 @@ export default function DashboardPage() {
     const monthlySignups = Array(12).fill(0);
     allMembers.forEach(member => {
         if(member.joinDate) {
-            const joinDate = parseISO(member.joinDate);
-            if(getYear(joinDate) === currentYear) {
-                const month = getMonth(joinDate);
-                monthlySignups[month]++;
+            try {
+                const joinDate = parseISO(member.joinDate);
+                if(getYear(joinDate) === currentYear) {
+                    const month = getMonth(joinDate);
+                    monthlySignups[month]++;
+                }
+            } catch(e) {
+                console.error("Invalid joinDate format for member:", member.id, member.joinDate);
             }
         }
     });
@@ -143,7 +147,7 @@ export default function DashboardPage() {
              <StatCard 
                 title="In Attesa di Rinnovo"
                 value={stats.expiredMembers}
-                icon={<UserClock className="h-4 w-4 text-muted-foreground" />}
+                icon={<Clock className="h-4 w-4 text-muted-foreground" />}
                 link="/admin/elenco?tab=active&hideExpired=false"
                 description="Soci con tesseramento scaduto"
             />
