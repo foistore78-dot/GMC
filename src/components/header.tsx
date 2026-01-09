@@ -7,7 +7,7 @@ import { GarageMusicClubLogo } from "./icons/garage-music-club-logo";
 import { Button } from "./ui/button";
 import { useAuth, useUser } from "@/firebase";
 import { signOut } from "firebase/auth";
-import { Sheet, SheetTrigger, SheetContent } from "./ui/sheet";
+import { Sheet, SheetTrigger, SheetContent, SheetTitle } from "./ui/sheet";
 import { Menu, Home, Shield, QrCode, LogOut, LayoutDashboard, List } from "lucide-react";
 
 export function Header() {
@@ -72,7 +72,7 @@ export function Header() {
               <div className="flex flex-col h-full pt-8">
                  <div className="p-4 flex items-center gap-3 border-b border-border">
                     <GarageMusicClubLogo className="w-8 h-8 text-white" />
-                    <span className="font-headline text-lg font-bold text-foreground">MENU</span>
+                    <SheetTitle><span className="font-headline text-lg font-bold text-foreground">MENU</span></SheetTitle>
                  </div>
                  <div className="flex flex-col gap-2 p-4 flex-grow">
                     <NavLink href="/"><Home className="mr-2 h-4 w-4" /> Home</NavLink>
