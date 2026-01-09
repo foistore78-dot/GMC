@@ -30,7 +30,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer } from "lucide-react";
+import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
@@ -326,6 +326,12 @@ const handleRenew = async () => {
     );
   };
   
+  const handleWhatsAppClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const groupInviteLink = "https://chat.whatsapp.com/KKes4gzve7T8xET9OD3bm5";
+    window.open(groupInviteLink, '_blank', 'noopener,noreferrer');
+  };
+
   const tesseraDisplay = socio.tessera ? `${socio.tessera.split('-')[1]}-${socio.tessera.split('-')[2]}` : '-';
 
   return (
@@ -382,6 +388,21 @@ const handleRenew = async () => {
                    </DialogContent>
                  </Dialog>
                  <div className="flex items-center gap-1">
+                    {socio.whatsappConsent && (
+                       <TooltipProvider>
+                         <Tooltip>
+                           <TooltipTrigger asChild>
+                             <button onClick={handleWhatsAppClick} className="text-green-500 hover:text-green-400">
+                               <MessageCircle className="h-4 w-4" />
+                               <span className="sr-only">Contatta su WhatsApp</span>
+                             </button>
+                           </TooltipTrigger>
+                           <TooltipContent>
+                             <p>Consenso WhatsApp attivo. Clicca per unirti al gruppo.</p>
+                           </TooltipContent>
+                         </Tooltip>
+                       </TooltipProvider>
+                    )}
                     <TooltipProvider>
                       {socio.qualifica?.map(q => (
                         <Tooltip key={q}>
@@ -782,3 +803,4 @@ export const SociTable = ({
     
 
     
+
