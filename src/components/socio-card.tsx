@@ -11,7 +11,7 @@ type SocioCardProps = {
   socio: Socio;
 };
 
-const isMinorCheck = (birthDate: string | undefined): boolean => {
+const isMinorCheck = (birthDate: string | undefined | Date): boolean => {
   if (!birthDate) return false;
   const date = new Date(birthDate);
   if (isNaN(date.getTime())) return false;
@@ -25,6 +25,25 @@ const Field = ({ label, value }: { label: string; value: string | undefined | nu
     <p style={{ fontWeight: 'bold', fontSize: '12px', margin: 0, borderBottom: '1px solid #eee', paddingBottom: '2px' }}>{value || <>&nbsp;</>}</p>
   </div>
 );
+
+const Checkbox = ({ checked }: { checked: boolean }) => (
+    <div style={{
+        display: 'inline-block',
+        width: '12px',
+        height: '12px',
+        border: '1px solid black',
+        marginRight: '8px',
+        verticalAlign: 'middle',
+        textAlign: 'center',
+        lineHeight: '12px',
+        fontWeight: 'bold',
+        color: 'black',
+        backgroundColor: checked ? '#e0e0e0' : 'white',
+    }}>
+        {checked ? '✔' : ''}
+    </div>
+);
+
 
 export function SocioCard({ socio }: SocioCardProps) {
   const isMinor = isMinorCheck(socio.birthDate);
@@ -71,21 +90,22 @@ export function SocioCard({ socio }: SocioCardProps) {
         <Field label="QUALIFICA" value={socio.qualifica?.join(', ')} />
       </div>
 
-      {/* Consents */}
-      <div style={{ marginBottom: '20px' }}>
+       {/* Consents */}
+       <div style={{ marginBottom: '20px' }}>
         <h3 style={{ fontSize: '13px', fontWeight: 'bold', margin: '0 0 10px 0', borderBottom: '1px solid #ccc', paddingBottom: '5px' }}>DICHIARAZIONI E CONSENSI</h3>
-        <p style={{ fontSize: '10px', lineHeight: '1.5', margin: '0 0 10px 0', textAlign: 'justify' }}>
-          Il/La sottoscritto/a chiede di essere ammesso/a come socio/a all'Associazione Culturale "Garage Music Club", dichiara di aver preso visione dello statuto e dei regolamenti interni e di accettarli integralmente, e si impegna a versare la quota associativa annuale.
-        </p>
-        <p style={{ fontSize: '10px', lineHeight: '1.5', margin: '0 0 10px 0', textAlign: 'justify', fontWeight: 'bold' }}>
-          Il/La sottoscritto/a dichiara inoltre di aver ricevuto, letto e compreso l'informativa sul trattamento dei dati personali ai sensi dell’art. 13 del Regolamento (UE) 2016/679 e acconsente al trattamento dei propri dati per le finalità associative.
-        </p>
-        <p style={{ fontSize: '10px', lineHeight: '1.5', margin: '0 0 10px 0', textAlign: 'justify' }}>
-          <span style={{ display: 'inline-block', width: '16px', height: '16px', border: '1px solid black', marginRight: '5px', verticalAlign: 'middle', textAlign: 'center', lineHeight: '16px' }}>
-            {socio.whatsappConsent ? 'X' : ''}
-          </span>
-          Acconsente all'utilizzo del numero di telefono per il gruppo WhatsApp dell'associazione per comunicazioni relative alle attività.
-        </p>
+        <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '10px', lineHeight: '1.6', listStyleType: 'disc' }}>
+            <li style={{ marginBottom: '10px' }}>
+                Chiede di essere ammesso/a come socio/a all'Associazione Culturale "Garage Music Club", dichiara di aver preso visione dello statuto e dei regolamenti interni, di accettarli integralmente e di impegnarsi al versamento della quota associativa annuale.
+            </li>
+            <li style={{ marginBottom: '10px' }}>
+                <Checkbox checked={socio.privacyConsent} />
+                Dichiara di aver ricevuto, letto e compreso l'informativa sul trattamento dei dati personali ai sensi dell’art. 13 del Regolamento (UE) 2016/679 e acconsente al trattamento dei propri dati per le finalità associative.
+            </li>
+            <li style={{ marginBottom: '10px' }}>
+                <Checkbox checked={!!socio.whatsappConsent} />
+                Acconsente all'utilizzo del proprio numero di telefono per l'inserimento nel gruppo WhatsApp dell'associazione, finalizzato a comunicazioni relative alle attività sociali.
+            </li>
+        </ul>
       </div>
       
       {/* Signatures */}
@@ -147,3 +167,5 @@ export function SocioCard({ socio }: SocioCardProps) {
     </div>
   );
 }
+
+    
