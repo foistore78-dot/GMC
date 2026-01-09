@@ -172,37 +172,29 @@ const SocioTableRow = ({
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       
-      // Temporarily render the SocioCard to get its HTML
       const cardHtml = ReactDOMServer.renderToString(
-        <>
-          <style>{`
-            @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto:wght@400;500;700&display=swap');
-            body { font-family: 'Roboto', sans-serif; margin: 0; }
-            .font-headline { font-family: 'Orbitron', sans-serif; }
-          `}</style>
           <SocioCard socio={socio} />
-        </>
       );
       
       const pageStyles = `
         @page { size: A4; margin: 0; }
-        body { margin: 0; background: white; color: black; }
-        #printable-card { 
-          width: 210mm; 
-          height: 297mm; 
-          padding: 15mm; 
-          box-sizing: border-box; 
-        }
+        body { margin: 0; background: white; color: black; font-family: 'Roboto', sans-serif;}
+        .font-headline { font-family: 'Orbitron', sans-serif; }
       `;
+
+      const fontLink = `<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">`;
       
       printWindow.document.write(`
         <html>
           <head>
             <title>Scheda Socio - ${getFullName(socio)}</title>
+            ${fontLink}
             <style>${pageStyles}</style>
           </head>
           <body>
-            ${cardHtml}
+            <div id="printable-card">
+              ${cardHtml}
+            </div>
           </body>
         </html>
       `);
@@ -848,5 +840,3 @@ const SociTableComponent = ({
 
 
 export const SociTable = SociTableComponent;
-
-    

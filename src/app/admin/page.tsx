@@ -40,6 +40,7 @@ const ITEMS_PER_PAGE = 10;
 const getTesseraNumber = (tessera: string | undefined): number => {
   if (!tessera) return -1;
   const parts = tessera.split('-');
+  if (parts.length < 3) return -1;
   const num = parseInt(parts[parts.length - 1], 10);
   return isNaN(num) ? -1 : num;
 };
@@ -246,7 +247,9 @@ export default function AdminPage() {
             <style>${pageStyles}</style>
           </head>
           <body>
-            ${cardHtml}
+            <div id="printable-card">
+              ${cardHtml}
+            </div>
           </body>
         </html>
       `);
@@ -458,5 +461,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-    
