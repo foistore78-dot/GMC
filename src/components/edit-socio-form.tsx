@@ -177,14 +177,15 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     id: socio.id,
                     status: 'pending' as const,
                     requestDate: socio.requestDate || new Date().toISOString(), // Keep original or set new
-                    membershipFee: 0,
-                    tessera: deleteField(),
-                    renewalDate: deleteField(),
-                    joinDate: deleteField(),
-                    expirationDate: deleteField(),
-                    membershipStatus: deleteField(),
                 };
-
+                // Remove member-specific fields
+                delete finalData.tessera;
+                delete finalData.membershipFee;
+                delete finalData.renewalDate;
+                delete finalData.joinDate;
+                delete finalData.expirationDate;
+                delete finalData.membershipStatus;
+                
                 batch.set(newDocRef, finalData, { merge: true });
                 batch.delete(oldDocRef);
                 finalTab = 'requests';
@@ -667,5 +668,3 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     </Form>
   );
 }
-
-    

@@ -180,25 +180,23 @@ const SocioTableRow = ({
 
 
   const handleApproveDialogChange = (isOpen: boolean) => {
-    setShowApproveDialog(isOpen);
     if (!isOpen) {
-      resetApproveDialog();
-      // Only call update if an approval was actually completed
       if (approvedSocioData) {
         onSocioUpdate('active');
       }
+      resetApproveDialog();
     }
+    setShowApproveDialog(isOpen);
   };
   
   const handleRenewDialogChange = (isOpen: boolean) => {
-    setShowRenewDialog(isOpen);
-    if (!isOpen) {
-      resetRenewDialog();
-      // Only call update if a renewal was actually completed
+     if (!isOpen) {
       if (renewedSocioData) {
         onSocioUpdate();
       }
+      resetRenewDialog();
     }
+    setShowRenewDialog(isOpen);
   };
 
   useEffect(() => {
@@ -290,34 +288,35 @@ const SocioTableRow = ({
     if (!firestore || isRenewing) return;
     setIsRenewing(true);
 
-    const memberDocRef = doc(firestore, 'members', socio.id);
-    const renewalDate = new Date();
-    const oldNotes = socio.notes || '';
-    const renewalNote = `--- RINNOVO ${formatDate(renewalDate)} ---\nAnno: ${renewalYear}, Quota: €${renewalFee.toFixed(2)}`;
-    
-    // Prepend the new renewal note to existing notes
-    const newNotes = `${renewalNote}\n\n${oldNotes}`;
-
-    const updatedData = {
-      renewalDate: renewalDate.toISOString(),
-      expirationDate: new Date(parseInt(renewalYear, 10), 11, 31).toISOString(),
-      membershipYear: renewalYear,
-      membershipFee: renewalFee,
-      notes: newNotes,
-    };
-
     try {
+      const memberDocRef = doc(firestore, 'members', socio.id);
+      const renewalDate = new Date();
+      const oldNotes = socio.notes || '';
+      const renewalNote = `--- RINNOVO ${formatDate(renewalDate)} ---\nAnno: ${renewalYear}, Quota: €${renewalFee.toFixed(2)}`;
+      
+      const newNotes = `${renewalNote}\n\n${oldNotes}`;
+
+      const updatedData = {
+        renewalDate: renewalDate.toISOString(),
+        expirationDate: new Date(parseInt(renewalYear, 10), 11, 31).toISOString(),
+        membershipYear: renewalYear,
+        membershipFee: renewalFee,
+        notes: newNotes,
+      };
+
       const batch = writeBatch(firestore);
       batch.update(memberDocRef, updatedData);
       await batch.commit();
 
       const newlyRenewedSocio = { ...socio, ...updatedData };
-      setRenewedSocioData(newlyRenewedSocio);
-
+      
       toast({
         title: 'Rinnovo Effettuato!',
         description: `Il tesseramento di ${getFullName(socio)} è stato rinnovato per l'anno ${renewalYear}.`,
       });
+      
+      setRenewedSocioData(newlyRenewedSocio);
+      
     } catch (error) {
       console.error('Error renewing member:', error);
       toast({
@@ -325,7 +324,7 @@ const SocioTableRow = ({
         description: `Impossibile rinnovare ${getFullName(socio)}. Dettagli: ${(error as Error).message}`,
         variant: 'destructive',
       });
-      setIsRenewing(false); // Only reset on error, success flow is handled by state change
+      setIsRenewing(false);
     }
   };
   
@@ -813,4 +812,3 @@ export const SociTable = ({
     </div>
   );
 }
-    
