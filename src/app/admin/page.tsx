@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { SocioCard } from "@/components/socio-card";
+import { createRoot } from 'react-dom/client';
 
 
 const ITEMS_PER_PAGE = 10;
@@ -225,42 +226,40 @@ export default function AdminPage() {
 
   const executePrint = () => {
     if (!socioToPrint) return;
-    
+
     const printWindow = window.open('', '_blank');
-    if (printWindow) {
-        const cardHtml = `
+    if (!printWindow) {
+      alert('Per favore, consenti i pop-up per stampare la scheda.');
+      return;
+    }
+
+    const tempContainer = document.createElement('div');
+    document.body.appendChild(tempContainer);
+    
+    const root = createRoot(tempContainer);
+    root.render(<SocioCard socio={socioToPrint} />);
+
+    // Give React time to render the component
+    setTimeout(() => {
+        const cardHtml = tempContainer.innerHTML;
+        printWindow.document.write(`
             <html>
                 <head>
-                    <title>Stampa Scheda Socio</title>
+                    <title>Stampa Scheda Socio - ${getFullName(socioToPrint)}</title>
                 </head>
-                <body>
-                    <div id="card-to-print"></div>
-                </body>
+                <body>${cardHtml}</body>
             </html>
-        `;
-        printWindow.document.write(cardHtml);
+        `);
         printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
 
-        const cardContainer = printWindow.document.getElementById('card-to-print');
-        if (cardContainer) {
-            const cardElement = document.createElement('div');
-            document.body.appendChild(cardElement);
+        // Clean up the temporary container
+        root.unmount();
+        document.body.removeChild(tempContainer);
+        
+    }, 500);
 
-            const { createRoot } = require('react-dom/client');
-            const root = createRoot(cardElement);
-            root.render(<SocioCard socio={socioToPrint} />);
-
-            setTimeout(() => {
-                cardContainer.innerHTML = cardElement.innerHTML;
-                document.body.removeChild(cardElement);
-                
-                printWindow.focus();
-                printWindow.print();
-                // printWindow.close(); // Optional: close window after printing
-            }, 500); // Wait for rendering
-        }
-    }
-    
     setShowPrintDialog(false);
     setSocioToPrint(null);
   };
