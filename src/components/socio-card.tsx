@@ -48,7 +48,10 @@ export function SocioCard({ socio }: SocioCardProps) {
         <div className="border-t border-b py-1 my-1">
             <div className="col-span-2">
                 <p className="text-[8px] uppercase tracking-wider text-gray-500">Cognome e Nome / Qualifica</p>
-                <p className="font-medium text-base">{`${socio.lastName} ${socio.firstName}`} {socio.qualifica && socio.qualifica.length > 0 && <span className="font-normal text-xs">({socio.qualifica.join(', ')})</span>}</p>
+                <p className="font-medium text-base">
+                  {`${socio.lastName} ${socio.firstName}`}
+                  {socio.qualifica && socio.qualifica.length > 0 && <span className="font-normal text-xs"> ({socio.qualifica.join(', ')})</span>}
+                </p>
             </div>
              <table className="w-full mt-1 text-[9px]">
                 <tbody>
@@ -127,7 +130,7 @@ export function SocioCard({ socio }: SocioCardProps) {
          {socio.notes && (
             <div className="mt-1 text-[8px] border-t pt-1">
                 <p className="font-bold uppercase text-gray-600">Note:</p>
-                <p className="text-gray-700 whitespace-pre-wrap">{socio.notes}</p>
+                <pre className="text-gray-700 font-sans text-[8px]">{socio.notes}</pre>
             </div>
          )}
       </main>
