@@ -6,8 +6,8 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { SociTable, type SortConfig, getStatus } from "@/components/soci-table";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, writeBatch, getDocs } from "firebase/firestore";
-import { FileDown, FileUp, Loader2, Users, Filter, Printer, Trash2 } from "lucide-react";
+import { collection } from "firebase/firestore";
+import { FileDown, FileUp, Loader2, Users, Filter, Printer } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -63,8 +63,6 @@ export default function AdminPage() {
 
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [socioToPrint, setSocioToPrint] = useState<Socio | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const membersQuery = useMemoFirebase(
     () => (firestore && user ? collection(firestore, "members") : null),
@@ -236,81 +234,36 @@ export default function AdminPage() {
                     <title>Stampa Scheda Socio</title>
                 </head>
                 <body>
-                    <div id="card-container"></div>
+                    <div id="card-to-print"></div>
                 </body>
             </html>
         `;
         printWindow.document.write(cardHtml);
-        
-        // This is a trick to get the SocioCard component's HTML
-        const tempContainer = document.createElement('div');
-        const reactDomServer = require('react-dom/server');
-        const cardString = reactDomServer.renderToString(<SocioCard socio={socioToPrint} />);
-        
-        printWindow.document.getElementById('card-container')!.innerHTML = cardString;
+        printWindow.document.close();
 
-        setTimeout(() => {
-            printWindow.document.close();
-            printWindow.focus();
-            printWindow.print();
-        }, 500);
+        const cardContainer = printWindow.document.getElementById('card-to-print');
+        if (cardContainer) {
+            const cardElement = document.createElement('div');
+            document.body.appendChild(cardElement);
+
+            const { createRoot } = require('react-dom/client');
+            const root = createRoot(cardElement);
+            root.render(<SocioCard socio={socioToPrint} />);
+
+            setTimeout(() => {
+                cardContainer.innerHTML = cardElement.innerHTML;
+                document.body.removeChild(cardElement);
+                
+                printWindow.focus();
+                printWindow.print();
+                // printWindow.close(); // Optional: close window after printing
+            }, 500); // Wait for rendering
+        }
     }
     
     setShowPrintDialog(false);
     setSocioToPrint(null);
-  }
-
-  const handleDeleteAllData = async () => {
-    if (!firestore) return;
-    setIsDeleting(true);
-
-    try {
-      const membersRef = collection(firestore, 'members');
-      const requestsRef = collection(firestore, 'membership_requests');
-
-      const [membersSnapshot, requestsSnapshot] = await Promise.all([
-        getDocs(membersRef),
-        getDocs(requestsRef),
-      ]);
-
-      const allDocs = [...membersSnapshot.docs, ...requestsSnapshot.docs];
-      
-      if (allDocs.length === 0) {
-        toast({ title: "Nessun dato da eliminare." });
-        setIsDeleting(false);
-        setShowDeleteConfirm(false);
-        return;
-      }
-
-      // Firestore batch limit is 500 operations
-      const batchPromises = [];
-      for (let i = 0; i < allDocs.length; i += 500) {
-        const batch = writeBatch(firestore);
-        const chunk = allDocs.slice(i, i + 500);
-        chunk.forEach(doc => batch.delete(doc.ref));
-        batchPromises.push(batch.commit());
-      }
-
-      await Promise.all(batchPromises);
-
-      toast({
-        title: "Dati Eliminati Correttamente",
-        description: `Sono stati eliminati ${allDocs.length} documenti.`,
-      });
-
-    } catch (error) {
-      console.error("Error deleting all data:", error);
-      toast({
-        title: "Errore durante l'eliminazione",
-        description: "Impossibile eliminare i dati. Controlla la console per i dettagli.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeleting(false);
-      setShowDeleteConfirm(false);
-    }
   };
-
 
   if (isUserLoading || !user) {
     return (
@@ -416,31 +369,23 @@ export default function AdminPage() {
             </Tabs>
           )}
         </div>
-        <div className="mt-8 flex justify-between items-center gap-4">
-            <div className="flex gap-4">
-                <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                className="hidden"
-                accept=".xlsx, .xls"
-                />
-                <Button onClick={handleImportClick} disabled={isLoading || isImporting}>
-                    {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
-                    {isImporting ? "Importazione..." : "Importa da Excel"}
-                </Button>
-                <Button onClick={handleExport} variant="outline" disabled={isLoading}>
-                    <FileDown className="mr-2 h-4 w-4" />
-                    Esporta Elenco Completo
-                </Button>
-            </div>
-            <div>
-                <Button onClick={() => setShowDeleteConfirm(true)} variant="destructive" disabled={isLoading || isDeleting}>
-                    {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                    {isDeleting ? "Eliminazione..." : "Elimina Tutti i Dati"}
-                </Button>
-            </div>
-           </div>
+        <div className="mt-8 flex justify-start items-center gap-4">
+            <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+            accept=".xlsx, .xls"
+            />
+            <Button onClick={handleImportClick} disabled={isLoading || isImporting}>
+                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
+                {isImporting ? "Importazione..." : "Importa da Excel"}
+            </Button>
+            <Button onClick={handleExport} variant="outline" disabled={isLoading}>
+                <FileDown className="mr-2 h-4 w-4" />
+                Esporta Elenco Completo
+            </Button>
+        </div>
       </main>
 
        <Sheet open={!!editingSocio} onOpenChange={handleSheetOpenChange}>
@@ -475,26 +420,6 @@ export default function AdminPage() {
             <AlertDialogAction onClick={executePrint}>
               <Printer className="mr-2 h-4 w-4" />
               Stampa
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Sei assolutamente sicuro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Questa azione è irreversibile. Tutti i dati dei soci e delle richieste di iscrizione verranno eliminati in modo permanente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annulla</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteAllData}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              Sì, Elimina Tutto
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
