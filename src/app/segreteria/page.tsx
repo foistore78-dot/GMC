@@ -3,7 +3,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import QRCode from 'react-qr-code';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
@@ -11,7 +10,7 @@ import type { Socio } from '@/lib/soci-data';
 
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Loader2, Printer, QrCode as QrCodeIcon, FileUp, FileDown, FileText } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 
 import { exportToExcel } from "@/lib/excel-export";
 import { importFromExcel, type ImportResult } from "@/lib/excel-import";
+import { cn } from '@/lib/utils';
 
 
 const PUBLIC_URL = 'https://studio--studio-9577324505-15044.us-central1.hosted.app';
@@ -252,12 +252,15 @@ export default function SegreteriaPage() {
                             <p className="text-sm text-muted-foreground mb-4">
                                 Clicca qui per scaricare il modulo di domanda di ammissione a socio. Può essere compilato al computer e poi stampato.
                             </p>
-                             <Button asChild>
-                                <a href="https://www.fantastificio.it/wp-content/uploads/2023/11/Modulo-Iscrizione-Associazione-Fantastificio-APS-compilabile.pdf" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center">
-                                    <FileText className="mr-2 h-4 w-4" />
-                                    Scarica Modulo PDF
-                                </a>
-                            </Button>
+                             <a
+                                href="https://www.fantastificio.it/wp-content/uploads/2023/11/Modulo-Iscrizione-Associazione-Fantastificio-APS-compilabile.pdf"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={cn(buttonVariants({ variant: "default" }))}
+                              >
+                                <FileText className="mr-2 h-4 w-4" />
+                                Scarica Modulo PDF
+                              </a>
                         </div>
                     </CardContent>
                 </Card>
