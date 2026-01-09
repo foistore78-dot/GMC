@@ -7,8 +7,9 @@ import { GarageMusicClubLogo } from "./icons/garage-music-club-logo";
 import { Button } from "./ui/button";
 import { useAuth, useUser } from "@/firebase";
 import { signOut } from "firebase/auth";
-import { Sheet, SheetTrigger, SheetContent } from "./ui/sheet";
+import { Sheet, SheetTrigger, SheetContent, SheetTitle } from "./ui/sheet";
 import { Menu, Home, Shield, QrCode, LogOut, LayoutDashboard, List } from "lucide-react";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 export function Header() {
   const router = useRouter();
@@ -69,6 +70,9 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-full max-w-xs bg-secondary">
+              <VisuallyHidden>
+                <SheetTitle>Menu Principale</SheetTitle>
+              </VisuallyHidden>
               <div className="flex flex-col h-full pt-8">
                  <div className="p-4 flex items-center gap-3 border-b border-border">
                     <GarageMusicClubLogo className="w-8 h-8 text-white" />
