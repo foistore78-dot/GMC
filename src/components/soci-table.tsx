@@ -39,7 +39,7 @@ import { doc, writeBatch, updateDoc } from "firebase/firestore";
 import { format, parseISO, isValid, isBefore, startOfToday } from 'date-fns';
 import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
 import { SocioCard } from "./socio-card";
-import ReactDOM from "react-dom";
+import { createRoot } from 'react-dom/client';
 
 
 // Helper Functions
@@ -192,7 +192,8 @@ const SocioTableRow = ({
   
       const cardContainer = frameDoc.getElementById('card-container');
       if (cardContainer) {
-        ReactDOM.render(<SocioCard socio={socio} />, cardContainer);
+        const root = createRoot(cardContainer);
+        root.render(<SocioCard socio={socio} />);
   
         setTimeout(() => {
           frameWindow.focus();

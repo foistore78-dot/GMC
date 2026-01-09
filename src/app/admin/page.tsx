@@ -32,13 +32,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { SocioCard } from "@/components/socio-card";
-import ReactDOM from "react-dom";
+import { createRoot } from 'react-dom/client';
 
 
 const ITEMS_PER_PAGE = 10;
 
 const getTesseraNumber = (tessera: string | undefined): number => {
-  if (!tessera) return Infinity; // Put soci without tessera at the end
+  if (!tessera) return Infinity;
   const parts = tessera.split('-');
   if (parts.length < 3) return Infinity;
   const num = parseInt(parts[parts.length - 1], 10);
@@ -243,8 +243,8 @@ export default function AdminPage() {
       const cardContainer = frameDoc.getElementById('card-container');
       
       if(cardContainer) {
-        // Use ReactDOM.render to inject the React component into the iframe
-        ReactDOM.render(<SocioCard socio={socioToPrint} />, cardContainer);
+        const root = createRoot(cardContainer);
+        root.render(<SocioCard socio={socioToPrint} />);
 
         setTimeout(() => {
           frameWindow.focus();
