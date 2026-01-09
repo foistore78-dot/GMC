@@ -13,6 +13,16 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -28,7 +38,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { RefreshCw, Pencil, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight } from "lucide-react";
+import { RefreshCw, Pencil, Filter, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
@@ -38,6 +48,7 @@ import { useFirestore } from "@/firebase";
 import { doc, writeBatch, updateDoc } from "firebase/firestore";
 import { format, parseISO, isValid, isBefore, startOfToday } from 'date-fns';
 import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
+import { SocioCard } from "./socio-card";
 
 
 // Helper Functions
@@ -126,12 +137,14 @@ const SocioTableRow = ({
   socio,
   onEdit,
   allMembers,
-  onSocioApproved
+  onSocioApproved,
+  onSocioRenewed,
 }: { 
   socio: Socio; 
   onEdit: (socio: Socio) => void;
   allMembers: Socio[];
-  onSocioApproved?: () => void;
+  onSocioApproved?: (socio: Socio) => void;
+  onSocioRenewed?: (socio: Socio) => void;
 }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -153,6 +166,23 @@ const SocioTableRow = ({
 
   const status = getStatus(socio);
   const socioIsMinor = isMinor(socio.birthDate);
+
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+        const cardNode = document.getElementById(`card-${socio.id}`);
+        if(cardNode) {
+          printWindow.document.write(cardNode.innerHTML);
+          printWindow.document.close();
+          printWindow.focus();
+          // Timeout to ensure styles are applied
+          setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+          }, 500);
+        }
+    }
+  };
 
   useEffect(() => {
     if (showApproveDialog) {
@@ -218,8 +248,9 @@ const SocioTableRow = ({
 
     const { status, ...restOfSocio } = socio;
 
-    const newMemberData: Omit<Socio, 'status'> = {
+    const newMemberData: Socio = {
         ...restOfSocio,
+        id: socio.id, // Ensure id is carried over
         joinDate: new Date().toISOString(),
         membershipStatus: 'active' as const,
         expirationDate: new Date(currentYear, 11, 31).toISOString(),
@@ -240,7 +271,7 @@ const SocioTableRow = ({
             description: `${getFullName(socio)} è ora un membro attivo. N. tessera: ${membershipCardNumber}`,
         });
         setShowApproveDialog(false);
-        if (onSocioApproved) onSocioApproved();
+        if (onSocioApproved) onSocioApproved(newMemberData);
     } catch (error) {
         console.error("Error approving member:", error);
         toast({
@@ -265,23 +296,26 @@ const SocioTableRow = ({
     const updatedNotes = socio.notes ? `${socio.notes}\n${renewalNote}` : renewalNote;
     
     const memberDocRef = doc(firestore, "members", socio.id);
+    
+    const renewedSocioData = {
+        membershipYear: String(currentYear),
+        tessera: newTessera,
+        membershipFee: renewalFee,
+        qualifica: renewalQualifiche,
+        expirationDate: new Date(currentYear, 11, 31).toISOString(),
+        renewalDate: today.toISOString(),
+        notes: updatedNotes,
+    };
 
     try {
-        await updateDoc(memberDocRef, {
-            membershipYear: String(currentYear),
-            tessera: newTessera,
-            membershipFee: renewalFee,
-            qualifica: renewalQualifiche,
-            expirationDate: new Date(currentYear, 11, 31).toISOString(),
-            renewalDate: today.toISOString(),
-            notes: updatedNotes,
-        });
+        await updateDoc(memberDocRef, renewedSocioData);
 
         toast({
             title: "Rinnovo Effettuato!",
             description: `${getFullName(socio)} è stato rinnovato per l'anno ${currentYear}. Nuova tessera: ${newTessera}`,
         });
         setShowRenewDialog(false);
+        if (onSocioRenewed) onSocioRenewed({ ...socio, ...renewedSocioData });
 
     } catch (error) {
         console.error("Error renewing member:", error);
@@ -311,7 +345,10 @@ const SocioTableRow = ({
 
   return (
     <>
-    <TableRow className={cn({ 'bg-orange-500/10 hover:bg-orange-500/20': status === 'expired' })}>
+      <div id={`card-${socio.id}`} className="hidden">
+        <SocioCard socio={socio} />
+      </div>
+      <TableRow className={cn({ 'bg-orange-500/10 hover:bg-orange-500/20': status === 'expired' })}>
         <TableCell className="font-mono text-xs">
           {tesseraDisplay}
         </TableCell>
@@ -354,11 +391,14 @@ const SocioTableRow = ({
                        {socio.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
                        <DetailRow icon={<StickyNote />} label="Note" value={<pre className="text-wrap font-sans">{socio.notes}</pre>} />
                      </div>
-                      <DialogFooter>
+                      <DialogFooter className="sm:justify-between">
                           <DialogClose asChild>
                             <Button variant="ghost">Chiudi</Button>
                           </DialogClose>
-                           <Button onClick={() => onEdit(socio)}><Pencil className="mr-2 h-4 w-4" /> Modifica Dati</Button>
+                          <div className="flex gap-2">
+                             <Button variant="outline" onClick={handlePrint}><Printer className="mr-2 h-4 w-4"/> Stampa Scheda</Button>
+                             <Button onClick={() => onEdit(socio)}><Pencil className="mr-2 h-4 w-4" /> Modifica Dati</Button>
+                          </div>
                       </DialogFooter>
                    </DialogContent>
                  </Dialog>
@@ -411,7 +451,19 @@ const SocioTableRow = ({
             {statusTranslations[status] || status}
           </Badge>
         </TableCell>
-        <TableCell className="text-right">
+        <TableCell className="text-right space-x-1">
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrint}>
+                            <Printer className="h-4 w-4" />
+                            <span className="sr-only">Stampa Scheda</span>
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Stampa Scheda</TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+
             {status === 'pending' && (
               <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
                 <DialogTrigger asChild>
@@ -584,10 +636,11 @@ interface SociTableProps {
   soci: Socio[];
   onEdit: (socio: Socio) => void;
   allMembers: Socio[];
-  onSocioApproved?: () => void;
   sortConfig: SortConfig;
   setSortConfig: Dispatch<SetStateAction<SortConfig>>;
   itemsPerPage: number;
+  onSocioApproved: (socio: Socio) => void;
+  onSocioRenewed: (socio: Socio) => void;
 }
 
 const SortableHeader = ({
@@ -624,7 +677,7 @@ const SortableHeader = ({
   );
 };
 
-const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortConfig, setSortConfig, itemsPerPage }: SociTableProps) => {
+const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, onSocioRenewed, sortConfig, setSortConfig, itemsPerPage }: SociTableProps) => {
   const [filter, setFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -713,6 +766,7 @@ const SociTableComponent = ({ soci, onEdit, allMembers, onSocioApproved, sortCon
                   onEdit={onEdit}
                   allMembers={allMembers}
                   onSocioApproved={onSocioApproved}
+                  onSocioRenewed={onSocioRenewed}
                 />
               ))
             ) : (

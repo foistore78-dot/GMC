@@ -7,7 +7,7 @@ import { Footer } from "@/components/footer";
 import { SociTable, type SortConfig, getStatus } from "@/components/soci-table";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import { FileDown, FileUp, Loader2, Users } from "lucide-react";
+import { FileDown, FileUp, Loader2, Users, Printer } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,6 +20,18 @@ import { Label } from "@/components/ui/label";
 import { exportToExcel } from "@/lib/excel-export";
 import { importFromExcel, type ImportResult } from "@/lib/excel-import";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { SocioCard } from "@/components/socio-card";
+
 
 const ITEMS_PER_PAGE = 10;
 
@@ -46,6 +58,9 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("active");
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "descending" });
   const [hideExpired, setHideExpired] = useState(true);
+  
+  const [socioToPrint, setSocioToPrint] = useState<Socio | null>(null);
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
 
   const membersQuery = useMemoFirebase(
     () => (firestore && user ? collection(firestore, "members") : null),
@@ -162,8 +177,15 @@ export default function AdminPage() {
     }
   };
 
-  const handleSocioApproved = () => {
+  const handleSocioApproved = (approvedSocio: Socio) => {
     handleTabChange("active");
+    setSocioToPrint(approvedSocio);
+    setShowPrintDialog(true);
+  };
+  
+  const handleSocioRenewed = (renewedSocio: Socio) => {
+    setSocioToPrint(renewedSocio);
+    setShowPrintDialog(true);
   };
 
   const handleExport = () => {
@@ -173,6 +195,60 @@ export default function AdminPage() {
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
+  };
+  
+  const handlePrintCard = () => {
+    if (!socioToPrint) return;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      const cardContainer = document.createElement('div');
+      
+      // Temporarily render the SocioCard to get its HTML
+      const ReactDOMServer = require('react-dom/server');
+      const cardHtml = ReactDOMServer.renderToString(
+        <>
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto:wght@400;500;700&display=swap');
+            body { font-family: 'Roboto', sans-serif; margin: 0; }
+            .font-headline { font-family: 'Orbitron', sans-serif; }
+          `}</style>
+          <SocioCard socio={socioToPrint} />
+        </>
+      );
+      
+      const pageStyles = `
+        @page { size: A4; margin: 0; }
+        body { margin: 0; background: white; color: black; }
+        #printable-card { 
+          width: 210mm; 
+          height: 297mm; 
+          padding: 15mm; 
+          box-sizing: border-box; 
+        }
+      `;
+      
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Stampa Scheda Socio</title>
+            <style>${pageStyles}</style>
+          </head>
+          <body>
+            ${cardHtml}
+          </body>
+        </html>
+      `);
+      
+      printWindow.document.close();
+      printWindow.focus();
+      
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 500);
+    }
+    setShowPrintDialog(false);
+    setSocioToPrint(null);
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -255,6 +331,7 @@ export default function AdminPage() {
                     onEdit={handleEditSocio}
                     allMembers={membersData || []}
                     onSocioApproved={handleSocioApproved}
+                    onSocioRenewed={handleSocioRenewed}
                     sortConfig={sortConfig}
                     setSortConfig={setSortConfig}
                     itemsPerPage={ITEMS_PER_PAGE}
@@ -275,6 +352,8 @@ export default function AdminPage() {
                     soci={visibleMembers}
                     onEdit={handleEditSocio}
                     allMembers={membersData || []}
+                    onSocioApproved={handleSocioApproved}
+                    onSocioRenewed={handleSocioRenewed}
                     sortConfig={sortConfig}
                     setSortConfig={setSortConfig}
                     itemsPerPage={ITEMS_PER_PAGE}
@@ -319,6 +398,25 @@ export default function AdminPage() {
           )}
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Stampa Scheda Socio</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vuoi stampare la scheda aggiornata per {socioToPrint ? getFullName(socioToPrint) : 'il socio'}?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSocioToPrint(null)}>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={handlePrintCard}>
+              <Printer className="mr-2 h-4 w-4" />
+              Stampa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
       <Footer />
     </div>
