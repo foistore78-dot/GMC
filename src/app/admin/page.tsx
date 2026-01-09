@@ -31,8 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { SocioCard } from "@/components/socio-card";
-import { createRoot } from 'react-dom/client';
+import { SocioPrintCard } from "@/components/socio-print-card";
 
 
 const ITEMS_PER_PAGE = 10;
@@ -207,54 +206,9 @@ export default function AdminPage() {
   };
   
   const handlePrintCard = () => {
-    if (!socioToPrint) return;
-
-    const printFrame = document.createElement('iframe');
-    printFrame.style.position = 'absolute';
-    printFrame.style.width = '0';
-    printFrame.style.height = '0';
-    printFrame.style.border = '0';
-    document.body.appendChild(printFrame);
-
-    const frameDoc = printFrame.contentDocument;
-    const frameWindow = printFrame.contentWindow;
-
-    if (frameDoc && frameWindow) {
-      frameDoc.open();
-      frameDoc.write(`
-        <html>
-          <head>
-            <title>Scheda Socio - ${getFullName(socioToPrint)}</title>
-            <link rel="preconnect" href="https://fonts.googleapis.com">
-            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-            <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-            <style>
-              @page { size: A4; margin: 0; }
-              body { margin: 0; font-family: 'Roboto', sans-serif; }
-            </style>
-          </head>
-          <body>
-            <div id="card-container"></div>
-          </body>
-        </html>
-      `);
-      frameDoc.close();
-
-      const cardContainer = frameDoc.getElementById('card-container');
-      
-      if(cardContainer) {
-        const root = createRoot(cardContainer);
-        root.render(<SocioCard socio={socioToPrint} />);
-
-        setTimeout(() => {
-          frameWindow.focus();
-          frameWindow.print();
-          document.body.removeChild(printFrame);
-          setSocioToPrint(null);
-        }, 500); // Increased timeout to ensure fonts and styles are loaded
-      }
-    }
+    window.print();
     setShowPrintDialog(false);
+    setSocioToPrint(null);
   };
 
 
@@ -363,6 +317,7 @@ export default function AdminPage() {
                 <SociTable 
                     soci={sortedRequests}
                     onEdit={handleEditSocio}
+                    onPrint={(socio) => { setSocioToPrint(socio); setShowPrintDialog(true); }}
                     allMembers={membersData || []}
                     onSocioApproved={handleSocioApproved}
                     onSocioRenewed={handleSocioRenewed}
@@ -378,6 +333,7 @@ export default function AdminPage() {
                 <SociTable 
                     soci={sortedMembers}
                     onEdit={handleEditSocio}
+                    onPrint={(socio) => { setSocioToPrint(socio); setShowPrintDialog(true); }}
                     allMembers={membersData || []}
                     onSocioApproved={handleSocioApproved}
                     onSocioRenewed={handleSocioRenewed}
@@ -435,11 +391,14 @@ export default function AdminPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Stampa Scheda Socio</AlertDialogTitle>
             <AlertDialogDescription>
-              Vuoi stampare la scheda aggiornata per {socioToPrint ? getFullName(socioToPrint) : 'il socio'}?
+              Stai per stampare la scheda per {socioToPrint ? getFullName(socioToPrint) : 'il socio'}.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div id="printable-area" className="p-4 bg-white text-black rounded-md">
+            {socioToPrint && <SocioPrintCard socio={socioToPrint} />}
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setSocioToPrint(null)}>Annulla</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => { setShowPrintDialog(false); setSocioToPrint(null); }}>Annulla</AlertDialogCancel>
             <AlertDialogAction onClick={handlePrintCard}>
               <Printer className="mr-2 h-4 w-4" />
               Stampa
@@ -453,5 +412,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-    

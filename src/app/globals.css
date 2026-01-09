@@ -96,16 +96,23 @@ body {
   body * {
     visibility: hidden;
   }
-  #printable-card, #printable-card * {
+  #printable-area, #printable-area * {
     visibility: visible;
   }
-  #printable-card {
+  #printable-area {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
-    height: 100%;
+    height: auto;
     background: white;
     color: black;
+  }
+   body {
+    background-color: white;
+    font-size: 10pt;
+  }
+  .no-print {
+    display: none;
   }
 }
