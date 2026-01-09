@@ -170,7 +170,7 @@ export default function SegreteriaPage() {
 
   const handlePdfDownload = () => {
     const link = document.createElement('a');
-    link.href = 'https://www.fantastificio.it/wp-content/uploads/2023/11/Modulo-Iscrizione-Associazione-Fantastificio-APS-compilabile.pdf';
+    link.href = 'https://www.associazionivalledelsagittario.it/wp-content/uploads/2019/02/domanda-di-ammissione-a-socio.pdf';
     link.setAttribute('download', 'Modulo-Iscrizione-Garage-Music-Club.pdf'); // This suggests a filename to the browser
     document.body.appendChild(link);
     link.click();
