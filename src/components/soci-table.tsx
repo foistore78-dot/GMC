@@ -39,7 +39,6 @@ import { useFirestore } from "@/firebase";
 import { doc, writeBatch } from "firebase/firestore";
 import { format, parseISO, isValid, isBefore, startOfToday } from 'date-fns';
 import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
-import { RenewSocioDialog } from "./renew-socio-dialog";
 
 // Helper Functions
 export const getFullName = (socio: any) => `${socio.lastName || ''} ${socio.firstName || ''}`.trim();
@@ -154,16 +153,22 @@ const SocioTableRow = ({
 }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
+  
+  // State for Approval Dialog
   const [isApproving, setIsApproving] = useState(false);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
-  const [showRenewDialog, setShowRenewDialog] = useState(false);
-  
   const [newMemberNumber, setNewMemberNumber] = useState("");
   const [membershipFee, setMembershipFee] = useState(10);
   const [qualifiche, setQualifiche] = useState<string[]>([]);
   const [feePaid, setFeePaid] = useState(false);
-  
   const [approvedSocioData, setApprovedSocioData] = useState<Socio | null>(null);
+
+  // State for Renewal Dialog
+  const [isRenewing, setIsRenewing] = useState(false);
+  const [showRenewDialog, setShowRenewDialog] = useState(false);
+  const [renewalYear, setRenewalYear] = useState("");
+  const [renewalFee, setRenewalFee] = useState(10);
+  const [renewedSocioData, setRenewedSocioData] = useState<Socio | null>(null);
 
 
   const status = getStatus(socio);
@@ -175,8 +180,14 @@ const SocioTableRow = ({
     setApprovedSocioData(null);
   };
   
+  const resetRenewDialog = () => {
+      setShowRenewDialog(false);
+      setIsRenewing(false);
+      setRenewedSocioData(null);
+  };
+
   useEffect(() => {
-    if (showApproveDialog && !approvedSocioData) {
+    if (showApproveDialog) {
       const currentYear = new Date().getFullYear();
       
       const yearMemberNumbers = allMembers
@@ -197,9 +208,17 @@ const SocioTableRow = ({
       setNewMemberNumber(String(nextNumber));
       setMembershipFee(socioIsMinor ? 0 : 10);
       setQualifiche(socio.qualifica || []);
-      setFeePaid(false); // Reset checkbox
+      setFeePaid(false);
     }
-  }, [showApproveDialog, approvedSocioData, allMembers, socioIsMinor, socio.qualifica]);
+  }, [showApproveDialog, allMembers, socioIsMinor, socio.qualifica]);
+
+   useEffect(() => {
+    if (showRenewDialog) {
+      const currentYear = new Date().getFullYear();
+      setRenewalYear(String(currentYear));
+      setRenewalFee(socioIsMinor ? 0 : 10);
+    }
+  }, [showRenewDialog, socioIsMinor]);
 
 
   const handleApprove = async () => {
@@ -218,7 +237,7 @@ const SocioTableRow = ({
 
     const newMemberData: Socio = {
         ...restOfSocio,
-        id: socio.id, // Ensure id is carried over
+        id: socio.id,
         joinDate: new Date().toISOString(),
         membershipStatus: 'active' as const,
         expirationDate: new Date(currentYear, 11, 31).toISOString(),
@@ -239,7 +258,7 @@ const SocioTableRow = ({
             description: `${getFullName(socio)} è ora un membro attivo. N. tessera: ${membershipCardNumber}`,
         });
         setApprovedSocioData(newMemberData);
-        if (onSocioApproved) onSocioApproved(newMemberData);
+        onSocioApproved?.(newMemberData);
     } catch (error) {
         console.error("Error approving member:", error);
         toast({
@@ -249,6 +268,43 @@ const SocioTableRow = ({
         });
     } finally {
       setIsApproving(false);
+    }
+  };
+
+  const handleRenew = async () => {
+    if (!firestore || isRenewing) return;
+    setIsRenewing(true);
+  
+    const memberDocRef = doc(firestore, 'members', socio.id);
+  
+    const updatedData = {
+      renewalDate: new Date().toISOString(),
+      expirationDate: new Date(parseInt(renewalYear, 10), 11, 31).toISOString(),
+      membershipYear: renewalYear,
+      membershipFee: renewalFee,
+    };
+  
+    try {
+      const batch = writeBatch(firestore);
+      batch.update(memberDocRef, updatedData);
+      await batch.commit();
+  
+      const newlyRenewedSocio = { ...socio, ...updatedData };
+      setRenewedSocioData(newlyRenewedSocio); // Update state to show confirmation
+  
+      toast({
+        title: 'Rinnovo Effettuato!',
+        description: `Il tesseramento di ${getFullName(socio)} è stato rinnovato per l'anno ${renewalYear}.`,
+      });
+      onSocioRenewed?.(newlyRenewedSocio);
+    } catch (error) {
+      console.error('Error renewing member:', error);
+      toast({
+        title: 'Errore di Rinnovo',
+        description: `Impossibile rinnovare ${getFullName(socio)}. Dettagli: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
+      setIsRenewing(false);
     }
   };
   
@@ -505,25 +561,81 @@ const SocioTableRow = ({
               </Dialog>
             )}
             {status === 'expired' && (
-              <>
-                <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-orange-500 hover:text-orange-500 hover:bg-orange-500/10 h-8"
-                    onClick={() => setShowRenewDialog(true)}
-                >
-                    <RefreshCw className="h-4 w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Rinnova</span>
-                </Button>
-                <RenewSocioDialog 
-                    open={showRenewDialog}
-                    onOpenChange={setShowRenewDialog}
-                    socio={socio}
-                    allMembers={allMembers}
-                    onSocioRenewed={onSocioRenewed}
-                    onPrint={onPrint}
-                />
-              </>
+              <Dialog open={showRenewDialog} onOpenChange={resetRenewDialog}>
+                <DialogTrigger asChild>
+                    <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-orange-500 hover:text-orange-500 hover:bg-orange-500/10 h-8"
+                    >
+                        <RefreshCw className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Rinnova</span>
+                    </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                    {renewedSocioData ? (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle>Rinnovo Completato!</DialogTitle>
+                                <DialogDescription>
+                                    L'iscrizione di <strong className="text-foreground">{getFullName(renewedSocioData)}</strong> è stata rinnovata per l'anno {renewedSocioData.membershipYear}.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="py-4 text-center">
+                                <p className="text-sm">Nuova data di scadenza:</p>
+                                <p className="font-bold text-lg text-primary">{formatDate(renewedSocioData.expirationDate)}</p>
+                            </div>
+                            <DialogFooter>
+                                <Button variant="ghost" onClick={resetRenewDialog}>Chiudi</Button>
+                                <Button onClick={() => { onPrint(renewedSocioData); resetRenewDialog(); }}>
+                                    <Printer className="mr-2 h-4 w-4" /> Stampa Scheda
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    ) : (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle>Rinnova Tesseramento</DialogTitle>
+                                <DialogDescription>
+                                    Stai rinnovando il tesseramento per <strong className="text-foreground">{getFullName(socio)}</strong>.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="renewal-year" className="text-right">
+                                        Anno
+                                    </Label>
+                                    <Input
+                                        id="renewal-year"
+                                        value={renewalYear}
+                                        onChange={(e) => setRenewalYear(e.target.value)}
+                                        className="col-span-3"
+                                    />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="renewal-fee" className="text-right">
+                                        Quota (€)
+                                    </Label>
+                                    <Input
+                                        id="renewal-fee"
+                                        type="number"
+                                        value={renewalFee}
+                                        onChange={(e) => setRenewalFee(Number(e.target.value))}
+                                        className="col-span-3"
+                                    />
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button variant="ghost" onClick={() => setShowRenewDialog(false)}>Annulla</Button>
+                                <Button onClick={handleRenew} disabled={isRenewing}>
+                                    {isRenewing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Conferma Rinnovo
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                </DialogContent>
+               </Dialog>
             )}
         </TableCell>
       </TableRow>
