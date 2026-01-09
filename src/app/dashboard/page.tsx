@@ -72,13 +72,12 @@ export default function DashboardPage() {
     
     const expiredMembers = allMembers.filter(mem => getStatus(mem) === 'expired').length;
     
-    const activeMembersByYear = allMembers
-        .filter(mem => getStatus(mem) === 'active')
-        .reduce((acc, mem) => {
-            const year = mem.membershipYear || 'N/A';
-            acc[year] = (acc[year] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>);
+    // Corrected Logic: Count all members (active and expired) for their respective membership year.
+    const membersByYear = allMembers.reduce((acc, mem) => {
+      const year = mem.membershipYear || 'N/A';
+      acc[year] = (acc[year] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
 
 
     const monthlySignups = Array(12).fill(0);
@@ -104,9 +103,9 @@ export default function DashboardPage() {
     return {
       pendingApproval,
       expiredMembers,
-      active_2024: activeMembersByYear['2024'] || 0,
-      active_2025: activeMembersByYear['2025'] || 0,
-      active_2026: activeMembersByYear['2026'] || 0,
+      members_2024: membersByYear['2024'] || 0,
+      members_2025: membersByYear['2025'] || 0,
+      members_2026: membersByYear['2026'] || 0,
       chartData,
     };
   }, [membersData, requestsData]);
@@ -152,15 +151,15 @@ export default function DashboardPage() {
                 description="Soci con tesseramento scaduto"
             />
             <StatCard 
-                title="Soci Attivi (2025)"
-                value={stats.active_2025}
+                title="Soci (2025)"
+                value={stats.members_2025}
                 icon={<History className="h-4 w-4 text-muted-foreground" />}
                 link="/admin/elenco?filter=2025"
                 description="Iscritti per l'anno prossimo"
             />
             <StatCard 
-                title="Soci Attivi (2026)"
-                value={stats.active_2026}
+                title="Soci (2026)"
+                value={stats.members_2026}
                 icon={<History className="h-4 w-4 text-muted-foreground" />}
                 link="/admin/elenco?filter=2026"
                 description="Iscritti per l'anno successivo"
