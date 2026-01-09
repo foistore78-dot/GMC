@@ -141,8 +141,9 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
             try {
                 const { statusForImport, ...socioData } = excelRowToSocio(row);
 
-                if (!socioData.lastName || !socioData.firstName || !socioData.birthDate) {
+                if (!socioData.lastName && !socioData.firstName) {
                   errorCount++;
+                  console.warn("Riga saltata perché mancano sia nome che cognome:", row);
                   continue;
                 }
                 
