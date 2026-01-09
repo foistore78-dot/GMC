@@ -96,7 +96,7 @@ export function MembershipForm() {
       firstName: "",
       lastName: "",
       email: "",
-      phone: "",
+      phone: "+39 ",
       birthPlace: "",
       birthDate: "",
       fiscalCode: "",
@@ -114,6 +114,7 @@ export function MembershipForm() {
   });
 
   const birthDate = form.watch("birthDate");
+  const phoneValue = form.watch("phone");
 
   const steps = isMinor ? [...baseSteps.slice(0, 3), guardianStep, ...baseSteps.slice(3)] : baseSteps;
   
@@ -210,6 +211,7 @@ export function MembershipForm() {
   }
 
   const progress = ((currentStep + 1) / steps.length) * 100;
+  const isPhoneEntered = phoneValue && phoneValue.trim().length > 4;
 
   return (
     <>
@@ -447,7 +449,7 @@ export function MembershipForm() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t('steps.contact.phone')}</FormLabel>
-                          <FormControl><Input placeholder="+39 333 1234567" {...field} /></FormControl>
+                          <FormControl><Input {...field} /></FormControl>
                            <FormDescription>{t('validation.optionalField')}</FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -457,11 +459,12 @@ export function MembershipForm() {
                       control={form.control}
                       name="whatsappConsent"
                       render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm bg-background">
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm bg-background data-[disabled=true]:opacity-50" data-disabled={!isPhoneEntered}>
                           <FormControl>
                             <Checkbox
                               checked={field.value}
                               onCheckedChange={field.onChange}
+                              disabled={!isPhoneEntered}
                             />
                           </FormControl>
                           <div className="space-y-1 leading-none">
