@@ -29,14 +29,6 @@ import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useLanguage } from "./language-provider";
 
-
-// Helper function to capitalize strings (e.g., "jOhN" -> "John")
-const capitalize = (s: string) => {
-  if (!s) return "";
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-};
-
-
 export function MembershipForm() {
   const { t, language } = useLanguage();
   const { toast } = useToast();
@@ -289,10 +281,6 @@ export function MembershipForm() {
                             <Input
                               placeholder={t('steps.name.firstNamePlaceholder')}
                               {...field}
-                              onBlur={(e) => {
-                                field.onBlur();
-                                form.setValue("firstName", capitalize(e.target.value));
-                              }}
                             />
                           </FormControl>
                           <FormMessage />
@@ -309,10 +297,6 @@ export function MembershipForm() {
                             <Input
                               placeholder={t('steps.name.lastNamePlaceholder')}
                               {...field}
-                              onBlur={(e) => {
-                                field.onBlur();
-                                form.setValue("lastName", capitalize(e.target.value));
-                              }}
                             />
                           </FormControl>
                           <FormMessage />
@@ -345,10 +329,6 @@ export function MembershipForm() {
                             <Input
                               placeholder={t('steps.birth.placePlaceholder')}
                               {...field}
-                              onBlur={(e) => {
-                                field.onBlur();
-                                form.setValue("birthPlace", capitalize(e.target.value));
-                              }}
                             />
                           </FormControl>
                           <FormMessage />
@@ -371,10 +351,6 @@ export function MembershipForm() {
                                       <Input
                                         placeholder={t('steps.guardian.firstNamePlaceholder')}
                                         {...field}
-                                        onBlur={(e) => {
-                                          field.onBlur();
-                                          form.setValue("guardianFirstName", capitalize(e.target.value));
-                                        }}
                                       />
                                     </FormControl>
                                     <FormMessage />
@@ -391,10 +367,6 @@ export function MembershipForm() {
                                       <Input
                                         placeholder={t('steps.guardian.lastNamePlaceholder')}
                                         {...field}
-                                        onBlur={(e) => {
-                                          field.onBlur();
-                                          form.setValue("guardianLastName", capitalize(e.target.value));
-                                        }}
                                       />
                                     </FormControl>
                                     <FormMessage />
@@ -426,10 +398,6 @@ export function MembershipForm() {
                             <Input
                               placeholder="RSSMRA80A01H501U"
                               {...field}
-                              onBlur={(e) => {
-                                field.onBlur();
-                                form.setValue("fiscalCode", e.target.value.toUpperCase());
-                              }}
                             />
                           </FormControl>
                           <FormDescription>{t('validation.optionalField')}</FormDescription>
@@ -463,10 +431,6 @@ export function MembershipForm() {
                                 <Input
                                   placeholder={t('steps.address.cityPlaceholder')}
                                   {...field}
-                                  onBlur={(e) => {
-                                    field.onBlur();
-                                    form.setValue("city", capitalize(e.target.value));
-                                  }}
                                 />
                               </FormControl>
                               <FormMessage />
@@ -483,10 +447,6 @@ export function MembershipForm() {
                                 <Input
                                   placeholder="RM"
                                   {...field}
-                                   onBlur={(e) => {
-                                    field.onBlur();
-                                    form.setValue("province", e.target.value.toUpperCase());
-                                  }}
                                 />
                               </FormControl>
                               <FormMessage />
