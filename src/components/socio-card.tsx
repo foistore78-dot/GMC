@@ -93,19 +93,19 @@ export function SocioCard({ socio }: SocioCardProps) {
        {/* Consents */}
        <div style={{ marginBottom: '20px' }}>
         <h3 style={{ fontSize: '13px', fontWeight: 'bold', margin: '0 0 10px 0', borderBottom: '1px solid #ccc', paddingBottom: '5px' }}>DICHIARAZIONI E CONSENSI</h3>
-        <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '10px', lineHeight: '1.6', listStyleType: 'disc' }}>
-            <li style={{ marginBottom: '10px' }}>
-                Chiede di essere ammesso/a come socio/a all'Associazione Culturale "Garage Music Club", dichiara di aver preso visione dello statuto e dei regolamenti interni, di accettarli integralmente e di impegnarsi al versamento della quota associativa annuale.
-            </li>
-            <li style={{ marginBottom: '10px' }}>
-                <Checkbox checked={socio.privacyConsent} />
-                Dichiara di aver ricevuto, letto e compreso l'informativa sul trattamento dei dati personali ai sensi dell’art. 13 del Regolamento (UE) 2016/679 e acconsente al trattamento dei propri dati per le finalità associative.
-            </li>
-            <li style={{ marginBottom: '10px' }}>
+        <div style={{ fontSize: '10px', lineHeight: '1.6' }}>
+            <p style={{ margin: '0 0 10px 0' }}>
+                Il/La sottoscritto/a, letta l'informativa sul trattamento dei dati personali, chiede di essere ammesso/a come socio/a all'Associazione Culturale "Garage Music Club", di cui dichiara di aver preso visione dello statuto e dei regolamenti interni e di accettarli integralmente. Si impegna a versare la quota associativa annuale.
+            </p>
+            <p style={{ margin: '0 0 10px 0' }}>
                 <Checkbox checked={!!socio.whatsappConsent} />
-                Acconsente all'utilizzo del proprio numero di telefono per l'inserimento nel gruppo WhatsApp dell'associazione, finalizzato a comunicazioni relative alle attività sociali.
-            </li>
-        </ul>
+                <b>Consenso WhatsApp:</b> Acconsente all'inserimento del proprio numero di telefono nel gruppo WhatsApp dell'associazione per comunicazioni relative alle attività.
+            </p>
+            <p style={{ margin: '0' }}>
+                <Checkbox checked={socio.privacyConsent} />
+                <b>Consenso Privacy (Art. 13 GDPR):</b> Dichiara di aver ricevuto, letto e compreso l'informativa sul trattamento dei dati personali e acconsente al trattamento dei propri dati personali per le finalità associative, inclusa la gestione del tesseramento e l'invio di comunicazioni istituzionali. Il consenso è obbligatorio per l'ammissione.
+            </p>
+        </div>
       </div>
       
       {/* Signatures */}
