@@ -824,3 +824,5 @@ const SociTableComponent = ({
 
 
 export const SociTable = SociTableComponent;
+
+    
