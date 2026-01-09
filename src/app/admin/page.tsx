@@ -7,7 +7,7 @@ import { Footer } from "@/components/footer";
 import { SociTable, type SortConfig, getStatus } from "@/components/soci-table";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import { FileDown, FileUp, Loader2, Users, Filter } from "lucide-react";
+import { FileDown, FileUp, Loader2, Users, Filter, Printer } from "lucide-react";
 import type { Socio } from "@/lib/soci-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,6 +21,19 @@ import { Input } from "@/components/ui/input";
 import { exportToExcel } from "@/lib/excel-export";
 import { importFromExcel, type ImportResult } from "@/lib/excel-import";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { SocioCard } from "@/components/socio-card";
+import ReactDOMServer from "react-dom/server";
+
 
 const ITEMS_PER_PAGE = 10;
 
@@ -49,9 +62,12 @@ export default function AdminPage() {
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "ascending" });
   const [hideExpired, setHideExpired] = useState(true);
   
-  // State for filter and pagination
   const [filter, setFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+
+  const [socioToPrint, setSocioToPrint] = useState<Socio | null>(null);
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
+
 
   const membersQuery = useMemoFirebase(
     () => (firestore && user ? collection(firestore, "members") : null),
@@ -79,18 +95,12 @@ export default function AdminPage() {
     return [...activeSoci].sort((a, b) => {
         const { key, direction } = sortConfig;
         
-        const yearA = getTesseraYear(a);
-        const yearB = getTesseraYear(b);
-
         let aValue: any;
         let bValue: any;
         
         if (key === 'tessera') {
             const numA = getTesseraNumber(a.tessera);
             const numB = getTesseraNumber(b.tessera);
-            if (yearA !== yearB) {
-                return direction === 'ascending' ? yearA - yearB : yearB - yearA;
-            }
             aValue = numA;
             bValue = numB;
         } else if (key === 'name') {
@@ -118,7 +128,7 @@ export default function AdminPage() {
       if (key === 'name') {
         aValue = `${a.lastName} ${a.firstName}`.toLowerCase();
         bValue = `${b.lastName} ${b.firstName}`.toLowerCase();
-      } else if (key === 'tessera') { // Cannot sort requests by tessera
+      } else if (key === 'tessera') { 
         aValue = `${a.lastName} ${a.firstName}`.toLowerCase();
         bValue = `${b.lastName} ${b.firstName}`.toLowerCase();
       } else {
@@ -213,6 +223,45 @@ export default function AdminPage() {
     }
   };
   
+  const handleRequestPrint = (socio: Socio) => {
+    setSocioToPrint(socio);
+    setShowPrintDialog(true);
+  };
+  
+  const handlePrint = () => {
+    if (!socioToPrint) return;
+
+    const cardHtml = ReactDOMServer.renderToString(<SocioCard socio={socioToPrint} />);
+    const printWindow = window.open('', '_blank');
+    
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Stampa Scheda Socio</title>
+            <style>
+              body { margin: 0; font-family: sans-serif; }
+              @media print {
+                @page { size: A4; margin: 0; }
+                body { margin: 1.5cm; }
+              }
+            </style>
+          </head>
+          <body>
+            ${cardHtml}
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      setTimeout(() => {
+        printWindow.print();
+      }, 500); // Timeout to ensure content is loaded
+    }
+    setShowPrintDialog(false);
+    setSocioToPrint(null);
+  };
+
+
   if (isUserLoading || !user) {
     return (
       <div className="flex flex-col min-h-screen bg-secondary">
@@ -286,6 +335,7 @@ export default function AdminPage() {
                 <SociTable 
                     soci={sortedRequests}
                     onEdit={handleEditSocio}
+                    onPrint={handleRequestPrint}
                     allMembers={membersData || []}
                     onSocioApproved={resetToDefaultSort}
                     onSocioRenewed={resetToDefaultSort}
@@ -301,6 +351,7 @@ export default function AdminPage() {
                 <SociTable 
                     soci={sortedMembers}
                     onEdit={handleEditSocio}
+                    onPrint={handleRequestPrint}
                     allMembers={membersData || []}
                     onSocioApproved={resetToDefaultSort}
                     onSocioRenewed={resetToDefaultSort}
@@ -353,7 +404,28 @@ export default function AdminPage() {
         </SheetContent>
       </Sheet>
 
+      <AlertDialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Stampa Scheda Socio</AlertDialogTitle>
+            <AlertDialogDescription>
+              Stai per stampare la scheda per <span className="font-bold">{socioToPrint ? getFullName(socioToPrint) : ''}</span>. Vuoi procedere?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSocioToPrint(null)}>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={handlePrint}>
+              <Printer className="mr-2 h-4 w-4" />
+              Stampa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+
       <Footer />
     </div>
   );
 }
+
+    

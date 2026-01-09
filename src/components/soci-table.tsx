@@ -24,11 +24,11 @@ import {
 } from "@/components/ui/dialog";
 import {
   Tooltip,
-  TooltipContent,
   TooltipProvider,
+  TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { RefreshCw, Pencil, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight } from "lucide-react";
+import { RefreshCw, Pencil, MessageCircle, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
@@ -125,12 +125,14 @@ const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: strin
 const SocioTableRow = ({ 
   socio,
   onEdit,
+  onPrint,
   allMembers,
   onSocioApproved,
   onSocioRenewed,
 }: { 
   socio: Socio; 
   onEdit: (socio: Socio) => void;
+  onPrint: (socio: Socio) => void;
   allMembers: Socio[];
   onSocioApproved?: (socio: Socio) => void;
   onSocioRenewed?: (socio: Socio) => void;
@@ -419,6 +421,18 @@ const SocioTableRow = ({
           </Badge>
         </TableCell>
         <TableCell className="text-right space-x-1">
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onPrint(socio)}>
+                            <Printer className="h-4 w-4" />
+                            <span className="sr-only">Stampa Scheda</span>
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Stampa Scheda</TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+
             {status === 'pending' && (
               <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
                 <DialogTrigger asChild>
@@ -589,6 +603,7 @@ export type SortConfig = {
 interface SociTableProps {
   soci: Socio[];
   onEdit: (socio: Socio) => void;
+  onPrint: (socio: Socio) => void;
   allMembers: Socio[];
   sortConfig: SortConfig;
   setSortConfig: Dispatch<SetStateAction<SortConfig>>;
@@ -637,6 +652,7 @@ const SortableHeader = ({
 const SociTableComponent = ({ 
   soci, 
   onEdit, 
+  onPrint,
   allMembers, 
   onSocioApproved, 
   onSocioRenewed, 
@@ -718,6 +734,7 @@ const SociTableComponent = ({
                   key={socio.id} 
                   socio={socio}
                   onEdit={onEdit}
+                  onPrint={onPrint}
                   allMembers={allMembers}
                   onSocioApproved={onSocioApproved}
                   onSocioRenewed={onSocioRenewed}
@@ -764,3 +781,5 @@ const SociTableComponent = ({
 
 
 export const SociTable = SociTableComponent;
+
+    
