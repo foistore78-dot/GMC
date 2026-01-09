@@ -32,7 +32,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { SocioCard } from "@/components/socio-card";
-import { createRoot } from 'react-dom/client';
 
 
 const ITEMS_PER_PAGE = 10;
@@ -228,24 +227,35 @@ export default function AdminPage() {
 
   const executePrint = () => {
     if (!socioToPrint) return;
-
+    
     const printWindow = window.open('', '_blank');
     if (printWindow) {
-      printWindow.document.write('<html><head><title>Stampa Scheda Socio</title></head><body>');
-      const cardContainer = printWindow.document.createElement('div');
-      printWindow.document.body.appendChild(cardContainer);
+        const cardHtml = `
+            <html>
+                <head>
+                    <title>Stampa Scheda Socio</title>
+                </head>
+                <body>
+                    <div id="card-container"></div>
+                </body>
+            </html>
+        `;
+        printWindow.document.write(cardHtml);
+        
+        // This is a trick to get the SocioCard component's HTML
+        const tempContainer = document.createElement('div');
+        const reactDomServer = require('react-dom/server');
+        const cardString = reactDomServer.renderToString(<SocioCard socio={socioToPrint} />);
+        
+        printWindow.document.getElementById('card-container')!.innerHTML = cardString;
 
-      const root = createRoot(cardContainer);
-      root.render(<SocioCard socio={socioToPrint} />);
-
-      setTimeout(() => {
-        printWindow.document.close();
-        printWindow.focus();
-        printWindow.print();
-        // The window will likely be closed by the user, but this is a fallback.
-        // printWindow.close();
-      }, 500); // Wait for content to render
+        setTimeout(() => {
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+        }, 500);
     }
+    
     setShowPrintDialog(false);
     setSocioToPrint(null);
   }
@@ -267,6 +277,8 @@ export default function AdminPage() {
       
       if (allDocs.length === 0) {
         toast({ title: "Nessun dato da eliminare." });
+        setIsDeleting(false);
+        setShowDeleteConfirm(false);
         return;
       }
 
@@ -492,5 +504,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-    

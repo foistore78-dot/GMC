@@ -3,8 +3,8 @@ import type { Socio } from './soci-data';
 import { collection, writeBatch, Firestore, doc, getDocs, query } from 'firebase/firestore';
 import { parse } from 'date-fns';
 
-const parseDate = (dateStr: string | number | undefined): string | null => {
-  if (!dateStr) return null;
+const parseDate = (dateStr: string | number | undefined): string | undefined => {
+  if (!dateStr) return undefined;
   // Excel sometimes stores dates as numbers (days since 1900).
   if (typeof dateStr === 'number') {
     const date = XLSX.SSF.parse_date_code(dateStr);
@@ -22,7 +22,7 @@ const parseDate = (dateStr: string | number | undefined): string | null => {
             if (!isNaN(isoDate.getTime())) {
                 return isoDate.toISOString();
             }
-            return null; // Return null if all parsing attempts fail
+            return undefined; // Return undefined if all parsing attempts fail
          }
          return parsedDate2.toISOString();
        }
@@ -34,10 +34,10 @@ const parseDate = (dateStr: string | number | undefined): string | null => {
         return isoDate.toISOString();
       }
       console.warn(`Could not parse date: ${dateStr}`);
-      return null;
+      return undefined;
     }
   }
-  return null;
+  return undefined;
 };
 
 type PartialSocioWithStatus = Partial<Socio> & { statusForImport: 'active' | 'pending' | 'expired' };
