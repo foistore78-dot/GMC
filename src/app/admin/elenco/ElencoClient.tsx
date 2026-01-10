@@ -69,7 +69,7 @@ const filterAndSortData = (
     let aValue: any;
     let bValue: any;
 
-    if (key === "tessera") {
+    if (key === "tessera" || key === 'tessera_mobile') {
       aValue = getTesseraNumber(a.tessera);
       bValue = getTesseraNumber(b.tessera);
     } else if (key === "name") {
@@ -316,19 +316,19 @@ export default function ElencoClient() {
                 <TabsList className="self-start">
                   <TabsTrigger
                     value="active"
-                    className="text-xs sm:text-sm data-[state=active]:bg-green-500/20 data-[state=active]:text-green-300"
+                    className="text-xs px-2 sm:text-sm data-[state=active]:bg-green-500/20 data-[state=active]:text-green-300"
                   >
                     Attivi ({counts.active})
                   </TabsTrigger>
                   <TabsTrigger
                     value="expired"
-                    className="text-xs sm:text-sm data-[state=active]:bg-yellow-500/20 data-[state=active]:text-yellow-300"
+                    className="text-xs px-2 sm:text-sm data-[state=active]:bg-yellow-500/20 data-[state=active]:text-yellow-300"
                   >
                     In Attesa di Rinnovo ({counts.expired})
                   </TabsTrigger>
                   <TabsTrigger
                     value="requests"
-                    className="text-xs sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300"
+                    className="text-xs px-2 sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300"
                   >
                     Richieste ({counts.requests})
                   </TabsTrigger>

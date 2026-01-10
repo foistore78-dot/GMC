@@ -39,7 +39,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer, MessageCircle, Building, Cake, Trash2 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer, MessageCircle, Building, Cake, Trash2, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
@@ -425,13 +431,17 @@ const handleRenew = async () => {
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const tesseraDisplay = socio.tessera ? `${socio.tessera.split('-')[1]}-${socio.tessera.split('-')[2]}` : '-';
+  const tesseraDisplayDesktop = socio.tessera ? `${socio.tessera.split('-')[1]}-${socio.tessera.split('-')[2]}` : '-';
+  const tesseraDisplayMobile = socio.tessera ? socio.tessera.split('-').pop() : '-';
 
   return (
     <>
       <TableRow className={cn("text-xs sm:text-sm", { 'bg-yellow-500/10 hover:bg-yellow-500/20': status === 'expired' })}>
+        <TableCell className="font-mono sm:hidden w-12 text-center text-muted-foreground">
+          {tesseraDisplayMobile}
+        </TableCell>
         <TableCell className="font-mono hidden sm:table-cell">
-          {tesseraDisplay}
+          {tesseraDisplayDesktop}
         </TableCell>
         <TableCell className="font-medium">
            <div className="flex items-center gap-3 flex-wrap">
@@ -501,152 +511,209 @@ const handleRenew = async () => {
           </Badge>
         </TableCell>
         <TableCell className="text-right space-x-1">
-            <TooltipProvider>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onPrint(socio)}>
-                            <Printer className="h-4 w-4" />
-                            <span className="sr-only">Stampa Scheda</span>
+            {/* Mobile Actions */}
+            <div className="sm:hidden flex items-center justify-end">
+                {status === 'pending' && (
+                     <Dialog open={showApproveDialog} onOpenChange={handleApproveDialogChange}>
+                        <DialogTrigger asChild>
+                        <Button variant="ghost" size="sm" className="text-green-500 hover:text-green-500 hover:bg-green-500/10 h-8">
+                            <CheckCircle className="h-4 w-4" />
                         </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Stampa Scheda</TooltipContent>
-                </Tooltip>
-            </TooltipProvider>
+                        </DialogTrigger>
+                        {/* Approve Dialog Content is below */}
+                    </Dialog>
+                )}
+                {status === 'expired' && (
+                     <Dialog open={showRenewDialog} onOpenChange={handleRenewDialogChange}>
+                        <DialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="text-orange-500 hover:text-orange-500 hover:bg-orange-500/10 h-8">
+                                <RefreshCw className="h-4 w-4" />
+                            </Button>
+                        </DialogTrigger>
+                         {/* Renew Dialog Content is below */}
+                    </Dialog>
+                )}
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                            <span className="sr-only">Altre azioni</span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onPrint(socio)}>
+                            <Printer className="mr-2 h-4 w-4" />
+                            <span>Stampa</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onEdit(socio)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            <span>Modifica</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setSocioToDelete(socio)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Elimina</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
 
-            <TooltipProvider>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(socio)}>
-                            <Pencil className="h-4 w-4" />
-                            <span className="sr-only">Modifica</span>
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Modifica</TooltipContent>
-                </Tooltip>
-            </TooltipProvider>
-            
-            <AlertDialog open={!!socioToDelete} onOpenChange={(open) => !open && setSocioToDelete(null)}>
+            {/* Desktop Actions */}
+            <div className="hidden sm:flex items-center justify-end">
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10" onClick={() => setSocioToDelete(socio)}>
-                                    <Trash2 className="h-4 w-4" />
-                                    <span className="sr-only">Elimina</span>
-                                </Button>
-                            </AlertDialogTrigger>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onPrint(socio)}>
+                                <Printer className="h-4 w-4" />
+                                <span className="sr-only">Stampa Scheda</span>
+                            </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Elimina</TooltipContent>
+                        <TooltipContent>Stampa Scheda</TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Sei sicuro di voler eliminare questo socio?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Stai per eliminare <strong className="text-foreground">{socioToDelete ? getFullName(socioToDelete) : ""}</strong>. Questa azione non può essere annullata.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isDeleting}>Annulla</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className={buttonVariants({ variant: "destructive" })}>
-                            {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {isDeleting ? 'Eliminazione...' : 'Elimina'}
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
 
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(socio)}>
+                                <Pencil className="h-4 w-4" />
+                                <span className="sr-only">Modifica</span>
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Modifica</TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+                
+                <AlertDialog open={!!socioToDelete} onOpenChange={(open) => !open && setSocioToDelete(null)}>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10" onClick={() => setSocioToDelete(socio)}>
+                                        <Trash2 className="h-4 w-4" />
+                                        <span className="sr-only">Elimina</span>
+                                    </Button>
+                                </AlertDialogTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent>Elimina</TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Sei sicuro di voler eliminare questo socio?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Stai per eliminare <strong className="text-foreground">{socioToDelete ? getFullName(socioToDelete) : ""}</strong>. Questa azione non può essere annullata.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={isDeleting}>Annulla</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className={buttonVariants({ variant: "destructive" })}>
+                                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                {isDeleting ? 'Eliminazione...' : 'Elimina'}
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
 
-            {status === 'pending' && (
-              <Dialog open={showApproveDialog} onOpenChange={handleApproveDialogChange}>
-                <DialogTrigger asChild>
-                   <Button variant="ghost" size="sm" className="text-green-500 hover:text-green-500 hover:bg-green-500/10 h-8">
-                      <CheckCircle className="h-4 w-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Approva</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-lg">
-                      <DialogHeader>
-                          <DialogTitle>Approva Socio e Completa Iscrizione</DialogTitle>
-                          <DialogDescription>
-                              Stai per approvare <strong className="text-foreground">{getFullName(socio)}</strong> come membro attivo. Completa i dati di tesseramento.
-                          </DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-6 py-4">
-                          <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
-                              <Label htmlFor="membership-number" className="sm:text-right">
-                                  N. Tessera
-                              </Label>
-                              <div className="col-span-3">
-                                <Input
-                                    id="membership-number"
-                                    value={`GMC-${new Date().getFullYear()}-${approveMemberNumber}`}
-                                    onChange={(e) => {
-                                        const parts = e.target.value.split('-');
-                                        setApproveMemberNumber(parts[parts.length - 1] || '');
-                                    }}
-                                    className="w-40"
-                                />
-                              </div>
-                          </div>
-                           <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-2 sm:gap-4">
-                              <Label className="sm:text-right pt-2">Qualifiche</Label>
-                              <div className="col-span-3 space-y-2">
-                                  {QUALIFICHE.map((q) => (
-                                     <div key={q} className="flex items-center space-x-2">
-                                          <Checkbox 
-                                              id={`qualifica-${q}-approve`} 
-                                              checked={approveQualifiche.includes(q)}
-                                              onCheckedChange={(checked) => handleQualificaChange(q, !!checked, setApproveQualifiche)}
-                                          />
-                                          <label htmlFor={`qualifica-${q}-approve`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                              {q}
-                                          </label>
-                                      </div>
-                                  ))}
-                              </div>
-                           </div>
-                           <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
-                              <Label htmlFor="membership-fee" className="sm:text-right">
-                                  Quota (€)
-                              </Label>
-                              <div className="col-span-3 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                                <Input
-                                    id="membership-fee"
-                                    type="number"
-                                    value={approveMembershipFee}
-                                    onChange={(e) => setApproveMembershipFee(Number(e.target.value))}
-                                    className="w-28"
-                                />
-                                 <div className="flex items-center space-x-2">
-                                    <Checkbox id="fee-paid-approve" checked={approveFeePaid} onCheckedChange={(checked) => setApproveFeePaid(!!checked)} />
-                                    <Label htmlFor="fee-paid-approve" className="text-sm font-medium">Quota Versata</Label>
-                                </div>
-                              </div>
-                          </div>
-                      </div>
-                      <DialogFooter>
-                          <Button variant="ghost" onClick={() => handleApproveDialogChange(false)}>Annulla</Button>
-                          <Button onClick={handleApprove} disabled={isApproving || !approveFeePaid}>
-                              {isApproving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                              Conferma e Stampa
-                          </Button>
-                      </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
-            {status === 'expired' && (
-              <Dialog open={showRenewDialog} onOpenChange={handleRenewDialogChange}>
-                <DialogTrigger asChild>
-                    <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-orange-500 hover:text-orange-500 hover:bg-orange-500/10 h-8"
-                    >
-                        <RefreshCw className="h-4 w-4 sm:mr-2" />
-                        <span className="hidden sm:inline">Rinnova</span>
+                {status === 'pending' && (
+                <Dialog open={showApproveDialog} onOpenChange={handleApproveDialogChange}>
+                    <DialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="text-green-500 hover:text-green-500 hover:bg-green-500/10 h-8">
+                        <CheckCircle className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Approva</span>
                     </Button>
-                </DialogTrigger>
+                    </DialogTrigger>
+                    {/* Approve Dialog Content is below */}
+                </Dialog>
+                )}
+                {status === 'expired' && (
+                <Dialog open={showRenewDialog} onOpenChange={handleRenewDialogChange}>
+                    <DialogTrigger asChild>
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-orange-500 hover:text-orange-500 hover:bg-orange-500/10 h-8"
+                        >
+                            <RefreshCw className="h-4 w-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Rinnova</span>
+                        </Button>
+                    </DialogTrigger>
+                    {/* Renew Dialog Content is below */}
+                </Dialog>
+                )}
+            </div>
+
+            {/* DIALOGS (kept outside the conditional rendering of buttons) */}
+            {status === 'pending' && (
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Approva Socio e Completa Iscrizione</DialogTitle>
+                        <DialogDescription>
+                            Stai per approvare <strong className="text-foreground">{getFullName(socio)}</strong> come membro attivo. Completa i dati di tesseramento.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-6 py-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+                            <Label htmlFor="membership-number" className="sm:text-right">
+                                N. Tessera
+                            </Label>
+                            <div className="col-span-3">
+                            <Input
+                                id="membership-number"
+                                value={`GMC-${new Date().getFullYear()}-${approveMemberNumber}`}
+                                onChange={(e) => {
+                                    const parts = e.target.value.split('-');
+                                    setApproveMemberNumber(parts[parts.length - 1] || '');
+                                }}
+                                className="w-40"
+                            />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-2 sm:gap-4">
+                            <Label className="sm:text-right pt-2">Qualifiche</Label>
+                            <div className="col-span-3 space-y-2">
+                                {QUALIFICHE.map((q) => (
+                                    <div key={q} className="flex items-center space-x-2">
+                                        <Checkbox 
+                                            id={`qualifica-${q}-approve`} 
+                                            checked={approveQualifiche.includes(q)}
+                                            onCheckedChange={(checked) => handleQualificaChange(q, !!checked, setApproveQualifiche)}
+                                        />
+                                        <label htmlFor={`qualifica-${q}-approve`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                            {q}
+                                        </label>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+                            <Label htmlFor="membership-fee" className="sm:text-right">
+                                Quota (€)
+                            </Label>
+                            <div className="col-span-3 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                            <Input
+                                id="membership-fee"
+                                type="number"
+                                value={approveMembershipFee}
+                                onChange={(e) => setApproveMembershipFee(Number(e.target.value))}
+                                className="w-28"
+                            />
+                                <div className="flex items-center space-x-2">
+                                <Checkbox id="fee-paid-approve" checked={approveFeePaid} onCheckedChange={(checked) => setApproveFeePaid(!!checked)} />
+                                <Label htmlFor="fee-paid-approve" className="text-sm font-medium">Quota Versata</Label>
+                            </div>
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => handleApproveDialogChange(false)}>Annulla</Button>
+                        <Button onClick={handleApprove} disabled={isApproving || !approveFeePaid}>
+                            {isApproving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Conferma e Stampa
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            )}
+             {status === 'expired' && (
                 <DialogContent className="sm:max-w-lg">
                     {renewedSocioData ? (
                         <>
@@ -738,7 +805,6 @@ const handleRenew = async () => {
                         </>
                     )}
                 </DialogContent>
-               </Dialog>
             )}
         </TableCell>
       </TableRow>
@@ -748,7 +814,7 @@ const handleRenew = async () => {
 
 
 export type SortConfig = {
-  key: keyof Socio | 'name' | 'tessera';
+  key: keyof Socio | 'name' | 'tessera' | 'tessera_mobile';
   direction: 'ascending' | 'descending';
 };
 
@@ -812,6 +878,7 @@ export const SociTable = ({
         <Table>
           <TableHeader>
             <TableRow>
+              <SortableHeader label="N." sortKey="tessera_mobile" sortConfig={sortConfig} setSortConfig={setSortConfig} className="sm:hidden w-12" />
               <SortableHeader label="Tessera" sortKey="tessera" sortConfig={sortConfig} setSortConfig={setSortConfig} className="w-[100px] hidden sm:table-cell" />
               <SortableHeader label="Nome" sortKey="name" sortConfig={sortConfig} setSortConfig={setSortConfig} />
               <SortableHeader label="Nascita" sortKey="birthDate" sortConfig={sortConfig} setSortConfig={setSortConfig} className="hidden md:table-cell" />
