@@ -40,76 +40,50 @@ import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebas
 
 const ITEMS_PER_PAGE = 10;
 
-const getTesseraNumber = (tessera: string | undefined): number => {
-  if (!tessera) return Infinity;
-  const parts = tessera.split("-");
-  if (parts.length < 3) return Infinity;
-  const num = parseInt(parts[parts.length - 1], 10);
-  return Number.isNaN(num) ? Infinity : num;
-};
-
 // Simplified and robust filter and sort function
 const filterAndSortData = (
   data: Socio[],
   searchFilter: string,
   sortConfig: SortConfig
 ): Socio[] => {
-  const filteredData = data.filter((socio) => {
-    if (!searchFilter) return true;
-    const search = searchFilter.toLowerCase();
-    return (
-      getFullName(socio).toLowerCase().includes(search) ||
-      (socio.email || '').toLowerCase().includes(search) ||
-      (socio.tessera || '').toLowerCase().includes(search) ||
-      formatDate(socio.birthDate).includes(search)
-    );
-  });
+    if (!data) return [];
 
-  return filteredData.sort((a, b) => {
-    const { key, direction } = sortConfig;
-    const asc = direction === 'ascending';
-    
-    let valA: string | number | Date | null = null;
-    let valB: string | number | Date | null = null;
+    // 1. Filtering
+    const lowerCaseFilter = searchFilter.toLowerCase();
+    const filteredData = lowerCaseFilter
+      ? data.filter(item => {
+          return (
+            getFullName(item).toLowerCase().includes(lowerCaseFilter) ||
+            (item.email || '').toLowerCase().includes(lowerCaseFilter) ||
+            (item.tessera || '').toLowerCase().includes(lowerCaseFilter)
+          );
+        })
+      : data;
 
-    switch (key) {
-      case 'tessera_mobile':
-        valA = getTesseraNumber(a.tessera);
-        valB = getTesseraNumber(b.tessera);
-        break;
-      case 'name':
-        valA = getFullName(a);
-        valB = getFullName(b);
-        break;
-      case 'birthDate':
-      case 'joinDate':
-      case 'expirationDate':
-      case 'renewalDate':
-      case 'requestDate':
-         // Ensure dates are comparable
-        const dateA = a[key] ? new Date(a[key] as string) : null;
-        const dateB = b[key] ? new Date(b[key] as string) : null;
-        if (dateA && dateB) {
-            valA = dateA.getTime();
-            valB = dateB.getTime();
-        } else {
-            valA = dateA ? 1 : -1; // Handle nulls by putting them at the end/start
-            valB = dateB ? 1 : -1;
+    // 2. Sorting
+    const sortedData = [...filteredData].sort((a, b) => {
+        const { key, direction } = sortConfig;
+        const asc = direction === 'ascending';
+
+        let valA: any = a[key as keyof Socio];
+        let valB: any = b[key as keyof Socio];
+        
+        if (key === 'name') {
+            valA = getFullName(a);
+            valB = getFullName(b);
+        } else if (key === 'tessera' || key === 'tessera_mobile') {
+            const numA = a.tessera ? parseInt(a.tessera.split('-').pop() || '0', 10) : Infinity;
+            const numB = b.tessera ? parseInt(b.tessera.split('-').pop() || '0', 10) : Infinity;
+            valA = isNaN(numA) ? Infinity : numA;
+            valB = isNaN(numB) ? Infinity : numB;
         }
-        break;
-      default:
-        valA = a[key as keyof Socio] as any;
-        valB = b[key as keyof Socio] as any;
-    }
-    
-    if (valA === null || valA === undefined) return 1;
-    if (valB === null || valB === undefined) return -1;
-    
-    if (valA < valB) return asc ? -1 : 1;
-    if (valA > valB) return asc ? 1 : -1;
-    
-    return 0;
-  });
+
+        if (valA < valB) return asc ? -1 : 1;
+        if (valA > valB) return asc ? 1 : -1;
+        return 0;
+    });
+
+    return sortedData;
 };
 
 
@@ -155,7 +129,7 @@ export default function ElencoClient() {
   const initialFilter = searchParams.get("filter") || "";
 
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera_mobile", direction: "ascending" });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "ascending" });
   const [filter, setFilter] = useState(initialFilter);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -181,19 +155,23 @@ export default function ElencoClient() {
     const allMembers = membersData || [];
     const allRequests = requestsData || [];
     
+    const activeMembers = allMembers.filter((s) => getStatus(s) === "active");
+    const expiredMembers = allMembers.filter((s) => getStatus(s) === "expired");
+    const pendingRequests = allRequests.filter((req) => getStatus(req) === "pending");
+
     const counts = {
-        active: allMembers.filter((s) => getStatus(s) === "active").length,
-        expired: allMembers.filter((s) => getStatus(s) === "expired").length,
-        requests: allRequests.filter((req) => getStatus(req) === "pending").length,
+        active: activeMembers.length,
+        expired: expiredMembers.length,
+        requests: pendingRequests.length,
     };
 
     let dataForTab: Socio[];
     if (activeTab === 'active') {
-      dataForTab = allMembers.filter((s) => getStatus(s) === 'active');
+      dataForTab = activeMembers;
     } else if (activeTab === 'expired') {
-      dataForTab = allMembers.filter((s) => getStatus(s) === 'expired');
-    } else {
-      dataForTab = allRequests.filter((req) => getStatus(req) === 'pending');
+      dataForTab = expiredMembers;
+    } else { // requests
+      dataForTab = pendingRequests;
     }
 
     const sorted = filterAndSortData(dataForTab, filter, sortConfig);
@@ -231,7 +209,7 @@ export default function ElencoClient() {
     setCurrentPage(1);
 
     if (tab === "requests") setSortConfig({ key: "requestDate", direction: "descending" });
-    else setSortConfig({ key: "tessera_mobile", direction: "ascending" });
+    else setSortConfig({ key: "tessera", direction: "ascending" });
   };
 
   const handleSocioUpdate = useCallback(
