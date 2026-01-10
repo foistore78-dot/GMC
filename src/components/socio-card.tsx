@@ -46,6 +46,8 @@ const Field = ({ label, value }: FieldProps) => {
           borderBottom: "1px solid #eee",
           paddingBottom: "2px",
           lineHeight: "1.2",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
         }}
       >
         {display}
@@ -99,7 +101,6 @@ export function SocioCard({ socio }: SocioCardProps) {
         padding: "1cm",
       }}
     >
-      {/* Print rules + FIX LOGO overflow */}
       <style jsx global>{`
         @media print {
           @page {
@@ -114,8 +115,10 @@ export function SocioCard({ socio }: SocioCardProps) {
           * {
             box-sizing: border-box;
           }
-          table {
+          table,
+          div.no-break {
             page-break-inside: avoid;
+            break-inside: avoid;
           }
           tr,
           td,
@@ -127,13 +130,7 @@ export function SocioCard({ socio }: SocioCardProps) {
           h3 {
             page-break-after: avoid;
           }
-          .no-break {
-            break-inside: avoid;
-            page-break-inside: avoid;
-          }
         }
-
-        /* anti “testo che sfonda” */
         div,
         td,
         p,
@@ -143,87 +140,61 @@ export function SocioCard({ socio }: SocioCardProps) {
           overflow-wrap: anywhere;
           word-break: break-word;
         }
-
-        /* IMPORTANTISSIMO: forza dimensioni del logo (SVG/IMG) e impedisce lo sbordo */
-        .logoBox {
+        .logo-container {
           width: 60px !important;
           height: 60px !important;
-          overflow: hidden !important;
+          flex-shrink: 0;
         }
-        .logoBox svg,
-        .logoBox img {
-          width: 60px !important;
-          height: 60px !important;
-          max-width: 60px !important;
-          max-height: 60px !important;
-          display: block !important;
+        .logo-container img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
         }
       `}</style>
-
-      {/* Header (tabella stabile + colonne fisse) */}
-      <table
+      <div
         className="no-break"
         style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
           width: "100%",
-          borderSpacing: 0,
-          marginBottom: "15px",
-          tableLayout: "fixed",
+          borderBottom: "1px solid #ccc",
+          paddingBottom: "10px",
+          marginBottom: "10px",
         }}
       >
-        <colgroup>
-          <col style={{ width: "75px" }} />
-          <col style={{ width: "auto" }} />
-          <col style={{ width: "45%" }} />
-        </colgroup>
-        <tbody>
-          <tr>
-            {/* Logo (CLIPPATO) */}
-            <td
-              style={{
-                verticalAlign: "middle",
-                paddingRight: "15px",
-                overflow: "hidden",
-              }}
-            >
-              <div className="logoBox">
-                <GarageMusicClubLogo />
-              </div>
-            </td>
-
-            {/* Titolo */}
-            <td style={{ verticalAlign: "middle", textAlign: "left" }}>
-              <h1
-                style={{
-                  fontFamily: "Orbitron, Arial Black, Arial, sans-serif",
-                  fontSize: "22px",
-                  fontWeight: "bold",
-                  margin: 0,
-                  letterSpacing: "0.05em",
-                }}
-              >
-                GARAGE MUSIC CLUB
-              </h1>
-              <p style={{ fontSize: "13px", margin: 0 }}>Associazione Culturale</p>
-            </td>
-
-            {/* Dati sede */}
-            <td
-              style={{
-                verticalAlign: "middle",
-                textAlign: "right",
-                fontSize: "10px",
-                lineHeight: "1.4",
-                paddingLeft: "15px",
-              }}
-            >
-              <p style={{ margin: 0 }}>Sede: Via XXIV Udine n. 43, Gradisca d’Isonzo (GO)</p>
-              <p style={{ margin: 0 }}>Email: garage.music.club2024@gmail.com</p>
-              <p style={{ margin: 0 }}>Tel: +39 389 7995206</p>
-              <p style={{ margin: 0 }}>C.F. 91050330314</p>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+        <div className="logo-container">
+          <GarageMusicClubLogo />
+        </div>
+        <div style={{ flex: 1, textAlign: "center", padding: "0 10px" }}>
+          <h1
+            style={{
+              fontFamily: "Orbitron, Arial Black, Arial, sans-serif",
+              fontSize: "22px",
+              fontWeight: "bold",
+              margin: 0,
+              letterSpacing: "0.05em",
+            }}
+          >
+            GARAGE MUSIC CLUB
+          </h1>
+          <p style={{ fontSize: "13px", margin: 0 }}>Associazione Culturale</p>
+        </div>
+        <div
+          style={{
+            width: "180px",
+            flexShrink: 0,
+            textAlign: "right",
+            fontSize: "10px",
+            lineHeight: "1.4",
+          }}
+        >
+          <p style={{ margin: 0 }}>Sede: Via XXIV Udine n. 43, Gradisca d’Isonzo (GO)</p>
+          <p style={{ margin: 0 }}>Email: garage.music.club2024@gmail.com</p>
+          <p style={{ margin: 0 }}>Tel: +39 389 7995206</p>
+          <p style={{ margin: 0 }}>C.F. 91050330314</p>
+        </div>
+      </div>
 
       {/* Title */}
       <div
@@ -242,7 +213,7 @@ export function SocioCard({ socio }: SocioCardProps) {
       </div>
 
       {/* Main Info (tabella 2 colonne) */}
-      <table style={{ width: "100%", borderSpacing: 0, marginBottom: "20px" }}>
+      <table className="no-break" style={{ width: "100%", borderSpacing: 0, marginBottom: "20px" }}>
         <tbody>
           <tr>
             <td style={{ width: "50%", paddingRight: "10px", verticalAlign: "top" }}>
@@ -284,6 +255,27 @@ export function SocioCard({ socio }: SocioCardProps) {
           </tr>
         </tbody>
       </table>
+
+      {/* Notes Section */}
+      {socio.notes && socio.notes.trim() !== "" && (
+        <div className="no-break" style={{ marginBottom: "15px" }}>
+          <h3
+            style={{
+              fontSize: "13px",
+              fontWeight: "bold",
+              margin: "0 0 10px 0",
+              borderBottom: "1px solid #ccc",
+              paddingBottom: "5px",
+            }}
+          >
+            NOTE AMMINISTRATIVE
+          </h3>
+          <div style={{ fontSize: "11px", lineHeight: "1.5", whiteSpace: "pre-wrap" }}>
+            {socio.notes}
+          </div>
+        </div>
+      )}
+
 
       {/* Consents */}
       <div className="no-break" style={{ marginBottom: "15px" }}>
