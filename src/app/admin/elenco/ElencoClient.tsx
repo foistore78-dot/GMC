@@ -249,10 +249,13 @@ export default function ElencoClient() {
     printWindow.document.close();
 
     const checkLoad = () => {
+        // Wait for external resources (fonts) to load
         if (printWindow.document.readyState === "complete") {
-            printWindow.focus();
-            printWindow.print();
-            // Do not close automatically: printWindow.close();
+            setTimeout(() => { // Additional small delay
+                printWindow.focus();
+                printWindow.print();
+                // Do not close automatically: printWindow.close();
+            }, 250); 
         } else {
             setTimeout(checkLoad, 100);
         }
@@ -304,14 +307,12 @@ export default function ElencoClient() {
             {totalPages > 1 && (
                 <div className="flex items-center gap-2">
                     <Button
-                        variant="outline"
-                        size="sm"
                         onClick={handlePreviousPage}
                         disabled={currentPage === 1}
-                        className="h-9 px-3"
+                        className="h-9 px-4 bg-[hsl(173,90%,45%)] hover:bg-[hsl(173,90%,50%)] text-primary-foreground disabled:bg-muted disabled:text-muted-foreground"
                     >
-                        <ChevronLeft className="h-4 w-4" />
-                        <span className="sr-only">Indietro</span>
+                        <ChevronLeft className="mr-2 h-4 w-4" />
+                        Indietro
                     </Button>
                     <span className="text-sm text-muted-foreground">
                         {currentPage} / {totalPages}
