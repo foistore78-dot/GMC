@@ -57,27 +57,33 @@ export function SocioCard({ socio }: SocioCardProps) {
   return (
     <div style={{ background: 'white', color: 'black', width: '100%', maxWidth: '18cm', margin: '0 auto', fontFamily: "'Roboto', sans-serif", padding: '1cm' }}>
       
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
-        {/* Colonna 1: Logo */}
-        <div style={{ flex: '0 0 60px', width: '60px', height: '60px' }}>
-            <GarageMusicClubLogo className="w-full h-full" style={{ objectFit: 'contain' }} />
-        </div>
-        
-        {/* Colonna 2: Titolo */}
-        <div style={{ flex: '1', textAlign: 'left' }}>
-            <h1 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: '22px', fontWeight: 'bold', margin: '0', letterSpacing: '0.05em' }}>GARAGE MUSIC CLUB</h1>
-            <p style={{ fontSize: '13px', margin: '0' }}>Associazione Culturale</p>
-        </div>
+      {/* Header -- Completely rewritten with a table for stability */}
+      <table style={{ width: '100%', borderSpacing: 0, marginBottom: '15px' }}>
+        <tbody>
+          <tr>
+            {/* Colonna 1: Logo */}
+            <td style={{ width: '60px', verticalAlign: 'middle', paddingRight: '15px' }}>
+              <div style={{ width: '60px', height: '60px' }}>
+                <GarageMusicClubLogo className="w-full h-full" style={{ objectFit: 'contain' }} />
+              </div>
+            </td>
+            
+            {/* Colonna 2: Titolo */}
+            <td style={{ verticalAlign: 'middle', textAlign: 'left' }}>
+              <h1 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: '22px', fontWeight: 'bold', margin: '0', letterSpacing: '0.05em' }}>GARAGE MUSIC CLUB</h1>
+              <p style={{ fontSize: '13px', margin: '0' }}>Associazione Culturale</p>
+            </td>
 
-        {/* Colonna 3: Dati Sede */}
-        <div style={{ textAlign: 'right', fontSize: '10px', lineHeight: '1.4' }}>
-            <p style={{ margin: 0 }}>Sede: Via XXIV Udine n. 43, Gradisca d’Isonzo (GO)</p>
-            <p style={{ margin: 0 }}>Email: garage.music.club2024@gmail.com</p>
-            <p style={{ margin: 0 }}>Tel: +39 389 7995206</p>
-            <p style={{ margin: 0 }}>C.F. 91050330314</p>
-        </div>
-      </div>
+            {/* Colonna 3: Dati Sede */}
+            <td style={{ verticalAlign: 'middle', textAlign: 'right', fontSize: '10px', lineHeight: '1.4', paddingLeft: '15px' }}>
+              <p style={{ margin: 0 }}>Sede: Via XXIV Udine n. 43, Gradisca d’Isonzo (GO)</p>
+              <p style={{ margin: 0 }}>Email: garage.music.club2024@gmail.com</p>
+              <p style={{ margin: 0 }}>Tel: +39 389 7995206</p>
+              <p style={{ margin: 0 }}>C.F. 91050330314</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
 
       {/* Title */}
