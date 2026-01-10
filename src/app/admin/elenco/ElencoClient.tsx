@@ -173,7 +173,7 @@ export default function ElencoClient() {
   
   // 3. Sort the currently visible (filtered) data
   const sortedData = useMemo(() => {
-    let dataToSort;
+    let dataToSort: Socio[] = [];
     switch (activeTab) {
         case "active":
             dataToSort = filteredActive;
