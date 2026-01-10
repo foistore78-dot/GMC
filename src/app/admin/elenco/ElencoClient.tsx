@@ -40,6 +40,55 @@ const getTesseraNumber = (tessera: string | undefined): number => {
   return Number.isNaN(num) ? Infinity : num;
 };
 
+const filterData = (data: Socio[], searchFilter: string): Socio[] => {
+    if (!searchFilter) return data;
+    if (!data) return [];
+  
+    return data.filter((socio) => {
+      const searchString = searchFilter.toLowerCase();
+      const fullName = `${socio.firstName || ""} ${socio.lastName || ""}`.toLowerCase();
+      const reversedFullName = `${socio.lastName || ""} ${socio.firstName || ""}`.toLowerCase();
+      const email = socio.email?.toLowerCase() || "";
+      const tessera = socio.tessera?.toLowerCase() || "";
+      const birthDate = formatDate(socio.birthDate);
+  
+      return (
+        fullName.includes(searchString) ||
+        reversedFullName.includes(searchString) ||
+        email.includes(searchString) ||
+        tessera.includes(searchString) ||
+        birthDate.includes(searchString)
+      );
+    });
+};
+
+const sortData = (data: Socio[], currentSortConfig: SortConfig): Socio[] => {
+    if (!data) return [];
+
+    return [...data].sort((a, b) => {
+      const { key, direction } = currentSortConfig;
+
+      let aValue: any;
+      let bValue: any;
+
+      if (key === "tessera") {
+        aValue = getTesseraNumber(a.tessera);
+        bValue = getTesseraNumber(b.tessera);
+      } else if (key === "name") {
+        aValue = `${a.lastName} ${a.firstName}`.toLowerCase();
+        bValue = `${b.lastName} ${b.firstName}`.toLowerCase();
+      } else {
+        aValue = a[key as keyof Socio];
+        bValue = b[key as keyof Socio];
+      }
+
+      const asc = direction === "ascending";
+      if (aValue < bValue) return asc ? -1 : 1;
+      if (aValue > bValue) return asc ? 1 : -1;
+      return 0;
+    });
+};
+
 export default function ElencoClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -81,81 +130,40 @@ export default function ElencoClient() {
     forceRefresh: forceRequestsRefresh,
   } = useCollection<Socio>(requestsQuery);
 
-  const { allActive, allExpired } = useMemo(() => {
+  // 1. Separate data into raw categories
+  const { allActive, allExpired, pendingRequests } = useMemo(() => {
     const allMembers = membersData || [];
     const active = allMembers.filter((s) => getStatus(s) === "active");
     const expired = allMembers.filter((s) => getStatus(s) === "expired");
-    return { allActive: active, allExpired: expired };
-  }, [membersData]);
+    const requests = (requestsData || []).filter((req) => getStatus(req) === "pending");
+    return { allActive: active, allExpired: expired, pendingRequests: requests };
+  }, [membersData, requestsData]);
 
-  const pendingRequests = useMemo(() => {
-    return (requestsData || []).filter((req) => getStatus(req) === "pending");
-  }, [requestsData]);
-
-  const filterAndSortData = (data: Socio[], currentSortConfig: SortConfig, searchFilter: string) => {
-    if (!data) return [];
-
-    const searchedData = searchFilter
-      ? data.filter((socio) => {
-          const searchString = searchFilter.toLowerCase();
-          const fullName = `${socio.firstName || ""} ${socio.lastName || ""}`.toLowerCase();
-          const reversedFullName = `${socio.lastName || ""} ${socio.firstName || ""}`.toLowerCase();
-          const email = socio.email?.toLowerCase() || "";
-          const tessera = socio.tessera?.toLowerCase() || "";
-          const birthDate = formatDate(socio.birthDate);
-
-          return (
-            fullName.includes(searchString) ||
-            reversedFullName.includes(searchString) ||
-            email.includes(searchString) ||
-            tessera.includes(searchString) ||
-            birthDate.includes(searchString)
-          );
-        })
-      : data;
-
-    return [...searchedData].sort((a, b) => {
-      const { key, direction } = currentSortConfig;
-
-      let aValue: any;
-      let bValue: any;
-
-      if (key === "tessera") {
-        aValue = getTesseraNumber(a.tessera);
-        bValue = getTesseraNumber(b.tessera);
-      } else if (key === "name") {
-        aValue = `${a.lastName} ${a.firstName}`.toLowerCase();
-        bValue = `${b.lastName} ${b.firstName}`.toLowerCase();
-      } else {
-        aValue = a[key as keyof Socio];
-        bValue = b[key as keyof Socio];
-      }
-
-      const asc = direction === "ascending";
-      if (aValue < bValue) return asc ? -1 : 1;
-      if (aValue > bValue) return asc ? 1 : -1;
-      return 0;
-    });
-  };
-
-  const dataForCurrentTab = useMemo(() => {
-    switch (activeTab) {
-      case "active":
-        return allActive;
-      case "expired":
-        return allExpired;
-      case "requests":
-        return pendingRequests;
-      default:
-        return [];
-    }
-  }, [activeTab, allActive, allExpired, pendingRequests]);
+  // 2. Filter each category based on the search filter
+  const filteredActive = useMemo(() => filterData(allActive, filter), [allActive, filter]);
+  const filteredExpired = useMemo(() => filterData(allExpired, filter), [allExpired, filter]);
+  const filteredRequests = useMemo(() => filterData(pendingRequests, filter), [pendingRequests, filter]);
   
+  // 3. Sort the currently visible (filtered) data
   const sortedData = useMemo(() => {
-      const data = filterAndSortData(dataForCurrentTab, sortConfig, filter);
-      const status = activeTab === 'active' ? 'active' : activeTab === 'expired' ? 'expired' : 'pending';
-      return data.map(s => ({ ...s, status }));
-  }, [dataForCurrentTab, sortConfig, filter, activeTab]);
+    let dataToSort;
+    switch (activeTab) {
+        case "active":
+            dataToSort = filteredActive;
+            break;
+        case "expired":
+            dataToSort = filteredExpired;
+            break;
+        case "requests":
+            dataToSort = filteredRequests;
+            break;
+        default:
+            dataToSort = [];
+    }
+    const sorted = sortData(dataToSort, sortConfig);
+    const status = activeTab === 'active' ? 'active' : activeTab === 'expired' ? 'expired' : 'pending';
+    return sorted.map(s => ({ ...s, status }));
+  }, [activeTab, filteredActive, filteredExpired, filteredRequests, sortConfig]);
 
   const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE);
 
@@ -196,7 +204,8 @@ export default function ElencoClient() {
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
-    setFilter("");
+    // Do not clear the filter anymore
+    // setFilter("");
 
     if (tab === "requests") {
       setSortConfig({ key: "requestDate", direction: "descending" });
@@ -331,7 +340,7 @@ export default function ElencoClient() {
       </div>
 
       <div className="bg-background rounded-lg border border-border shadow-lg p-2 sm:p-4">
-        {isLoading && sortedData.length === 0 ? (
+        {isLoading && allActive.length === 0 && pendingRequests.length === 0 ? (
           <div className="flex justify-center items-center h-64">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
           </div>
@@ -343,19 +352,19 @@ export default function ElencoClient() {
                   value="active"
                   className="text-xs sm:text-sm data-[state=active]:bg-green-500/20 data-[state=active]:text-green-300"
                 >
-                  Attivi ({allActive.length})
+                  Attivi ({filteredActive.length})
                 </TabsTrigger>
                 <TabsTrigger
                   value="expired"
                   className="text-xs sm:text-sm data-[state=active]:bg-yellow-500/20 data-[state=active]:text-yellow-300"
                 >
-                  In Attesa di Rinnovo ({allExpired.length})
+                  In Attesa di Rinnovo ({filteredExpired.length})
                 </TabsTrigger>
                 <TabsTrigger
                   value="requests"
                   className="text-xs sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300"
                 >
-                  Richieste ({pendingRequests.length})
+                  Richieste ({filteredRequests.length})
                 </TabsTrigger>
               </TabsList>
 
