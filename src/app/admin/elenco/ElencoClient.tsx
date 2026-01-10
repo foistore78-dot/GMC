@@ -7,7 +7,7 @@ import Link from "next/link";
 import { createRoot } from "react-dom/client";
 
 import { collection } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight } from "lucide-react";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, MoreVertical, Printer, Pencil, Trash2, CheckCircle, RefreshCw } from "lucide-react";
 
 import { SociTable, type SortConfig, getStatus, formatDate, getFullName } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
@@ -27,6 +27,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 
 import type { Socio } from "@/lib/soci-data";
 import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
@@ -41,48 +48,66 @@ const getTesseraNumber = (tessera: string | undefined): number => {
   return Number.isNaN(num) ? Infinity : num;
 };
 
+// Simplified and robust filter and sort function
 const filterAndSortData = (
   data: Socio[],
   searchFilter: string,
   sortConfig: SortConfig
 ): Socio[] => {
-  const filtered = data.filter((socio) => {
+  const filteredData = data.filter((socio) => {
     if (!searchFilter) return true;
-    const searchString = searchFilter.toLowerCase();
-    const fullName = `${socio.firstName || ""} ${socio.lastName || ""}`.toLowerCase();
-    const reversedFullName = `${socio.lastName || ""} ${socio.firstName || ""}`.toLowerCase();
-    const email = socio.email?.toLowerCase() || "";
-    const tessera = socio.tessera?.toLowerCase() || "";
-    const birthDate = formatDate(socio.birthDate);
-
+    const search = searchFilter.toLowerCase();
     return (
-      fullName.includes(searchString) ||
-      reversedFullName.includes(searchString) ||
-      email.includes(searchString) ||
-      tessera.includes(searchString) ||
-      birthDate.includes(searchString)
+      getFullName(socio).toLowerCase().includes(search) ||
+      (socio.email || '').toLowerCase().includes(search) ||
+      (socio.tessera || '').toLowerCase().includes(search) ||
+      formatDate(socio.birthDate).includes(search)
     );
   });
 
-  return [...filtered].sort((a, b) => {
+  return filteredData.sort((a, b) => {
     const { key, direction } = sortConfig;
-    let aValue: any;
-    let bValue: any;
+    const asc = direction === 'ascending';
+    
+    let valA: string | number | Date | null = null;
+    let valB: string | number | Date | null = null;
 
-    if (key === "tessera_mobile") {
-      aValue = getTesseraNumber(a.tessera);
-      bValue = getTesseraNumber(b.tessera);
-    } else if (key === "name") {
-      aValue = `${a.lastName} ${a.firstName}`.toLowerCase();
-      bValue = `${b.lastName} ${b.firstName}`.toLowerCase();
-    } else {
-      aValue = a[key as keyof Socio];
-      bValue = b[key as keyof Socio];
+    switch (key) {
+      case 'tessera_mobile':
+        valA = getTesseraNumber(a.tessera);
+        valB = getTesseraNumber(b.tessera);
+        break;
+      case 'name':
+        valA = getFullName(a);
+        valB = getFullName(b);
+        break;
+      case 'birthDate':
+      case 'joinDate':
+      case 'expirationDate':
+      case 'renewalDate':
+      case 'requestDate':
+         // Ensure dates are comparable
+        const dateA = a[key] ? new Date(a[key] as string) : null;
+        const dateB = b[key] ? new Date(b[key] as string) : null;
+        if (dateA && dateB) {
+            valA = dateA.getTime();
+            valB = dateB.getTime();
+        } else {
+            valA = dateA ? 1 : -1; // Handle nulls by putting them at the end/start
+            valB = dateB ? 1 : -1;
+        }
+        break;
+      default:
+        valA = a[key as keyof Socio] as any;
+        valB = b[key as keyof Socio] as any;
     }
-
-    const asc = direction === "ascending";
-    if (aValue < bValue) return asc ? -1 : 1;
-    if (aValue > bValue) return asc ? 1 : -1;
+    
+    if (valA === null || valA === undefined) return 1;
+    if (valB === null || valB === undefined) return -1;
+    
+    if (valA < valB) return asc ? -1 : 1;
+    if (valA > valB) return asc ? 1 : -1;
+    
     return 0;
   });
 };
@@ -162,10 +187,14 @@ export default function ElencoClient() {
         requests: allRequests.filter((req) => getStatus(req) === "pending").length,
     };
 
-    const dataForTab = 
-      activeTab === "active" ? allMembers.filter((s) => getStatus(s) === "active")
-      : activeTab === "expired" ? allMembers.filter((s) => getStatus(s) === "expired")
-      : allRequests.filter((req) => getStatus(req) === "pending");
+    let dataForTab: Socio[];
+    if (activeTab === 'active') {
+      dataForTab = allMembers.filter((s) => getStatus(s) === 'active');
+    } else if (activeTab === 'expired') {
+      dataForTab = allMembers.filter((s) => getStatus(s) === 'expired');
+    } else {
+      dataForTab = allRequests.filter((req) => getStatus(req) === 'pending');
+    }
 
     const sorted = filterAndSortData(dataForTab, filter, sortConfig);
     
