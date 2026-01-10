@@ -414,17 +414,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 </FormItem>
               )}
             />
-             <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Note Amministrative</FormLabel>
-                  <FormControl><Textarea {...field} value={field.value || ''} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
           </div>
         </div>
         <div>
@@ -687,6 +676,23 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     <FormLabel>Consenso WhatsApp</FormLabel>
                     <FormDescription>Autorizza l&apos;uso del numero per il gruppo WhatsApp.</FormDescription>
                   </div>
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+        <div>
+          <h3 className="text-lg font-medium text-primary mb-2">Note</h3>
+          <div className="space-y-4 rounded-md border p-4">
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Note Amministrative</FormLabel>
+                  <FormControl><Textarea {...field} value={field.value || ''} placeholder="Aggiungi note..."/></FormControl>
+                   <FormDescription>Queste note sono visibili solo agli amministratori.</FormDescription>
+                  <FormMessage />
                 </FormItem>
               )}
             />
