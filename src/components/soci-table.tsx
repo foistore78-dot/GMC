@@ -637,10 +637,7 @@ interface SociTableProps {
   allMembers: Socio[];
   sortConfig: SortConfig;
   setSortConfig: Dispatch<SetStateAction<SortConfig>>;
-  itemsPerPage: number;
   onSocioUpdate: (tab?: 'active' | 'expired' | 'requests') => void;
-  currentPage: number;
-  setCurrentPage: Dispatch<SetStateAction<number>>;
 }
 
 const SortableHeader = ({
@@ -685,31 +682,7 @@ export const SociTable = ({
   onSocioUpdate,
   sortConfig, 
   setSortConfig, 
-  itemsPerPage,
-  currentPage,
-  setCurrentPage
 }: SociTableProps) => {
-
-  const totalPages = Math.ceil(soci.length / itemsPerPage);
-  const paginatedSoci = soci.slice(
-      (currentPage - 1) * itemsPerPage,
-      currentPage * itemsPerPage
-  );
-
-
-  const handleNextPage = () => {
-      if (currentPage < totalPages) {
-          setCurrentPage(currentPage + 1);
-          window.scrollTo(0, 0);
-      }
-  };
-
-  const handlePreviousPage = () => {
-      if (currentPage > 1) {
-          setCurrentPage(currentPage - 1);
-          window.scrollTo(0, 0);
-      }
-  };
 
   return (
     <div>
@@ -725,8 +698,8 @@ export const SociTable = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paginatedSoci.length > 0 ? (
-              paginatedSoci.map((socio) => (
+            {soci.length > 0 ? (
+              soci.map((socio) => (
                 <SocioTableRow 
                   key={socio.id} 
                   socio={socio}
@@ -745,31 +718,6 @@ export const SociTable = ({
             )}
           </TableBody>
         </Table>
-      </div>
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4">
-        <div className="text-sm text-muted-foreground">
-            Pagina {currentPage} di {totalPages > 0 ? totalPages : 1}
-        </div>
-        <div className="flex items-center gap-2">
-            <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePreviousPage}
-                disabled={currentPage === 1}
-            >
-                <ChevronLeft className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Precedente</span>
-            </Button>
-            <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNextPage}
-                disabled={currentPage >= totalPages}
-            >
-                <span className="hidden sm:inline">Successivo</span>
-                <ChevronRight className="h-4 w-4 sm:ml-2" />
-            </Button>
-        </div>
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import Link from "next/link";
 import ReactDOMServer from "react-dom/server";
 
 import { collection } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users } from "lucide-react";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 
 import { SociTable, type SortConfig, getStatus, formatDate, getFullName } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
@@ -138,21 +138,34 @@ export default function ElencoClient() {
     });
   };
 
-  const sortedActive = useMemo(
-    () => filterAndSortData(allActive, sortConfig, filter).map((s) => ({ ...s, status: "active" as const })),
-    [allActive, sortConfig, filter]
-  );
+  const dataForCurrentTab = useMemo(() => {
+    switch (activeTab) {
+      case "active":
+        return allActive;
+      case "expired":
+        return allExpired;
+      case "requests":
+        return pendingRequests;
+      default:
+        return [];
+    }
+  }, [activeTab, allActive, allExpired, pendingRequests]);
+  
+  const sortedData = useMemo(() => {
+      const data = filterAndSortData(dataForCurrentTab, sortConfig, filter);
+      const status = activeTab === 'active' ? 'active' : activeTab === 'expired' ? 'expired' : 'pending';
+      return data.map(s => ({ ...s, status }));
+  }, [dataForCurrentTab, sortConfig, filter, activeTab]);
 
-  const sortedExpired = useMemo(
-    () => filterAndSortData(allExpired, sortConfig, filter).map((s) => ({ ...s, status: "expired" as const })),
-    [allExpired, sortConfig, filter]
-  );
+  const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE);
 
-  const sortedRequests = useMemo(
-    () =>
-      filterAndSortData(pendingRequests, sortConfig, filter).map((s) => ({ ...s, status: "pending" as const })),
-    [pendingRequests, sortConfig, filter]
-  );
+  const paginatedData = useMemo(() => {
+    return sortedData.slice(
+      (currentPage - 1) * ITEMS_PER_PAGE,
+      currentPage * ITEMS_PER_PAGE
+    );
+  }, [sortedData, currentPage]);
+
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
@@ -209,7 +222,7 @@ export default function ElencoClient() {
   const executePrint = () => {
     if (!socioToPrint) return;
 
-    const printWindow = window.open("", "_blank");
+    const printWindow = window.open("", "_blank", "height=800,width=800");
     if (!printWindow) {
       alert("Please allow pop-ups for this website");
       return;
@@ -228,7 +241,6 @@ export default function ElencoClient() {
             }
             body { font-family: 'Roboto', sans-serif; }
           </style>
-          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
         </head>
         <body>${cardHtml}</body>
       </html>
@@ -236,20 +248,35 @@ export default function ElencoClient() {
 
     printWindow.document.close();
 
-    // Use a longer timeout and listen for the 'afterprint' event for robustness
-    const timeoutId = setTimeout(() => {
-        printWindow.focus();
-        printWindow.print();
-    }, 500); // Increased timeout
-
-    printWindow.onafterprint = () => {
-        clearTimeout(timeoutId); // Clear the timeout if print is initiated
-        printWindow.close();
+    const checkLoad = () => {
+        if (printWindow.document.readyState === "complete") {
+            printWindow.focus();
+            printWindow.print();
+            // Do not close automatically: printWindow.close();
+        } else {
+            setTimeout(checkLoad, 100);
+        }
     };
+    checkLoad();
 
     setShowPrintDialog(false);
     setSocioToPrint(null);
   };
+  
+  const handleNextPage = () => {
+      if (currentPage < totalPages) {
+          setCurrentPage(currentPage + 1);
+          window.scrollTo(0, 0);
+      }
+  };
+
+  const handlePreviousPage = () => {
+      if (currentPage > 1) {
+          setCurrentPage(currentPage - 1);
+          window.scrollTo(0, 0);
+      }
+  };
+
 
   if (isUserLoading || !user) {
     return (
@@ -261,24 +288,49 @@ export default function ElencoClient() {
 
   return (
     <div className="flex-grow container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between gap-4 mb-8 flex-wrap">
+      <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
         <div className="flex items-center gap-4">
           <Users className="w-8 h-8 md:w-10 md:h-10 text-primary" />
           <h1 className="font-headline text-3xl md:text-5xl text-primary">Elenco Soci</h1>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-4">
-          <Button asChild>
-            <Link href="/#apply">
-              <UserPlus className="mr-2 h-4 w-4" />
-              Nuova Iscrizione
-            </Link>
-          </Button>
+        <div className="flex flex-col items-end gap-2">
+            <Button asChild>
+                <Link href="/#apply">
+                <UserPlus className="mr-2 h-4 w-4" />
+                Nuova Iscrizione
+                </Link>
+            </Button>
+            {totalPages > 1 && (
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePreviousPage}
+                        disabled={currentPage === 1}
+                        className="h-9 px-3"
+                    >
+                        <ChevronLeft className="h-4 w-4" />
+                        <span className="sr-only">Indietro</span>
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                        {currentPage} / {totalPages}
+                    </span>
+                    <Button
+                        onClick={handleNextPage}
+                        disabled={currentPage >= totalPages}
+                        className="h-9 px-4 bg-[hsl(173,90%,45%)] hover:bg-[hsl(173,90%,50%)] text-primary-foreground"
+                    >
+                        Avanti
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                </div>
+            )}
         </div>
       </div>
 
       <div className="bg-background rounded-lg border border-border shadow-lg p-2 sm:p-4">
-        {isLoading && sortedActive.length === 0 && sortedRequests.length === 0 && sortedExpired.length === 0 ? (
+        {isLoading && sortedData.length === 0 ? (
           <div className="flex justify-center items-center h-64">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
           </div>
@@ -290,19 +342,19 @@ export default function ElencoClient() {
                   value="active"
                   className="text-xs sm:text-sm data-[state=active]:bg-green-500/20 data-[state=active]:text-green-300"
                 >
-                  Attivi ({sortedActive.length})
+                  Attivi ({allActive.length})
                 </TabsTrigger>
                 <TabsTrigger
                   value="expired"
                   className="text-xs sm:text-sm data-[state=active]:bg-yellow-500/20 data-[state=active]:text-yellow-300"
                 >
-                  In Attesa di Rinnovo ({sortedExpired.length})
+                  In Attesa di Rinnovo ({allExpired.length})
                 </TabsTrigger>
                 <TabsTrigger
                   value="requests"
                   className="text-xs sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300"
                 >
-                  Richieste ({sortedRequests.length})
+                  Richieste ({pendingRequests.length})
                 </TabsTrigger>
               </TabsList>
 
@@ -321,46 +373,37 @@ export default function ElencoClient() {
 
             <TabsContent value="active" className="rounded-lg p-1 sm:p-4">
               <SociTable
-                soci={sortedActive}
+                soci={paginatedData}
                 onEdit={handleEditSocio}
                 onPrint={handlePrintCard}
                 allMembers={membersData || []}
                 onSocioUpdate={handleSocioUpdate}
                 sortConfig={sortConfig}
                 setSortConfig={setSortConfig}
-                itemsPerPage={ITEMS_PER_PAGE}
-                currentPage={currentPage}
-                setCurrentPage={setCurrentPage}
               />
             </TabsContent>
 
             <TabsContent value="expired" className="rounded-lg bg-yellow-500/5 p-1 sm:p-4">
               <SociTable
-                soci={sortedExpired}
+                soci={paginatedData}
                 onEdit={handleEditSocio}
                 onPrint={handlePrintCard}
                 allMembers={membersData || []}
                 onSocioUpdate={handleSocioUpdate}
                 sortConfig={sortConfig}
                 setSortConfig={setSortConfig}
-                itemsPerPage={ITEMS_PER_PAGE}
-                currentPage={currentPage}
-                setCurrentPage={setCurrentPage}
               />
             </TabsContent>
 
             <TabsContent value="requests" className="rounded-lg bg-orange-500/5 p-1 sm:p-4">
               <SociTable
-                soci={sortedRequests}
+                soci={paginatedData}
                 onEdit={handleEditSocio}
                 onPrint={handlePrintCard}
                 allMembers={membersData || []}
                 onSocioUpdate={handleSocioUpdate}
                 sortConfig={sortConfig}
                 setSortConfig={setSortConfig}
-                itemsPerPage={ITEMS_PER_PAGE}
-                currentPage={currentPage}
-                setCurrentPage={setCurrentPage}
               />
             </TabsContent>
           </Tabs>

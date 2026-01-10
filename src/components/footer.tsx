@@ -14,7 +14,7 @@ export function Footer() {
           <p>Sede: Via XXIV Udine n. 43, Gradisca d’Isonzo (GO)</p>
           <p>Email: garage.music.club2024@gmail.com</p>
           <p>Tel: +39 389 7995206</p>
-          <p>C.F. 91028120317</p>
+          <p>C.F. 91050330314</p>
         </div>
         <div className="mt-4 text-sm">
             <Link href="/privacy" className="hover:text-primary transition-colors">
