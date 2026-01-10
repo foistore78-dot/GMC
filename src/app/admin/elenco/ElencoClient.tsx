@@ -422,12 +422,14 @@ export default function ElencoClient() {
               </TabsContent>
             </Tabs>
             
-            <PaginationControls
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onNext={handleNextPage}
-              onPrev={handlePreviousPage}
-            />
+            {totalPages > 1 && (
+              <PaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onNext={handleNextPage}
+                onPrev={handlePreviousPage}
+              />
+            )}
           </>
         )}
       </div>
