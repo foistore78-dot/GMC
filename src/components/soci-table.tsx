@@ -355,12 +355,12 @@ const handleRenew = async () => {
                         <span className="group-hover:text-primary transition-colors">{getFullName(socio)}</span>
                      </div>
                    </DialogTrigger>
-                   <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
+                   <DialogContent className="max-w-4xl p-0">
                      <DialogHeader className="p-6 pb-4">
                        <DialogTitle className="flex items-center gap-3 text-xl"><User/> Riepilogo Socio: <span className="text-primary">{getFullName(socio)}</span></DialogTitle>
                      </DialogHeader>
                      
-                     <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 px-6 flex-shrink-0">
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 px-6 pb-6 border-b">
                         {/* Colonna 1: Anagrafica */}
                         <div className="flex flex-col space-y-3">
                            <h3 className="font-semibold text-primary border-b border-border pb-2 text-base">Anagrafica</h3>
@@ -411,14 +411,14 @@ const handleRenew = async () => {
                         </div>
                      </div>
                       {socio.notes && (
-                        <div className="px-6 pt-4 flex-grow min-h-0">
+                        <div className="px-6 pb-6">
                           <h3 className="font-semibold text-primary border-b border-border pb-2 mb-2 text-base">Note</h3>
-                          <ScrollArea className="h-full max-h-48 pr-4">
-                            <pre className="text-sm font-sans whitespace-pre-wrap text-muted-foreground">{socio.notes}</pre>
-                          </ScrollArea>
+                          <div className="text-sm text-muted-foreground bg-secondary/50 p-3 rounded-md max-h-24 overflow-y-auto">
+                            <pre className="text-sm font-sans whitespace-pre-wrap">{socio.notes}</pre>
+                          </div>
                         </div>
                       )}
-                      <DialogFooter className="flex-col sm:flex-row sm:justify-between gap-2 border-t p-6 mt-auto">
+                      <DialogFooter className="flex-col sm:flex-row sm:justify-between gap-2 border-t p-4 bg-secondary/30 rounded-b-lg">
                           <DialogClose asChild>
                             <Button variant="ghost">Chiudi</Button>
                           </DialogClose>
