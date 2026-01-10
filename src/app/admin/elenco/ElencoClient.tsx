@@ -156,54 +156,24 @@ export default function ElencoClient() {
     const allMembers = membersData || [];
     const allRequests = requestsData || [];
 
-    const allActive = allMembers.filter((s) => getStatus(s) === "active");
-    const allExpired = allMembers.filter((s) => getStatus(s) === "expired");
-    const pendingRequests = allRequests.filter((req) => getStatus(req) === "pending");
+    const dataForTab = 
+      activeTab === "active" ? allMembers.filter((s) => getStatus(s) === "active")
+      : activeTab === "expired" ? allMembers.filter((s) => getStatus(s) === "expired")
+      : allRequests.filter((req) => getStatus(req) === "pending");
+
+    const sorted = filterAndSortData(dataForTab, filter, sortConfig);
 
     const counts = {
-      active: filterData(allActive, filter).length,
-      expired: filterData(allExpired, filter).length,
-      requests: filterData(pendingRequests, filter).length,
+      active: allMembers.filter((s) => getStatus(s) === "active").length,
+      expired: allMembers.filter((s) => getStatus(s) === "expired").length,
+      requests: allRequests.filter((req) => getStatus(req) === "pending").length,
     };
     
-    let dataToDisplay: Socio[] = [];
-    if (activeTab === "active") {
-      dataToDisplay = allActive;
-    } else if (activeTab === "expired") {
-      dataToDisplay = allExpired;
-    } else {
-      dataToDisplay = pendingRequests;
-    }
-
-    const sorted = filterAndSortData(dataToDisplay, filter, sortConfig);
-
     const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE);
     const paginatedData = sorted.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     return { paginatedData, totalPages, counts };
   }, [membersData, requestsData, filter, activeTab, sortConfig, currentPage]);
-  
-  const filterData = (data: Socio[], searchFilter: string): Socio[] => {
-    if (!searchFilter) return data;
-    if (!data) return [];
-  
-    return data.filter((socio) => {
-      const searchString = searchFilter.toLowerCase();
-      const fullName = `${socio.firstName || ""} ${socio.lastName || ""}`.toLowerCase();
-      const reversedFullName = `${socio.lastName || ""} ${socio.firstName || ""}`.toLowerCase();
-      const email = socio.email?.toLowerCase() || "";
-      const tessera = socio.tessera?.toLowerCase() || "";
-      const birthDate = formatDate(socio.birthDate);
-  
-      return (
-        fullName.includes(searchString) ||
-        reversedFullName.includes(searchString) ||
-        email.includes(searchString) ||
-        tessera.includes(searchString) ||
-        birthDate.includes(searchString)
-      );
-    });
-  };
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
