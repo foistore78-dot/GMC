@@ -9,7 +9,7 @@ import type { Socio } from '@/lib/soci-data';
 import { getStatus } from '@/components/soci-table';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Users, UserPlus, Clock, History, CalendarFuture } from 'lucide-react';
+import { Loader2, Users, UserPlus, Clock, History, Calendar, CalendarClock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const StatCard = ({ title, value, icon, link, description }: { title: string, value: number, icon: React.ReactNode, link?: string, description?: string }) => {
@@ -62,14 +62,16 @@ export default function DashboardClient() {
     const allRequests = requestsData || [];
     
     const currentYear = new Date().getFullYear();
+    const nextYear = currentYear + 1;
 
     const pendingApproval = allRequests.filter(req => getStatus(req) === 'pending').length;
-    
     const expiredMembers = allMembers.filter(mem => getStatus(mem) === 'expired').length;
     
-    const members_2024 = allMembers.filter(m => m.membershipYear === '2024').length;
-    const members_2025 = allMembers.filter(m => m.membershipYear === '2025').length;
-    const members_future = allMembers.filter(m => m.membershipYear && parseInt(m.membershipYear) > 2025).length;
+    const activeMembers = allMembers.filter(mem => getStatus(mem) === 'active');
+
+    const membersCurrentYear = activeMembers.filter(m => m.membershipYear === String(currentYear)).length;
+    const membersNextYear = allMembers.filter(m => m.membershipYear === String(nextYear)).length;
+    const membersFuture = allMembers.filter(m => m.membershipYear && parseInt(m.membershipYear) > nextYear).length;
 
 
     const monthlySignups = Array(12).fill(0);
@@ -95,11 +97,13 @@ export default function DashboardClient() {
     }));
 
     return {
+      currentYear,
+      nextYear,
       pendingApproval,
       expiredMembers,
-      members_2024,
-      members_2025,
-      members_future,
+      membersCurrentYear,
+      membersNextYear,
+      membersFuture,
       chartData,
     };
   }, [membersData, requestsData]);
@@ -123,7 +127,7 @@ export default function DashboardClient() {
           </h1>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-8">
             <StatCard 
                 title="In Attesa di Approvazione"
                 value={stats.pendingApproval}
@@ -139,17 +143,24 @@ export default function DashboardClient() {
                 description="Soci con tesseramento scaduto"
             />
             <StatCard 
-                title="Soci Futuri (2025)"
-                value={stats.members_2025}
-                icon={<CalendarFuture className="h-4 w-4 text-muted-foreground" />}
-                link="/admin/elenco?filter=2025"
-                description="Iscritti per l'anno 2025"
+                title={`Soci Attivi (${stats.currentYear})`}
+                value={stats.membersCurrentYear}
+                icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
+                link={`/admin/elenco?tab=active&filter=${stats.currentYear}`}
+                description={`Iscritti per l'anno ${stats.currentYear}`}
             />
             <StatCard 
-                title="Soci Futuri (Oltre 2025)"
-                value={stats.members_future}
+                title={`Soci Futuri (${stats.nextYear})`}
+                value={stats.membersNextYear}
+                icon={<CalendarClock className="h-4 w-4 text-muted-foreground" />}
+                link={`/admin/elenco?filter=${stats.nextYear}`}
+                description={`Iscritti per l'anno ${stats.nextYear}`}
+            />
+            <StatCard 
+                title={`Soci Futuri (Oltre ${stats.nextYear})`}
+                value={stats.membersFuture}
                 icon={<History className="h-4 w-4 text-muted-foreground" />}
-                link="/admin/elenco?filter=2026"
+                link={`/admin/elenco?filter=${stats.nextYear + 1}`}
                 description="Iscritti per gli anni successivi"
             />
         </div>
