@@ -9,6 +9,9 @@
     "start": "next start",
     "lint": "next lint"
   },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@hookform/resolvers": "^3.6.0",
     "@radix-ui/react-accordion": "^1.2.0",
@@ -38,10 +41,10 @@
     "firebase": "^10.12.2",
     "framer-motion": "^11.2.10",
     "lucide-react": "^0.395.0",
-    "next": "14.2.4",
-    "react": "^18",
+    "next": "14.2.5",
+    "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
-    "react-dom": "^18",
+    "react-dom": "^18.3.1",
     "react-hook-form": "^7.52.0",
     "react-qr-code": "^2.0.15",
     "recharts": "^2.12.7",
@@ -54,9 +57,8 @@
     "@genkit-ai/google-genai": "^1.0.0",
     "@types/node": "^20",
     "@types/react": "^18",
-    "@types/react-dom": "^18",
     "eslint": "^8",
-    "eslint-config-next": "14.2.4",
+    "eslint-config-next": "14.2.5",
     "genkit": "^1.0.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
