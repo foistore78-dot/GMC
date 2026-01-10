@@ -173,20 +173,12 @@ export default function ElencoClient() {
   
   // 3. Sort the currently visible (filtered) data
   const sortedData = useMemo(() => {
-    let dataToSort: Socio[] = [];
-    switch (activeTab) {
-        case "active":
-            dataToSort = filteredActive;
-            break;
-        case "expired":
-            dataToSort = filteredExpired;
-            break;
-        case "requests":
-            dataToSort = filteredRequests;
-            break;
-        default:
-            dataToSort = [];
-    }
+    const dataToSort: Socio[] =
+      activeTab === "active" ? filteredActive :
+      activeTab === "expired" ? filteredExpired :
+      activeTab === "requests" ? filteredRequests :
+      [];
+
     const sorted = sortData(dataToSort, sortConfig);
     const status = activeTab === 'active' ? 'active' : activeTab === 'expired' ? 'expired' : 'pending';
     return sorted.map(s => ({ ...s, status }));
@@ -473,5 +465,7 @@ export default function ElencoClient() {
     </div>
   );
 }
+
+    
 
     
