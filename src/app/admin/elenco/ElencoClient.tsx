@@ -73,7 +73,7 @@ const filterAndSortData = (
       aValue = getTesseraNumber(a.tessera);
       bValue = getTesseraNumber(b.tessera);
     } else if (key === "name") {
-      aValue = `${a.lastName} ${a.firstName}`.toLowerCase();
+      aValue = `${a.lastName} ${b.firstName}`.toLowerCase();
       bValue = `${b.lastName} ${b.firstName}`.toLowerCase();
     } else {
       aValue = a[key as keyof Socio];
@@ -156,7 +156,7 @@ export default function ElencoClient() {
     const allMembers = membersData || [];
     const allRequests = requestsData || [];
 
-    const dataForTab = 
+    const dataForTab: Socio[] =
       activeTab === "active" ? allMembers.filter((s) => getStatus(s) === "active")
       : activeTab === "expired" ? allMembers.filter((s) => getStatus(s) === "expired")
       : allRequests.filter((req) => getStatus(req) === "pending");

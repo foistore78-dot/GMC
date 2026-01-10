@@ -1,4 +1,3 @@
-
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
@@ -15,7 +14,7 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-export const LanguageProvider = ({ children }: { children: ReactNode }) => {
+export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<Language>('it');
 
   useEffect(() => {
@@ -58,7 +57,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   );
 }
 
-export const useLanguage = () => {
+export function useLanguage() {
   const context = useContext(LanguageContext);
   if (context === undefined) {
     throw new Error('useLanguage must be used within a LanguageProvider');
