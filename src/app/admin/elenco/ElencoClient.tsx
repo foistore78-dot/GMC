@@ -269,14 +269,6 @@ export default function ElencoClient() {
               Nuova Iscrizione
             </Link>
           </Button>
-
-          <Button asChild variant="outline">
-            <Link href="/segreteria">
-              <QrCode className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Area Segreteria</span>
-              <span className="sm:hidden">Segreteria</span>
-            </Link>
-          </Button>
         </div>
       </div>
 
