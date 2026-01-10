@@ -38,6 +38,7 @@ import { useFirestore } from "@/firebase";
 import { doc, writeBatch } from "firebase/firestore";
 import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
 import { Separator } from "./ui/separator";
+import { ScrollArea } from "./ui/scroll-area";
 
 // Helper Functions
 export const getFullName = (socio: any) => `${socio.lastName || ''} ${socio.firstName || ''}`.trim();
@@ -354,24 +355,23 @@ const handleRenew = async () => {
                         <span className="group-hover:text-primary transition-colors">{getFullName(socio)}</span>
                      </div>
                    </DialogTrigger>
-                   <DialogContent className="max-w-3xl">
-                     <DialogHeader>
-                       <DialogTitle className="flex items-center gap-3"><User/> Riepilogo Socio</DialogTitle>
+                   <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
+                     <DialogHeader className="p-6 pb-4">
+                       <DialogTitle className="flex items-center gap-3 text-xl"><User/> Riepilogo Socio: <span className="text-primary">{getFullName(socio)}</span></DialogTitle>
                      </DialogHeader>
                      
-                     <div className="py-4 grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-4 max-h-[70vh] overflow-y-auto p-1 pr-4">
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 px-6 flex-shrink-0">
                         {/* Colonna 1: Anagrafica */}
-                        <div className="flex flex-col space-y-4">
-                           <h3 className="font-semibold text-primary border-b border-border pb-2">Anagrafica</h3>
-                           <DetailItem icon={<User />} label="Nome Completo" value={getFullName(socio)} />
-                           <DetailItem icon={<Cake />} label="Data e Luogo di Nascita" value={<>{formatDate(socio.birthDate)} <span className="text-muted-foreground">a</span> {socio.birthPlace}</>} />
+                        <div className="flex flex-col space-y-3">
+                           <h3 className="font-semibold text-primary border-b border-border pb-2 text-base">Anagrafica</h3>
+                           <DetailItem icon={<Cake />} label="Nascita" value={<>{formatDate(socio.birthDate)} <span className="text-muted-foreground">a</span> {socio.birthPlace}</>} />
                            <DetailItem icon={<Hash />} label="Codice Fiscale" value={socio.fiscalCode || '-'} />
-                           <DetailItem icon={<Home />} label="Residenza" value={`${socio.address}, ${socio.city} (${socio.province}) ${socio.postalCode}`} />
+                           <DetailItem icon={<Home />} label="Residenza" value={`${socio.address}, ${socio.postalCode} ${socio.city} (${socio.province})`} />
                            
                            {socioIsMinor && (
                               <>
-                                <Separator className="my-2"/>
-                                <h4 className="font-semibold text-yellow-300/90 text-sm">Dati Tutore</h4>
+                                <Separator className="my-1"/>
+                                <h4 className="font-semibold text-yellow-300/90 text-sm pt-1">Dati Tutore</h4>
                                 <DetailItem icon={<ShieldCheck />} label="Tutore" value={`${socio.guardianFirstName} ${socio.guardianLastName}`} />
                                 <DetailItem icon={<Cake />} label="Data Nascita Tutore" value={formatDate(socio.guardianBirthDate)} />
                               </>
@@ -379,8 +379,8 @@ const handleRenew = async () => {
                         </div>
 
                         {/* Colonna 2: Contatti e Consensi */}
-                        <div className="flex flex-col space-y-4">
-                           <h3 className="font-semibold text-primary border-b border-border pb-2">Contatti e Consensi</h3>
+                        <div className="flex flex-col space-y-3">
+                           <h3 className="font-semibold text-primary border-b border-border pb-2 text-base">Contatti e Consensi</h3>
                            <DetailItem icon={<Mail />} label="Email" value={socio.email || '-'} />
                            <DetailItem icon={<Phone />} label="Telefono" value={socio.phone || '-'} />
                            <DetailItem icon={<FileLock2 />} label="Consenso Privacy" value={
@@ -396,30 +396,29 @@ const handleRenew = async () => {
                         </div>
                         
                         {/* Colonna 3: Tesseramento */}
-                        <div className="flex flex-col space-y-4">
-                           <h3 className="font-semibold text-primary border-b border-border pb-2">Tesseramento</h3>
+                        <div className="flex flex-col space-y-3">
+                           <h3 className="font-semibold text-primary border-b border-border pb-2 text-base">Tesseramento</h3>
                            <DetailItem icon={<CircleDot />} label="Stato" value={<Badge variant={status === "active" ? "default" : status === "pending" ? "secondary" : "destructive"} className={cn("whitespace-nowrap",{ "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30": status === "active", "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30": status === "expired", "bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30": status === "pending", "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30": status === "rejected", })}>{statusTranslations[status] || status}</Badge>} />
                            <DetailItem icon={<Hash />} label="N. Tessera" value={socio.tessera || '-'} />
                            <DetailItem icon={<Calendar />} label="Anno Associativo" value={socio.membershipYear || '-'} />
                            <DetailItem icon={<Euro />} label="Quota Versata" value={formatCurrency(status === 'pending' ? 0 : socio.membershipFee)} />
                            <DetailItem icon={<Award />} label="Qualifiche" value={socio.qualifica && socio.qualifica.length > 0 ? <div className="flex flex-wrap gap-1">{socio.qualifica.map(q => <Badge key={q} variant="secondary" className="text-xs">{q}</Badge>)}</div> : "Nessuna" } />
-                           <Separator className="my-2"/>
+                           <Separator className="my-1"/>
                            <DetailItem icon={<Calendar />} label="Data Richiesta" value={formatDate(socio.requestDate)} />
                            {status !== 'pending' && <DetailItem icon={<Calendar />} label="Data Ammissione" value={formatDate(socio.joinDate)} />}
                            {socio.renewalDate && <DetailItem icon={<Calendar />} label="Ultimo Rinnovo" value={formatDate(socio.renewalDate)} />}
                            <DetailItem icon={<Calendar />} label="Data Scadenza" value={formatDate(socio.expirationDate) || '-'} />
                         </div>
-
-                        {/* Note a tutta larghezza */}
-                        {socio.notes && (
-                           <div className="md:col-span-3 pt-4">
-                              <h3 className="font-semibold text-primary border-b border-border pb-2">Note</h3>
-                              <DetailItem icon={<StickyNote />} label="" value={<pre className="text-wrap font-sans text-sm whitespace-pre-wrap">{socio.notes}</pre>} />
-                           </div>
-                        )}
                      </div>
-
-                      <DialogFooter className="flex-col sm:flex-row sm:justify-between gap-2 border-t pt-4 mt-2">
+                      {socio.notes && (
+                        <div className="px-6 pt-4 flex-grow min-h-0">
+                          <h3 className="font-semibold text-primary border-b border-border pb-2 mb-2 text-base">Note</h3>
+                          <ScrollArea className="h-full max-h-48 pr-4">
+                            <pre className="text-sm font-sans whitespace-pre-wrap text-muted-foreground">{socio.notes}</pre>
+                          </ScrollArea>
+                        </div>
+                      )}
+                      <DialogFooter className="flex-col sm:flex-row sm:justify-between gap-2 border-t p-6 mt-auto">
                           <DialogClose asChild>
                             <Button variant="ghost">Chiudi</Button>
                           </DialogClose>
