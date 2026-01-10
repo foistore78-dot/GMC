@@ -67,14 +67,24 @@ const isExpired = (socio: Socio): boolean => {
     // Only members in the 'members' collection can expire.
     // Requests in 'membership_requests' are pending, not active, so they can't expire.
     if (!socio.expirationDate) {
-        return false;
+        return false; // If there is no expiration date, we can't determine if it's expired.
     }
+    
+    const currentYear = new Date().getFullYear();
+    const membershipYear = socio.membershipYear ? parseInt(socio.membershipYear, 10) : 0;
+    
+    // If the membership year is in the past, they are expired.
+    if (membershipYear && membershipYear < currentYear) {
+        return true;
+    }
+
     const expirationDate = parseDate(socio.expirationDate);
     if (!expirationDate) return false;
     
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Compare dates only
     
+    // If the expiration date is in the past, they are expired.
     return expirationDate < today;
 };
 
