@@ -90,12 +90,12 @@ const sortData = (data: Socio[], currentSortConfig: SortConfig): Socio[] => {
     });
 };
 
-const PaginationControls = ({ currentPage, totalPages, onNext, onPrev }: { currentPage: number, totalPages: number, onNext: () => void, onPrev: () => void }) => (
+const PaginationControls = ({ currentPage, totalPages, onPageChange }: { currentPage: number, totalPages: number, onPageChange: (page: number) => void }) => (
     <div className="flex items-center justify-center gap-4 mt-8">
         <Button
             variant="outline"
             size="sm"
-            onClick={onPrev}
+            onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
         >
             <ChevronLeft className="mr-2 h-4 w-4" />
@@ -107,7 +107,7 @@ const PaginationControls = ({ currentPage, totalPages, onNext, onPrev }: { curre
         <Button
             variant="outline"
             size="sm"
-            onClick={onNext}
+            onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage >= totalPages}
         >
             Avanti
@@ -157,41 +157,41 @@ export default function ElencoClient() {
     forceRefresh: forceRequestsRefresh,
   } = useCollection<Socio>(requestsQuery);
 
-  // 1. Separate data into raw categories
-  const { allActive, allExpired, pendingRequests } = useMemo(() => {
+  // Combine filtering and sorting logic into a single useMemo
+  const { paginatedData, totalPages, counts } = useMemo(() => {
     const allMembers = membersData || [];
-    const active = allMembers.filter((s) => getStatus(s) === "active");
-    const expired = allMembers.filter((s) => getStatus(s) === "expired");
-    const requests = (requestsData || []).filter((req) => getStatus(req) === "pending");
-    return { allActive: active, allExpired: expired, pendingRequests: requests };
-  }, [membersData, requestsData]);
+    const allRequests = requestsData || [];
 
-  // 2. Filter each category based on the search filter
-  const filteredActive = useMemo(() => filterData(allActive, filter), [allActive, filter]);
-  const filteredExpired = useMemo(() => filterData(allExpired, filter), [allExpired, filter]);
-  const filteredRequests = useMemo(() => filterData(pendingRequests, filter), [pendingRequests, filter]);
-  
-  // 3. Sort the currently visible (filtered) data
-  const sortedData = useMemo(() => {
-    const dataToSort: Socio[] =
-      activeTab === "active" ? filteredActive :
-      activeTab === "expired" ? filteredExpired :
-      activeTab === "requests" ? filteredRequests :
-      [];
+    const allActive = allMembers.filter((s) => getStatus(s) === "active");
+    const allExpired = allMembers.filter((s) => getStatus(s) === "expired");
+    const pendingRequests = allRequests.filter((req) => getStatus(req) === "pending");
 
+    const filteredActive = filterData(allActive, filter);
+    const filteredExpired = filterData(allExpired, filter);
+    const filteredRequests = filterData(pendingRequests, filter);
+    
+    const newCounts = {
+        active: filteredActive.length,
+        expired: filteredExpired.length,
+        requests: filteredRequests.length,
+    };
+
+    let dataToSort: Socio[] = [];
+    if (activeTab === "active") dataToSort = filteredActive;
+    else if (activeTab === "expired") dataToSort = filteredExpired;
+    else if (activeTab === "requests") dataToSort = filteredRequests;
+    
     const sorted = sortData(dataToSort, sortConfig);
-    const status = activeTab === 'active' ? 'active' : activeTab === 'expired' ? 'expired' : 'pending';
-    return sorted.map(s => ({ ...s, status }));
-  }, [activeTab, filteredActive, filteredExpired, filteredRequests, sortConfig]);
+    
+    const newTotalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE);
 
-  const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE);
-
-  const paginatedData = useMemo(() => {
-    return sortedData.slice(
+    const newPaginatedData = sorted.slice(
       (currentPage - 1) * ITEMS_PER_PAGE,
       currentPage * ITEMS_PER_PAGE
     );
-  }, [sortedData, currentPage]);
+
+    return { paginatedData: newPaginatedData, totalPages: newTotalPages, counts: newCounts };
+  }, [membersData, requestsData, filter, activeTab, sortConfig, currentPage]);
 
 
   useEffect(() => {
@@ -293,16 +293,9 @@ export default function ElencoClient() {
     setSocioToPrint(null);
   };
   
-  const handleNextPage = () => {
-      if (currentPage < totalPages) {
-          setCurrentPage(currentPage + 1);
-          window.scrollTo(0, 0);
-      }
-  };
-
-  const handlePreviousPage = () => {
-      if (currentPage > 1) {
-          setCurrentPage(currentPage - 1);
+  const handlePageChange = (page: number) => {
+      if (page > 0 && page <= totalPages) {
+          setCurrentPage(page);
           window.scrollTo(0, 0);
       }
   };
@@ -336,7 +329,7 @@ export default function ElencoClient() {
       </div>
 
       <div className="bg-background rounded-lg border border-border shadow-lg p-2 sm:p-4">
-        {isLoading && allActive.length === 0 && pendingRequests.length === 0 ? (
+        {isLoading && !membersData && !requestsData ? (
           <div className="flex justify-center items-center h-64">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
           </div>
@@ -349,19 +342,19 @@ export default function ElencoClient() {
                     value="active"
                     className="text-xs sm:text-sm data-[state=active]:bg-green-500/20 data-[state=active]:text-green-300"
                   >
-                    Attivi ({filteredActive.length})
+                    Attivi ({counts.active})
                   </TabsTrigger>
                   <TabsTrigger
                     value="expired"
                     className="text-xs sm:text-sm data-[state=active]:bg-yellow-500/20 data-[state=active]:text-yellow-300"
                   >
-                    In Attesa di Rinnovo ({filteredExpired.length})
+                    In Attesa di Rinnovo ({counts.expired})
                   </TabsTrigger>
                   <TabsTrigger
                     value="requests"
                     className="text-xs sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300"
                   >
-                    Richieste ({filteredRequests.length})
+                    Richieste ({counts.requests})
                   </TabsTrigger>
                 </TabsList>
 
@@ -419,8 +412,7 @@ export default function ElencoClient() {
               <PaginationControls
                 currentPage={currentPage}
                 totalPages={totalPages}
-                onNext={handleNextPage}
-                onPrev={handlePreviousPage}
+                onPageChange={handlePageChange}
               />
             )}
           </>
@@ -465,7 +457,5 @@ export default function ElencoClient() {
     </div>
   );
 }
-
-    
 
     
