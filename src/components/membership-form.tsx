@@ -185,11 +185,11 @@ export function MembershipForm() {
   }
   
   // Reset form when language changes
-  useState(() => {
+  useEffect(() => {
     if(currentStep > 0) {
        resetForm();
     }
-  });
+  }, [language]);
 
 
   if (isSubmitted) {
