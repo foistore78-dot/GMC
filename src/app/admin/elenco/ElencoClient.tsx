@@ -6,7 +6,7 @@ import Link from "next/link";
 import ReactDOMServer from "react-dom/server";
 
 import { collection } from "firebase/firestore";
-import { Filter, Loader2, QrCode, UserPlus, Users } from "lucide-react";
+import { Filter, Loader2, UserPlus, Users } from "lucide-react";
 
 import { SociTable, type SortConfig, getStatus, formatDate, getFullName } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
@@ -236,11 +236,16 @@ export default function ElencoClient() {
 
     printWindow.document.close();
 
-    setTimeout(() => {
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
-    }, 250);
+    // Use a longer timeout and listen for the 'afterprint' event for robustness
+    const timeoutId = setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+    }, 500); // Increased timeout
+
+    printWindow.onafterprint = () => {
+        clearTimeout(timeoutId); // Clear the timeout if print is initiated
+        printWindow.close();
+    };
 
     setShowPrintDialog(false);
     setSocioToPrint(null);
