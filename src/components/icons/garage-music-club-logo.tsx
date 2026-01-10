@@ -5,7 +5,7 @@ import type { SVGProps } from "react";
 export function GarageMusicClubLogo(props: SVGProps<SVGSVGElement> & { className?: string }) {
   return (
     <Image
-      src="https://i.imgur.com/GREAIez.png"
+      src="https://i.imgur.com/zO92zB0.png"
       alt="Garage Music Club Logo"
       width={100}
       height={100}
