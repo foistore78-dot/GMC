@@ -1,3 +1,4 @@
+
 import * as XLSX from 'xlsx';
 import type { Socio } from './soci-data';
 import { collection, writeBatch, Firestore, doc, getDocs, query, where } from 'firebase/firestore';
@@ -47,7 +48,7 @@ const excelRowToSocio = (row: any): PartialSocioWithStatus => {
         lastName: row['Cognome'],
         firstName: row['Nome'],
         gender: (row['Genere'] || '').toLowerCase() === 'maschio' ? 'male' : 'female',
-        birthDate: parseExcelDate(row['Data di Nascita']) || undefined,
+        birthDate: parseExcelDate(row['Data di Nascita']),
         birthPlace: row['Luogo di Nascita'],
         fiscalCode: row['Codice Fiscale'] || undefined,
         address: row['Indirizzo'],
@@ -59,16 +60,16 @@ const excelRowToSocio = (row: any): PartialSocioWithStatus => {
         whatsappConsent: (row['Consenso WhatsApp'] || '').toUpperCase() === 'SI',
         privacyConsent: (row['Consenso Privacy'] || '').toUpperCase() === 'SI',
         membershipYear: row['Anno Associativo'] ? String(row['Anno Associativo']) : undefined,
-        requestDate: parseExcelDate(row['Data Richiesta']) || undefined,
-        joinDate: parseExcelDate(row['Data Ammissione']) || undefined,
-        renewalDate: parseExcelDate(row['Data Rinnovo']) || undefined,
-        expirationDate: parseExcelDate(row['Data Scadenza']) || undefined,
+        requestDate: parseExcelDate(row['Data Richiesta']),
+        joinDate: parseExcelDate(row['Data Ammissione']),
+        renewalDate: parseExcelDate(row['Data Rinnovo']),
+        expirationDate: parseExcelDate(row['Data Scadenza']),
         membershipFee: typeof row['Quota Versata (€)'] === 'number' ? row['Quota Versata (€)'] : 0,
         qualifica: row['Qualifiche'] ? row['Qualifiche'].split(',').map((q: string) => q.trim().toUpperCase()) : [],
         notes: row['Note'] || undefined,
         guardianFirstName: row['Nome Tutore'] || undefined,
         guardianLastName: row['Cognome Tutore'] || undefined,
-        guardianBirthDate: parseExcelDate(row['Data Nascita Tutore']) || undefined,
+        guardianBirthDate: parseExcelDate(row['Data Nascita Tutore']),
     };
     
     Object.keys(socio).forEach(key => (socio as any)[key] === undefined && delete (socio as any)[key]);
@@ -218,3 +219,5 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
     reader.readAsBinaryString(file);
   });
 };
+
+    

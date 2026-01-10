@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { QRCode } from "qrcode.react";
+import QRCode from "qrcode.react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { Socio } from '@/lib/soci-data';
@@ -246,3 +246,5 @@ export default function SegreteriaPage() {
     </div>
   );
 }
+
+    

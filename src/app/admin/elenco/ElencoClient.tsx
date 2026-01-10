@@ -65,27 +65,29 @@ const filterAndSortData = (
       const { key, direction } = sortConfig;
       const asc = direction === 'ascending';
       
-      let valA: string | number = '';
-      let valB: string | number = '';
+      const aVal = a[key as keyof Socio] ?? '';
+      const bVal = b[key as keyof Socio] ?? '';
 
       if (key === 'name') {
-        valA = getFullName(a);
-        valB = getFullName(b);
-      } else if (key === 'status') {
-        valA = getStatus(a);
-        valB = getStatus(b);
-      } else if (key === 'tessera' || key === 'tessera_mobile') {
-        valA = parseInt(a.tessera?.split('-').pop() || '0', 10);
-        valB = parseInt(b.tessera?.split('-').pop() || '0', 10);
-      } else {
-        const aValue = a[key as keyof Socio];
-        const bValue = b[key as keyof Socio];
-        valA = typeof aValue === 'string' ? aValue.toLowerCase() : (aValue as any);
-        valB = typeof bValue === 'string' ? bValue.toLowerCase() : (bValue as any);
+        const nameA = getFullName(a);
+        const nameB = getFullName(b);
+        return nameA.localeCompare(nameB) * (asc ? 1 : -1);
       }
       
-      if (valA < valB) return asc ? -1 : 1;
-      if (valA > valB) return asc ? 1 : -1;
+      if (key === 'tessera_mobile') {
+        const numA = parseInt(a.tessera?.split('-').pop() ?? '0');
+        const numB = parseInt(b.tessera?.split('-').pop() ?? '0');
+        if (numA < numB) return asc ? -1 : 1;
+        if (numA > numB) return asc ? 1 : -1;
+        return 0;
+      }
+
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return aVal.localeCompare(bVal) * (asc ? 1 : -1);
+      }
+
+      if (aVal < bVal) return asc ? -1 : 1;
+      if (aVal > bVal) return asc ? 1 : -1;
       return 0;
     });
 
@@ -443,3 +445,5 @@ export default function ElencoClient() {
     </div>
   );
 }
+
+    
