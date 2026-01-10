@@ -166,7 +166,7 @@ export default function ElencoClient() {
     const filteredExpired = filterData(allExpired, filter);
     const filteredRequests = filterData(pendingRequests, filter);
 
-    const newCounts = {
+    const counts = {
       active: filteredActive.length,
       expired: filteredExpired.length,
       requests: filteredRequests.length,
@@ -181,11 +181,10 @@ export default function ElencoClient() {
 
     const sorted = sortData(dataToSort, sortConfig);
 
-    const newTotalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE);
+    const paginatedData = sorted.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-    const newPaginatedData = sorted.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-
-    return { paginatedData: newPaginatedData, totalPages: newTotalPages, counts: newCounts };
+    return { paginatedData, totalPages, counts };
   }, [membersData, requestsData, filter, activeTab, sortConfig, currentPage]);
 
   useEffect(() => {
@@ -442,3 +441,5 @@ export default function ElencoClient() {
     </div>
   );
 }
+
+    
