@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { Suspense, useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from 'next/link';
 import { Header } from "@/components/header";
@@ -41,8 +41,7 @@ const getTesseraNumber = (tessera: string | undefined): number => {
   return isNaN(num) ? Infinity : num;
 };
 
-
-export default function ElencoSociPage() {
+function ElencoSociContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isUserLoading } = useUser();
@@ -384,5 +383,23 @@ export default function ElencoSociPage() {
 
       <Footer />
     </div>
+  );
+}
+
+const LoadingFallback = () => (
+  <div className="flex flex-col min-h-screen bg-secondary">
+    <Header />
+    <main className="flex-grow flex items-center justify-center">
+      <Loader2 className="h-16 w-16 animate-spin text-primary" />
+    </main>
+    <Footer />
+  </div>
+);
+
+export default function ElencoSociPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <ElencoSociContent />
+    </Suspense>
   );
 }
