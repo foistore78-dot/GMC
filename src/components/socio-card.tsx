@@ -75,6 +75,7 @@ export function SocioCard({ socio }: SocioCardProps) {
             <td style={{ verticalAlign: 'top', textAlign: 'right', fontSize: '10px', lineHeight: '1.4' }}>
               <p style={{ margin: 0 }}>Sede: Via XXIV Udine n. 43, Gradisca d’Isonzo (GO)</p>
               <p style={{ margin: 0 }}>Email: garage.music.club2024@gmail.com</p>
+              <p style={{ margin: 0 }}>Tel: +39 389 7995206</p>
               <p style={{ margin: 0 }}>C.F. 91028120317</p>
             </td>
           </tr>
