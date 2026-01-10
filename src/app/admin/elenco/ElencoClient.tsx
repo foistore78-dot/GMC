@@ -90,31 +90,27 @@ const sortData = (data: Socio[], currentSortConfig: SortConfig): Socio[] => {
 };
 
 const PaginationControls = ({ currentPage, totalPages, onNext, onPrev }: { currentPage: number, totalPages: number, onNext: () => void, onPrev: () => void }) => (
-    <>
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-8">
-            <Button
-                onClick={onPrev}
-                disabled={currentPage === 1}
-                className="h-9 px-4 bg-[hsl(173,90%,45%)] hover:bg-[hsl(173,90%,50%)] text-primary-foreground disabled:bg-muted disabled:text-muted-foreground"
-            >
-                <ChevronLeft className="mr-2 h-4 w-4" />
-                Indietro
-            </Button>
-            <span className="text-sm text-muted-foreground">
-                Pagina {currentPage} di {totalPages}
-            </span>
-            <Button
-                onClick={onNext}
-                disabled={currentPage >= totalPages}
-                className="h-9 px-4 bg-[hsl(173,90%,45%)] hover:bg-[hsl(173,90%,50%)] text-primary-foreground"
-            >
-                Avanti
-                <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-        </div>
-      )}
-    </>
+    <div className="flex items-center justify-center gap-2 mt-8">
+        <Button
+            onClick={onPrev}
+            disabled={currentPage === 1 || totalPages <= 1}
+            className="h-9 px-4 bg-[hsl(173,90%,45%)] hover:bg-[hsl(173,90%,50%)] text-primary-foreground disabled:bg-muted disabled:text-muted-foreground"
+        >
+            <ChevronLeft className="mr-2 h-4 w-4" />
+            Indietro
+        </Button>
+        <span className="text-sm text-muted-foreground">
+            Pagina {currentPage} di {Math.max(1, totalPages)}
+        </span>
+        <Button
+            onClick={onNext}
+            disabled={currentPage >= totalPages}
+            className="h-9 px-4 bg-[hsl(173,90%,45%)] hover:bg-[hsl(173,90%,50%)] text-primary-foreground"
+        >
+            Avanti
+            <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+    </div>
 );
 
 export default function ElencoClient() {
