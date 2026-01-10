@@ -1,17 +1,36 @@
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import type { SVGProps } from "react";
 
-export function GarageMusicClubLogo(props: SVGProps<SVGSVGElement> & { className?: string }) {
+type Props = {
+  className?: string;
+  size?: number; // default 60
+};
+
+export function GarageMusicClubLogo({ className, size = 60 }: Props) {
   return (
-    <Image
-      src="https://i.imgur.com/Pp0tSQj.png"
-      alt="Garage Music Club Logo"
-      width={100}
-      height={100}
-      className={cn(props.className)}
-      // The original SVG props are not all applicable to Image, so we spread only what's safe
-      // or handle them as needed. For this component, className is the main prop used.
-    />
+    <span
+      className={cn(className)}
+      style={{
+        display: "inline-block",
+        width: `${size}px`,
+        height: `${size}px`,
+        overflow: "hidden",
+        verticalAlign: "middle",
+      }}
+    >
+      <Image
+        src="https://i.imgur.com/Pp0tSQj.png"
+        alt="Garage Music Club Logo"
+        width={size}
+        height={size}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          display: "block",
+        }}
+        priority
+      />
+    </span>
   );
 }

@@ -336,8 +336,24 @@ const handleRenew = async () => {
   
   const handleWhatsAppClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!socio.phone) {
+        toast({
+            title: "Numero non presente",
+            description: "Questo socio non ha fornito un numero di telefono.",
+            variant: "destructive",
+        });
+        return;
+    }
     const groupInviteLink = "https://chat.whatsapp.com/KKes4gzve7T8xET9OD3bm5";
-    window.open(groupInviteLink, '_blank', 'noopener,noreferrer');
+    const message = `Ciao ${socio.firstName}! Benvenuto/a nel Garage Music Club. Questo è il link per unirti al nostro gruppo WhatsApp ufficiale e rimanere aggiornato su tutte le attività: ${groupInviteLink}`;
+    
+    // Rimuove caratteri non numerici, gestisce il prefisso
+    const cleanedPhone = socio.phone.replace(/\D/g, '');
+    const finalPhone = cleanedPhone.startsWith('39') ? cleanedPhone : `39${cleanedPhone}`;
+
+    const whatsappUrl = `https://wa.me/${finalPhone}?text=${encodeURIComponent(message)}`;
+    
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
   const tesseraDisplay = socio.tessera ? `${socio.tessera.split('-')[1]}-${socio.tessera.split('-')[2]}` : '-';
@@ -357,11 +373,11 @@ const handleRenew = async () => {
                            <TooltipTrigger asChild>
                              <button onClick={handleWhatsAppClick} className="text-green-500 hover:text-green-400">
                                <MessageCircle className="h-4 w-4" />
-                               <span className="sr-only">Contatta su WhatsApp</span>
+                               <span className="sr-only">Invia invito WhatsApp</span>
                              </button>
                            </TooltipTrigger>
                            <TooltipContent>
-                             <p>Consenso WhatsApp attivo. Clicca per unirti al gruppo.</p>
+                             <p>Invia invito al gruppo WhatsApp</p>
                            </TooltipContent>
                          </Tooltip>
                        </TooltipProvider>
