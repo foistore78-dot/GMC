@@ -334,8 +334,9 @@ const SocioTableRow = ({
             title: "Socio Approvato!",
             description: `${getFullName(socio)} è ora un membro attivo. N. tessera: ${membershipCardNumber}`,
         });
-        setApprovedSocioData(newMemberData);
-        // The dialog state will now show the success screen
+        onPrint(newMemberData);
+        handleApproveDialogChange(false);
+        onSocioUpdate('active');
     } catch (error) {
         console.error("Error approving member:", error);
         toast({
@@ -565,27 +566,6 @@ const handleRenew = async () => {
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-lg">
-                  {approvedSocioData ? (
-                    <>
-                       <DialogHeader>
-                          <DialogTitle>Approvazione Completata!</DialogTitle>
-                          <DialogDescription>
-                              <strong className="text-foreground">{getFullName(approvedSocioData)}</strong> è ora un membro attivo.
-                          </DialogDescription>
-                       </DialogHeader>
-                       <div className="py-4 text-center">
-                          <p className="text-sm">Nuovo numero tessera:</p>
-                          <p className="font-bold text-lg text-primary">{approvedSocioData.tessera}</p>
-                       </div>
-                       <DialogFooter>
-                          <Button variant="ghost" onClick={() => handleApproveDialogChange(false)}>Chiudi</Button>
-                          <Button onClick={() => { onPrint(approvedSocioData); handleApproveDialogChange(false); }}>
-                             <Printer className="mr-2 h-4 w-4" /> Stampa Scheda
-                          </Button>
-                       </DialogFooter>
-                    </>
-                  ) : (
-                    <>
                       <DialogHeader>
                           <DialogTitle>Approva Socio e Completa Iscrizione</DialogTitle>
                           <DialogDescription>
@@ -649,11 +629,9 @@ const handleRenew = async () => {
                           <Button variant="ghost" onClick={() => handleApproveDialogChange(false)}>Annulla</Button>
                           <Button onClick={handleApprove} disabled={isApproving || !approveFeePaid}>
                               {isApproving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                              Conferma e Approva
+                              Conferma e Stampa
                           </Button>
                       </DialogFooter>
-                    </>
-                  )}
                 </DialogContent>
               </Dialog>
             )}
