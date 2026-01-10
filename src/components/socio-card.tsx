@@ -58,29 +58,21 @@ export function SocioCard({ socio }: SocioCardProps) {
     <div style={{ background: 'white', color: 'black', width: '100%', maxWidth: '18cm', margin: '0 auto', fontFamily: "'Roboto', sans-serif", padding: '1cm' }}>
       
       {/* Header */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px' }}>
-        <tbody>
-          <tr>
-            <td style={{ verticalAlign: 'middle', width: '60px', paddingRight: '15px' }}>
-              {/* Force aspect ratio on logo container */}
-              <div style={{ width: '60px', height: '60px' }}>
-                <GarageMusicClubLogo className="w-full h-full" />
-              </div>
-            </td>
-            <td style={{ verticalAlign: 'middle' }}>
-              {/* Use Orbitron font for the header title */}
-              <h1 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: '24px', fontWeight: 'bold', margin: '0', letterSpacing: '0.05em' }}>GARAGE MUSIC CLUB</h1>
-              <p style={{ fontSize: '13px', margin: '0' }}>Associazione Culturale</p>
-            </td>
-            <td style={{ verticalAlign: 'top', textAlign: 'right', fontSize: '10px', lineHeight: '1.4' }}>
-              <p style={{ margin: 0 }}>Sede: Via XXIV Udine n. 43, Gradisca d’Isonzo (GO)</p>
-              <p style={{ margin: 0 }}>Email: garage.music.club2024@gmail.com</p>
-              <p style={{ margin: 0 }}>Tel: +39 389 7995206</p>
-              <p style={{ margin: 0 }}>C.F. 91050330314</p>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px' }}>
+        <div style={{ flex: '0 0 60px', width: '60px', height: '60px', marginRight: '15px' }}>
+          <GarageMusicClubLogo className="w-full h-full" />
+        </div>
+        <div style={{ flex: '1 1 auto', textAlign: 'left' }}>
+          <h1 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: '24px', fontWeight: 'bold', margin: '0', letterSpacing: '0.05em' }}>GARAGE MUSIC CLUB</h1>
+          <p style={{ fontSize: '13px', margin: '0' }}>Associazione Culturale</p>
+        </div>
+        <div style={{ flex: '1 1 auto', textAlign: 'right', fontSize: '10px', lineHeight: '1.4' }}>
+          <p style={{ margin: 0 }}>Sede: Via XXIV Udine n. 43, Gradisca d’Isonzo (GO)</p>
+          <p style={{ margin: 0 }}>Email: garage.music.club2024@gmail.com</p>
+          <p style={{ margin: 0 }}>Tel: +39 389 7995206</p>
+          <p style={{ margin: 0 }}>C.F. 91050330314</p>
+        </div>
+      </div>
 
       {/* Title */}
       <div style={{ textAlign: 'center', margin: '15px 0', borderTop: '2px solid black', borderBottom: '2px solid black', padding: '8px 0' }}>
