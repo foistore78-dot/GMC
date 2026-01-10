@@ -3,7 +3,7 @@ export type Socio = {
   gender: 'male' | 'female';
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string;
   phone?: string;
   birthPlace: string;
   birthDate: string;
@@ -16,8 +16,11 @@ export type Socio = {
   requestDate?: string;
   expirationDate?: string;
   renewalDate?: string;
-  membershipStatus?: 'pending' | 'active' | 'rejected';
-  status?: 'pending' | 'active' | 'rejected';
+  // This is the single source of truth for the member's current state.
+  // 'active' documents are in the 'members' collection.
+  // 'pending' and 'rejected' documents are in the 'membership_requests' collection.
+  // 'expired' is a derived status on the client for active members whose expirationDate is in the past.
+  status?: 'pending' | 'active' | 'rejected' | 'expired';
   whatsappConsent: boolean;
   privacyConsent: boolean;
   guardianFirstName?: string;

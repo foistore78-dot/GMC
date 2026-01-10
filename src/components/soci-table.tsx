@@ -62,7 +62,9 @@ const parseDate = (dateString: any): Date | null => {
 
 
 const isExpired = (socio: Socio): boolean => {
-    if (socio.membershipStatus !== 'active' || !socio.expirationDate) {
+    // Only members in the 'members' collection can expire.
+    // Requests in 'membership_requests' are pending, not active, so they can't expire.
+    if (!socio.expirationDate) {
         return false;
     }
     const expirationDate = parseDate(socio.expirationDate);
@@ -74,15 +76,13 @@ const isExpired = (socio: Socio): boolean => {
     return expirationDate < today;
 };
 
-export const getStatus = (socio: any): 'active' | 'pending' | 'rejected' | 'expired' => {
-    if (socio.membershipStatus === 'active') {
-        if (isExpired(socio)) {
-            return 'expired';
-        }
-        return 'active';
+export const getStatus = (socio: Socio): 'active' | 'pending' | 'rejected' | 'expired' => {
+    // If it's in the members collection, it's either active or expired
+    if (socio.tessera) {
+        return isExpired(socio) ? 'expired' : 'active';
     }
-    if (socio.status === 'rejected') return 'rejected';
-    return socio.status || 'pending';
+    // If it's in the requests collection, it's pending or rejected
+    return socio.status === 'rejected' ? 'rejected' : 'pending';
 };
 
 
@@ -248,7 +248,7 @@ const SocioTableRow = ({
         ...restOfSocio,
         id: socio.id,
         joinDate: new Date().toISOString(),
-        membershipStatus: 'active' as const,
+        status: 'active' as const,
         expirationDate: new Date(currentYear, 11, 31).toISOString(),
         membershipYear: String(currentYear),
         tessera: membershipCardNumber,
@@ -376,7 +376,7 @@ const handleRenew = async () => {
                         } />
                        <DetailRow icon={<Calendar />} label="Anno Associativo" value={socio.membershipYear || new Date().getFullYear()} />
                        <DetailRow icon={<Calendar />} label="Data Richiesta" value={formatDate(socio.requestDate)} />
-                       {socio.membershipStatus === 'active' && <DetailRow icon={<Calendar />} label="Data Ammissione" value={formatDate(socio.joinDate)} />}
+                       {status !== 'pending' && <DetailRow icon={<Calendar />} label="Data Ammissione" value={formatDate(socio.joinDate)} />}
                        {socio.renewalDate && <DetailRow icon={<Calendar />} label="Data Rinnovo" value={formatDate(socio.renewalDate)} />}
                        <DetailRow icon={<Euro />} label="Quota Versata" value={formatCurrency(status === 'pending' ? 0 : socio.membershipFee)} />
                        {socio.isVolunteer && <DetailRow icon={<HandHeart />} label="Volontario" value="Sì" />}
@@ -750,7 +750,7 @@ export const SociTable = ({
               <SortableHeader label="Tessera" sortKey="tessera" sortConfig={sortConfig} setSortConfig={setSortConfig} className="w-[100px] hidden sm:table-cell" />
               <SortableHeader label="Nome" sortKey="name" sortConfig={sortConfig} setSortConfig={setSortConfig} />
               <SortableHeader label="Nascita" sortKey="birthDate" sortConfig={sortConfig} setSortConfig={setSortConfig} className="hidden md:table-cell" />
-              <SortableHeader label="Stato" sortKey="membershipStatus" sortConfig={sortConfig} setSortConfig={setSortConfig} />
+              <SortableHeader label="Stato" sortKey="status" sortConfig={sortConfig} setSortConfig={setSortConfig} />
               <TableHead className="text-right">Azioni</TableHead>
             </TableRow>
           </TableHeader>

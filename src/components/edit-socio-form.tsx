@@ -134,7 +134,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     if (!firestore) return;
     setIsSubmitting(true);
 
-    const originalStatus = getSocioStatus(socio) === 'expired' ? 'active' : getSocioStatus(socio);
+    const originalStatus = getSocioStatus(socio);
     const newStatus = values.status;
     const { status, ...dataToSave } = values;
 
@@ -151,7 +151,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             }
             finalTab = 'requests';
 
-        } else if (originalStatus !== newStatus) {
+        } else if (originalStatus !== newStatus && !(originalStatus === 'expired' && newStatus === 'active')) {
             // This logic handles transitions between collections (pending <-> active)
             if (newStatus === 'active') { // Moving from 'pending' to 'members'
                 const oldDocRef = doc(firestore, 'membership_requests', socio.id);
@@ -161,17 +161,16 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     ...socio,
                     ...dataToSave,
                     id: socio.id,
-                    membershipStatus: 'active' as const,
+                    status: 'active' as const,
                     joinDate: values.joinDate ? new Date(values.joinDate).toISOString() : new Date().toISOString(),
                     expirationDate: new Date(parseInt(values.membershipYear || new Date().getFullYear().toString(), 10), 11, 31).toISOString(),
                 };
-                delete finalData.status; // Remove the temporary 'status' field
                 
                 batch.set(newDocRef, finalData, { merge: true });
                 batch.delete(oldDocRef);
                 finalTab = 'active';
 
-            } else if (newStatus === 'pending') { // Moving from 'active' to 'membership_requests'
+            } else if (newStatus === 'pending') { // Moving from 'active' or 'expired' to 'membership_requests'
                 const oldDocRef = doc(firestore, 'members', socio.id);
                 const newDocRef = doc(firestore, 'membership_requests', socio.id);
                 
@@ -188,15 +187,14 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 finalData.renewalDate = deleteField();
                 finalData.joinDate = deleteField();
                 finalData.expirationDate = deleteField();
-                finalData.membershipStatus = deleteField();
                 
                 batch.set(newDocRef, finalData, { merge: true });
                 batch.delete(oldDocRef);
                 finalTab = 'requests';
             }
         } else {
-            // Status has not changed, just update the data in the correct collection
-            const collectionName = newStatus === 'active' ? 'members' : 'membership_requests';
+            // Status has not changed collection-wise, just update the data
+            const collectionName = (newStatus === 'active' || originalStatus === 'expired') ? 'members' : 'membership_requests';
             const docRef = doc(firestore, collectionName, socio.id);
             
             const expirationYear = values.membershipYear ? parseInt(values.membershipYear, 10) : new Date().getFullYear();
@@ -205,18 +203,17 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
               ...dataToSave,
               joinDate: values.joinDate ? new Date(values.joinDate).toISOString() : (socio.joinDate || null),
               renewalDate: values.renewalDate ? new Date(values.renewalDate).toISOString() : (socio.renewalDate || null),
-              // Crucially, always recalculate expiration date based on membershipYear
               expirationDate: new Date(expirationYear, 11, 31).toISOString(),
-              privacyConsent: socio.privacyConsent, // Ensure privacyConsent is not dropped
+              privacyConsent: socio.privacyConsent,
             };
             
-            if (newStatus === 'pending') {
+            if (collectionName === 'membership_requests') {
                 finalData.tessera = deleteField();
                 finalData.membershipFee = 0;
                 finalTab = 'requests';
             } else {
               finalData.tessera = values.tessera;
-              finalTab = 'active';
+              finalTab = getSocioStatus({ ...socio, ...finalData }) === 'expired' ? 'expired' : 'active';
             }
 
             batch.set(docRef, finalData, { merge: true });
