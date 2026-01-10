@@ -4,10 +4,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import ReactDOMServer from "react-dom/server";
+import { createRoot } from "react-dom/client";
 
 import { collection } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight } from "lucide-react";
 
 import { SociTable, type SortConfig, getStatus, formatDate, getFullName } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
@@ -42,78 +42,81 @@ const getTesseraNumber = (tessera: string | undefined): number => {
 };
 
 const filterData = (data: Socio[], searchFilter: string): Socio[] => {
-    if (!searchFilter) return data;
-    if (!data) return [];
-  
-    return data.filter((socio) => {
-      const searchString = searchFilter.toLowerCase();
-      const fullName = `${socio.firstName || ""} ${socio.lastName || ""}`.toLowerCase();
-      const reversedFullName = `${socio.lastName || ""} ${socio.firstName || ""}`.toLowerCase();
-      const email = socio.email?.toLowerCase() || "";
-      const tessera = socio.tessera?.toLowerCase() || "";
-      const birthDate = formatDate(socio.birthDate);
-  
-      return (
-        fullName.includes(searchString) ||
-        reversedFullName.includes(searchString) ||
-        email.includes(searchString) ||
-        tessera.includes(searchString) ||
-        birthDate.includes(searchString)
-      );
-    });
+  if (!searchFilter) return data;
+  if (!data) return [];
+
+  return data.filter((socio) => {
+    const searchString = searchFilter.toLowerCase();
+    const fullName = `${socio.firstName || ""} ${socio.lastName || ""}`.toLowerCase();
+    const reversedFullName = `${socio.lastName || ""} ${socio.firstName || ""}`.toLowerCase();
+    const email = socio.email?.toLowerCase() || "";
+    const tessera = socio.tessera?.toLowerCase() || "";
+    const birthDate = formatDate(socio.birthDate);
+
+    return (
+      fullName.includes(searchString) ||
+      reversedFullName.includes(searchString) ||
+      email.includes(searchString) ||
+      tessera.includes(searchString) ||
+      birthDate.includes(searchString)
+    );
+  });
 };
 
 const sortData = (data: Socio[], currentSortConfig: SortConfig): Socio[] => {
-    if (!data) return [];
+  if (!data) return [];
 
-    return [...data].sort((a, b) => {
-      const { key, direction } = currentSortConfig;
+  return [...data].sort((a, b) => {
+    const { key, direction } = currentSortConfig;
 
-      let aValue: any;
-      let bValue: any;
+    let aValue: any;
+    let bValue: any;
 
-      if (key === "tessera") {
-        aValue = getTesseraNumber(a.tessera);
-        bValue = getTesseraNumber(b.tessera);
-      } else if (key === "name") {
-        aValue = `${a.lastName} ${a.firstName}`.toLowerCase();
-        bValue = `${b.lastName} ${b.firstName}`.toLowerCase();
-      } else {
-        aValue = a[key as keyof Socio];
-        bValue = b[key as keyof Socio];
-      }
+    if (key === "tessera") {
+      aValue = getTesseraNumber(a.tessera);
+      bValue = getTesseraNumber(b.tessera);
+    } else if (key === "name") {
+      aValue = `${a.lastName} ${a.firstName}`.toLowerCase();
+      bValue = `${b.lastName} ${b.firstName}`.toLowerCase();
+    } else {
+      aValue = a[key as keyof Socio];
+      bValue = b[key as keyof Socio];
+    }
 
-      const asc = direction === "ascending";
-      if (aValue < bValue) return asc ? -1 : 1;
-      if (aValue > bValue) return asc ? 1 : -1;
-      return 0;
-    });
+    const asc = direction === "ascending";
+    if (aValue < bValue) return asc ? -1 : 1;
+    if (aValue > bValue) return asc ? 1 : -1;
+    return 0;
+  });
 };
 
-const PaginationControls = ({ currentPage, totalPages, onPageChange }: { currentPage: number, totalPages: number, onPageChange: (page: number) => void }) => (
-    <div className="flex items-center justify-center gap-4 mt-8">
-        <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-        >
-            <ChevronLeft className="mr-2 h-4 w-4" />
-            Indietro
-        </Button>
-        <span className="text-sm text-muted-foreground">
-            Pagina {currentPage} di {Math.max(1, totalPages)}
-        </span>
-        <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage >= totalPages}
-        >
-            Avanti
-            <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
-    </div>
+const PaginationControls = ({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) => (
+  <div className="flex items-center justify-center gap-4 mt-8">
+    <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>
+      <ChevronLeft className="mr-2 h-4 w-4" />
+      Indietro
+    </Button>
+    <span className="text-sm text-muted-foreground">
+      Pagina {currentPage} di {Math.max(1, totalPages)}
+    </span>
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => onPageChange(currentPage + 1)}
+      disabled={currentPage >= totalPages}
+    >
+      Avanti
+      <ArrowRight className="ml-2 h-4 w-4" />
+    </Button>
+  </div>
 );
 
 export default function ElencoClient() {
@@ -136,28 +139,21 @@ export default function ElencoClient() {
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [socioToPrint, setSocioToPrint] = useState<Socio | null>(null);
 
-  const membersQuery = useMemoFirebase(
-    () => (firestore && user ? collection(firestore, "members") : null),
-    [firestore, user]
-  );
+  const membersQuery = useMemoFirebase(() => (firestore && user ? collection(firestore, "members") : null), [
+    firestore,
+    user,
+  ]);
   const requestsQuery = useMemoFirebase(
     () => (firestore && user ? collection(firestore, "membership_requests") : null),
     [firestore, user]
   );
 
-  const {
-    data: membersData,
-    isLoading: isMembersLoading,
-    forceRefresh: forceMembersRefresh,
-  } = useCollection<Socio>(membersQuery);
+  const { data: membersData, isLoading: isMembersLoading, forceRefresh: forceMembersRefresh } =
+    useCollection<Socio>(membersQuery);
 
-  const {
-    data: requestsData,
-    isLoading: isRequestsLoading,
-    forceRefresh: forceRequestsRefresh,
-  } = useCollection<Socio>(requestsQuery);
+  const { data: requestsData, isLoading: isRequestsLoading, forceRefresh: forceRequestsRefresh } =
+    useCollection<Socio>(requestsQuery);
 
-  // Combine filtering and sorting logic into a single useMemo
   const { paginatedData, totalPages, counts } = useMemo(() => {
     const allMembers = membersData || [];
     const allRequests = requestsData || [];
@@ -169,48 +165,41 @@ export default function ElencoClient() {
     const filteredActive = filterData(allActive, filter);
     const filteredExpired = filterData(allExpired, filter);
     const filteredRequests = filterData(pendingRequests, filter);
-    
+
     const newCounts = {
-        active: filteredActive.length,
-        expired: filteredExpired.length,
-        requests: filteredRequests.length,
+      active: filteredActive.length,
+      expired: filteredExpired.length,
+      requests: filteredRequests.length,
     };
 
-    let dataToSort: Socio[] = [];
-    if (activeTab === "active") dataToSort = filteredActive;
-    else if (activeTab === "expired") dataToSort = filteredExpired;
-    else if (activeTab === "requests") dataToSort = filteredRequests;
-    
+    const dataToSort: Socio[] =
+      activeTab === "active"
+        ? filteredActive
+        : activeTab === "expired"
+        ? filteredExpired
+        : filteredRequests;
+
     const sorted = sortData(dataToSort, sortConfig);
-    
+
     const newTotalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE);
 
-    const newPaginatedData = sorted.slice(
-      (currentPage - 1) * ITEMS_PER_PAGE,
-      currentPage * ITEMS_PER_PAGE
-    );
+    const newPaginatedData = sorted.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     return { paginatedData: newPaginatedData, totalPages: newTotalPages, counts: newCounts };
   }, [membersData, requestsData, filter, activeTab, sortConfig, currentPage]);
 
-
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", activeTab);
-    if (filter) {
-      params.set("filter", filter);
-    } else {
-      params.delete("filter");
-    }
+    if (filter) params.set("filter", filter);
+    else params.delete("filter");
 
     router.replace(`/admin/elenco?${params.toString()}`, { scroll: false });
     setCurrentPage(1);
   }, [activeTab, filter, router, searchParams]);
 
   useEffect(() => {
-    if (!isUserLoading && !user) {
-      router.push("/login");
-    }
+    if (!isUserLoading && !user) router.push("/login");
   }, [user, isUserLoading, router]);
 
   const isLoading = isUserLoading || isMembersLoading || isRequestsLoading;
@@ -223,13 +212,10 @@ export default function ElencoClient() {
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
-    setCurrentPage(1); // Reset page on tab change
+    setCurrentPage(1);
 
-    if (tab === "requests") {
-      setSortConfig({ key: "requestDate", direction: "descending" });
-    } else {
-      setSortConfig({ key: "tessera", direction: "ascending" });
-    }
+    if (tab === "requests") setSortConfig({ key: "requestDate", direction: "descending" });
+    else setSortConfig({ key: "tessera", direction: "ascending" });
   };
 
   const handleSocioUpdate = useCallback(
@@ -246,6 +232,7 @@ export default function ElencoClient() {
     setShowPrintDialog(true);
   };
 
+  // ✅ STAMPA: niente react-dom/server, solo client rendering in nuova finestra
   const executePrint = () => {
     if (!socioToPrint) return;
 
@@ -255,8 +242,7 @@ export default function ElencoClient() {
       return;
     }
 
-    const cardHtml = ReactDOMServer.renderToStaticMarkup(<SocioCard socio={socioToPrint} />);
-
+    printWindow.document.open();
     printWindow.document.write(`
       <html>
         <head>
@@ -269,37 +255,43 @@ export default function ElencoClient() {
             body { font-family: 'Roboto', sans-serif; }
           </style>
         </head>
-        <body>${cardHtml}</body>
+        <body>
+          <div id="print-root"></div>
+        </body>
       </html>
     `);
-
     printWindow.document.close();
 
-    const checkLoad = () => {
-        // Wait for external resources (fonts) to load
-        if (printWindow.document.readyState === "complete") {
-            setTimeout(() => { // Additional small delay
-                printWindow.focus();
-                printWindow.print();
-                // Do not close automatically: printWindow.close();
-            }, 250); 
-        } else {
-            setTimeout(checkLoad, 100);
-        }
+    const mount = () => {
+      const el = printWindow.document.getElementById("print-root");
+      if (!el) return;
+
+      const root = createRoot(el);
+      root.render(<SocioCard socio={socioToPrint} />);
+
+      // aspetta che React monti + font
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+      }, 400);
     };
-    checkLoad();
+
+    if (printWindow.document.readyState === "complete") {
+      mount();
+    } else {
+      printWindow.addEventListener("load", mount, { once: true });
+    }
 
     setShowPrintDialog(false);
     setSocioToPrint(null);
   };
-  
-  const handlePageChange = (page: number) => {
-      if (page > 0 && page <= totalPages) {
-          setCurrentPage(page);
-          window.scrollTo(0, 0);
-      }
-  };
 
+  const handlePageChange = (page: number) => {
+    if (page > 0 && page <= totalPages) {
+      setCurrentPage(page);
+      window.scrollTo(0, 0);
+    }
+  };
 
   if (isUserLoading || !user) {
     return (
@@ -308,7 +300,6 @@ export default function ElencoClient() {
       </div>
     );
   }
-
 
   return (
     <div className="flex-grow container mx-auto px-4 py-8">
@@ -319,12 +310,12 @@ export default function ElencoClient() {
         </div>
 
         <div className="flex flex-col items-end gap-2">
-            <Button asChild>
-                <Link href="/#apply">
-                <UserPlus className="mr-2 h-4 w-4" />
-                Nuova Iscrizione
-                </Link>
-            </Button>
+          <Button asChild>
+            <Link href="/#apply">
+              <UserPlus className="mr-2 h-4 w-4" />
+              Nuova Iscrizione
+            </Link>
+          </Button>
         </div>
       </div>
 
@@ -407,13 +398,9 @@ export default function ElencoClient() {
                 />
               </TabsContent>
             </Tabs>
-            
+
             {totalPages > 1 && (
-              <PaginationControls
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={handlePageChange}
-              />
+              <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
             )}
           </>
         )}
