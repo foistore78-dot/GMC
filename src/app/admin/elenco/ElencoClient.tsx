@@ -155,19 +155,19 @@ export default function ElencoClient() {
   const { paginatedData, totalPages, counts } = useMemo(() => {
     const allMembers = membersData || [];
     const allRequests = requestsData || [];
+    
+    const counts = {
+        active: allMembers.filter((s) => getStatus(s) === "active").length,
+        expired: allMembers.filter((s) => getStatus(s) === "expired").length,
+        requests: allRequests.filter((req) => getStatus(req) === "pending").length,
+    };
 
-    const dataForTab: Socio[] =
+    const dataForTab = 
       activeTab === "active" ? allMembers.filter((s) => getStatus(s) === "active")
       : activeTab === "expired" ? allMembers.filter((s) => getStatus(s) === "expired")
       : allRequests.filter((req) => getStatus(req) === "pending");
 
     const sorted = filterAndSortData(dataForTab, filter, sortConfig);
-
-    const counts = {
-      active: allMembers.filter((s) => getStatus(s) === "active").length,
-      expired: allMembers.filter((s) => getStatus(s) === "expired").length,
-      requests: allRequests.filter((req) => getStatus(req) === "pending").length,
-    };
     
     const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE);
     const paginatedData = sorted.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -429,3 +429,5 @@ export default function ElencoClient() {
     </div>
   );
 }
+
+    
