@@ -89,6 +89,34 @@ const sortData = (data: Socio[], currentSortConfig: SortConfig): Socio[] => {
     });
 };
 
+const PaginationControls = ({ currentPage, totalPages, onNext, onPrev }: { currentPage: number, totalPages: number, onNext: () => void, onPrev: () => void }) => (
+    <>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-8">
+            <Button
+                onClick={onPrev}
+                disabled={currentPage === 1}
+                className="h-9 px-4 bg-[hsl(173,90%,45%)] hover:bg-[hsl(173,90%,50%)] text-primary-foreground disabled:bg-muted disabled:text-muted-foreground"
+            >
+                <ChevronLeft className="mr-2 h-4 w-4" />
+                Indietro
+            </Button>
+            <span className="text-sm text-muted-foreground">
+                Pagina {currentPage} di {totalPages}
+            </span>
+            <Button
+                onClick={onNext}
+                disabled={currentPage >= totalPages}
+                className="h-9 px-4 bg-[hsl(173,90%,45%)] hover:bg-[hsl(173,90%,50%)] text-primary-foreground"
+            >
+                Avanti
+                <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+        </div>
+      )}
+    </>
+);
+
 export default function ElencoClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -297,33 +325,6 @@ export default function ElencoClient() {
     );
   }
 
-  const PaginationControls = () => (
-    <>
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-8">
-            <Button
-                onClick={handlePreviousPage}
-                disabled={currentPage === 1}
-                className="h-9 px-4 bg-[hsl(173,90%,45%)] hover:bg-[hsl(173,90%,50%)] text-primary-foreground disabled:bg-muted disabled:text-muted-foreground"
-            >
-                <ChevronLeft className="mr-2 h-4 w-4" />
-                Indietro
-            </Button>
-            <span className="text-sm text-muted-foreground">
-                Pagina {currentPage} di {totalPages}
-            </span>
-            <Button
-                onClick={handleNextPage}
-                disabled={currentPage >= totalPages}
-                className="h-9 px-4 bg-[hsl(173,90%,45%)] hover:bg-[hsl(173,90%,50%)] text-primary-foreground"
-            >
-                Avanti
-                <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-        </div>
-      )}
-    </>
-  );
 
   return (
     <div className="flex-grow container mx-auto px-4 py-8">
@@ -349,81 +350,87 @@ export default function ElencoClient() {
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
           </div>
         ) : (
-          <Tabs value={activeTab} onValueChange={handleTabChange}>
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4">
-              <TabsList className="self-start">
-                <TabsTrigger
-                  value="active"
-                  className="text-xs sm:text-sm data-[state=active]:bg-green-500/20 data-[state=active]:text-green-300"
-                >
-                  Attivi ({filteredActive.length})
-                </TabsTrigger>
-                <TabsTrigger
-                  value="expired"
-                  className="text-xs sm:text-sm data-[state=active]:bg-yellow-500/20 data-[state=active]:text-yellow-300"
-                >
-                  In Attesa di Rinnovo ({filteredExpired.length})
-                </TabsTrigger>
-                <TabsTrigger
-                  value="requests"
-                  className="text-xs sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300"
-                >
-                  Richieste ({filteredRequests.length})
-                </TabsTrigger>
-              </TabsList>
+          <>
+            <Tabs value={activeTab} onValueChange={handleTabChange}>
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4">
+                <TabsList className="self-start">
+                  <TabsTrigger
+                    value="active"
+                    className="text-xs sm:text-sm data-[state=active]:bg-green-500/20 data-[state=active]:text-green-300"
+                  >
+                    Attivi ({filteredActive.length})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="expired"
+                    className="text-xs sm:text-sm data-[state=active]:bg-yellow-500/20 data-[state=active]:text-yellow-300"
+                  >
+                    In Attesa di Rinnovo ({filteredExpired.length})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="requests"
+                    className="text-xs sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300"
+                  >
+                    Richieste ({filteredRequests.length})
+                  </TabsTrigger>
+                </TabsList>
 
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
-                <div className="relative w-full sm:max-w-md">
-                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Filtra per nome, tessera..."
-                    value={filter}
-                    onChange={(event) => setFilter(event.target.value)}
-                    className="pl-10"
-                  />
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+                  <div className="relative w-full sm:max-w-md">
+                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Filtra per nome, tessera..."
+                      value={filter}
+                      onChange={(event) => setFilter(event.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <TabsContent value="active" className="rounded-lg p-1 sm:p-4">
-              <SociTable
-                soci={paginatedData}
-                onEdit={handleEditSocio}
-                onPrint={handlePrintCard}
-                allMembers={membersData || []}
-                onSocioUpdate={handleSocioUpdate}
-                sortConfig={sortConfig}
-                setSortConfig={setSortConfig}
-              />
-            </TabsContent>
+              <TabsContent value="active" className="rounded-lg p-1 sm:p-4">
+                <SociTable
+                  soci={paginatedData}
+                  onEdit={handleEditSocio}
+                  onPrint={handlePrintCard}
+                  allMembers={membersData || []}
+                  onSocioUpdate={handleSocioUpdate}
+                  sortConfig={sortConfig}
+                  setSortConfig={setSortConfig}
+                />
+              </TabsContent>
 
-            <TabsContent value="expired" className="rounded-lg bg-yellow-500/5 p-1 sm:p-4">
-              <SociTable
-                soci={paginatedData}
-                onEdit={handleEditSocio}
-                onPrint={handlePrintCard}
-                allMembers={membersData || []}
-                onSocioUpdate={handleSocioUpdate}
-                sortConfig={sortConfig}
-                setSortConfig={setSortConfig}
-              />
-            </TabsContent>
+              <TabsContent value="expired" className="rounded-lg bg-yellow-500/5 p-1 sm:p-4">
+                <SociTable
+                  soci={paginatedData}
+                  onEdit={handleEditSocio}
+                  onPrint={handlePrintCard}
+                  allMembers={membersData || []}
+                  onSocioUpdate={handleSocioUpdate}
+                  sortConfig={sortConfig}
+                  setSortConfig={setSortConfig}
+                />
+              </TabsContent>
 
-            <TabsContent value="requests" className="rounded-lg bg-orange-500/5 p-1 sm:p-4">
-              <SociTable
-                soci={paginatedData}
-                onEdit={handleEditSocio}
-                onPrint={handlePrintCard}
-                allMembers={membersData || []}
-                onSocioUpdate={handleSocioUpdate}
-                sortConfig={sortConfig}
-                setSortConfig={setSortConfig}
-              />
-            </TabsContent>
-
-            <PaginationControls />
-
-          </Tabs>
+              <TabsContent value="requests" className="rounded-lg bg-orange-500/5 p-1 sm:p-4">
+                <SociTable
+                  soci={paginatedData}
+                  onEdit={handleEditSocio}
+                  onPrint={handlePrintCard}
+                  allMembers={membersData || []}
+                  onSocioUpdate={handleSocioUpdate}
+                  sortConfig={sortConfig}
+                  setSortConfig={setSortConfig}
+                />
+              </TabsContent>
+            </Tabs>
+            
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onNext={handleNextPage}
+              onPrev={handlePreviousPage}
+            />
+          </>
         )}
       </div>
 
@@ -465,3 +472,5 @@ export default function ElencoClient() {
     </div>
   );
 }
+
+    
