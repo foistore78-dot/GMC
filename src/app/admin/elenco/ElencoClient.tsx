@@ -204,8 +204,7 @@ export default function ElencoClient() {
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
-    // Do not clear the filter anymore
-    // setFilter("");
+    setCurrentPage(1); // Reset page on tab change
 
     if (tab === "requests") {
       setSortConfig({ key: "requestDate", direction: "descending" });
@@ -298,6 +297,34 @@ export default function ElencoClient() {
     );
   }
 
+  const PaginationControls = () => (
+    <>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-8">
+            <Button
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1}
+                className="h-9 px-4 bg-[hsl(173,90%,45%)] hover:bg-[hsl(173,90%,50%)] text-primary-foreground disabled:bg-muted disabled:text-muted-foreground"
+            >
+                <ChevronLeft className="mr-2 h-4 w-4" />
+                Indietro
+            </Button>
+            <span className="text-sm text-muted-foreground">
+                Pagina {currentPage} di {totalPages}
+            </span>
+            <Button
+                onClick={handleNextPage}
+                disabled={currentPage >= totalPages}
+                className="h-9 px-4 bg-[hsl(173,90%,45%)] hover:bg-[hsl(173,90%,50%)] text-primary-foreground"
+            >
+                Avanti
+                <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+        </div>
+      )}
+    </>
+  );
+
   return (
     <div className="flex-grow container mx-auto px-4 py-8">
       <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
@@ -313,29 +340,6 @@ export default function ElencoClient() {
                 Nuova Iscrizione
                 </Link>
             </Button>
-            {totalPages > 1 && (
-                <div className="flex items-center gap-2">
-                    <Button
-                        onClick={handlePreviousPage}
-                        disabled={currentPage === 1}
-                        className="h-9 px-4 bg-[hsl(173,90%,45%)] hover:bg-[hsl(173,90%,50%)] text-primary-foreground disabled:bg-muted disabled:text-muted-foreground"
-                    >
-                        <ChevronLeft className="mr-2 h-4 w-4" />
-                        Indietro
-                    </Button>
-                    <span className="text-sm text-muted-foreground">
-                        {currentPage} / {totalPages}
-                    </span>
-                    <Button
-                        onClick={handleNextPage}
-                        disabled={currentPage >= totalPages}
-                        className="h-9 px-4 bg-[hsl(173,90%,45%)] hover:bg-[hsl(173,90%,50%)] text-primary-foreground"
-                    >
-                        Avanti
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                </div>
-            )}
         </div>
       </div>
 
@@ -416,6 +420,9 @@ export default function ElencoClient() {
                 setSortConfig={setSortConfig}
               />
             </TabsContent>
+
+            <PaginationControls />
+
           </Tabs>
         )}
       </div>
