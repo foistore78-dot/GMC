@@ -140,61 +140,39 @@ export function SocioCard({ socio }: SocioCardProps) {
           overflow-wrap: anywhere;
           word-break: break-word;
         }
-        .logo-container {
-          width: 60px !important;
-          height: 60px !important;
-          flex-shrink: 0;
-        }
-        .logo-container img {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-        }
       `}</style>
-      <div
-        className="no-break"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          width: "100%",
-          borderBottom: "1px solid #ccc",
-          paddingBottom: "10px",
-          marginBottom: "10px",
-        }}
-      >
-        <div className="logo-container">
-          <GarageMusicClubLogo />
-        </div>
-        <div style={{ flex: 1, textAlign: "center", padding: "0 10px" }}>
-          <h1
-            style={{
-              fontFamily: "Orbitron, Arial Black, Arial, sans-serif",
-              fontSize: "22px",
-              fontWeight: "bold",
-              margin: 0,
-              letterSpacing: "0.05em",
-            }}
-          >
-            GARAGE MUSIC CLUB
-          </h1>
-          <p style={{ fontSize: "13px", margin: 0 }}>Associazione Culturale</p>
-        </div>
-        <div
-          style={{
-            width: "180px",
-            flexShrink: 0,
-            textAlign: "right",
-            fontSize: "10px",
-            lineHeight: "1.4",
-          }}
-        >
-          <p style={{ margin: 0 }}>Sede: Via XXIV Udine n. 43, Gradisca d’Isonzo (GO)</p>
-          <p style={{ margin: 0 }}>Email: garage.music.club2024@gmail.com</p>
-          <p style={{ margin: 0 }}>Tel: +39 389 7995206</p>
-          <p style={{ margin: 0 }}>C.F. 91050330314</p>
-        </div>
-      </div>
+      <table className="no-break" style={{ width: '100%', borderSpacing: 0, marginBottom: '10px' }}>
+        <tbody>
+            <tr>
+                <td style={{ width: '60px', paddingRight: '10px', verticalAlign: 'middle', flex: '0 0 60px' }}>
+                    <div style={{ width: '60px', height: '60px' }}>
+                        <GarageMusicClubLogo />
+                    </div>
+                </td>
+                <td style={{ textAlign: 'left', verticalAlign: 'middle', flex: 1, padding: '0 10px' }}>
+                     <h1
+                        style={{
+                        fontFamily: "Orbitron, Arial Black, Arial, sans-serif",
+                        fontSize: "22px",
+                        fontWeight: "bold",
+                        margin: 0,
+                        letterSpacing: "0.05em",
+                        }}
+                    >
+                        GARAGE MUSIC CLUB
+                    </h1>
+                    <p style={{ fontSize: "13px", margin: 0 }}>Associazione Culturale</p>
+                </td>
+                <td style={{ verticalAlign: 'middle', textAlign: 'right', fontSize: '10px', lineHeight: '1.4', width: '180px' }}>
+                    <p style={{ margin: 0 }}>Sede: Via XXIV Udine n. 43, Gradisca d’Isonzo (GO)</p>
+                    <p style={{ margin: 0 }}>Email: garage.music.club2024@gmail.com</p>
+                    <p style={{ margin: 0 }}>Tel: +39 389 7995206</p>
+                    <p style={{ margin: 0 }}>C.F. 91050330314</p>
+                </td>
+            </tr>
+        </tbody>
+      </table>
+
 
       {/* Title */}
       <div
@@ -255,27 +233,6 @@ export function SocioCard({ socio }: SocioCardProps) {
           </tr>
         </tbody>
       </table>
-
-      {/* Notes Section */}
-      {socio.notes && socio.notes.trim() !== "" && (
-        <div className="no-break" style={{ marginBottom: "15px" }}>
-          <h3
-            style={{
-              fontSize: "13px",
-              fontWeight: "bold",
-              margin: "0 0 10px 0",
-              borderBottom: "1px solid #ccc",
-              paddingBottom: "5px",
-            }}
-          >
-            NOTE AMMINISTRATIVE
-          </h3>
-          <div style={{ fontSize: "11px", lineHeight: "1.5", whiteSpace: "pre-wrap" }}>
-            {socio.notes}
-          </div>
-        </div>
-      )}
-
 
       {/* Consents */}
       <div className="no-break" style={{ marginBottom: "15px" }}>
@@ -419,6 +376,26 @@ export function SocioCard({ socio }: SocioCardProps) {
           </tbody>
         </table>
       </div>
+      
+      {/* Notes Section */}
+      {socio.notes && socio.notes.trim() !== "" && (
+        <div className="no-break" style={{ marginTop: "15px" }}>
+          <h3
+            style={{
+              fontSize: "13px",
+              fontWeight: "bold",
+              margin: "0 0 10px 0",
+              borderBottom: "1px solid #ccc",
+              paddingBottom: "5px",
+            }}
+          >
+            NOTE AMMINISTRATIVE
+          </h3>
+          <div style={{ fontSize: "11px", lineHeight: "1.5", whiteSpace: "pre-wrap" }}>
+            {socio.notes}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
