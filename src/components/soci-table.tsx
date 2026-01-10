@@ -349,85 +349,7 @@ const handleRenew = async () => {
         </TableCell>
         <TableCell className="font-medium">
            <div className="flex items-center gap-3 flex-wrap">
-                <Dialog>
-                   <DialogTrigger asChild>
-                     <div className="flex items-center gap-2 cursor-pointer group">
-                        <span className="group-hover:text-primary transition-colors">{getFullName(socio)}</span>
-                     </div>
-                   </DialogTrigger>
-                   <DialogContent className="max-w-4xl p-0">
-                     <DialogHeader className="p-6 pb-4">
-                       <DialogTitle className="flex items-center gap-3 text-xl"><User/> Riepilogo Socio: <span className="text-primary">{getFullName(socio)}</span></DialogTitle>
-                     </DialogHeader>
-                     
-                     <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 px-6 pb-6 border-b">
-                        {/* Colonna 1: Anagrafica */}
-                        <div className="flex flex-col space-y-3">
-                           <h3 className="font-semibold text-primary border-b border-border pb-2 text-base">Anagrafica</h3>
-                           <DetailItem icon={<Cake />} label="Nascita" value={<>{formatDate(socio.birthDate)} <span className="text-muted-foreground">a</span> {socio.birthPlace}</>} />
-                           <DetailItem icon={<Hash />} label="Codice Fiscale" value={socio.fiscalCode || '-'} />
-                           <DetailItem icon={<Home />} label="Residenza" value={`${socio.address}, ${socio.postalCode} ${socio.city} (${socio.province})`} />
-                           
-                           {socioIsMinor && (
-                              <>
-                                <Separator className="my-1"/>
-                                <h4 className="font-semibold text-yellow-300/90 text-sm pt-1">Dati Tutore</h4>
-                                <DetailItem icon={<ShieldCheck />} label="Tutore" value={`${socio.guardianFirstName} ${socio.guardianLastName}`} />
-                                <DetailItem icon={<Cake />} label="Data Nascita Tutore" value={formatDate(socio.guardianBirthDate)} />
-                              </>
-                           )}
-                        </div>
-
-                        {/* Colonna 2: Contatti e Consensi */}
-                        <div className="flex flex-col space-y-3">
-                           <h3 className="font-semibold text-primary border-b border-border pb-2 text-base">Contatti e Consensi</h3>
-                           <DetailItem icon={<Mail />} label="Email" value={socio.email || '-'} />
-                           <DetailItem icon={<Phone />} label="Telefono" value={socio.phone || '-'} />
-                           <DetailItem icon={<FileLock2 />} label="Consenso Privacy" value={
-                              <span className={`flex items-center gap-2 ${socio.privacyConsent ? 'text-green-400' : 'text-red-400'}`}>
-                                {socio.privacyConsent ? 'Accettato' : 'Non Accettato'}
-                              </span>
-                           } />
-                           <DetailItem icon={<MessageCircle />} label="Consenso WhatsApp" value={
-                              <span className={`flex items-center gap-2 ${socio.whatsappConsent ? 'text-green-400' : 'text-muted-foreground'}`}>
-                                {socio.whatsappConsent ? 'Accettato' : 'Non fornito'}
-                              </span>
-                           } />
-                        </div>
-                        
-                        {/* Colonna 3: Tesseramento */}
-                        <div className="flex flex-col space-y-3">
-                           <h3 className="font-semibold text-primary border-b border-border pb-2 text-base">Tesseramento</h3>
-                           <DetailItem icon={<CircleDot />} label="Stato" value={<Badge variant={status === "active" ? "default" : status === "pending" ? "secondary" : "destructive"} className={cn("whitespace-nowrap",{ "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30": status === "active", "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30": status === "expired", "bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30": status === "pending", "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30": status === "rejected", })}>{statusTranslations[status] || status}</Badge>} />
-                           <DetailItem icon={<Hash />} label="N. Tessera" value={socio.tessera || '-'} />
-                           <DetailItem icon={<Calendar />} label="Anno Associativo" value={socio.membershipYear || '-'} />
-                           <DetailItem icon={<Euro />} label="Quota Versata" value={formatCurrency(status === 'pending' ? 0 : socio.membershipFee)} />
-                           <DetailItem icon={<Award />} label="Qualifiche" value={socio.qualifica && socio.qualifica.length > 0 ? <div className="flex flex-wrap gap-1">{socio.qualifica.map(q => <Badge key={q} variant="secondary" className="text-xs">{q}</Badge>)}</div> : "Nessuna" } />
-                           <Separator className="my-1"/>
-                           <DetailItem icon={<Calendar />} label="Data Richiesta" value={formatDate(socio.requestDate)} />
-                           {status !== 'pending' && <DetailItem icon={<Calendar />} label="Data Ammissione" value={formatDate(socio.joinDate)} />}
-                           {socio.renewalDate && <DetailItem icon={<Calendar />} label="Ultimo Rinnovo" value={formatDate(socio.renewalDate)} />}
-                           <DetailItem icon={<Calendar />} label="Data Scadenza" value={formatDate(socio.expirationDate) || '-'} />
-                        </div>
-                     </div>
-                      {socio.notes && (
-                        <div className="px-6 pb-6">
-                          <h3 className="font-semibold text-primary border-b border-border pb-2 mb-2 text-base">Note</h3>
-                          <div className="text-sm text-muted-foreground bg-secondary/50 p-3 rounded-md max-h-24 overflow-y-auto">
-                            <pre className="text-sm font-sans whitespace-pre-wrap">{socio.notes}</pre>
-                          </div>
-                        </div>
-                      )}
-                      <DialogFooter className="flex-col sm:flex-row sm:justify-between gap-2 border-t p-4 bg-secondary/30 rounded-b-lg">
-                          <DialogClose asChild>
-                            <Button variant="ghost">Chiudi</Button>
-                          </DialogClose>
-                          <div className="flex gap-2">
-                             <Button variant="outline" onClick={() => onEdit(socio)}><Pencil className="mr-2 h-4 w-4" /> Modifica Dati</Button>
-                          </div>
-                      </DialogFooter>
-                   </DialogContent>
-                 </Dialog>
+              <span className="transition-colors">{getFullName(socio)}</span>
                  <div className="flex items-center gap-1">
                     {socio.whatsappConsent && (
                        <TooltipProvider>
@@ -502,6 +424,18 @@ const handleRenew = async () => {
                         </Button>
                     </TooltipTrigger>
                     <TooltipContent>Stampa Scheda</TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(socio)}>
+                            <Pencil className="h-4 w-4" />
+                            <span className="sr-only">Modifica</span>
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Modifica</TooltipContent>
                 </Tooltip>
             </TooltipProvider>
 
