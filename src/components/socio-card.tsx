@@ -58,10 +58,10 @@ export function SocioCard({ socio }: SocioCardProps) {
     <div style={{ background: 'white', color: 'black', width: '100%', maxWidth: '18cm', margin: '0 auto', fontFamily: "'Roboto', sans-serif", padding: '1cm' }}>
       
       {/* Header */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr auto', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
         {/* Colonna 1: Logo */}
         <div style={{ width: '60px', height: '60px' }}>
-          <GarageMusicClubLogo className="w-full h-full" />
+          <GarageMusicClubLogo className="w-full h-full" style={{ objectFit: 'contain' }} />
         </div>
         
         {/* Colonna 2: Titolo */}
