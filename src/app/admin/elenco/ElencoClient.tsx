@@ -172,7 +172,7 @@ export default function ElencoClient() {
       requests: filteredRequests.length,
     };
 
-    const dataToSort: Socio[] =
+    const dataToSort: Socio[] = 
       activeTab === "active"
         ? filteredActive
         : activeTab === "expired"
@@ -232,7 +232,6 @@ export default function ElencoClient() {
     setShowPrintDialog(true);
   };
 
-  // ✅ STAMPA: niente react-dom/server, solo client rendering in nuova finestra
   const executePrint = () => {
     if (!socioToPrint) return;
 
@@ -269,7 +268,6 @@ export default function ElencoClient() {
       const root = createRoot(el);
       root.render(<SocioCard socio={socioToPrint} />);
 
-      // aspetta che React monti + font
       setTimeout(() => {
         printWindow.focus();
         printWindow.print();
