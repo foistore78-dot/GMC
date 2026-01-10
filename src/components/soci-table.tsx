@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, Dispatch, SetStateAction, useCallback } from "react";
@@ -514,13 +515,80 @@ const handleRenew = async () => {
             {/* Mobile Actions */}
             <div className="sm:hidden flex items-center justify-end">
                 {status === 'pending' && (
-                     <Dialog open={showApproveDialog} onOpenChange={handleApproveDialogChange}>
+                    <Dialog open={showApproveDialog} onOpenChange={handleApproveDialogChange}>
                         <DialogTrigger asChild>
                         <Button variant="ghost" size="sm" className="text-green-500 hover:text-green-500 hover:bg-green-500/10 h-8">
                             <CheckCircle className="h-4 w-4" />
                         </Button>
                         </DialogTrigger>
-                        {/* Approve Dialog Content is below */}
+                        <DialogContent className="sm:max-w-lg">
+                            <DialogHeader>
+                                <DialogTitle>Approva Socio e Completa Iscrizione</DialogTitle>
+                                <DialogDescription>
+                                    Stai per approvare <strong className="text-foreground">{getFullName(socio)}</strong> come membro attivo. Completa i dati di tesseramento.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-6 py-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+                                    <Label htmlFor="membership-number-mob" className="sm:text-right">
+                                        N. Tessera
+                                    </Label>
+                                    <div className="col-span-3">
+                                    <Input
+                                        id="membership-number-mob"
+                                        value={`GMC-${new Date().getFullYear()}-${approveMemberNumber}`}
+                                        onChange={(e) => {
+                                            const parts = e.target.value.split('-');
+                                            setApproveMemberNumber(parts[parts.length - 1] || '');
+                                        }}
+                                        className="w-40"
+                                    />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-2 sm:gap-4">
+                                    <Label className="sm:text-right pt-2">Qualifiche</Label>
+                                    <div className="col-span-3 space-y-2">
+                                        {QUALIFICHE.map((q) => (
+                                            <div key={q} className="flex items-center space-x-2">
+                                                <Checkbox 
+                                                    id={`qualifica-${q}-approve-mob`} 
+                                                    checked={approveQualifiche.includes(q)}
+                                                    onCheckedChange={(checked) => handleQualificaChange(q, !!checked, setApproveQualifiche)}
+                                                />
+                                                <label htmlFor={`qualifica-${q}-approve-mob`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                                    {q}
+                                                </label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+                                    <Label htmlFor="membership-fee-mob" className="sm:text-right">
+                                        Quota (€)
+                                    </Label>
+                                    <div className="col-span-3 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                    <Input
+                                        id="membership-fee-mob"
+                                        type="number"
+                                        value={approveMembershipFee}
+                                        onChange={(e) => setApproveMembershipFee(Number(e.target.value))}
+                                        className="w-28"
+                                    />
+                                        <div className="flex items-center space-x-2">
+                                        <Checkbox id="fee-paid-approve-mob" checked={approveFeePaid} onCheckedChange={(checked) => setApproveFeePaid(!!checked)} />
+                                        <Label htmlFor="fee-paid-approve-mob" className="text-sm font-medium">Quota Versata</Label>
+                                    </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button variant="ghost" onClick={() => handleApproveDialogChange(false)}>Annulla</Button>
+                                <Button onClick={handleApprove} disabled={isApproving || !approveFeePaid}>
+                                    {isApproving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Conferma e Stampa
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
                     </Dialog>
                 )}
                 {status === 'expired' && (
@@ -530,7 +598,9 @@ const handleRenew = async () => {
                                 <RefreshCw className="h-4 w-4" />
                             </Button>
                         </DialogTrigger>
-                         {/* Renew Dialog Content is below */}
+                        <DialogContent className="sm:max-w-lg">
+                          {/* Renew Dialog Content */}
+                        </DialogContent>
                     </Dialog>
                 )}
                  <DropdownMenu>
@@ -622,7 +692,74 @@ const handleRenew = async () => {
                         <span className="hidden sm:inline">Approva</span>
                     </Button>
                     </DialogTrigger>
-                    {/* Approve Dialog Content is below */}
+                     <DialogContent className="sm:max-w-lg">
+                        <DialogHeader>
+                            <DialogTitle>Approva Socio e Completa Iscrizione</DialogTitle>
+                            <DialogDescription>
+                                Stai per approvare <strong className="text-foreground">{getFullName(socio)}</strong> come membro attivo. Completa i dati di tesseramento.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-6 py-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+                                <Label htmlFor="membership-number" className="sm:text-right">
+                                    N. Tessera
+                                </Label>
+                                <div className="col-span-3">
+                                <Input
+                                    id="membership-number"
+                                    value={`GMC-${new Date().getFullYear()}-${approveMemberNumber}`}
+                                    onChange={(e) => {
+                                        const parts = e.target.value.split('-');
+                                        setApproveMemberNumber(parts[parts.length - 1] || '');
+                                    }}
+                                    className="w-40"
+                                />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-2 sm:gap-4">
+                                <Label className="sm:text-right pt-2">Qualifiche</Label>
+                                <div className="col-span-3 space-y-2">
+                                    {QUALIFICHE.map((q) => (
+                                        <div key={q} className="flex items-center space-x-2">
+                                            <Checkbox 
+                                                id={`qualifica-${q}-approve`} 
+                                                checked={approveQualifiche.includes(q)}
+                                                onCheckedChange={(checked) => handleQualificaChange(q, !!checked, setApproveQualifiche)}
+                                            />
+                                            <label htmlFor={`qualifica-${q}-approve`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                                {q}
+                                            </label>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+                                <Label htmlFor="membership-fee" className="sm:text-right">
+                                    Quota (€)
+                                </Label>
+                                <div className="col-span-3 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                <Input
+                                    id="membership-fee"
+                                    type="number"
+                                    value={approveMembershipFee}
+                                    onChange={(e) => setApproveMembershipFee(Number(e.target.value))}
+                                    className="w-28"
+                                />
+                                    <div className="flex items-center space-x-2">
+                                    <Checkbox id="fee-paid-approve" checked={approveFeePaid} onCheckedChange={(checked) => setApproveFeePaid(!!checked)} />
+                                    <Label htmlFor="fee-paid-approve" className="text-sm font-medium">Quota Versata</Label>
+                                </div>
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="ghost" onClick={() => handleApproveDialogChange(false)}>Annulla</Button>
+                            <Button onClick={handleApprove} disabled={isApproving || !approveFeePaid}>
+                                {isApproving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Conferma e Stampa
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
                 </Dialog>
                 )}
                 {status === 'expired' && (
@@ -637,175 +774,100 @@ const handleRenew = async () => {
                             <span className="hidden sm:inline">Rinnova</span>
                         </Button>
                     </DialogTrigger>
-                    {/* Renew Dialog Content is below */}
+                    <DialogContent className="sm:max-w-lg">
+                        {renewedSocioData ? (
+                            <>
+                                <DialogHeader>
+                                    <DialogTitle>Rinnovo Completato!</DialogTitle>
+                                    <DialogDescription>
+                                        L'iscrizione di <strong className="text-foreground">{getFullName(renewedSocioData)}</strong> è stata rinnovata per l'anno {renewedSocioData.membershipYear}.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="py-4 text-center">
+                                    <p className="text-sm">Nuova tessera:</p>
+                                    <p className="font-bold text-lg text-primary">{renewedSocioData.tessera}</p>
+                                </div>
+                                <DialogFooter>
+                                    <Button variant="ghost" onClick={() => handleRenewDialogChange(false)}>Chiudi</Button>
+                                    <Button onClick={() => { onPrint(renewedSocioData); handleRenewDialogChange(false); }}>
+                                        <Printer className="mr-2 h-4 w-4" /> Stampa Scheda
+                                    </Button>
+                                </DialogFooter>
+                            </>
+                        ) : (
+                            <>
+                                <DialogHeader>
+                                    <DialogTitle>Rinnova Tesseramento</DialogTitle>
+                                    <DialogDescription>
+                                        Stai rinnovando il tesseramento per <strong className="text-foreground">{getFullName(socio)}</strong> per l'anno <strong className="text-foreground">{renewalYear}</strong>.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-6 py-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+                                        <Label htmlFor="renewal-member-number" className="sm:text-right">
+                                            N. Tessera
+                                        </Label>
+                                        <div className="col-span-3">
+                                          <Input
+                                              id="renewal-member-number"
+                                              value={`GMC-${renewalYear}-${renewMemberNumber}`}
+                                              onChange={(e) => {
+                                                  const parts = e.target.value.split('-');
+                                                  setRenewMemberNumber(parts[parts.length - 1] || '');
+                                              }}
+                                              className="w-40"
+                                          />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-2 sm:gap-4">
+                                        <Label className="sm:text-right pt-2">Qualifiche</Label>
+                                        <div className="col-span-3 space-y-2">
+                                            {QUALIFICHE.map((q) => (
+                                              <div key={q} className="flex items-center space-x-2">
+                                                    <Checkbox 
+                                                        id={`qualifica-${q}-renew`} 
+                                                        checked={renewQualifiche.includes(q)}
+                                                        onCheckedChange={(checked) => handleQualificaChange(q, !!checked, setRenewQualifiche)}
+                                                    />
+                                                    <label htmlFor={`qualifica-${q}-renew`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                                        {q}
+                                                    </label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+                                        <Label htmlFor="renewal-fee" className="sm:text-right">
+                                            Quota (€)
+                                        </Label>
+                                        <div className="col-span-3 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                          <Input
+                                              id="renewal-fee"
+                                              type="number"
+                                              value={renewalFee}
+                                              onChange={(e) => setRenewalFee(Number(e.target.value))}
+                                              className="w-28"
+                                          />
+                                          <div className="flex items-center space-x-2">
+                                              <Checkbox id="fee-paid-renew" checked={renewFeePaid} onCheckedChange={(checked) => setRenewFeePaid(!!checked)} />
+                                              <Label htmlFor="fee-paid-renew" className="text-sm font-medium">Quota Versata</Label>
+                                          </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <Button variant="ghost" onClick={() => handleRenewDialogChange(false)}>Annulla</Button>
+                                    <Button onClick={handleRenew} disabled={isRenewing || !renewFeePaid}>
+                                        {isRenewing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        Conferma Rinnovo
+                                    </Button>
+                                </DialogFooter>
+                            </>
+                        )}
+                    </DialogContent>
                 </Dialog>
                 )}
             </div>
-
-            {/* DIALOGS (kept outside the conditional rendering of buttons) */}
-            {status === 'pending' && (
-                <DialogContent className="sm:max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>Approva Socio e Completa Iscrizione</DialogTitle>
-                        <DialogDescription>
-                            Stai per approvare <strong className="text-foreground">{getFullName(socio)}</strong> come membro attivo. Completa i dati di tesseramento.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-6 py-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
-                            <Label htmlFor="membership-number" className="sm:text-right">
-                                N. Tessera
-                            </Label>
-                            <div className="col-span-3">
-                            <Input
-                                id="membership-number"
-                                value={`GMC-${new Date().getFullYear()}-${approveMemberNumber}`}
-                                onChange={(e) => {
-                                    const parts = e.target.value.split('-');
-                                    setApproveMemberNumber(parts[parts.length - 1] || '');
-                                }}
-                                className="w-40"
-                            />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-2 sm:gap-4">
-                            <Label className="sm:text-right pt-2">Qualifiche</Label>
-                            <div className="col-span-3 space-y-2">
-                                {QUALIFICHE.map((q) => (
-                                    <div key={q} className="flex items-center space-x-2">
-                                        <Checkbox 
-                                            id={`qualifica-${q}-approve`} 
-                                            checked={approveQualifiche.includes(q)}
-                                            onCheckedChange={(checked) => handleQualificaChange(q, !!checked, setApproveQualifiche)}
-                                        />
-                                        <label htmlFor={`qualifica-${q}-approve`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                            {q}
-                                        </label>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
-                            <Label htmlFor="membership-fee" className="sm:text-right">
-                                Quota (€)
-                            </Label>
-                            <div className="col-span-3 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                            <Input
-                                id="membership-fee"
-                                type="number"
-                                value={approveMembershipFee}
-                                onChange={(e) => setApproveMembershipFee(Number(e.target.value))}
-                                className="w-28"
-                            />
-                                <div className="flex items-center space-x-2">
-                                <Checkbox id="fee-paid-approve" checked={approveFeePaid} onCheckedChange={(checked) => setApproveFeePaid(!!checked)} />
-                                <Label htmlFor="fee-paid-approve" className="text-sm font-medium">Quota Versata</Label>
-                            </div>
-                            </div>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={() => handleApproveDialogChange(false)}>Annulla</Button>
-                        <Button onClick={handleApprove} disabled={isApproving || !approveFeePaid}>
-                            {isApproving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Conferma e Stampa
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            )}
-             {status === 'expired' && (
-                <DialogContent className="sm:max-w-lg">
-                    {renewedSocioData ? (
-                        <>
-                            <DialogHeader>
-                                <DialogTitle>Rinnovo Completato!</DialogTitle>
-                                <DialogDescription>
-                                    L'iscrizione di <strong className="text-foreground">{getFullName(renewedSocioData)}</strong> è stata rinnovata per l'anno {renewedSocioData.membershipYear}.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="py-4 text-center">
-                                <p className="text-sm">Nuova tessera:</p>
-                                <p className="font-bold text-lg text-primary">{renewedSocioData.tessera}</p>
-                            </div>
-                            <DialogFooter>
-                                <Button variant="ghost" onClick={() => handleRenewDialogChange(false)}>Chiudi</Button>
-                                <Button onClick={() => { onPrint(renewedSocioData); handleRenewDialogChange(false); }}>
-                                    <Printer className="mr-2 h-4 w-4" /> Stampa Scheda
-                                </Button>
-                            </DialogFooter>
-                        </>
-                    ) : (
-                        <>
-                            <DialogHeader>
-                                <DialogTitle>Rinnova Tesseramento</DialogTitle>
-                                <DialogDescription>
-                                    Stai rinnovando il tesseramento per <strong className="text-foreground">{getFullName(socio)}</strong> per l'anno <strong className="text-foreground">{renewalYear}</strong>.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="grid gap-6 py-4">
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="renewal-member-number" className="sm:text-right">
-                                        N. Tessera
-                                    </Label>
-                                    <div className="col-span-3">
-                                      <Input
-                                          id="renewal-member-number"
-                                          value={`GMC-${renewalYear}-${renewMemberNumber}`}
-                                          onChange={(e) => {
-                                              const parts = e.target.value.split('-');
-                                              setRenewMemberNumber(parts[parts.length - 1] || '');
-                                          }}
-                                          className="w-40"
-                                      />
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-2 sm:gap-4">
-                                    <Label className="sm:text-right pt-2">Qualifiche</Label>
-                                    <div className="col-span-3 space-y-2">
-                                        {QUALIFICHE.map((q) => (
-                                          <div key={q} className="flex items-center space-x-2">
-                                                <Checkbox 
-                                                    id={`qualifica-${q}-renew`} 
-                                                    checked={renewQualifiche.includes(q)}
-                                                    onCheckedChange={(checked) => handleQualificaChange(q, !!checked, setRenewQualifiche)}
-                                                />
-                                                <label htmlFor={`qualifica-${q}-renew`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                                    {q}
-                                                </label>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="renewal-fee" className="sm:text-right">
-                                        Quota (€)
-                                    </Label>
-                                    <div className="col-span-3 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                                      <Input
-                                          id="renewal-fee"
-                                          type="number"
-                                          value={renewalFee}
-                                          onChange={(e) => setRenewalFee(Number(e.target.value))}
-                                          className="w-28"
-                                      />
-                                      <div className="flex items-center space-x-2">
-                                          <Checkbox id="fee-paid-renew" checked={renewFeePaid} onCheckedChange={(checked) => setRenewFeePaid(!!checked)} />
-                                          <Label htmlFor="fee-paid-renew" className="text-sm font-medium">Quota Versata</Label>
-                                      </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <DialogFooter>
-                                <Button variant="ghost" onClick={() => handleRenewDialogChange(false)}>Annulla</Button>
-                                <Button onClick={handleRenew} disabled={isRenewing || !renewFeePaid}>
-                                    {isRenewing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Conferma Rinnovo
-                                </Button>
-                            </DialogFooter>
-                        </>
-                    )}
-                </DialogContent>
-            )}
         </TableCell>
       </TableRow>
       </>
@@ -911,3 +973,4 @@ export const SociTable = ({
     </div>
   );
 }
+
