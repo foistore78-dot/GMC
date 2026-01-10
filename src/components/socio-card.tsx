@@ -55,17 +55,21 @@ export function SocioCard({ socio }: SocioCardProps) {
   const relevantDateValue = socio.renewalDate || socio.joinDate;
 
   return (
-    <div style={{ background: 'white', color: 'black', width: '100%', maxWidth: '18cm', margin: '0 auto', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", padding: '1cm' }}>
+    <div style={{ background: 'white', color: 'black', width: '100%', maxWidth: '18cm', margin: '0 auto', fontFamily: "'Roboto', sans-serif", padding: '1cm' }}>
       
       {/* Header */}
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px' }}>
         <tbody>
           <tr>
             <td style={{ verticalAlign: 'middle', width: '60px', paddingRight: '15px' }}>
-              <GarageMusicClubLogo className="w-16 h-16" />
+              {/* Force aspect ratio on logo container */}
+              <div style={{ width: '60px', height: '60px' }}>
+                <GarageMusicClubLogo className="w-full h-full" />
+              </div>
             </td>
             <td style={{ verticalAlign: 'middle' }}>
-              <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: '0', letterSpacing: '0.05em' }}>GARAGE MUSIC CLUB</h1>
+              {/* Use Orbitron font for the header title */}
+              <h1 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: '24px', fontWeight: 'bold', margin: '0', letterSpacing: '0.05em' }}>GARAGE MUSIC CLUB</h1>
               <p style={{ fontSize: '13px', margin: '0' }}>Associazione Culturale</p>
             </td>
             <td style={{ verticalAlign: 'top', textAlign: 'right', fontSize: '10px', lineHeight: '1.4' }}>
