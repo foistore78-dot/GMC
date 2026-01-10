@@ -776,11 +776,11 @@ export const SociTable = ({
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-between space-x-2 py-4">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4">
         <div className="text-sm text-muted-foreground">
             Pagina {currentPage} di {totalPages > 0 ? totalPages : 1}
         </div>
-        <div className="space-x-2">
+        <div className="flex items-center gap-2">
             <Button
                 variant="outline"
                 size="sm"
