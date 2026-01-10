@@ -40,20 +40,19 @@ import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebas
 
 const ITEMS_PER_PAGE = 10;
 
-// RADICALLY SIMPLIFIED to guarantee build success.
 const filterAndSortData = (
-  data: Socio[],
+  data: Socio[] | null,
   searchFilter: string,
   sortConfig: SortConfig
 ): Socio[] => {
     if (!data) return [];
 
-    let filteredData = data;
+    let filteredData = [...data];
 
     // 1. Filtering
     if (searchFilter) {
       const lowerCaseFilter = searchFilter.toLowerCase();
-      filteredData = data.filter(item => {
+      filteredData = filteredData.filter(item => {
           const fullName = getFullName(item).toLowerCase();
           const email = (item.email || '').toLowerCase();
           const tessera = (item.tessera || '').toLowerCase();
@@ -62,24 +61,35 @@ const filterAndSortData = (
     }
 
     // 2. Sorting
-    const sortedData = [...filteredData].sort((a, b) => {
+    filteredData.sort((a, b) => {
       const { key, direction } = sortConfig;
       const asc = direction === 'ascending';
       
-      let valA: any = a[key as keyof Socio];
-      let valB: any = b[key as keyof Socio];
+      let valA: string | number = '';
+      let valB: string | number = '';
 
       if (key === 'name') {
         valA = getFullName(a);
         valB = getFullName(b);
+      } else if (key === 'status') {
+        valA = getStatus(a);
+        valB = getStatus(b);
+      } else if (key === 'tessera' || key === 'tessera_mobile') {
+        valA = parseInt(a.tessera?.split('-').pop() || '0', 10);
+        valB = parseInt(b.tessera?.split('-').pop() || '0', 10);
+      } else {
+        const aValue = a[key as keyof Socio];
+        const bValue = b[key as keyof Socio];
+        valA = typeof aValue === 'string' ? aValue.toLowerCase() : (aValue as any);
+        valB = typeof bValue === 'string' ? bValue.toLowerCase() : (bValue as any);
       }
-
+      
       if (valA < valB) return asc ? -1 : 1;
       if (valA > valB) return asc ? 1 : -1;
       return 0;
     });
 
-    return sortedData;
+    return filteredData;
 };
 
 
@@ -261,6 +271,7 @@ export default function ElencoClient() {
       setTimeout(() => {
         printWindow.focus();
         printWindow.print();
+        printWindow.close();
       }, 400);
     };
 
@@ -432,5 +443,3 @@ export default function ElencoClient() {
     </div>
   );
 }
-
-    

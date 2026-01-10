@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import QRCode from 'react-qr-code';
+import { QRCode } from "qrcode.react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { Socio } from '@/lib/soci-data';
@@ -19,7 +19,7 @@ import { exportToExcel } from "@/lib/excel-export";
 import { importFromExcel, type ImportResult } from "@/lib/excel-import";
 
 
-const PUBLIC_URL = 'https://studio--studio-9577324505-15044.us-central1.hosted.app';
+const PUBLIC_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://studio--studio-9577324505-15044.us-central1.hosted.app';
 
 export default function SegreteriaPage() {
   const router = useRouter();
@@ -228,9 +228,10 @@ export default function SegreteriaPage() {
                 <CardContent className="flex flex-col items-center gap-6">
                      <div ref={qrCodeRef} className="bg-white p-6 rounded-lg">
                         <QRCode
-                        value={PUBLIC_URL}
-                        size={220}
-                        viewBox={`0 0 256 256`}
+                          value={PUBLIC_URL}
+                          size={220}
+                          style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                          viewBox={`0 0 256 256`}
                         />
                     </div>
                     <Button onClick={handlePrintQr} size="lg">

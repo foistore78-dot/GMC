@@ -1,31 +1,28 @@
 import * as XLSX from 'xlsx';
 import type { Socio } from './soci-data';
-import { collection, writeBatch, Firestore, doc, getDocs, query } from 'firebase/firestore';
+import { collection, writeBatch, Firestore, doc, getDocs, query, where } from 'firebase/firestore';
 
 const parseExcelDate = (excelDate: string | number | undefined): string | undefined => {
     if (typeof excelDate === 'number') {
-        // Excel stores dates as numbers (days since 1900-01-01, with a known bug for 1900 being a leap year).
-        // The `XLSX.SSF.parse_date_code` function handles this conversion.
         const date = XLSX.SSF.parse_date_code(excelDate);
-        // new Date(year, month-1, day)
         return new Date(date.y, date.m - 1, date.d).toISOString();
     }
     if (typeof excelDate === 'string') {
-        // Handle common string formats like 'dd/MM/yyyy' or ISO strings
         const parts = excelDate.match(/(\d+)/g);
         let date;
         if (parts && parts.length >= 3) {
             const day = parseInt(parts[0], 10);
             const month = parseInt(parts[1], 10);
             const year = parseInt(parts[2], 10);
-            if (day > 31) { // Likely a YYYY-MM-DD format
-                date = new Date(Date.UTC(day, month - 1, year));
-            } else { // Likely a DD/MM/YYYY format
-                date = new Date(Date.UTC(year, month - 1, day));
+            if (year > 1000 && month <= 12 && day <= 31) { // Basic DD/MM/YYYY check
+                 date = new Date(Date.UTC(year, month - 1, day));
+            } else if (day > 1000 && month <= 12 && year <= 31) { // Basic YYYY/MM/DD check
+                 date = new Date(Date.UTC(day, month - 1, year));
             }
-        } else {
-            // Fallback for ISO strings or other formats recognized by Date.parse
-            date = new Date(excelDate);
+        }
+        
+        if (!date) {
+             date = new Date(excelDate);
         }
 
         if (!isNaN(date.getTime())) {
@@ -74,7 +71,6 @@ const excelRowToSocio = (row: any): PartialSocioWithStatus => {
         guardianBirthDate: parseExcelDate(row['Data Nascita Tutore']) || undefined,
     };
     
-    // Clean up undefined fields
     Object.keys(socio).forEach(key => (socio as any)[key] === undefined && delete (socio as any)[key]);
 
     return { ...socio, statusForImport };
@@ -116,7 +112,6 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
         membersSnapshot.forEach(doc => {
             const member = doc.data() as Socio;
             if(member.tessera) {
-                // To handle both full tessera "GMC-YEAR-NUM" and just "NUM"
                 const tesseraNum = member.tessera.split('-').pop() || member.tessera;
                 existingMembersMap.set(tesseraNum, {id: doc.id, data: member});
             }
@@ -139,9 +134,9 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
             try {
                 const { statusForImport, ...socioData } = excelRowToSocio(row);
 
-                if (!socioData.lastName && !socioData.firstName) {
+                if (!socioData.lastName || !socioData.firstName) {
                   errorCount++;
-                  console.warn("Riga saltata perché mancano sia nome che cognome:", row);
+                  console.warn("Riga saltata perché mancano nome o cognome:", row);
                   continue;
                 }
                 
@@ -151,7 +146,7 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
                 let existingData: Partial<Socio> = {};
 
                 if (isMember) { // 'active' or 'expired'
-                    const tesseraToFind = socioData.tessera ? String(socioData.tessera) : undefined;
+                    const tesseraToFind = socioData.tessera ? String(socioData.tessera).split('-').pop() : undefined;
                     
                     if (tesseraToFind && existingMembersMap.has(tesseraToFind)) {
                         const existing = existingMembersMap.get(tesseraToFind)!;
@@ -161,23 +156,22 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
                             updatedTessere.push(tesseraToFind);
                         }
                     } else {
-                        docRef = doc(membersCollection); // Create new member if no tessera or not found
+                        docRef = doc(membersCollection);
                         createdCount++;
                     }
 
                     const year = socioData.membershipYear || new Date().getFullYear().toString();
-                    const tesseraNumber = socioData.tessera || (await getDocs(membersCollection)).size + 1;
-                    const fullTessera = `GMC-${year}-${tesseraNumber}`;
+                    const tesseraNumber = socioData.tessera || (await getDocs(query(collection(firestore, 'members'), where('membershipYear', '==', year)))).size + 1;
+                    const fullTessera = `GMC-${year}-${String(tesseraNumber).split('-').pop()}`;
 
                     const dataToSet: any = {
                         ...existingData,
                         ...socioData,
                         tessera: fullTessera,
                         id: docRef.id,
-                        membershipStatus: 'active',
+                        status: 'active', // Stored as active in DB
                     };
                     delete dataToSet.statusForImport;
-                    delete dataToSet.status;
                     batch.set(docRef, dataToSet, { merge: true });
 
                 } else { // 'pending'
@@ -187,7 +181,7 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
                         docRef = doc(firestore, 'membership_requests', existing.id);
                         existingData = existing.data;
                     } else {
-                        docRef = doc(requestsCollection); // Create new request
+                        docRef = doc(requestsCollection);
                         createdCount++;
                     }
                      const dataToSet: any = {
