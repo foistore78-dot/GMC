@@ -73,7 +73,7 @@ const filterAndSortData = (
       aValue = getTesseraNumber(a.tessera);
       bValue = getTesseraNumber(b.tessera);
     } else if (key === "name") {
-      aValue = `${a.lastName} ${b.firstName}`.toLowerCase();
+      aValue = `${a.lastName} ${a.firstName}`.toLowerCase();
       bValue = `${b.lastName} ${b.firstName}`.toLowerCase();
     } else {
       aValue = a[key as keyof Socio];
