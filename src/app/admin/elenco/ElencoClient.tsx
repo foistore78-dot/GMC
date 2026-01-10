@@ -69,7 +69,7 @@ const filterAndSortData = (
     let aValue: any;
     let bValue: any;
 
-    if (key === "tessera" || key === 'tessera_mobile') {
+    if (key === "tessera_mobile") {
       aValue = getTesseraNumber(a.tessera);
       bValue = getTesseraNumber(b.tessera);
     } else if (key === "name") {
@@ -130,7 +130,7 @@ export default function ElencoClient() {
   const initialFilter = searchParams.get("filter") || "";
 
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "ascending" });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera_mobile", direction: "ascending" });
   const [filter, setFilter] = useState(initialFilter);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -202,7 +202,7 @@ export default function ElencoClient() {
     setCurrentPage(1);
 
     if (tab === "requests") setSortConfig({ key: "requestDate", direction: "descending" });
-    else setSortConfig({ key: "tessera", direction: "ascending" });
+    else setSortConfig({ key: "tessera_mobile", direction: "ascending" });
   };
 
   const handleSocioUpdate = useCallback(
@@ -429,3 +429,5 @@ export default function ElencoClient() {
     </div>
   );
 }
+
+    

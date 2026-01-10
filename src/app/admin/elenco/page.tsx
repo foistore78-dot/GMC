@@ -15,6 +15,7 @@ export default function ElencoPage() {
           fallback={
             <div className="flex-grow flex items-center justify-center">
               <Loader2 className="h-16 w-16 animate-spin text-primary" />
+              <p className="ml-4 text-muted-foreground">Caricamento elenco soci...</p>
             </div>
           }
         >
@@ -25,3 +26,5 @@ export default function ElencoPage() {
     </div>
   );
 }
+
+    
