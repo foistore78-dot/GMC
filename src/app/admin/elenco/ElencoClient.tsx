@@ -90,11 +90,12 @@ const sortData = (data: Socio[], currentSortConfig: SortConfig): Socio[] => {
 };
 
 const PaginationControls = ({ currentPage, totalPages, onNext, onPrev }: { currentPage: number, totalPages: number, onNext: () => void, onPrev: () => void }) => (
-    <div className="flex items-center justify-center gap-2 mt-8">
+    <div className="flex items-center justify-center gap-4 mt-8">
         <Button
+            variant="outline"
+            size="sm"
             onClick={onPrev}
-            disabled={currentPage === 1 || totalPages <= 1}
-            className="h-9 px-4 bg-[hsl(173,90%,45%)] hover:bg-[hsl(173,90%,50%)] text-primary-foreground disabled:bg-muted disabled:text-muted-foreground"
+            disabled={currentPage === 1}
         >
             <ChevronLeft className="mr-2 h-4 w-4" />
             Indietro
@@ -103,9 +104,10 @@ const PaginationControls = ({ currentPage, totalPages, onNext, onPrev }: { curre
             Pagina {currentPage} di {Math.max(1, totalPages)}
         </span>
         <Button
+            variant="outline"
+            size="sm"
             onClick={onNext}
             disabled={currentPage >= totalPages}
-            className="h-9 px-4 bg-[hsl(173,90%,45%)] hover:bg-[hsl(173,90%,50%)] text-primary-foreground"
         >
             Avanti
             <ArrowRight className="ml-2 h-4 w-4" />
