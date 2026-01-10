@@ -251,172 +251,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
         className="space-y-6 max-h-[85vh] overflow-y-auto p-1 pr-4 mt-4"
       >
         <div>
-          <h3 className="text-lg font-medium text-primary mb-2">Dati Tesseramento</h3>
-          <div className="space-y-4 rounded-md border p-4">
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem className="space-y-3">
-                  <FormLabel>Stato</FormLabel>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      value={field.value}
-                      className="flex items-center space-x-2 sm:space-x-4"
-                    >
-                      <FormItem className="flex items-center space-x-2">
-                        <FormControl>
-                          <RadioGroupItem value="active" />
-                        </FormControl>
-                        <FormLabel className="font-normal">Attivo</FormLabel>
-                      </FormItem>
-                      <FormItem className="flex items-center space-x-2">
-                        <FormControl>
-                          <RadioGroupItem value="pending" />
-                        </FormControl>
-                        <FormLabel className="font-normal">Sospeso</FormLabel>
-                      </FormItem>
-                      <FormItem className="flex items-center space-x-2">
-                        <FormControl>
-                          <RadioGroupItem value="rejected" />
-                        </FormControl>
-                        <FormLabel className="font-normal">Rifiutato</FormLabel>
-                      </FormItem>
-                    </RadioGroup>
-                  </FormControl>
-                  <FormDescription>
-                    Attiva, metti in sospeso o rifiuta la richiesta.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-               <FormField
-                control={form.control}
-                name="membershipYear"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Anno Associativo</FormLabel>
-                    <FormControl><Input {...field} value={field.value || ''}/></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               {currentStatus === "active" && (
-                 <FormField
-                  control={form.control}
-                  name="tessera"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Numero Tessera</FormLabel>
-                      <FormControl><Input {...field} value={field.value || ''}/></FormControl>
-                      <FormDescription>Es. GMC-2024-1</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-               )}
-              <FormField
-                control={form.control}
-                name="requestDate"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Data Richiesta</FormLabel>
-                    <FormControl><Input type="date" {...field} value={field.value || ''}/></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               {currentStatus === "active" && (
-                <>
-                <FormField
-                  control={form.control}
-                  name="joinDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Data Ammissione</FormLabel>
-                      <FormControl><Input type="date" {...field} value={field.value || ''} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="renewalDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Data Rinnovo</FormLabel>
-                      <FormControl><Input type="date" {...field} value={field.value || ''} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                </>
-              )}
-            </div>
-            <FormField
-              control={form.control}
-              name="qualifica"
-              render={() => (
-                <FormItem>
-                  <div className="mb-4"><FormLabel className="text-base">Qualifiche Socio</FormLabel></div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
-                    {QUALIFICHE.map((item) => (
-                      <FormField
-                        key={item}
-                        control={form.control}
-                        name="qualifica"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value?.includes(item) ?? false}
-                                onCheckedChange={(checked) => {
-                                  const value = field.value || [];
-                                  if (checked) {
-                                    field.onChange([...value, item]);
-                                  } else {
-                                    field.onChange(value.filter((v) => v !== item));
-                                  }
-                                }}
-                              />
-                            </FormControl>
-                            <FormLabel className="font-normal">{item}</FormLabel>
-                          </FormItem>
-                        )}
-                      />
-                    ))}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="membershipFee"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Quota Versata (€)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={field.value ?? ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        field.onChange(val === '' ? undefined : Number(val));
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </div>
-        <div>
           <h3 className="text-lg font-medium text-primary mb-2">Dati Anagrafici</h3>
           <div className="space-y-4 rounded-md border p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -682,8 +516,174 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
           </div>
         </div>
         <div>
-          <h3 className="text-lg font-medium text-primary mb-2">Note</h3>
+          <h3 className="text-lg font-medium text-primary mb-2">Dati Tesseramento</h3>
           <div className="space-y-4 rounded-md border p-4">
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Stato</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      className="flex items-center space-x-2 sm:space-x-4"
+                    >
+                      <FormItem className="flex items-center space-x-2">
+                        <FormControl>
+                          <RadioGroupItem value="active" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Attivo</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-2">
+                        <FormControl>
+                          <RadioGroupItem value="pending" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Sospeso</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-2">
+                        <FormControl>
+                          <RadioGroupItem value="rejected" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Rifiutato</FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormDescription>
+                    Attiva, metti in sospeso o rifiuta la richiesta.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+               <FormField
+                control={form.control}
+                name="membershipYear"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Anno Associativo</FormLabel>
+                    <FormControl><Input {...field} value={field.value || ''}/></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               {currentStatus === "active" && (
+                 <FormField
+                  control={form.control}
+                  name="tessera"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Numero Tessera</FormLabel>
+                      <FormControl><Input {...field} value={field.value || ''}/></FormControl>
+                      <FormDescription>Es. GMC-2024-1</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+               )}
+              <FormField
+                control={form.control}
+                name="requestDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Data Richiesta</FormLabel>
+                    <FormControl><Input type="date" {...field} value={field.value || ''}/></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               {currentStatus === "active" && (
+                <>
+                <FormField
+                  control={form.control}
+                  name="joinDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Data Ammissione</FormLabel>
+                      <FormControl><Input type="date" {...field} value={field.value || ''} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="renewalDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Data Rinnovo</FormLabel>
+                      <FormControl><Input type="date" {...field} value={field.value || ''} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                </>
+              )}
+            </div>
+            <FormField
+              control={form.control}
+              name="qualifica"
+              render={() => (
+                <FormItem>
+                  <div className="mb-4"><FormLabel className="text-base">Qualifiche Socio</FormLabel></div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
+                    {QUALIFICHE.map((item) => (
+                      <FormField
+                        key={item}
+                        control={form.control}
+                        name="qualifica"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value?.includes(item) ?? false}
+                                onCheckedChange={(checked) => {
+                                  const value = field.value || [];
+                                  if (checked) {
+                                    field.onChange([...value, item]);
+                                  } else {
+                                    field.onChange(value.filter((v) => v !== item));
+                                  }
+                                }}
+                              />
+                            </FormControl>
+                            <FormLabel className="font-normal">{item}</FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="membershipFee"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Quota Versata (€)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        field.onChange(val === '' ? undefined : Number(val));
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+        <div>
+          <h3 className="text-lg font-medium text-primary mb-2">Note</h3>
+          <div className="rounded-md border p-4">
             <FormField
               control={form.control}
               name="notes"
