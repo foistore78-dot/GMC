@@ -58,21 +58,27 @@ export function SocioCard({ socio }: SocioCardProps) {
     <div style={{ background: 'white', color: 'black', width: '100%', maxWidth: '18cm', margin: '0 auto', fontFamily: "'Roboto', sans-serif", padding: '1cm' }}>
       
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px' }}>
-        <div style={{ flex: '0 0 60px', width: '60px', height: '60px', marginRight: '15px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
+        {/* Colonna 1: Logo */}
+        <div style={{ width: '60px', height: '60px' }}>
           <GarageMusicClubLogo className="w-full h-full" />
         </div>
-        <div style={{ flex: '1 1 auto', textAlign: 'left' }}>
-          <h1 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: '24px', fontWeight: 'bold', margin: '0', letterSpacing: '0.05em' }}>GARAGE MUSIC CLUB</h1>
+        
+        {/* Colonna 2: Titolo */}
+        <div style={{ textAlign: 'left' }}>
+          <h1 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: '22px', fontWeight: 'bold', margin: '0', letterSpacing: '0.05em' }}>GARAGE MUSIC CLUB</h1>
           <p style={{ fontSize: '13px', margin: '0' }}>Associazione Culturale</p>
         </div>
-        <div style={{ flex: '1 1 auto', textAlign: 'right', fontSize: '10px', lineHeight: '1.4' }}>
+
+        {/* Colonna 3: Dati Sede */}
+        <div style={{ textAlign: 'right', fontSize: '10px', lineHeight: '1.4' }}>
           <p style={{ margin: 0 }}>Sede: Via XXIV Udine n. 43, Gradisca d’Isonzo (GO)</p>
           <p style={{ margin: 0 }}>Email: garage.music.club2024@gmail.com</p>
           <p style={{ margin: 0 }}>Tel: +39 389 7995206</p>
           <p style={{ margin: 0 }}>C.F. 91050330314</p>
         </div>
       </div>
+
 
       {/* Title */}
       <div style={{ textAlign: 'center', margin: '15px 0', borderTop: '2px solid black', borderBottom: '2px solid black', padding: '8px 0' }}>
