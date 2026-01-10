@@ -13,6 +13,17 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -28,14 +39,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer, MessageCircle, Building, Cake } from "lucide-react";
+import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer, MessageCircle, Building, Cake, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
 import { useFirestore } from "@/firebase";
-import { doc, writeBatch } from "firebase/firestore";
+import { doc, writeBatch, deleteDoc } from "firebase/firestore";
 import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
 import { Separator } from "./ui/separator";
 import { ScrollArea } from "./ui/scroll-area";
@@ -180,6 +191,9 @@ const SocioTableRow = ({
   const [renewFeePaid, setRenewFeePaid] = useState(false);
   const [renewedSocioData, setRenewedSocioData] = useState<Socio | null>(null);
 
+  const [socioToDelete, setSocioToDelete] = useState<Socio | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const status = getStatus(socio);
   const socioIsMinor = isMinor(socio.birthDate);
 
@@ -214,6 +228,35 @@ const SocioTableRow = ({
         }
     } else {
         setShowRenewDialog(true);
+    }
+  };
+  
+  const handleDelete = async () => {
+    if (!firestore || !socioToDelete) return;
+    setIsDeleting(true);
+
+    try {
+        const socioStatus = getStatus(socioToDelete);
+        const collectionName = (socioStatus === 'active' || socioStatus === 'expired') ? 'members' : 'membership_requests';
+        const docRef = doc(firestore, collectionName, socioToDelete.id);
+        
+        await deleteDoc(docRef);
+
+        toast({
+            title: "Socio Eliminato",
+            description: `${getFullName(socioToDelete)} è stato rimosso dall'elenco.`,
+        });
+        
+        onSocioUpdate();
+    } catch (error) {
+        toast({
+            title: "Errore di Eliminazione",
+            description: `Impossibile eliminare ${getFullName(socioToDelete)}. Dettagli: ${(error as Error).message}`,
+            variant: "destructive",
+        });
+    } finally {
+        setIsDeleting(false);
+        setSocioToDelete(null);
     }
   };
 
@@ -384,6 +427,7 @@ const handleRenew = async () => {
   const tesseraDisplay = socio.tessera ? `${socio.tessera.split('-')[1]}-${socio.tessera.split('-')[2]}` : '-';
 
   return (
+    <>
       <TableRow className={cn("text-xs sm:text-sm", { 'bg-yellow-500/10 hover:bg-yellow-500/20': status === 'expired' })}>
         <TableCell className="font-mono hidden sm:table-cell">
           {tesseraDisplay}
@@ -479,6 +523,38 @@ const handleRenew = async () => {
                     <TooltipContent>Modifica</TooltipContent>
                 </Tooltip>
             </TooltipProvider>
+            
+            <AlertDialog open={!!socioToDelete} onOpenChange={(open) => !open && setSocioToDelete(null)}>
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10" onClick={() => setSocioToDelete(socio)}>
+                                    <Trash2 className="h-4 w-4" />
+                                    <span className="sr-only">Elimina</span>
+                                </Button>
+                            </AlertDialogTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent>Elimina</TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Sei sicuro di voler eliminare questo socio?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Stai per eliminare <strong className="text-foreground">{socioToDelete ? getFullName(socioToDelete) : ""}</strong>. Questa azione non può essere annullata.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting}>Annulla</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className={buttonVariants({ variant: "destructive" })}>
+                            {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {isDeleting ? 'Eliminazione...' : 'Elimina'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
 
             {status === 'pending' && (
               <Dialog open={showApproveDialog} onOpenChange={handleApproveDialogChange}>
@@ -688,6 +764,7 @@ const handleRenew = async () => {
             )}
         </TableCell>
       </TableRow>
+      </>
   );
 };
 

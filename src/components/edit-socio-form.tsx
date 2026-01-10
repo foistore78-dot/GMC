@@ -4,9 +4,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useCallback, useState, useEffect } from "react";
-import { doc, writeBatch, deleteField } from "firebase/firestore";
+import { doc, writeBatch, deleteField, deleteDoc } from "firebase/firestore";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -19,13 +19,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { useFirestore } from "@/firebase";
 import type { Socio } from "@/lib/soci-data";
 import { Textarea } from "./ui/textarea";
 import { getFullName, formatDate, getStatus as getSocioStatus } from "./soci-table";
 import { Separator } from "./ui/separator";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 
 export const QUALIFICHE = ["FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
 
@@ -91,6 +92,7 @@ type EditSocioFormProps = {
 export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const firestore = useFirestore();
 
   const getDefaultValues = useCallback((s: Socio) => {
@@ -240,6 +242,36 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     }
   };
   
+    const handleDelete = async () => {
+        if (!firestore) return;
+        setIsDeleting(true);
+
+        try {
+            const originalStatus = getSocioStatus(socio);
+            const collectionName = (originalStatus === 'active' || originalStatus === 'expired') ? 'members' : 'membership_requests';
+            const docRef = doc(firestore, collectionName, socio.id);
+            
+            await deleteDoc(docRef);
+
+            toast({
+                title: "Socio Eliminato",
+                description: `${getFullName(socio)} è stato rimosso definitivamente.`,
+            });
+            
+            setIsDeleting(false);
+            onClose();
+
+        } catch (error) {
+            console.error("Error deleting document:", error);
+            toast({
+                title: "Errore di Eliminazione",
+                description: `Impossibile eliminare ${getFullName(socio)}. Dettagli: ${(error as Error).message}`,
+                variant: "destructive",
+            });
+            setIsDeleting(false);
+        }
+    };
+
   useEffect(() => {
     form.reset(getDefaultValues(socio));
   }, [socio, form, getDefaultValues]);
@@ -682,14 +714,14 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
           </div>
         </div>
         <div>
-          <h3 className="text-lg font-medium text-primary mb-2">Note</h3>
+          <h3 className="text-lg font-medium text-primary mb-2">Note Amministrative</h3>
           <div className="rounded-md border p-4">
             <FormField
               control={form.control}
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Note Amministrative</FormLabel>
+                  <FormLabel>Note</FormLabel>
                   <FormControl><Textarea {...field} value={field.value || ''} placeholder="Aggiungi note..."/></FormControl>
                    <FormDescription>Queste note sono visibili solo agli amministratori.</FormDescription>
                   <FormMessage />
@@ -699,12 +731,37 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
           </div>
         </div>
         
-        <div className="flex justify-end pt-4 sticky bottom-0 bg-secondary/80 backdrop-blur-sm pb-4 rounded-b-lg">
-          <Button type="button" variant="ghost" onClick={() => onClose()} disabled={isSubmitting}>Annulla</Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Salva Modifiche
-          </Button>
+        <div className="flex justify-between items-center pt-4 sticky bottom-0 bg-secondary/80 backdrop-blur-sm pb-4 rounded-b-lg">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button type="button" variant="destructive" disabled={isSubmitting || isDeleting}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Elimina Socio
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Sei assolutamente sicuro?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Questa azione non può essere annullata. Questo eliminerà permanentemente il socio <strong className="text-foreground">{getFullName(socio)}</strong> e rimuoverà i suoi dati dai nostri server.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isDeleting}>Annulla</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className={buttonVariants({ variant: "destructive" })}>
+                        {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isDeleting ? 'Eliminazione...' : 'Conferma Eliminazione'}
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" onClick={() => onClose()} disabled={isSubmitting || isDeleting}>Annulla</Button>
+            <Button type="submit" disabled={isSubmitting || isDeleting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salva Modifiche
+            </Button>
+          </div>
         </div>
       </form>
     </Form>
