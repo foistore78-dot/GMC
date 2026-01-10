@@ -172,7 +172,7 @@ export default function ElencoClient() {
       requests: filteredRequests.length,
     };
     
-    const dataToSort = 
+    const dataToSort: Socio[] = 
       activeTab === "active"
         ? filteredActive
         : activeTab === "expired"
@@ -441,5 +441,3 @@ export default function ElencoClient() {
     </div>
   );
 }
-
-    

@@ -9,6 +9,9 @@
     "start": "next start",
     "lint": "next lint"
   },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@genkit-ai/google-genai": "1.20.0",
     "@hookform/resolvers": "3.3.4",
