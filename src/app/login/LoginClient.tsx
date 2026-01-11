@@ -18,13 +18,10 @@ import { AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth, useUser } from "@/firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
 
-const ADMIN_EMAIL = 'garage.music.club2024@gmail.com';
-const ADMIN_PASSWORD = 'password';
-
 export default function LoginClient() {
   const router = useRouter();
-  const [email, setEmail] = useState(ADMIN_EMAIL);
-  const [password, setPassword] = useState(ADMIN_PASSWORD);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
