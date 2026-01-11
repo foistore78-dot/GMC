@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import ElencoClient from './ElencoClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Lock, Loader2 } from 'lucide-react';
-import { useAuth, useFirebase } from '@/firebase';
+import { useFirebase } from '@/firebase';
 import { signInAnonymously } from 'firebase/auth';
 
 const ADMIN_PASSWORD = "Gmc!new2026";
@@ -15,47 +15,49 @@ export default function AuthGuard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const { auth, user, isUserLoading } = useFirebase();
 
-  // If user is already authenticated (e.g. from a previous session),
-  // and they have passed the password check, show the content.
+  // Step 1: Ensure anonymous user is signed in on component mount.
+  useEffect(() => {
+    if (isUserLoading) return; // Wait until Firebase has checked auth state.
+
+    if (!user) { // If there's no user at all (neither logged in nor anonymous)
+      if (auth) {
+        signInAnonymously(auth).catch(e => {
+            console.error("Anonymous sign-in failed", e);
+            setError("Impossibile connettersi al servizio di autenticazione.");
+            setIsLoading(false);
+        });
+      }
+    } else {
+        // User (anonymous or otherwise) already exists.
+        setIsLoading(false);
+    }
+  }, [user, isUserLoading, auth]);
+
+  // Step 2: If we have a user and they previously passed password check, authenticate them.
   useEffect(() => {
     if (user && sessionStorage.getItem('gmc-auth-passed') === 'true') {
       setIsAuthenticated(true);
     }
   }, [user]);
   
-  const handleLogin = async () => {
+  const handleLogin = () => {
     if (password === ADMIN_PASSWORD) {
       setError('');
-      setIsSigningIn(true);
-      try {
-        if (auth) {
-          // If there's no user, sign in anonymously.
-          if (!user) {
-            await signInAnonymously(auth);
-          }
-          // After successful sign-in (or if already signed in), set flags.
-          sessionStorage.setItem('gmc-auth-passed', 'true');
-          setIsAuthenticated(true);
-        } else {
-            throw new Error("Servizio di autenticazione non disponibile.");
-        }
-      } catch (e) {
-         setError('Errore di autenticazione con Firebase.');
-         console.error(e);
-      } finally {
-        setIsSigningIn(false);
-      }
-
+      sessionStorage.setItem('gmc-auth-passed', 'true');
+      setIsAuthenticated(true);
     } else {
       setError('Password non corretta.');
     }
   };
+  
+  // Combines Firebase loading state with our internal logic loading state.
+  const isOverallLoading = isUserLoading || isLoading;
 
-  if (isUserLoading || isSigningIn) {
+  if (isOverallLoading) {
       return (
         <div className="flex-grow flex items-center justify-center">
             <Loader2 className="h-16 w-16 animate-spin text-primary" />
@@ -64,10 +66,12 @@ export default function AuthGuard() {
       );
   }
 
-  if (isAuthenticated) {
+  // If we have a valid user and they are authenticated via password, show the main content.
+  if (user && isAuthenticated) {
     return <ElencoClient />;
   }
-
+  
+  // Otherwise, show the password login form.
   return (
     <div className="flex-grow container mx-auto px-4 py-8 flex items-center justify-center">
       <Card className="w-full max-w-sm">
@@ -95,8 +99,7 @@ export default function AuthGuard() {
               />
               {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
-            <Button type="submit" className="w-full" disabled={isSigningIn}>
-              {isSigningIn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" className="w-full">
               Accedi
             </Button>
           </form>
@@ -105,5 +108,3 @@ export default function AuthGuard() {
     </div>
   );
 }
-
-    
