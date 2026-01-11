@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
 
-import { collection } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown } from "lucide-react";
 
 import { SociTable, type SortConfig, getStatus, getFullName } from "@/components/soci-table";
@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import type { Socio } from "@/lib/soci-data";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { exportToExcel } from "@/lib/excel-export";
 import { importFromExcel, type ImportResult } from "@/lib/excel-import";
@@ -155,7 +155,7 @@ export default function ElencoClient() {
   const initialFilter = searchParams.get("filter") || "";
 
   const [activeTab, setActiveTab] = useState(initialTab as 'active' | 'expired' | 'requests');
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "lastName", direction: "ascending" });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "contextualDate", direction: "descending" });
   const [filter, setFilter] = useState(initialFilter);
   const [currentPage, setCurrentPage] = useState(1);
   
@@ -165,21 +165,45 @@ export default function ElencoClient() {
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [socioToPrint, setSocioToPrint] = useState<Socio | null>(null);
 
-  const membersQuery = useMemoFirebase(() => (firestore ? collection(firestore, "members") : null), [
-    firestore,
-  ]);
-  const requestsQuery = useMemoFirebase(
-    () => (firestore ? collection(firestore, "membership_requests") : null),
-    [firestore]
-  );
+  const [isDataLoading, setIsDataLoading] = useState(true);
+  const [membersData, setMembersData] = useState<Socio[]>([]);
+  const [requestsData, setRequestsData] = useState<Socio[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  const { data: membersData, isLoading: isMembersLoading, forceRefresh: forceMembersRefresh } =
-    useCollection<Socio>(membersQuery);
+  const fetchData = useCallback(async () => {
+    if (!firestore) return;
+    setIsDataLoading(true);
+    setError(null);
+    try {
+      const membersQuery = collection(firestore, "members");
+      const requestsQuery = collection(firestore, "membership_requests");
 
-  const { data: requestsData, isLoading: isRequestsLoading, forceRefresh: forceRequestsRefresh } =
-    useCollection<Socio>(requestsQuery);
-    
-  const isDataLoading = isMembersLoading || isRequestsLoading;
+      const [membersSnapshot, requestsSnapshot] = await Promise.all([
+        getDocs(membersQuery),
+        getDocs(requestsQuery),
+      ]);
+
+      const members = membersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
+      const requests = requestsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
+
+      setMembersData(members);
+      setRequestsData(requests);
+    } catch (e: any) {
+      setError("Impossibile caricare i dati. Verifica le regole di Firestore e la connessione.");
+      toast({
+        title: "Errore di Caricamento",
+        description: e.message || "Si è verificato un problema durante il recupero dei dati.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDataLoading(false);
+    }
+  }, [firestore, toast]);
+  
+  useEffect(() => {
+      fetchData();
+  }, [fetchData]);
+
 
   const { paginatedData, totalPages, counts } = useMemo(() => {
     const allMembers = membersData || [];
@@ -249,11 +273,10 @@ export default function ElencoClient() {
 
   const handleSocioUpdate = useCallback(
     (switchToTab?: "active" | "expired" | "requests") => {
-      forceMembersRefresh();
-      forceRequestsRefresh();
+      fetchData();
       if (switchToTab) setActiveTab(switchToTab);
     },
-    [forceMembersRefresh, forceRequestsRefresh]
+    [fetchData]
   );
 
   const handlePrintCard = (socio: Socio) => {
@@ -350,8 +373,7 @@ export default function ElencoClient() {
           duration: 8000,
         });
 
-        forceMembersRefresh();
-        forceRequestsRefresh();
+        fetchData();
 
       } catch (error) {
         toast({
@@ -385,9 +407,14 @@ export default function ElencoClient() {
       </div>
 
       <div className="bg-background rounded-lg border border-border shadow-lg p-2 sm:p-4">
-        {isDataLoading && !membersData && !requestsData ? (
+        {isDataLoading && membersData.length === 0 && requestsData.length === 0 ? (
           <div className="flex justify-center items-center h-64">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          </div>
+        ) : error ? (
+           <div className="flex flex-col justify-center items-center h-64 text-center">
+            <p className="text-destructive font-semibold mb-2">Si è verificato un errore</p>
+            <p className="text-muted-foreground max-w-md">{error}</p>
           </div>
         ) : (
           <>
@@ -534,3 +561,5 @@ export default function ElencoClient() {
     </div>
   );
 }
+
+    

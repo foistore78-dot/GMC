@@ -31,7 +31,6 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
-  DialogClose,
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
@@ -491,7 +490,6 @@ const handleRenew = async () => {
         </TableCell>
         <TableCell className="text-muted-foreground">{formatDate(contextualDate)}</TableCell>
         <TableCell className="text-right space-x-1">
-            {/* Mobile Actions */}
             <div className="sm:hidden flex items-center justify-end">
                 {status === 'pending' && (
                     <Dialog open={showApproveDialog} onOpenChange={handleApproveDialogChange}>
@@ -578,7 +576,6 @@ const handleRenew = async () => {
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-lg">
-                          {/* Renew Dialog Content */}
                         </DialogContent>
                     </Dialog>
                 )}
@@ -606,7 +603,6 @@ const handleRenew = async () => {
                 </DropdownMenu>
             </div>
 
-            {/* Desktop Actions */}
             <div className="hidden sm:flex items-center justify-end">
                 <TooltipProvider>
                     <Tooltip>
@@ -963,3 +959,5 @@ export const SociTable = ({
     </div>
   );
 }
+
+    
