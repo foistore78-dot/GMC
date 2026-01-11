@@ -370,19 +370,19 @@ export default function ElencoClient() {
                     value="active"
                     className="text-xs px-2 sm:text-sm data-[state=active]:bg-green-500/20 data-[state=active]:text-green-300"
                   >
-                    Attivi ({counts.active})
+                    ATTIVI ({counts.active})
                   </TabsTrigger>
                   <TabsTrigger
                     value="expired"
                     className="text-xs px-2 sm:text-sm data-[state=active]:bg-yellow-500/20 data-[state=active]:text-yellow-300"
                   >
-                    In Attesa di Rinnovo ({counts.expired})
+                    SOSPESI ({counts.expired})
                   </TabsTrigger>
                   <TabsTrigger
                     value="requests"
                     className="text-xs px-2 sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300"
                   >
-                    Richieste ({counts.requests})
+                    RICHIESTE ({counts.requests})
                   </TabsTrigger>
                 </TabsList>
                 
