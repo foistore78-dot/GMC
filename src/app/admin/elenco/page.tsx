@@ -15,6 +15,7 @@ export default function ElencoPage() {
   const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
 
   const checkAdminStatus = useCallback(async () => {
+    setIsCheckingAdmin(true);
     if (user) {
         // In a real app, you would check a custom claim or a document in Firestore.
         // For this demo, we'll check if the email matches the admin email.
@@ -27,6 +28,7 @@ export default function ElencoPage() {
   }, [user]);
   
   useEffect(() => {
+    // Only run check when the user loading state is finalized
     if (!isUserLoading) {
       checkAdminStatus();
     }
@@ -36,6 +38,9 @@ export default function ElencoPage() {
   const handleLogout = useCallback(() => {
     if (auth) {
       signOut(auth);
+      // After sign-out, the AuthGuard will automatically take over.
+      // We also reset the local admin state.
+      setIsAdmin(false);
     }
   }, [auth]);
 
@@ -43,8 +48,13 @@ export default function ElencoPage() {
     if (isUserLoading || isCheckingAdmin) {
       return (
         <div className="flex-grow flex items-center justify-center">
-          <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          <p className="ml-4 text-muted-foreground">Verifica in corso...</p>
+          <div className="flex flex-col items-center gap-4 text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <div>
+              <p className="font-semibold text-lg">Verifica in corso...</p>
+              <p className="text-muted-foreground">Connessione ai servizi Firebase.</p>
+            </div>
+          </div>
         </div>
       );
     }
@@ -64,7 +74,6 @@ export default function ElencoPage() {
           fallback={
             <div className="flex-grow flex items-center justify-center">
               <Loader2 className="h-16 w-16 animate-spin text-primary" />
-              <p className="ml-4 text-muted-foreground">Caricamento...</p>
             </div>
           }
         >

@@ -5,10 +5,11 @@ import { useEffect, useState, ReactNode } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lock, LogIn, Loader2 } from 'lucide-react';
+import { Lock, LogIn, Loader2, AlertCircle } from 'lucide-react';
 import { useFirebase } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface AuthGuardProps {
     children: ReactNode;
@@ -24,7 +25,8 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
   const { auth } = useFirebase();
   const { toast } = useToast();
 
-  const handleLogin = async () => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!auth) {
         setError("Servizio di autenticazione non disponibile.");
         return;
@@ -39,12 +41,13 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      // On successful login, the parent component will detect the auth state change
+      // and re-render with isAdmin=true, so we don't need to do anything else here.
       toast({
         title: "Accesso Effettuato",
         description: "Benvenuto nell'area di amministrazione.",
       });
     } catch (e: any) {
-      setIsSubmitting(false);
       switch (e.code) {
         case 'auth/user-not-found':
         case 'auth/wrong-password':
@@ -52,9 +55,11 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
           setError('Credenziali non valide. Riprova.');
           break;
         default:
-          setError('Si è verificato un errore durante l\'accesso.');
+          setError('Si è verificato un errore imprevisto durante l\'accesso.');
           break;
       }
+    } finally {
+        setIsSubmitting(false);
     }
   };
   
@@ -70,14 +75,11 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
                 <Lock className="w-8 h-8 text-primary" />
             </div>
           <CardTitle>Area Amministrazione</CardTitle>
-          <CardDescription>Inserisci le credenziali di amministratore per accedere.</CardDescription>
+          <CardDescription>Inserisci le credenziali per accedere al pannello.</CardDescription>
         </CardHeader>
         <CardContent>
           <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleLogin();
-            }}
+            onSubmit={handleLogin}
             className="space-y-4"
           >
             <div className="space-y-2">
@@ -87,6 +89,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
+                disabled={isSubmitting}
               />
               <Input
                 type="password"
@@ -94,8 +97,18 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
+                disabled={isSubmitting}
               />
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {error && (
+                <Alert variant="destructive" className="p-2">
+                    <div className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription className="text-xs">
+                        {error}
+                        </AlertDescription>
+                    </div>
+                </Alert>
+              )}
             </div>
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}

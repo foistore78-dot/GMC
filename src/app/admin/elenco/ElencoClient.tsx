@@ -6,8 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
 
-import { collection, getDocs } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown } from "lucide-react";
+import { collection, getDocs, QuerySnapshot, DocumentData } from "firebase/firestore";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown, AlertTriangle } from "lucide-react";
 
 import { SociTable, type SortConfig, getStatus, getFullName } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
@@ -171,7 +171,11 @@ export default function ElencoClient() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
-    if (!firestore) return;
+    if (!firestore) {
+        setError("Servizio database non disponibile.");
+        setIsDataLoading(false);
+        return;
+    };
     setIsDataLoading(true);
     setError(null);
     try {
@@ -181,15 +185,18 @@ export default function ElencoClient() {
       const [membersSnapshot, requestsSnapshot] = await Promise.all([
         getDocs(membersQuery),
         getDocs(requestsQuery),
-      ]);
+      ]).catch((err) => {
+        // This will catch permission errors or other issues with getDocs
+        throw new Error("Errore di permessi o di rete nel recuperare i dati da Firestore. Controlla le regole di sicurezza e la connessione.");
+      });
 
-      const members = membersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
-      const requests = requestsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
+      const members = (membersSnapshot as QuerySnapshot<DocumentData>).docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
+      const requests = (requestsSnapshot as QuerySnapshot<DocumentData>).docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
 
       setMembersData(members);
       setRequestsData(requests);
     } catch (e: any) {
-      setError("Impossibile caricare i dati. Verifica le regole di Firestore e la connessione.");
+      setError(e.message || "Impossibile caricare i dati. Verifica la console per i dettagli.");
       toast({
         title: "Errore di Caricamento",
         description: e.message || "Si è verificato un problema durante il recupero dei dati.",
@@ -408,13 +415,21 @@ export default function ElencoClient() {
 
       <div className="bg-background rounded-lg border border-border shadow-lg p-2 sm:p-4">
         {isDataLoading ? (
-          <div className="flex justify-center items-center h-64">
+          <div className="flex flex-col justify-center items-center h-64 gap-4">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="text-muted-foreground">Caricamento dati dal database...</p>
           </div>
         ) : error ? (
-           <div className="flex flex-col justify-center items-center h-64 text-center">
-            <p className="text-destructive font-semibold mb-2">Si è verificato un errore</p>
-            <p className="text-muted-foreground max-w-md">{error}</p>
+           <div className="flex flex-col justify-center items-center h-64 text-center gap-4">
+            <AlertTriangle className="h-12 w-12 text-destructive" />
+            <div>
+                <p className="text-destructive font-semibold text-lg mb-2">Si è verificato un errore</p>
+                <p className="text-muted-foreground max-w-md">{error}</p>
+            </div>
+            <Button onClick={fetchData} variant="outline">
+                <RefreshCw className="mr-2 h-4 w-4"/>
+                Tenta di nuovo
+            </Button>
           </div>
         ) : (
           <>
@@ -504,11 +519,11 @@ export default function ElencoClient() {
       <div className="bg-secondary p-6 rounded-lg border border-border flex flex-col sm:flex-row items-center justify-center gap-4">
           <p className="text-center text-muted-foreground">Gestione dati soci</p>
           <div className="flex items-center gap-2">
-            <Button onClick={handleExport} variant="outline" disabled={isDataLoading}>
+            <Button onClick={handleExport} variant="outline" disabled={isDataLoading || !!error}>
                 <FileDown className="mr-2 h-4 w-4" />
                 Esporta Elenco
             </Button>
-            <Button onClick={handleImportClick} disabled={isDataLoading || isImporting}>
+            <Button onClick={handleImportClick} disabled={isDataLoading || isImporting || !!error}>
                 {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
                 {isImporting ? "Importo..." : "Importa da Excel"}
             </Button>
@@ -561,5 +576,3 @@ export default function ElencoClient() {
     </div>
   );
 }
-
-    
