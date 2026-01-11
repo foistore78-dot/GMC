@@ -32,7 +32,7 @@ export default function LoginClient() {
   useEffect(() => {
     // Redirect if the user is already logged in and not loading.
     if (user && !isUserLoading) {
-      router.push("/dashboard");
+      router.push("/admin/elenco");
     }
   }, [user, isUserLoading, router]);
 

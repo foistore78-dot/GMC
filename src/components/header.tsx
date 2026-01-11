@@ -42,9 +42,6 @@ export function Header() {
         <nav className="hidden md:flex items-center gap-2">
           {user ? (
             <>
-              <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary">
-                <Link href="/dashboard">Dashboard</Link>
-              </Button>
                <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary">
                 <Link href="/admin/elenco">Elenco Soci</Link>
               </Button>
@@ -79,7 +76,6 @@ export function Header() {
                     <NavLink href="/"><Home className="mr-2 h-4 w-4" /> Home</NavLink>
                     {user ? (
                       <>
-                        <NavLink href="/dashboard"><LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard</NavLink>
                         <NavLink href="/admin/elenco"><List className="mr-2 h-4 w-4" /> Elenco Soci</NavLink>
                         <NavLink href="/segreteria"><QrCode className="mr-2 h-4 w-4" /> Segreteria</NavLink>
                       </>
