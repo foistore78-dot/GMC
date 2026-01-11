@@ -165,7 +165,7 @@ export default function ElencoClient() {
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [socioToPrint, setSocioToPrint] = useState<Socio | null>(null);
 
-  const [isDataLoading, setIsDataLoading] = useState(false); // Set to false initially
+  const [isDataLoading, setIsDataLoading] = useState(true);
   const [membersData, setMembersData] = useState<Socio[]>([]);
   const [requestsData, setRequestsData] = useState<Socio[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -175,24 +175,19 @@ export default function ElencoClient() {
     setIsDataLoading(true);
     setError(null);
     try {
-      // ** DATA FETCHING DISABLED **
-      // const membersQuery = collection(firestore, "members");
-      // const requestsQuery = collection(firestore, "membership_requests");
+      const membersQuery = collection(firestore, "members");
+      const requestsQuery = collection(firestore, "membership_requests");
 
-      // const [membersSnapshot, requestsSnapshot] = await Promise.all([
-      //   getDocs(membersQuery),
-      //   getDocs(requestsQuery),
-      // ]);
+      const [membersSnapshot, requestsSnapshot] = await Promise.all([
+        getDocs(membersQuery),
+        getDocs(requestsQuery),
+      ]);
 
-      // const members = membersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
-      // const requests = requestsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
+      const members = membersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
+      const requests = requestsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
 
-      // setMembersData(members);
-      // setRequestsData(requests);
-      setMembersData([]);
-      setRequestsData([]);
-      // Simulate loading for UI
-      await new Promise(resolve => setTimeout(resolve, 500));
+      setMembersData(members);
+      setRequestsData(requests);
     } catch (e: any) {
       setError("Impossibile caricare i dati. Verifica le regole di Firestore e la connessione.");
       toast({
@@ -206,8 +201,7 @@ export default function ElencoClient() {
   }, [firestore, toast]);
   
   useEffect(() => {
-      // ** DATA FETCHING DISABLED FOR DEBUGGING BUILD **
-      // fetchData();
+    fetchData();
   }, [fetchData]);
 
 
