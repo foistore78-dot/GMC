@@ -5,65 +5,42 @@ import { useEffect, useState, ReactNode } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lock, Loader2 } from 'lucide-react';
-import { useFirebase } from '@/firebase';
-import { signInAnonymously } from 'firebase/auth';
+import { Lock } from 'lucide-react';
 
 const ADMIN_PASSWORD = "Gmc!new2026";
 
 interface AuthGuardProps {
     children: ReactNode;
-    isAuthenticated: boolean | null;
-    setIsAuthenticated: (value: boolean) => void;
     onLoginSuccess: () => void;
 }
 
-export default function AuthGuard({ children, isAuthenticated, setIsAuthenticated, onLoginSuccess }: AuthGuardProps) {
+export default function AuthGuard({ children, onLoginSuccess }: AuthGuardProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isChecking, setIsChecking] = useState(true);
-
-  const { auth, user, isUserLoading } = useFirebase();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    if (isUserLoading) return; 
-
-    if (!user && auth) {
-        signInAnonymously(auth).catch(e => {
-            setError("Impossibile connettersi al servizio di autenticazione.");
-        }).finally(() => {
-            const sessionAuth = sessionStorage.getItem('gmc-auth-passed') === 'true';
-            setIsAuthenticated(sessionAuth);
-            setIsChecking(false);
-        });
-    } else {
-        const sessionAuth = sessionStorage.getItem('gmc-auth-passed') === 'true';
-        setIsAuthenticated(sessionAuth);
-        setIsChecking(false);
+    const sessionAuth = sessionStorage.getItem('gmc-auth-passed') === 'true';
+    if (sessionAuth) {
+      setIsAuthenticated(true);
+      onLoginSuccess();
     }
-  }, [user, isUserLoading, auth, setIsAuthenticated]);
+  }, [onLoginSuccess]);
 
 
   const handleLogin = () => {
     if (password === ADMIN_PASSWORD) {
       setError('');
       sessionStorage.setItem('gmc-auth-passed', 'true');
+      setIsAuthenticated(true);
       onLoginSuccess();
     } else {
       setError('Password non corretta.');
+      sessionStorage.removeItem('gmc-auth-passed');
     }
   };
   
-  if (isChecking || isAuthenticated === null) {
-      return (
-        <div className="flex-grow flex items-center justify-center">
-            <Loader2 className="h-16 w-16 animate-spin text-primary" />
-            <p className="ml-4 text-muted-foreground">Autenticazione in corso...</p>
-        </div>
-      );
-  }
-
-  if (user && isAuthenticated) {
+  if (isAuthenticated) {
     return <>{children}</>;
   }
   

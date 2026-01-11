@@ -407,7 +407,7 @@ export default function ElencoClient() {
       </div>
 
       <div className="bg-background rounded-lg border border-border shadow-lg p-2 sm:p-4">
-        {isDataLoading && membersData.length === 0 && requestsData.length === 0 ? (
+        {isDataLoading ? (
           <div className="flex justify-center items-center h-64">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
           </div>
@@ -561,5 +561,3 @@ export default function ElencoClient() {
     </div>
   );
 }
-
-    
