@@ -40,7 +40,8 @@ const ITEMS_PER_PAGE = 10;
 const filterAndSortData = (
   data: Socio[] | null,
   searchFilter: string,
-  sortConfig: SortConfig
+  sortConfig: SortConfig,
+  activeTab: 'active' | 'expired' | 'requests'
 ): Socio[] => {
     if (!data) return [];
 
@@ -62,23 +63,35 @@ const filterAndSortData = (
       const { key, direction } = sortConfig;
       const asc = direction === 'ascending';
       
-      let aVal: any = a[key as keyof Socio];
-      let bVal: any = b[key as keyof Socio];
+      let aVal: any;
+      let bVal: any;
 
       if (key === 'name') {
-        const nameA = getFullName(a);
-        const nameB = getFullName(b);
-        return nameA.localeCompare(nameB) * (asc ? 1 : -1);
-      }
-      
-      if (key === 'tessera' || key === 'tessera_mobile') {
+        aVal = getFullName(a);
+        bVal = getFullName(b);
+      } else if (key === 'contextualDate') {
+        if (activeTab === 'active') {
+          aVal = a.renewalDate || a.joinDate;
+          bVal = b.renewalDate || b.joinDate;
+        } else if (activeTab === 'expired') {
+          aVal = a.joinDate;
+          bVal = b.joinDate;
+        } else { // requests
+          aVal = a.requestDate;
+          bVal = b.requestDate;
+        }
+      } else if (key === 'tessera') {
         const numA = parseInt((a.tessera || '').split('-').pop() ?? '0', 10);
         const numB = parseInt((b.tessera || '').split('-').pop() ?? '0', 10);
         if (numA < numB) return asc ? -1 : 1;
         if (numA > numB) return asc ? 1 : -1;
         return 0;
       }
-      
+      else {
+        aVal = a[key as keyof Socio];
+        bVal = b[key as keyof Socio];
+      }
+
       // For date keys, handle string comparison correctly
       if (['renewalDate', 'joinDate', 'requestDate', 'birthDate', 'contextualDate'].includes(key)) {
         const dateA = aVal ? new Date(aVal).getTime() : 0;
@@ -145,7 +158,7 @@ export default function ElencoClient() {
   const initialTab = searchParams.get("tab") || "active";
   const initialFilter = searchParams.get("filter") || "";
 
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const [activeTab, setActiveTab] = useState(initialTab as 'active' | 'expired' | 'requests');
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "lastName", direction: "ascending" });
   const [filter, setFilter] = useState(initialFilter);
   const [currentPage, setCurrentPage] = useState(1);
@@ -180,12 +193,12 @@ export default function ElencoClient() {
     const expiredMembers = allMembers.filter((s) => getStatus(s) === "expired");
     const pendingRequests = allRequests.filter((req) => getStatus(req) === "pending");
 
-    const applyFilter = (data: Socio[]) => filterAndSortData(data, filter, sortConfig);
+    const applyFilterAndSort = (data: Socio[]) => filterAndSortData(data, filter, sortConfig, activeTab);
     
     // We need to apply filter *before* getting the counts
-    const filteredActive = applyFilter(activeMembers);
-    const filteredExpired = applyFilter(expiredMembers);
-    const filteredRequests = applyFilter(pendingRequests);
+    const filteredActive = applyFilterAndSort(activeMembers);
+    const filteredExpired = applyFilterAndSort(expiredMembers);
+    const filteredRequests = applyFilterAndSort(pendingRequests);
 
     const counts = {
         active: filteredActive.length,
@@ -201,12 +214,9 @@ export default function ElencoClient() {
     } else { // requests
         dataForTab = filteredRequests;
     }
-
-    // Since data is already filtered and sorted by applyFilter, we just need to paginate
-    const sortedAndFiltered = dataForTab;
     
-    const totalPages = Math.ceil(sortedAndFiltered.length / ITEMS_PER_PAGE);
-    const paginatedData = sortedAndFiltered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(dataForTab.length / ITEMS_PER_PAGE);
+    const paginatedData = dataForTab.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     return { paginatedData, totalPages, counts };
 }, [membersData, requestsData, filter, activeTab, sortConfig, currentPage]);
@@ -228,16 +238,18 @@ export default function ElencoClient() {
   };
 
   const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
+    if (tab === 'active' || tab === 'expired' || tab === 'requests') {
+        setActiveTab(tab);
+    }
     setCurrentPage(1);
 
     // Set default sort order for each tab
     if (tab === "requests") {
-      setSortConfig({ key: "requestDate", direction: "descending" });
+      setSortConfig({ key: "contextualDate", direction: "descending" });
     } else if (tab === 'expired') {
-      setSortConfig({ key: "joinDate", direction: "ascending" });
+      setSortConfig({ key: "contextualDate", direction: "ascending" });
     } else { // active
-      setSortConfig({ key: "renewalDate", direction: "descending" });
+      setSortConfig({ key: "contextualDate", direction: "descending" });
     }
   };
 
@@ -529,3 +541,5 @@ export default function ElencoClient() {
     </div>
   );
 }
+
+    

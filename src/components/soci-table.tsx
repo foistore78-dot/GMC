@@ -438,7 +438,7 @@ const handleRenew = async () => {
   const tesseraDisplayMobile = socio.tessera ? socio.tessera.split('-').pop() : '-';
 
   const contextualDate = useMemo(() => {
-    if (activeTab === 'active') return socio.renewalDate;
+    if (activeTab === 'active') return socio.renewalDate || socio.joinDate;
     if (activeTab === 'expired') return socio.joinDate;
     if (activeTab === 'requests') return socio.requestDate;
     return undefined;
@@ -873,7 +873,7 @@ const handleRenew = async () => {
 
 
 export type SortConfig = {
-  key: keyof Socio | 'name' | 'tessera' | 'tessera_mobile' | 'contextualDate';
+  key: keyof Socio | 'name' | 'tessera' | 'contextualDate';
   direction: 'ascending' | 'descending';
 };
 
@@ -934,16 +934,10 @@ export const SociTable = ({
 }: SociTableProps) => {
 
   const dateHeaderLabel = useMemo(() => {
-    if (activeTab === 'active') return 'Rinnovo';
+    if (activeTab === 'active') return 'Rinnovo/Amm.';
     if (activeTab === 'expired') return 'Ammissione';
     if (activeTab === 'requests') return 'Richiesta';
     return 'Data';
-  }, [activeTab]);
-
-  const dateSortKey = useMemo(() => {
-    if (activeTab === 'active') return 'renewalDate';
-    if (activeTab === 'expired') return 'joinDate';
-    return 'requestDate';
   }, [activeTab]);
 
 
@@ -953,11 +947,11 @@ export const SociTable = ({
         <Table>
           <TableHeader>
             <TableRow>
-              <SortableHeader label="N." sortKey="tessera_mobile" sortConfig={sortConfig} setSortConfig={setSortConfig} className="sm:hidden w-12" />
+              <SortableHeader label="N." sortKey="tessera" sortConfig={sortConfig} setSortConfig={setSortConfig} className="sm:hidden w-12" />
               <SortableHeader label="Tessera" sortKey="tessera" sortConfig={sortConfig} setSortConfig={setSortConfig} className="w-[100px] hidden sm:table-cell" />
               <SortableHeader label="Nome" sortKey="name" sortConfig={sortConfig} setSortConfig={setSortConfig} />
               <SortableHeader label="Nascita" sortKey="birthDate" sortConfig={sortConfig} setSortConfig={setSortConfig} className="hidden md:table-cell" />
-              <SortableHeader label={dateHeaderLabel} sortKey={dateSortKey} sortConfig={sortConfig} setSortConfig={setSortConfig} />
+              <SortableHeader label={dateHeaderLabel} sortKey="contextualDate" sortConfig={sortConfig} setSortConfig={setSortConfig} />
               <TableHead className="text-right">Azioni</TableHead>
             </TableRow>
           </TableHeader>
@@ -987,3 +981,5 @@ export const SociTable = ({
     </div>
   );
 }
+
+    
