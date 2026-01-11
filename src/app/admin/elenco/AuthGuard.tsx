@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import ElencoClient from './ElencoClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lock } from 'lucide-react';
+import { Lock, Loader2 } from 'lucide-react';
+import { useAuth, useFirebase } from '@/firebase';
+import { signInAnonymously } from 'firebase/auth';
 
 const ADMIN_PASSWORD = "Gmc!new2026";
 
@@ -13,15 +15,54 @@ export default function AuthGuard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
-  const handleLogin = () => {
-    if (password === ADMIN_PASSWORD) {
+  const { auth, user, isUserLoading } = useFirebase();
+
+  // If user is already authenticated (e.g. from a previous session),
+  // and they have passed the password check, show the content.
+  useEffect(() => {
+    if (user && sessionStorage.getItem('gmc-auth-passed') === 'true') {
       setIsAuthenticated(true);
+    }
+  }, [user]);
+  
+  const handleLogin = async () => {
+    if (password === ADMIN_PASSWORD) {
       setError('');
+      setIsSigningIn(true);
+      try {
+        if (auth) {
+          // If there's no user, sign in anonymously.
+          if (!user) {
+            await signInAnonymously(auth);
+          }
+          // After successful sign-in (or if already signed in), set flags.
+          sessionStorage.setItem('gmc-auth-passed', 'true');
+          setIsAuthenticated(true);
+        } else {
+            throw new Error("Servizio di autenticazione non disponibile.");
+        }
+      } catch (e) {
+         setError('Errore di autenticazione con Firebase.');
+         console.error(e);
+      } finally {
+        setIsSigningIn(false);
+      }
+
     } else {
       setError('Password non corretta.');
     }
   };
+
+  if (isUserLoading || isSigningIn) {
+      return (
+        <div className="flex-grow flex items-center justify-center">
+            <Loader2 className="h-16 w-16 animate-spin text-primary" />
+            <p className="ml-4 text-muted-foreground">Autenticazione in corso...</p>
+        </div>
+      );
+  }
 
   if (isAuthenticated) {
     return <ElencoClient />;
@@ -54,7 +95,8 @@ export default function AuthGuard() {
               />
               {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
-            <Button type="submit" className="w-full">
+            <Button type="submit" className="w-full" disabled={isSigningIn}>
+              {isSigningIn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Accedi
             </Button>
           </form>
@@ -63,3 +105,5 @@ export default function AuthGuard() {
     </div>
   );
 }
+
+    
