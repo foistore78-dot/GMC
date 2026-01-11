@@ -1,9 +1,9 @@
+
 "use client";
 
 import { useEffect, useState, ReactNode } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import ElencoClient from './ElencoClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Lock, Loader2 } from 'lucide-react';
 import { useFirebase } from '@/firebase';
@@ -12,63 +12,55 @@ import { signInAnonymously } from 'firebase/auth';
 const ADMIN_PASSWORD = "Gmc!new2026";
 
 interface AuthGuardProps {
-    children: (logout: () => void) => ReactNode;
+    children: ReactNode;
+    isAuthenticated: boolean | null;
+    setIsAuthenticated: (value: boolean) => void;
+    onLoginSuccess: () => void;
 }
 
-export default function AuthGuard({ children }: AuthGuardProps) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+export default function AuthGuard({ children, isAuthenticated, setIsAuthenticated, onLoginSuccess }: AuthGuardProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isChecking, setIsChecking] = useState(true);
 
   const { auth, user, isUserLoading } = useFirebase();
 
-  // Step 1: Ensure anonymous user is signed in on component mount.
+  // Step 1: Handle initial auth check (anonymous user and session storage)
   useEffect(() => {
-    if (isUserLoading) return; // Wait until Firebase has checked auth state.
+    // Wait until Firebase has checked its auth state
+    if (isUserLoading) return; 
 
-    if (!user) { // If there's no user at all (neither logged in nor anonymous)
-      if (auth) {
+    // If there's no user at all (neither logged in nor anonymous), sign in.
+    if (!user && auth) {
         signInAnonymously(auth).catch(e => {
             console.error("Anonymous sign-in failed", e);
             setError("Impossibile connettersi al servizio di autenticazione.");
-            setIsLoading(false);
+        }).finally(() => {
+            // After attempting sign-in, check session storage
+            const sessionAuth = sessionStorage.getItem('gmc-auth-passed') === 'true';
+            setIsAuthenticated(sessionAuth);
+            setIsChecking(false);
         });
-      }
     } else {
-        // User (anonymous or otherwise) already exists.
-        setIsLoading(false);
+        // User (anonymous or other) already exists. Check session storage.
+        const sessionAuth = sessionStorage.getItem('gmc-auth-passed') === 'true';
+        setIsAuthenticated(sessionAuth);
+        setIsChecking(false);
     }
-  }, [user, isUserLoading, auth]);
+  }, [user, isUserLoading, auth, setIsAuthenticated]);
 
-  // Step 2: If we have a user and they previously passed password check, authenticate them.
-  useEffect(() => {
-    if (user && sessionStorage.getItem('gmc-auth-passed') === 'true') {
-      setIsAuthenticated(true);
-    }
-  }, [user]);
-  
+
   const handleLogin = () => {
     if (password === ADMIN_PASSWORD) {
       setError('');
       sessionStorage.setItem('gmc-auth-passed', 'true');
-      setIsAuthenticated(true);
+      onLoginSuccess();
     } else {
       setError('Password non corretta.');
     }
   };
   
-  const handleLogout = () => {
-    sessionStorage.removeItem('gmc-auth-passed');
-    setIsAuthenticated(false);
-    setPassword('');
-    setError('');
-  };
-  
-  // Combines Firebase loading state with our internal logic loading state.
-  const isOverallLoading = isUserLoading || isLoading;
-
-  if (isOverallLoading) {
+  if (isChecking || isAuthenticated === null) {
       return (
         <div className="flex-grow flex items-center justify-center">
             <Loader2 className="h-16 w-16 animate-spin text-primary" />
@@ -79,7 +71,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
 
   // If we have a valid user and they are authenticated via password, show the main content.
   if (user && isAuthenticated) {
-    return <>{children(handleLogout)}</>;
+    return <>{children}</>;
   }
   
   // Otherwise, show the password login form.

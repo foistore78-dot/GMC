@@ -1,7 +1,7 @@
 
 'use client'
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useCallback } from "react";
 import AuthGuard from "./AuthGuard";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -9,11 +9,20 @@ import { Loader2 } from "lucide-react";
 import ElencoClient from "./ElencoClient";
 
 export default function ElencoPage() {
-  const [logoutHandler, setLogoutHandler] = useState<() => void>(() => () => {});
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  const handleLoginSuccess = useCallback(() => {
+    setIsAuthenticated(true);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    sessionStorage.removeItem('gmc-auth-passed');
+    setIsAuthenticated(false);
+  }, []);
 
   return (
     <div className="flex flex-col min-h-screen bg-secondary">
-      <Header onLogout={logoutHandler} />
+      <Header onLogout={isAuthenticated ? handleLogout : undefined} />
       <main className="flex-grow flex flex-col">
         <Suspense
           fallback={
@@ -23,17 +32,12 @@ export default function ElencoPage() {
             </div>
           }
         >
-          <AuthGuard>
-            {(logout) => {
-              // This function will be called by AuthGuard when the user is authenticated
-              // It lifts the logout function up to the page state
-              // We need to do this in a useEffect to avoid rendering loops
-              // eslint-disable-next-line react-hooks/rules-of-hooks
-              useState(() => {
-                setLogoutHandler(() => logout);
-              });
-              return <ElencoClient />;
-            }}
+          <AuthGuard 
+            isAuthenticated={isAuthenticated} 
+            setIsAuthenticated={setIsAuthenticated} 
+            onLoginSuccess={handleLoginSuccess}
+          >
+            <ElencoClient />
           </AuthGuard>
         </Suspense>
       </main>
