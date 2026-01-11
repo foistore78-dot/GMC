@@ -1,13 +1,13 @@
 
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
 
 import { collection } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, MoreVertical, Printer, Pencil, Trash2, CheckCircle, RefreshCw } from "lucide-react";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown } from "lucide-react";
 
 import { SociTable, type SortConfig, getStatus, formatDate, getFullName } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
@@ -30,6 +30,9 @@ import {
 
 import type { Socio } from "@/lib/soci-data";
 import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
+import { useToast } from "@/hooks/use-toast";
+import { exportToExcel } from "@/lib/excel-export";
+import { importFromExcel, type ImportResult } from "@/lib/excel-import";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -68,8 +71,8 @@ const filterAndSortData = (
       }
       
       if (key === 'tessera' || key === 'tessera_mobile') {
-        const numA = parseInt(a.tessera?.split('-').pop() ?? '0', 10);
-        const numB = parseInt(b.tessera?.split('-').pop() ?? '0', 10);
+        const numA = parseInt((a.tessera || '').split('-').pop() ?? '0', 10);
+        const numB = parseInt((b.tessera || '').split('-').pop() ?? '0', 10);
         if (numA < numB) return asc ? -1 : 1;
         if (numA > numB) return asc ? 1 : -1;
         return 0;
@@ -123,6 +126,7 @@ const PaginationControls = ({
 export default function ElencoClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
 
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
@@ -136,6 +140,9 @@ export default function ElencoClient() {
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "lastName", direction: "ascending" });
   const [filter, setFilter] = useState(initialFilter);
   const [currentPage, setCurrentPage] = useState(1);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [socioToPrint, setSocioToPrint] = useState<Socio | null>(null);
@@ -154,6 +161,8 @@ export default function ElencoClient() {
 
   const { data: requestsData, isLoading: isRequestsLoading, forceRefresh: forceRequestsRefresh } =
     useCollection<Socio>(requestsQuery);
+    
+  const isDataLoading = isUserLoading || isMembersLoading || isRequestsLoading;
 
   const { paginatedData, totalPages, counts } = useMemo(() => {
     const allMembers = membersData || [];
@@ -199,8 +208,6 @@ export default function ElencoClient() {
   useEffect(() => {
     if (!isUserLoading && !user) router.push("/login");
   }, [user, isUserLoading, router]);
-
-  const isLoading = isUserLoading || isMembersLoading || isRequestsLoading;
 
   const handleEditSocio = (socio: Socio) => setEditingSocio(socio);
 
@@ -290,6 +297,53 @@ export default function ElencoClient() {
     }
   };
 
+  const handleExport = () => {
+    const members = (membersData as Socio[]) || [];
+    const requests = (requestsData as Socio[]) || [];
+    exportToExcel(members, requests);
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && firestore) {
+      setIsImporting(true);
+      try {
+        const result: ImportResult = await importFromExcel(file, firestore);
+        const { createdCount, updatedTessere, errorCount } = result;
+        
+        let description = `Creati ${createdCount} nuovi soci. Aggiornati ${updatedTessere.length} soci esistenti.`;
+        if (errorCount > 0) {
+          description += ` ${errorCount} righe con errori sono state saltate.`;
+        }
+
+        toast({
+          title: "Importazione Completata",
+          description: description,
+          duration: 8000,
+        });
+
+        forceMembersRefresh();
+        forceRequestsRefresh();
+
+      } catch (error) {
+        console.error("Import error:", error);
+        toast({
+          title: "Errore durante l'importazione",
+          description: (error as Error).message || "Si è verificato un problema.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsImporting(false);
+        if(fileInputRef.current) fileInputRef.current.value = "";
+      }
+    }
+  };
+
+
   if (isUserLoading || !user) {
     return (
       <div className="flex-grow flex items-center justify-center">
@@ -317,7 +371,7 @@ export default function ElencoClient() {
       </div>
 
       <div className="bg-background rounded-lg border border-border shadow-lg p-2 sm:p-4">
-        {isLoading && !membersData && !requestsData ? (
+        {isDataLoading && !membersData && !requestsData ? (
           <div className="flex justify-center items-center h-64">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
           </div>
@@ -345,9 +399,9 @@ export default function ElencoClient() {
                     Richieste ({counts.requests})
                   </TabsTrigger>
                 </TabsList>
-
+                
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
-                  <div className="relative w-full sm:max-w-md">
+                  <div className="relative w-full sm:max-w-xs">
                     <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Filtra per nome, tessera..."
@@ -355,6 +409,23 @@ export default function ElencoClient() {
                       onChange={(event) => setFilter(event.target.value)}
                       className="pl-10"
                     />
+                  </div>
+                  <div className="flex items-center gap-2">
+                      <Button onClick={handleExport} variant="outline" size="sm" disabled={isDataLoading}>
+                          <FileDown className="mr-2 h-4 w-4" />
+                          Esporta
+                      </Button>
+                      <Button onClick={handleImportClick} size="sm" disabled={isDataLoading || isImporting}>
+                          {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
+                          {isImporting ? "Importo..." : "Importa"}
+                      </Button>
+                      <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleFileChange}
+                          className="hidden"
+                          accept=".xlsx, .xls"
+                      />
                   </div>
                 </div>
               </div>

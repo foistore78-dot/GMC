@@ -45,9 +45,6 @@ export function Header() {
                <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary">
                 <Link href="/admin/elenco">Elenco Soci</Link>
               </Button>
-              <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary">
-                <Link href="/segreteria">Segreteria</Link>
-              </Button>
               <Button onClick={handleLogout} variant="ghost" className="hover:bg-destructive/10 hover:text-destructive">
                 Logout
               </Button>
@@ -77,7 +74,6 @@ export function Header() {
                     {user ? (
                       <>
                         <NavLink href="/admin/elenco"><List className="mr-2 h-4 w-4" /> Elenco Soci</NavLink>
-                        <NavLink href="/segreteria"><QrCode className="mr-2 h-4 w-4" /> Segreteria</NavLink>
                       </>
                     ) : (
                       <NavLink href="/login"><Shield className="mr-2 h-4 w-4" /> Login Admin</NavLink>
