@@ -5,42 +5,60 @@ import { useEffect, useState, ReactNode } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lock } from 'lucide-react';
-
-const ADMIN_PASSWORD = "Gmc!new2026";
+import { Lock, LogIn } from 'lucide-react';
+import { useFirebase } from '@/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthGuardProps {
     children: ReactNode;
-    onLoginSuccess: () => void;
+    isAdmin: boolean;
 }
 
-export default function AuthGuard({ children, onLoginSuccess }: AuthGuardProps) {
+export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
+  const [email, setEmail] = useState('garage.music.club2024@gmail.com');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    const sessionAuth = sessionStorage.getItem('gmc-auth-passed') === 'true';
-    if (sessionAuth) {
-      setIsAuthenticated(true);
-      onLoginSuccess();
+  const { auth } = useFirebase();
+  const { toast } = useToast();
+
+  const handleLogin = async () => {
+    if (!auth) {
+        setError("Servizio di autenticazione non disponibile.");
+        return;
     }
-  }, [onLoginSuccess]);
+    if (!email || !password) {
+      setError('Inserisci email e password.');
+      return;
+    }
 
+    setIsSubmitting(true);
+    setError('');
 
-  const handleLogin = () => {
-    if (password === ADMIN_PASSWORD) {
-      setError('');
-      sessionStorage.setItem('gmc-auth-passed', 'true');
-      setIsAuthenticated(true);
-      onLoginSuccess();
-    } else {
-      setError('Password non corretta.');
-      sessionStorage.removeItem('gmc-auth-passed');
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      toast({
+        title: "Accesso Effettuato",
+        description: "Benvenuto nell'area di amministrazione.",
+      });
+    } catch (e: any) {
+      setIsSubmitting(false);
+      switch (e.code) {
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          setError('Credenziali non valide. Riprova.');
+          break;
+        default:
+          setError('Si è verificato un errore durante l\'accesso.');
+          break;
+      }
     }
   };
   
-  if (isAuthenticated) {
+  if (isAdmin) {
     return <>{children}</>;
   }
   
@@ -51,8 +69,8 @@ export default function AuthGuard({ children, onLoginSuccess }: AuthGuardProps) 
             <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit">
                 <Lock className="w-8 h-8 text-primary" />
             </div>
-          <CardTitle>Accesso Riservato</CardTitle>
-          <CardDescription>Inserisci la password per accedere all'area di amministrazione.</CardDescription>
+          <CardTitle>Area Amministrazione</CardTitle>
+          <CardDescription>Inserisci le credenziali di amministratore per accedere.</CardDescription>
         </CardHeader>
         <CardContent>
           <form
@@ -63,16 +81,25 @@ export default function AuthGuard({ children, onLoginSuccess }: AuthGuardProps) 
             className="space-y-4"
           >
             <div className="space-y-2">
+               <Input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+              />
               <Input
                 type="password"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
               />
               {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
-            <Button type="submit" className="w-full">
-              Accedi
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
+              {isSubmitting ? "Accesso in corso..." : "Accedi"}
             </Button>
           </form>
         </CardContent>

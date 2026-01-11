@@ -7,55 +7,50 @@ import { Footer } from "@/components/footer";
 import { Loader2 } from "lucide-react";
 import ElencoClient from "./ElencoClient";
 import { useFirebase } from "@/firebase";
-import { signInAnonymously } from "firebase/auth";
+import { signOut } from "firebase/auth";
 
 export default function ElencoPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const { auth, user, isUserLoading } = useFirebase();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
 
-  useEffect(() => {
-    if (isUserLoading) return;
-
-    if (!user && auth) {
-      signInAnonymously(auth).catch((e) => {
-        console.error("Anonymous sign-in failed", e);
-        setError("Impossibile connettersi al servizio di autenticazione.");
-      });
+  const checkAdminStatus = useCallback(async () => {
+    if (user) {
+        // In a real app, you would check a custom claim or a document in Firestore.
+        // For this demo, we'll check if the email matches the admin email.
+        const adminEmail = "garage.music.club2024@gmail.com";
+        setIsAdmin(user.email === adminEmail);
+    } else {
+        setIsAdmin(false);
     }
-  }, [user, isUserLoading, auth]);
+    setIsCheckingAdmin(false);
+  }, [user]);
+  
+  useEffect(() => {
+    if (!isUserLoading) {
+      checkAdminStatus();
+    }
+  }, [user, isUserLoading, checkAdminStatus]);
 
-  const handleLoginSuccess = useCallback(() => {
-    setIsAuthenticated(true);
-  }, []);
 
   const handleLogout = useCallback(() => {
-    sessionStorage.removeItem('gmc-auth-passed');
-    setIsAuthenticated(false);
-  }, []);
+    if (auth) {
+      signOut(auth);
+    }
+  }, [auth]);
 
   const renderContent = () => {
-    if (isUserLoading || user === undefined) {
+    if (isUserLoading || isCheckingAdmin) {
       return (
         <div className="flex-grow flex items-center justify-center">
           <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          <p className="ml-4 text-muted-foreground">Connessione in corso...</p>
-        </div>
-      );
-    }
-    
-    if (error) {
-       return (
-        <div className="flex-grow flex items-center justify-center text-center">
-          <p className="text-destructive">{error}</p>
+          <p className="ml-4 text-muted-foreground">Verifica in corso...</p>
         </div>
       );
     }
 
     return (
-      <AuthGuard 
-        onLoginSuccess={handleLoginSuccess}
-      >
+      <AuthGuard isAdmin={isAdmin}>
         <ElencoClient />
       </AuthGuard>
     );
@@ -63,7 +58,7 @@ export default function ElencoPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-secondary">
-      <Header onLogout={isAuthenticated ? handleLogout : undefined} />
+      <Header onLogout={isAdmin ? handleLogout : undefined} />
       <main className="flex-grow flex flex-col">
         <Suspense
           fallback={

@@ -8,6 +8,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isAdmin() {
+      // In a real app, this would check a custom claim or a document in a 'roles' collection.
+      // For this demo, we are checking the admin's specific email address.
+      // This is more secure than no check, but role-based access control is the best practice.
+      return request.auth.token.email == "garage.music.club2024@gmail.com";
+    }
+
     // ----------------------------------------------------------------------
     // Collection Rules
     // ----------------------------------------------------------------------
@@ -17,8 +24,8 @@ service cloud.firestore {
      * @path /membership_requests/{membershipRequestId}
      */
     match /membership_requests/{membershipRequestId} {
-      allow create: if true;
-      allow read, update, delete: if isSignedIn();
+      allow create: if true; // Anyone can submit the form
+      allow read, update, delete: if isSignedIn() && isAdmin();
     }
 
     /**
@@ -26,7 +33,7 @@ service cloud.firestore {
      * @path /members/{memberId}
      */
     match /members/{memberId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isSignedIn() && isAdmin();
     }
 
     /**
@@ -38,5 +45,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
