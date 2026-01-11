@@ -27,13 +27,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
 
 import type { Socio } from "@/lib/soci-data";
 import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
@@ -65,8 +58,8 @@ const filterAndSortData = (
       const { key, direction } = sortConfig;
       const asc = direction === 'ascending';
       
-      const aVal = a[key as keyof Socio] ?? '';
-      const bVal = b[key as keyof Socio] ?? '';
+      let aVal: any = a[key as keyof Socio];
+      let bVal: any = b[key as keyof Socio];
 
       if (key === 'name') {
         const nameA = getFullName(a);
@@ -74,18 +67,22 @@ const filterAndSortData = (
         return nameA.localeCompare(nameB) * (asc ? 1 : -1);
       }
       
-      if (key === 'tessera_mobile') {
-        const numA = parseInt(a.tessera?.split('-').pop() ?? '0');
-        const numB = parseInt(b.tessera?.split('-').pop() ?? '0');
+      if (key === 'tessera' || key === 'tessera_mobile') {
+        const numA = parseInt(a.tessera?.split('-').pop() ?? '0', 10);
+        const numB = parseInt(b.tessera?.split('-').pop() ?? '0', 10);
         if (numA < numB) return asc ? -1 : 1;
         if (numA > numB) return asc ? 1 : -1;
         return 0;
       }
+      
+      // Fallback for other keys
+      aVal = aVal ?? '';
+      bVal = bVal ?? '';
 
       if (typeof aVal === 'string' && typeof bVal === 'string') {
         return aVal.localeCompare(bVal) * (asc ? 1 : -1);
       }
-
+      
       if (aVal < bVal) return asc ? -1 : 1;
       if (aVal > bVal) return asc ? 1 : -1;
       return 0;
@@ -93,7 +90,6 @@ const filterAndSortData = (
 
     return filteredData;
 };
-
 
 const PaginationControls = ({
   currentPage,
@@ -445,5 +441,3 @@ export default function ElencoClient() {
     </div>
   );
 }
-
-    

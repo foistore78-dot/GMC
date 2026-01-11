@@ -38,19 +38,23 @@ export default function LoginClient() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
+    if (!auth) {
+        setError("Servizio di autenticazione non disponibile.");
+        return;
+    }
 
     setError("");
     setIsLoading(true);
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      router.push("/dashboard");
+      // The useEffect will handle the redirection on successful login
     } catch (error: any) {
+      console.error("Login Error:", error.code, error.message);
       if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
         setError("Credenziali non valide. Verifica email e password.");
       } else {
-        setError(`Errore di accesso: ${error.message}`);
+        setError("Si è verificato un errore durante l'accesso. Riprova.");
       }
     } finally {
         setIsLoading(false);
@@ -85,6 +89,7 @@ export default function LoginClient() {
               placeholder="admin@music.com"
               required
               disabled={isLoading}
+              autoComplete="email"
             />
           </div>
           <div className="space-y-2">
@@ -99,6 +104,7 @@ export default function LoginClient() {
                 required
                 disabled={isLoading}
                 className="pr-10"
+                autoComplete="current-password"
               />
               <button
                 type="button"
