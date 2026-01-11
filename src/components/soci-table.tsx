@@ -171,12 +171,14 @@ const SocioTableRow = ({
   onPrint,
   allMembers,
   onSocioUpdate,
+  activeTab,
 }: { 
   socio: Socio; 
   onEdit: (socio: Socio) => void;
   onPrint: (socio: Socio) => void;
   allMembers: Socio[];
   onSocioUpdate: (tab?: 'active' | 'expired' | 'requests') => void;
+  activeTab: 'active' | 'expired' | 'requests';
 }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -435,6 +437,13 @@ const handleRenew = async () => {
   const tesseraDisplayDesktop = socio.tessera ? `${socio.tessera.split('-')[1]}-${socio.tessera.split('-')[2]}` : '-';
   const tesseraDisplayMobile = socio.tessera ? socio.tessera.split('-').pop() : '-';
 
+  const contextualDate = useMemo(() => {
+    if (activeTab === 'active') return socio.renewalDate;
+    if (activeTab === 'expired') return socio.joinDate;
+    if (activeTab === 'requests') return socio.requestDate;
+    return undefined;
+  }, [activeTab, socio]);
+
   return (
     <>
       <TableRow className={cn("text-xs sm:text-sm", { 'bg-yellow-500/10 hover:bg-yellow-500/20': status === 'expired' })}>
@@ -498,19 +507,7 @@ const handleRenew = async () => {
           <div>{formatDate(socio.birthDate)}</div>
           <div className="text-xs">{socio.birthPlace}</div>
         </TableCell>
-        <TableCell>
-          <Badge
-            variant={status === "active" ? "default" : status === "pending" ? "secondary" : "destructive"}
-            className={cn("whitespace-nowrap",{
-              "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30": status === "active",
-              "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30": status === "expired",
-              "bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30": status === "pending",
-              "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30": status === "rejected",
-            })}
-          >
-            {statusTranslations[status] || status}
-          </Badge>
-        </TableCell>
+        <TableCell className="text-muted-foreground">{formatDate(contextualDate)}</TableCell>
         <TableCell className="text-right space-x-1">
             {/* Mobile Actions */}
             <div className="sm:hidden flex items-center justify-end">
@@ -876,7 +873,7 @@ const handleRenew = async () => {
 
 
 export type SortConfig = {
-  key: keyof Socio | 'name' | 'tessera' | 'tessera_mobile';
+  key: keyof Socio | 'name' | 'tessera' | 'tessera_mobile' | 'contextualDate';
   direction: 'ascending' | 'descending';
 };
 
@@ -888,6 +885,7 @@ interface SociTableProps {
   sortConfig: SortConfig;
   setSortConfig: Dispatch<SetStateAction<SortConfig>>;
   onSocioUpdate: (tab?: 'active' | 'expired' | 'requests') => void;
+  activeTab: 'active' | 'expired' | 'requests';
 }
 
 const SortableHeader = ({
@@ -932,7 +930,22 @@ export const SociTable = ({
   onSocioUpdate,
   sortConfig, 
   setSortConfig, 
+  activeTab,
 }: SociTableProps) => {
+
+  const dateHeaderLabel = useMemo(() => {
+    if (activeTab === 'active') return 'Rinnovo';
+    if (activeTab === 'expired') return 'Ammissione';
+    if (activeTab === 'requests') return 'Richiesta';
+    return 'Data';
+  }, [activeTab]);
+
+  const dateSortKey = useMemo(() => {
+    if (activeTab === 'active') return 'renewalDate';
+    if (activeTab === 'expired') return 'joinDate';
+    return 'requestDate';
+  }, [activeTab]);
+
 
   return (
     <div>
@@ -944,7 +957,7 @@ export const SociTable = ({
               <SortableHeader label="Tessera" sortKey="tessera" sortConfig={sortConfig} setSortConfig={setSortConfig} className="w-[100px] hidden sm:table-cell" />
               <SortableHeader label="Nome" sortKey="name" sortConfig={sortConfig} setSortConfig={setSortConfig} />
               <SortableHeader label="Nascita" sortKey="birthDate" sortConfig={sortConfig} setSortConfig={setSortConfig} className="hidden md:table-cell" />
-              <SortableHeader label="Stato" sortKey="status" sortConfig={sortConfig} setSortConfig={setSortConfig} />
+              <SortableHeader label={dateHeaderLabel} sortKey={dateSortKey} sortConfig={sortConfig} setSortConfig={setSortConfig} />
               <TableHead className="text-right">Azioni</TableHead>
             </TableRow>
           </TableHeader>
@@ -958,6 +971,7 @@ export const SociTable = ({
                   onPrint={onPrint}
                   allMembers={allMembers}
                   onSocioUpdate={onSocioUpdate}
+                  activeTab={activeTab}
                 />
               ))
             ) : (
@@ -973,5 +987,3 @@ export const SociTable = ({
     </div>
   );
 }
-
-    

@@ -7,9 +7,9 @@ import Link from "next/link";
 import { createRoot } from "react-dom/client";
 
 import { collection } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown, LogOut } from "lucide-react";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown } from "lucide-react";
 
-import { SociTable, type SortConfig, getStatus, formatDate, getFullName } from "@/components/soci-table";
+import { SociTable, type SortConfig, getStatus, getFullName } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
 import { SocioCard } from "@/components/socio-card";
 
@@ -79,6 +79,15 @@ const filterAndSortData = (
         return 0;
       }
       
+      // For date keys, handle string comparison correctly
+      if (['renewalDate', 'joinDate', 'requestDate', 'birthDate', 'contextualDate'].includes(key)) {
+        const dateA = aVal ? new Date(aVal).getTime() : 0;
+        const dateB = bVal ? new Date(bVal).getTime() : 0;
+        if (dateA < dateB) return asc ? -1 : 1;
+        if (dateA > dateB) return asc ? 1 : -1;
+        return 0;
+      }
+
       // Fallback for other keys
       aVal = aVal ?? '';
       bVal = bVal ?? '';
@@ -172,23 +181,29 @@ export default function ElencoClient() {
     const pendingRequests = allRequests.filter((req) => getStatus(req) === "pending");
 
     const applyFilter = (data: Socio[]) => filterAndSortData(data, filter, sortConfig);
+    
+    // We need to apply filter *before* getting the counts
+    const filteredActive = applyFilter(activeMembers);
+    const filteredExpired = applyFilter(expiredMembers);
+    const filteredRequests = applyFilter(pendingRequests);
 
     const counts = {
-        active: applyFilter(activeMembers).length,
-        expired: applyFilter(expiredMembers).length,
-        requests: applyFilter(pendingRequests).length,
+        active: filteredActive.length,
+        expired: filteredExpired.length,
+        requests: filteredRequests.length,
     };
 
     let dataForTab: Socio[];
     if (activeTab === 'active') {
-        dataForTab = activeMembers;
+        dataForTab = filteredActive;
     } else if (activeTab === 'expired') {
-        dataForTab = expiredMembers;
+        dataForTab = filteredExpired;
     } else { // requests
-        dataForTab = pendingRequests;
+        dataForTab = filteredRequests;
     }
 
-    const sortedAndFiltered = applyFilter(dataForTab);
+    // Since data is already filtered and sorted by applyFilter, we just need to paginate
+    const sortedAndFiltered = dataForTab;
     
     const totalPages = Math.ceil(sortedAndFiltered.length / ITEMS_PER_PAGE);
     const paginatedData = sortedAndFiltered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -216,8 +231,14 @@ export default function ElencoClient() {
     setActiveTab(tab);
     setCurrentPage(1);
 
-    if (tab === "requests") setSortConfig({ key: "requestDate", direction: "descending" });
-    else setSortConfig({ key: "lastName", direction: "ascending" });
+    // Set default sort order for each tab
+    if (tab === "requests") {
+      setSortConfig({ key: "requestDate", direction: "descending" });
+    } else if (tab === 'expired') {
+      setSortConfig({ key: "joinDate", direction: "ascending" });
+    } else { // active
+      setSortConfig({ key: "renewalDate", direction: "descending" });
+    }
   };
 
   const handleSocioUpdate = useCallback(
@@ -408,6 +429,7 @@ export default function ElencoClient() {
                   onSocioUpdate={handleSocioUpdate}
                   sortConfig={sortConfig}
                   setSortConfig={setSortConfig}
+                  activeTab="active"
                 />
               </TabsContent>
 
@@ -420,6 +442,7 @@ export default function ElencoClient() {
                   onSocioUpdate={handleSocioUpdate}
                   sortConfig={sortConfig}
                   setSortConfig={setSortConfig}
+                  activeTab="expired"
                 />
               </TabsContent>
 
@@ -432,6 +455,7 @@ export default function ElencoClient() {
                   onSocioUpdate={handleSocioUpdate}
                   sortConfig={sortConfig}
                   setSortConfig={setSortConfig}
+                  activeTab="requests"
                 />
               </TabsContent>
             </Tabs>
