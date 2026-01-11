@@ -220,4 +220,3 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
   });
 };
 
-    

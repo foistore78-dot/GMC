@@ -5,14 +5,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
-
 import { collection, getDocs, QuerySnapshot, DocumentData } from "firebase/firestore";
 import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown, AlertTriangle, RefreshCw } from "lucide-react";
 
 import { SociTable, type SortConfig, getStatus, getFullName } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
 import { SocioCard } from "@/components/socio-card";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -32,6 +30,8 @@ import type { Socio } from "@/lib/soci-data";
 import { useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
+import { exportToExcel } from "@/lib/excel-export";
+import { importFromExcel, ImportResult } from "@/lib/excel-import";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -144,6 +144,7 @@ export default function ElencoClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   const firestore = useFirestore();
 
@@ -164,6 +165,8 @@ export default function ElencoClient() {
   const [membersData, setMembersData] = useState<Socio[]>([]);
   const [requestsData, setRequestsData] = useState<Socio[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+
 
   const fetchData = useCallback(async () => {
     if (!firestore) {
@@ -345,6 +348,44 @@ export default function ElencoClient() {
       window.scrollTo(0, 0);
     }
   };
+  
+  const handleExport = () => {
+    exportToExcel(membersData, requestsData);
+    toast({
+        title: "Esportazione Avviata",
+        description: "Il download del file Excel inizierà a breve."
+    });
+  }
+
+  const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !firestore) {
+        return;
+    }
+    
+    setIsImporting(true);
+
+    try {
+        const result: ImportResult = await importFromExcel(file, firestore);
+        toast({
+            title: "Importazione Completata",
+            description: `${result.createdCount} nuovi soci creati. ${result.updatedTessere.length} soci aggiornati. Errori: ${result.errorCount}.`,
+            duration: 5000,
+        });
+        fetchData();
+    } catch(error) {
+        toast({
+            title: "Errore di Importazione",
+            description: (error as Error).message || "Si è verificato un errore sconosciuto.",
+            variant: "destructive",
+        });
+    } finally {
+        setIsImporting(false);
+        if (importFileRef.current) {
+          importFileRef.current.value = "";
+        }
+    }
+  };
 
   return (
     <div className="flex-grow container mx-auto px-4 py-8">
@@ -354,7 +395,16 @@ export default function ElencoClient() {
           <h1 className="font-headline text-3xl md:text-5xl text-primary">Elenco Soci</h1>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" onClick={handleExport} disabled={isDataLoading}>
+                <FileDown className="mr-2 h-4 w-4" />
+                Esporta
+            </Button>
+            <Button variant="outline" onClick={() => importFileRef.current?.click()} disabled={isImporting}>
+                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
+                Importa
+            </Button>
+            <input type="file" ref={importFileRef} onChange={handleFileImport} className="hidden" accept=".xlsx, .xls"/>
             <Button asChild>
                 <Link href="/?from=admin#apply">
                 <UserPlus className="mr-2 h-4 w-4" />
