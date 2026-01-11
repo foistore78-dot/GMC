@@ -1,28 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { GarageMusicClubLogo } from "./icons/garage-music-club-logo";
 import { Button } from "./ui/button";
-import { useAuth, useUser } from "@/firebase";
-import { signOut } from "firebase/auth";
 import { Sheet, SheetTrigger, SheetContent, SheetTitle } from "./ui/sheet";
-import { Menu, Home, Shield, QrCode, LogOut, LayoutDashboard, List } from "lucide-react";
+import { Menu, Home, List } from "lucide-react";
 
 export function Header() {
-  const router = useRouter();
-  const { user } = useUser();
-  const auth = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-
-  const handleLogout = async () => {
-    if (auth) {
-      await signOut(auth);
-    }
-    router.push("/");
-    setIsOpen(false);
-  };
 
   const NavLink = ({ href, children }: { href: string; children: React.ReactNode }) => (
     <Button asChild variant="ghost" className="justify-start text-base w-full hover:bg-primary/10 hover:text-primary" onClick={() => setIsOpen(false)}>
@@ -40,20 +26,9 @@ export function Header() {
           </span>
         </Link>
         <nav className="hidden md:flex items-center gap-2">
-          {user ? (
-            <>
-               <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary">
-                <Link href="/admin/elenco">Elenco Soci</Link>
-              </Button>
-              <Button onClick={handleLogout} variant="ghost" className="hover:bg-destructive/10 hover:text-destructive">
-                Logout
-              </Button>
-            </>
-          ) : (
-             <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary">
-              <Link href="/login">Login Admin</Link>
+            <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary">
+            <Link href="/admin/elenco">Elenco Soci</Link>
             </Button>
-          )}
         </nav>
         <div className="md:hidden">
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -71,21 +46,8 @@ export function Header() {
                  </div>
                  <div className="flex flex-col gap-2 p-4 flex-grow">
                     <NavLink href="/"><Home className="mr-2 h-4 w-4" /> Home</NavLink>
-                    {user ? (
-                      <>
-                        <NavLink href="/admin/elenco"><List className="mr-2 h-4 w-4" /> Elenco Soci</NavLink>
-                      </>
-                    ) : (
-                      <NavLink href="/login"><Shield className="mr-2 h-4 w-4" /> Login Admin</NavLink>
-                    )}
+                    <NavLink href="/admin/elenco"><List className="mr-2 h-4 w-4" /> Elenco Soci</NavLink>
                  </div>
-                 {user && (
-                    <div className="p-4 border-t border-border">
-                      <Button onClick={handleLogout} variant="ghost" className="w-full justify-start text-base hover:bg-destructive/10 hover:text-destructive">
-                        <LogOut className="mr-2 h-4 w-4" /> Logout
-                      </Button>
-                    </div>
-                 )}
               </div>
             </SheetContent>
           </Sheet>

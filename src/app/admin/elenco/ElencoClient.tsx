@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import type { Socio } from "@/lib/soci-data";
-import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { exportToExcel } from "@/lib/excel-export";
 import { importFromExcel, type ImportResult } from "@/lib/excel-import";
@@ -129,7 +129,6 @@ export default function ElencoClient() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
 
-  const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
@@ -148,13 +147,12 @@ export default function ElencoClient() {
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [socioToPrint, setSocioToPrint] = useState<Socio | null>(null);
 
-  const membersQuery = useMemoFirebase(() => (firestore && user ? collection(firestore, "members") : null), [
+  const membersQuery = useMemoFirebase(() => (firestore ? collection(firestore, "members") : null), [
     firestore,
-    user,
   ]);
   const requestsQuery = useMemoFirebase(
-    () => (firestore && user ? collection(firestore, "membership_requests") : null),
-    [firestore, user]
+    () => (firestore ? collection(firestore, "membership_requests") : null),
+    [firestore]
   );
 
   const { data: membersData, isLoading: isMembersLoading, forceRefresh: forceMembersRefresh } =
@@ -163,7 +161,7 @@ export default function ElencoClient() {
   const { data: requestsData, isLoading: isRequestsLoading, forceRefresh: forceRequestsRefresh } =
     useCollection<Socio>(requestsQuery);
     
-  const isDataLoading = isUserLoading || isMembersLoading || isRequestsLoading;
+  const isDataLoading = isMembersLoading || isRequestsLoading;
 
   const { paginatedData, totalPages, counts } = useMemo(() => {
     const allMembers = membersData || [];
@@ -205,10 +203,6 @@ export default function ElencoClient() {
     router.replace(`/admin/elenco?${params.toString()}`, { scroll: false });
     setCurrentPage(1);
   }, [activeTab, filter, router, searchParams]);
-
-  useEffect(() => {
-    if (!isUserLoading && !user) router.push("/login");
-  }, [user, isUserLoading, router]);
 
   const handleEditSocio = (socio: Socio) => setEditingSocio(socio);
 
@@ -343,15 +337,6 @@ export default function ElencoClient() {
       }
     }
   };
-
-
-  if (isUserLoading || !user) {
-    return (
-      <div className="flex-grow flex items-center justify-center">
-        <Loader2 className="h-16 w-16 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   return (
     <div className="flex-grow container mx-auto px-4 py-8">

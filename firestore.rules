@@ -4,62 +4,31 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ----------------------------------------------------------------------
-    // Helper Functions
-    // ----------------------------------------------------------------------
-
-    /**
-     * Checks if the user is authenticated.
-     */
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /**
-     * Checks if the user has an admin role document OR is the super admin.
-     */
-    function isAdmin() {
-      // A user is an admin if they have an admin role document OR if their email is the super admin email.
-      return isSignedIn() && 
-             (exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)) || 
-              request.auth.token.email == 'garage.music.club2024@gmail.com');
-    }
-
-
-    // ----------------------------------------------------------------------
     // Collection Rules
     // ----------------------------------------------------------------------
 
     /**
-     * @description Controls access to membership requests. Allows anyone to create a request, but restricts all other access to admins.
+     * @description Controls access to membership requests. Allows anyone to create, read, and write.
      * @path /membership_requests/{membershipRequestId}
      */
     match /membership_requests/{membershipRequestId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if true;
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow read, write: if true;
     }
 
     /**
-     * @description Manages the collection of official club members. All access is strictly limited to administrators.
+     * @description Manages the collection of official club members. Allows anyone to create, read, and write.
      * @path /members/{memberId}
      */
     match /members/{memberId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow read, write: if true;
     }
 
     /**
-     * @description Manages admin role documents. Only admins can read these roles. Writing is disabled to prevent self-promotion.
+     * @description Manages admin role documents. Access is denied as it's no longer used.
      * @path /roles_admin/{adminId}
      */
     match /roles_admin/{adminId} {
-      allow read: if isAdmin();
-      allow write: if false; // Prevent any user from creating or modifying roles
+      allow read, write: if false; 
     }
   }
 }
