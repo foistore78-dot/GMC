@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, ReactNode } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import ElencoClient from './ElencoClient';
@@ -11,7 +11,11 @@ import { signInAnonymously } from 'firebase/auth';
 
 const ADMIN_PASSWORD = "Gmc!new2026";
 
-export default function AuthGuard() {
+interface AuthGuardProps {
+    children: (logout: () => void) => ReactNode;
+}
+
+export default function AuthGuard({ children }: AuthGuardProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -57,6 +61,8 @@ export default function AuthGuard() {
   const handleLogout = () => {
     sessionStorage.removeItem('gmc-auth-passed');
     setIsAuthenticated(false);
+    setPassword('');
+    setError('');
   };
   
   // Combines Firebase loading state with our internal logic loading state.
@@ -73,7 +79,7 @@ export default function AuthGuard() {
 
   // If we have a valid user and they are authenticated via password, show the main content.
   if (user && isAuthenticated) {
-    return <ElencoClient onLogout={handleLogout} />;
+    return <>{children(handleLogout)}</>;
   }
   
   // Otherwise, show the password login form.

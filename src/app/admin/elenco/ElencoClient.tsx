@@ -124,11 +124,7 @@ const PaginationControls = ({
   </div>
 );
 
-interface ElencoClientProps {
-  onLogout: () => void;
-}
-
-export default function ElencoClient({ onLogout }: ElencoClientProps) {
+export default function ElencoClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -356,10 +352,6 @@ export default function ElencoClient({ onLogout }: ElencoClientProps) {
                 <UserPlus className="mr-2 h-4 w-4" />
                 Nuova Iscrizione
                 </Link>
-            </Button>
-            <Button variant="outline" onClick={onLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
             </Button>
         </div>
       </div>
