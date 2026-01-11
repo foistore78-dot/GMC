@@ -7,8 +7,7 @@ import ElencoClient from './ElencoClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Lock } from 'lucide-react';
 
-// ATTENZIONE: Questa è una password di base. Cambiala con una più sicura!
-const ADMIN_PASSWORD = "garagemusicclub";
+const ADMIN_PASSWORD = "Gmc!new2026";
 
 export default function AuthGuard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
