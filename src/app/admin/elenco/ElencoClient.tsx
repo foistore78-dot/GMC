@@ -7,7 +7,7 @@ import Link from "next/link";
 import { createRoot } from "react-dom/client";
 
 import { collection, getDocs, QuerySnapshot, DocumentData } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown, AlertTriangle } from "lucide-react";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown, AlertTriangle, RefreshCw } from "lucide-react";
 
 import { SociTable, type SortConfig, getStatus, getFullName } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
@@ -270,7 +270,7 @@ export default function ElencoClient() {
     setCurrentPage(1);
 
     if (tab === "requests") {
-      setSortConfig({ key: "contextualDate", direction: "descending" });
+      setSortConfig({ key: "requestDate", direction: "descending" });
     } else if (tab === 'expired') {
       setSortConfig({ key: "contextualDate", direction: "ascending" });
     } else { // active

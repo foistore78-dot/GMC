@@ -428,12 +428,16 @@ const handleRenew = async () => {
   return (
     <>
       <TableRow className={cn("text-xs sm:text-sm", { 'bg-yellow-500/10 hover:bg-yellow-500/20': status === 'expired' })}>
-        <TableCell className="font-mono sm:hidden w-12 text-center text-muted-foreground">
-          {tesseraDisplayMobile}
-        </TableCell>
-        <TableCell className="font-mono hidden sm:table-cell">
-          {tesseraDisplayDesktop}
-        </TableCell>
+        {activeTab !== 'requests' && (
+            <>
+                <TableCell className="font-mono sm:hidden w-12 text-center text-muted-foreground">
+                {tesseraDisplayMobile}
+                </TableCell>
+                <TableCell className="font-mono hidden sm:table-cell">
+                {tesseraDisplayDesktop}
+                </TableCell>
+            </>
+        )}
         <TableCell className="font-medium">
            <div className="flex items-center gap-3 flex-wrap">
               <span className="transition-colors">{getFullName(socio)}</span>
@@ -925,9 +929,13 @@ export const SociTable = ({
         <Table>
           <TableHeader>
             <TableRow>
-              <SortableHeader label="N." sortKey="tessera" sortConfig={sortConfig} setSortConfig={setSortConfig} className="sm:hidden w-12" />
-              <SortableHeader label="Tessera" sortKey="tessera" sortConfig={sortConfig} setSortConfig={setSortConfig} className="w-[100px] hidden sm:table-cell" />
-              <SortableHeader label="Nome" sortKey="name" sortConfig={sortConfig} setSortConfig={setSortConfig} />
+              {activeTab !== 'requests' && (
+                <>
+                    <SortableHeader label="N." sortKey="tessera" sortConfig={sortConfig} setSortConfig={setSortConfig} className="sm:hidden w-12" />
+                    <SortableHeader label="Tessera" sortKey="tessera" sortConfig={sortConfig} setSortConfig={setSortConfig} className="w-[100px] hidden sm:table-cell" />
+                </>
+              )}
+              <SortableHeader label="Nome" sortKey="name" sortConfig={sortConfig} setSortConfig={setSortConfig} className={cn(activeTab === 'requests' && 'pl-4 sm:pl-6')} />
               <SortableHeader label="Nascita" sortKey="birthDate" sortConfig={sortConfig} setSortConfig={setSortConfig} className="hidden md:table-cell" />
               <SortableHeader label={dateHeaderLabel} sortKey="contextualDate" sortConfig={sortConfig} setSortConfig={setSortConfig} />
               <TableHead className="text-right">Azioni</TableHead>
