@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import ElencoClient from "./ElencoClient";
+import AuthGuard from "./AuthGuard";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Loader2 } from "lucide-react";
@@ -15,16 +15,14 @@ export default function ElencoPage() {
           fallback={
             <div className="flex-grow flex items-center justify-center">
               <Loader2 className="h-16 w-16 animate-spin text-primary" />
-              <p className="ml-4 text-muted-foreground">Caricamento elenco soci...</p>
+              <p className="ml-4 text-muted-foreground">Caricamento...</p>
             </div>
           }
         >
-          <ElencoClient />
+          <AuthGuard />
         </Suspense>
       </main>
       <Footer />
     </div>
   );
 }
-
-    

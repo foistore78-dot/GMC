@@ -8,19 +8,20 @@ service cloud.firestore {
     // ----------------------------------------------------------------------
 
     /**
-     * @description Controls access to membership requests. Allows anyone to create, read, and write.
+     * @description Public can create membership requests, but not read/update/delete them.
      * @path /membership_requests/{membershipRequestId}
      */
     match /membership_requests/{membershipRequestId} {
-      allow read, write: if true;
+      allow create: if true;
+      allow read, update, delete: if false;
     }
 
     /**
-     * @description Manages the collection of official club members. Allows anyone to create, read, and write.
+     * @description Nobody can directly access the members collection.
      * @path /members/{memberId}
      */
     match /members/{memberId} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
 
     /**

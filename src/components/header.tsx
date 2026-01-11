@@ -27,7 +27,7 @@ export function Header() {
         </Link>
         <nav className="hidden md:flex items-center gap-2">
             <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary">
-            <Link href="/admin/elenco">Elenco Soci</Link>
+            <Link href="/admin/elenco">Area Riservata</Link>
             </Button>
         </nav>
         <div className="md:hidden">
@@ -46,7 +46,7 @@ export function Header() {
                  </div>
                  <div className="flex flex-col gap-2 p-4 flex-grow">
                     <NavLink href="/"><Home className="mr-2 h-4 w-4" /> Home</NavLink>
-                    <NavLink href="/admin/elenco"><List className="mr-2 h-4 w-4" /> Elenco Soci</NavLink>
+                    <NavLink href="/admin/elenco"><List className="mr-2 h-4 w-4" /> Area Riservata</NavLink>
                  </div>
               </div>
             </SheetContent>
