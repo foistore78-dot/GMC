@@ -7,7 +7,7 @@ import Link from "next/link";
 import { createRoot } from "react-dom/client";
 
 import { collection } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown } from "lucide-react";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown, LogOut } from "lucide-react";
 
 import { SociTable, type SortConfig, getStatus, formatDate, getFullName } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
@@ -124,7 +124,11 @@ const PaginationControls = ({
   </div>
 );
 
-export default function ElencoClient() {
+interface ElencoClientProps {
+  onLogout: () => void;
+}
+
+export default function ElencoClient({ onLogout }: ElencoClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -346,13 +350,17 @@ export default function ElencoClient() {
           <h1 className="font-headline text-3xl md:text-5xl text-primary">Elenco Soci</h1>
         </div>
 
-        <div className="flex flex-col items-end gap-2">
-          <Button asChild>
-            <Link href="/#apply">
-              <UserPlus className="mr-2 h-4 w-4" />
-              Nuova Iscrizione
-            </Link>
-          </Button>
+        <div className="flex items-center gap-2">
+            <Button asChild>
+                <Link href="/#apply">
+                <UserPlus className="mr-2 h-4 w-4" />
+                Nuova Iscrizione
+                </Link>
+            </Button>
+            <Button variant="outline" onClick={onLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+            </Button>
         </div>
       </div>
 
@@ -503,5 +511,3 @@ export default function ElencoClient() {
     </div>
   );
 }
-
-    

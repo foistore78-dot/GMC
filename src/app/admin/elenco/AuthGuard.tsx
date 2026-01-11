@@ -54,6 +54,11 @@ export default function AuthGuard() {
     }
   };
   
+  const handleLogout = () => {
+    sessionStorage.removeItem('gmc-auth-passed');
+    setIsAuthenticated(false);
+  };
+  
   // Combines Firebase loading state with our internal logic loading state.
   const isOverallLoading = isUserLoading || isLoading;
 
@@ -68,7 +73,7 @@ export default function AuthGuard() {
 
   // If we have a valid user and they are authenticated via password, show the main content.
   if (user && isAuthenticated) {
-    return <ElencoClient />;
+    return <ElencoClient onLogout={handleLogout} />;
   }
   
   // Otherwise, show the password login form.
