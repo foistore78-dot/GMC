@@ -166,33 +166,35 @@ export default function ElencoClient() {
   const { paginatedData, totalPages, counts } = useMemo(() => {
     const allMembers = membersData || [];
     const allRequests = requestsData || [];
-    
+
     const activeMembers = allMembers.filter((s) => getStatus(s) === "active");
     const expiredMembers = allMembers.filter((s) => getStatus(s) === "expired");
     const pendingRequests = allRequests.filter((req) => getStatus(req) === "pending");
 
+    const applyFilter = (data: Socio[]) => filterAndSortData(data, filter, sortConfig);
+
     const counts = {
-        active: activeMembers.length,
-        expired: expiredMembers.length,
-        requests: pendingRequests.length,
+        active: applyFilter(activeMembers).length,
+        expired: applyFilter(expiredMembers).length,
+        requests: applyFilter(pendingRequests).length,
     };
 
     let dataForTab: Socio[];
     if (activeTab === 'active') {
-      dataForTab = activeMembers;
+        dataForTab = activeMembers;
     } else if (activeTab === 'expired') {
-      dataForTab = expiredMembers;
+        dataForTab = expiredMembers;
     } else { // requests
-      dataForTab = pendingRequests;
+        dataForTab = pendingRequests;
     }
 
-    const sorted = filterAndSortData(dataForTab, filter, sortConfig);
+    const sortedAndFiltered = applyFilter(dataForTab);
     
-    const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE);
-    const paginatedData = sorted.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(sortedAndFiltered.length / ITEMS_PER_PAGE);
+    const paginatedData = sortedAndFiltered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     return { paginatedData, totalPages, counts };
-  }, [membersData, requestsData, filter, activeTab, sortConfig, currentPage]);
+}, [membersData, requestsData, filter, activeTab, sortConfig, currentPage]);
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
