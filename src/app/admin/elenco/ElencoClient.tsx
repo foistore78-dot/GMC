@@ -31,8 +31,6 @@ import {
 import type { Socio } from "@/lib/soci-data";
 import { useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { exportToExcel } from "@/lib/excel-export";
-import { importFromExcel, type ImportResult } from "@/lib/excel-import";
 import { Separator } from "@/components/ui/separator";
 
 const ITEMS_PER_PAGE = 10;
@@ -159,9 +157,6 @@ export default function ElencoClient() {
   const [filter, setFilter] = useState(initialFilter);
   const [currentPage, setCurrentPage] = useState(1);
   
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isImporting, setIsImporting] = useState(false);
-
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [socioToPrint, setSocioToPrint] = useState<Socio | null>(null);
 
@@ -351,50 +346,6 @@ export default function ElencoClient() {
     }
   };
 
-  const handleExport = () => {
-    const members = (membersData as Socio[]) || [];
-    const requests = (requestsData as Socio[]) || [];
-    exportToExcel(members, requests);
-  };
-
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && firestore) {
-      setIsImporting(true);
-      try {
-        const result: ImportResult = await importFromExcel(file, firestore);
-        const { createdCount, updatedTessere, errorCount } = result;
-        
-        let description = `Creati ${createdCount} nuovi soci. Aggiornati ${updatedTessere.length} soci esistenti.`;
-        if (errorCount > 0) {
-          description += ` ${errorCount} righe con errori sono state saltate.`;
-        }
-
-        toast({
-          title: "Importazione Completata",
-          description: description,
-          duration: 8000,
-        });
-
-        fetchData();
-
-      } catch (error) {
-        toast({
-          title: "Errore durante l'importazione",
-          description: (error as Error).message || "Si è verificato un problema.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsImporting(false);
-        if(fileInputRef.current) fileInputRef.current.value = "";
-      }
-    }
-  };
-
   return (
     <div className="flex-grow container mx-auto px-4 py-8">
       <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
@@ -513,30 +464,6 @@ export default function ElencoClient() {
           </>
         )}
       </div>
-
-      <Separator className="my-8" />
-      
-      <div className="bg-secondary p-6 rounded-lg border border-border flex flex-col sm:flex-row items-center justify-center gap-4">
-          <p className="text-center text-muted-foreground">Gestione dati soci</p>
-          <div className="flex items-center gap-2">
-            <Button onClick={handleExport} variant="outline" disabled={isDataLoading || !!error}>
-                <FileDown className="mr-2 h-4 w-4" />
-                Esporta Elenco
-            </Button>
-            <Button onClick={handleImportClick} disabled={isDataLoading || isImporting || !!error}>
-                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
-                {isImporting ? "Importo..." : "Importa da Excel"}
-            </Button>
-            <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                className="hidden"
-                accept=".xlsx, .xls"
-            />
-          </div>
-      </div>
-
 
       <Sheet open={!!editingSocio} onOpenChange={handleSheetOpenChange}>
         <SheetContent className="w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl overflow-y-auto min-w-[300px] max-w-[90vw] p-4 sm:p-6">
