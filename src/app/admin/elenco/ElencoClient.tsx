@@ -383,7 +383,7 @@ export default function ElencoClient() {
 
         <div className="flex items-center gap-2">
             <Button asChild>
-                <Link href="/#apply">
+                <Link href="/?from=admin#apply">
                 <UserPlus className="mr-2 h-4 w-4" />
                 Nuova Iscrizione
                 </Link>

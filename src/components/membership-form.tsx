@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -5,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { AnimatePresence, motion } from "framer-motion";
 import { differenceInYears } from 'date-fns';
+import { useSearchParams, useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, ArrowLeft, PartyPopper, Info, Home } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, PartyPopper, Info, Home, List } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { useFirestore, addDocumentNonBlocking } from "@/firebase";
 import { collection, serverTimestamp } from "firebase/firestore";
@@ -31,12 +33,17 @@ import { useLanguage } from "./language-provider";
 
 export function MembershipForm() {
   const { t, language } = useLanguage();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const firestore = useFirestore();
   const [isMinor, setIsMinor] = useState(false);
+
+  const cameFromAdmin = searchParams.get('from') === 'admin';
 
   const formSchema = useMemo(() => z.object({
     gender: z.enum(["male", "female"], {
@@ -182,6 +189,9 @@ export function MembershipForm() {
     setCurrentStep(0);
     setIsMinor(false);
     setIsSubmitted(false);
+    if(cameFromAdmin) {
+        router.push('/admin/elenco');
+    }
   }
   
   // Reset form when language changes
@@ -210,7 +220,11 @@ export function MembershipForm() {
                     {t('submission.success.newApplication')}
                 </Button>
                 <Button asChild>
-                    <Link href="/"><Home className="mr-2 h-4 w-4" /> {t('submission.success.goHome')}</Link>
+                   {cameFromAdmin ? (
+                      <Link href="/admin/elenco"><List className="mr-2 h-4 w-4" /> Torna all'elenco</Link>
+                    ) : (
+                      <Link href="/"><Home className="mr-2 h-4 w-4" /> {t('submission.success.goHome')}</Link>
+                   )}
                 </Button>
             </div>
         </div>
