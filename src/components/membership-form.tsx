@@ -66,7 +66,7 @@ export function MembershipForm() {
     guardianLastName: z.string().optional(),
     guardianBirthDate: z.string().optional(),
   }).refine(data => {
-      if (!data.birthDate) return true; // Let the specific field validator handle this
+      if (!data.birthDate) return true;
       const age = differenceInYears(new Date(), new Date(data.birthDate));
       if (age < 18) {
           return !!data.guardianFirstName && !!data.guardianLastName && !!data.guardianBirthDate;
@@ -143,7 +143,6 @@ export function MembershipForm() {
 
       setIsSubmitted(true);
     } catch (error) {
-      console.error("Error submitting application:", error);
       toast({
         title: t('submission.error.title'),
         description: t('submission.error.description'),
@@ -194,11 +193,11 @@ export function MembershipForm() {
     }
   }
   
-  // Reset form when language changes
   useEffect(() => {
     if(currentStep > 0) {
        resetForm();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language]);
 
 

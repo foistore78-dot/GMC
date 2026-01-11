@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -154,7 +155,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             finalTab = 'requests';
 
         } else if (originalStatus !== newStatus && !(originalStatus === 'expired' && newStatus === 'active')) {
-            // This logic handles transitions between collections (pending <-> active)
             if (newStatus === 'active') { // Moving from 'pending' to 'members'
                 const oldDocRef = doc(firestore, 'membership_requests', socio.id);
                 const newDocRef = doc(firestore, 'members', socio.id);
@@ -232,7 +232,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
         onClose(finalTab);
 
     } catch (error) {
-        console.error("Error updating document:", error);
         toast({
             title: "Errore durante l'aggiornamento",
             description: `Impossibile salvare le modifiche per ${getFullName(values)}. Dettagli: ${(error as Error).message}`,
@@ -262,7 +261,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             onClose();
 
         } catch (error) {
-            console.error("Error deleting document:", error);
             toast({
                 title: "Errore di Eliminazione",
                 description: `Impossibile eliminare ${getFullName(socio)}. Dettagli: ${(error as Error).message}`,

@@ -47,7 +47,6 @@ const filterAndSortData = (
 
     let filteredData = [...data];
 
-    // 1. Filtering
     if (searchFilter) {
       const lowerCaseFilter = searchFilter.toLowerCase();
       filteredData = filteredData.filter(item => {
@@ -58,7 +57,6 @@ const filterAndSortData = (
         });
     }
 
-    // 2. Sorting
     filteredData.sort((a, b) => {
       const { key, direction } = sortConfig;
       const asc = direction === 'ascending';
@@ -92,7 +90,6 @@ const filterAndSortData = (
         bVal = b[key as keyof Socio];
       }
 
-      // For date keys, handle string comparison correctly
       if (['renewalDate', 'joinDate', 'requestDate', 'birthDate', 'contextualDate'].includes(key)) {
         const dateA = aVal ? new Date(aVal).getTime() : 0;
         const dateB = bVal ? new Date(bVal).getTime() : 0;
@@ -101,7 +98,6 @@ const filterAndSortData = (
         return 0;
       }
 
-      // Fallback for other keys
       aVal = aVal ?? '';
       bVal = bVal ?? '';
 
@@ -195,7 +191,6 @@ export default function ElencoClient() {
 
     const applyFilterAndSort = (data: Socio[]) => filterAndSortData(data, filter, sortConfig, activeTab);
     
-    // We need to apply filter *before* getting the counts
     const filteredActive = applyFilterAndSort(activeMembers);
     const filteredExpired = applyFilterAndSort(expiredMembers);
     const filteredRequests = applyFilterAndSort(pendingRequests);
@@ -243,7 +238,6 @@ export default function ElencoClient() {
     }
     setCurrentPage(1);
 
-    // Set default sort order for each tab
     if (tab === "requests") {
       setSortConfig({ key: "contextualDate", direction: "descending" });
     } else if (tab === 'expired') {
@@ -360,7 +354,6 @@ export default function ElencoClient() {
         forceRequestsRefresh();
 
       } catch (error) {
-        console.error("Import error:", error);
         toast({
           title: "Errore durante l'importazione",
           description: (error as Error).message || "Si è verificato un problema.",
@@ -541,5 +534,3 @@ export default function ElencoClient() {
     </div>
   );
 }
-
-    

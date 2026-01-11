@@ -55,10 +55,7 @@ import { Checkbox } from "./ui/checkbox";
 import { useFirestore } from "@/firebase";
 import { doc, writeBatch, deleteDoc } from "firebase/firestore";
 import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
-import { Separator } from "./ui/separator";
-import { ScrollArea } from "./ui/scroll-area";
 
-// Helper Functions
 export const getFullName = (socio: any) => `${socio.lastName || ''} ${socio.firstName || ''}`.trim();
 
 const isDate = (d: any): d is Date => d instanceof Date && !isNaN(d.valueOf());
@@ -82,7 +79,6 @@ const parseDate = (dateString: any): Date | null => {
 
 
 const isExpired = (socio: Socio): boolean => {
-    // Only members can expire. Requests are pending, not active.
     if (!socio.tessera) {
         return false;
     }
@@ -90,7 +86,6 @@ const isExpired = (socio: Socio): boolean => {
     const currentYear = new Date().getFullYear();
     const membershipYear = socio.membershipYear ? parseInt(socio.membershipYear, 10) : 0;
     
-    // If the membership year is in the past, they are expired.
     if (membershipYear && membershipYear < currentYear) {
         return true;
     }
@@ -99,18 +94,15 @@ const isExpired = (socio: Socio): boolean => {
     if (!expirationDate) return false;
     
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Compare dates only
+    today.setHours(0, 0, 0, 0); 
     
-    // If the expiration date is in the past, they are expired.
     return expirationDate < today;
 };
 
 export const getStatus = (socio: Socio): 'active' | 'pending' | 'rejected' | 'expired' => {
-    // If it has a membership card, it's a member (active or expired)
     if (socio.tessera) {
         return isExpired(socio) ? 'expired' : 'active';
     }
-    // Otherwise it's a request (pending or rejected)
     return socio.status === 'rejected' ? 'rejected' : 'pending';
 };
 
@@ -135,13 +127,6 @@ const formatCurrency = (value: number | undefined | null) => {
     const number = value ?? 0;
     return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(number);
 }
-
-const statusTranslations: Record<string, string> = {
-  active: 'Attivo',
-  pending: 'Sospeso',
-  rejected: 'Rifiutato',
-  expired: 'Scaduto'
-};
 
 const QUALIFICA_COLORS: Record<string, string> = {
   "FONDATORE": "text-yellow-400",
@@ -347,7 +332,6 @@ const SocioTableRow = ({
         handleApproveDialogChange(false);
         onSocioUpdate('active');
     } catch (error) {
-        console.error("Error approving member:", error);
         toast({
             title: "Errore di Approvazione",
             description: `Impossibile approvare ${getFullName(socio)}. Dettagli: ${(error as Error).message}`,
@@ -395,7 +379,6 @@ const handleRenew = async () => {
         setRenewedSocioData(newlyRenewedSocio);
       
     } catch (error) {
-        console.error('Error renewing member:', error);
         toast({
             title: 'Errore di Rinnovo',
             description: `Impossibile rinnovare ${getFullName(socio)}. Dettagli: ${(error as Error).message}`,
@@ -425,7 +408,6 @@ const handleRenew = async () => {
     const groupInviteLink = "https://chat.whatsapp.com/KKes4gzve7T8xET9OD3bm5";
     const message = `Ciao ${socio.firstName}! Benvenuto/a nel Garage Music Club. Questo è il link per unirti al nostro gruppo WhatsApp ufficiale e rimanere aggiornato su tutte le attività: ${groupInviteLink}`;
     
-    // Rimuove caratteri non numerici, gestisce il prefisso
     const cleanedPhone = socio.phone.replace(/\D/g, '');
     const finalPhone = cleanedPhone.startsWith('39') ? cleanedPhone : `39${cleanedPhone}`;
 
@@ -981,5 +963,3 @@ export const SociTable = ({
     </div>
   );
 }
-
-    

@@ -25,24 +25,18 @@ export default function AuthGuard({ children, isAuthenticated, setIsAuthenticate
 
   const { auth, user, isUserLoading } = useFirebase();
 
-  // Step 1: Handle initial auth check (anonymous user and session storage)
   useEffect(() => {
-    // Wait until Firebase has checked its auth state
     if (isUserLoading) return; 
 
-    // If there's no user at all (neither logged in nor anonymous), sign in.
     if (!user && auth) {
         signInAnonymously(auth).catch(e => {
-            console.error("Anonymous sign-in failed", e);
             setError("Impossibile connettersi al servizio di autenticazione.");
         }).finally(() => {
-            // After attempting sign-in, check session storage
             const sessionAuth = sessionStorage.getItem('gmc-auth-passed') === 'true';
             setIsAuthenticated(sessionAuth);
             setIsChecking(false);
         });
     } else {
-        // User (anonymous or other) already exists. Check session storage.
         const sessionAuth = sessionStorage.getItem('gmc-auth-passed') === 'true';
         setIsAuthenticated(sessionAuth);
         setIsChecking(false);
@@ -69,12 +63,10 @@ export default function AuthGuard({ children, isAuthenticated, setIsAuthenticate
       );
   }
 
-  // If we have a valid user and they are authenticated via password, show the main content.
   if (user && isAuthenticated) {
     return <>{children}</>;
   }
   
-  // Otherwise, show the password login form.
   return (
     <div className="flex-grow container mx-auto px-4 py-8 flex items-center justify-center">
       <Card className="w-full max-w-sm">
