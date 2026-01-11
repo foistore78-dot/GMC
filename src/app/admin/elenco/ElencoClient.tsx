@@ -33,6 +33,7 @@ import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebas
 import { useToast } from "@/hooks/use-toast";
 import { exportToExcel } from "@/lib/excel-export";
 import { importFromExcel, type ImportResult } from "@/lib/excel-import";
+import { Separator } from "@/components/ui/separator";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -400,33 +401,14 @@ export default function ElencoClient() {
                   </TabsTrigger>
                 </TabsList>
                 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
-                  <div className="relative w-full sm:max-w-xs">
-                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Filtra per nome, tessera..."
-                      value={filter}
-                      onChange={(event) => setFilter(event.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                      <Button onClick={handleExport} variant="outline" size="sm" disabled={isDataLoading}>
-                          <FileDown className="mr-2 h-4 w-4" />
-                          Esporta
-                      </Button>
-                      <Button onClick={handleImportClick} size="sm" disabled={isDataLoading || isImporting}>
-                          {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
-                          {isImporting ? "Importo..." : "Importa"}
-                      </Button>
-                      <input
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={handleFileChange}
-                          className="hidden"
-                          accept=".xlsx, .xls"
-                      />
-                  </div>
+                <div className="relative w-full sm:max-w-xs">
+                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Filtra per nome, tessera..."
+                    value={filter}
+                    onChange={(event) => setFilter(event.target.value)}
+                    className="pl-10"
+                  />
                 </div>
               </div>
 
@@ -474,6 +456,30 @@ export default function ElencoClient() {
         )}
       </div>
 
+      <Separator className="my-8" />
+      
+      <div className="bg-secondary p-6 rounded-lg border border-border flex flex-col sm:flex-row items-center justify-center gap-4">
+          <p className="text-center text-muted-foreground">Gestione dati soci</p>
+          <div className="flex items-center gap-2">
+            <Button onClick={handleExport} variant="outline" disabled={isDataLoading}>
+                <FileDown className="mr-2 h-4 w-4" />
+                Esporta Elenco
+            </Button>
+            <Button onClick={handleImportClick} disabled={isDataLoading || isImporting}>
+                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
+                {isImporting ? "Importo..." : "Importa da Excel"}
+            </Button>
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+                accept=".xlsx, .xls"
+            />
+          </div>
+      </div>
+
+
       <Sheet open={!!editingSocio} onOpenChange={handleSheetOpenChange}>
         <SheetContent className="w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl overflow-y-auto min-w-[300px] max-w-[90vw] p-4 sm:p-6">
           {editingSocio && (
@@ -512,3 +518,5 @@ export default function ElencoClient() {
     </div>
   );
 }
+
+    
