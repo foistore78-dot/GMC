@@ -45,7 +45,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer, MessageCircle, Building, Cake, Trash2, MoreVertical } from "lucide-react";
+import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer, MessageCircle, Building, Cake, Trash2, MoreVertical, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
@@ -189,6 +189,7 @@ const SocioTableRow = ({
 
   const status = getStatus(socio);
   const socioIsMinor = isMinor(socio.birthDate);
+  const isRenewedMember = activeTab === 'active' && !!socio.renewalDate;
 
   const resetApproveDialog = useCallback(() => {
     setShowApproveDialog(false);
@@ -427,7 +428,11 @@ const handleRenew = async () => {
 
   return (
     <>
-      <TableRow className={cn("text-xs sm:text-sm", { 'bg-yellow-500/10 hover:bg-yellow-500/20': status === 'expired' })}>
+      <TableRow className={cn(
+        "text-xs sm:text-sm transition-all duration-300", 
+        status === 'expired' && 'bg-yellow-500/10 hover:bg-yellow-500/20',
+        isRenewedMember && 'bg-indigo-500/5 hover:bg-indigo-500/10 border-l-[6px] border-l-indigo-400'
+      )}>
         {activeTab !== 'requests' && (
             <>
                 <TableCell className="font-mono sm:hidden w-12 text-center text-muted-foreground">
@@ -442,6 +447,11 @@ const handleRenew = async () => {
            <div className="flex items-center gap-3 flex-wrap">
               <span className="transition-colors">{getFullName(socio)}</span>
                  <div className="flex items-center gap-1">
+                    {isRenewedMember && (
+                      <Badge variant="outline" className="text-[9px] py-0 px-1 bg-indigo-400/10 text-indigo-300 border-indigo-400/30 font-bold tracking-tight uppercase">
+                        Rinnovo
+                      </Badge>
+                    )}
                     {socio.whatsappConsent && (
                        <TooltipProvider>
                          <Tooltip>
@@ -967,5 +977,3 @@ export const SociTable = ({
     </div>
   );
 }
-
-    
