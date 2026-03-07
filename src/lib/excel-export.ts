@@ -9,15 +9,50 @@ const statusTranslations: Record<string, string> = {
   expired: 'Scaduto'
 };
 
+/**
+ * Ordina i soci per Anno Associativo (decrescente) e poi per Numero di Tessera (crescente).
+ */
+const sortByTessera = (a: Socio, b: Socio) => {
+  if (!a.tessera && !b.tessera) return 0;
+  if (!a.tessera) return 1;
+  if (!b.tessera) return -1;
+  
+  const partsA = a.tessera.split('-');
+  const partsB = b.tessera.split('-');
+  
+  // Formato previsto: GMC-YYYY-NNN
+  const yearA = parseInt(partsA[1], 10) || 0;
+  const yearB = parseInt(partsB[1], 10) || 0;
+  
+  if (yearA !== yearB) return yearB - yearA; // Gli anni più recenti per primi
+  
+  const numA = parseInt(partsA[2], 10) || 0;
+  const numB = parseInt(partsB[2], 10) || 0;
+  
+  return numA - numB; // Numero progressivo crescente all'interno dello stesso anno
+};
+
+/**
+ * Ordina le richieste per data di invio (dalla più recente).
+ */
+const sortByRequestDate = (a: Socio, b: Socio) => {
+  const dateA = a.requestDate ? new Date(a.requestDate).getTime() : 0;
+  const dateB = b.requestDate ? new Date(b.requestDate).getTime() : 0;
+  return dateB - dateA;
+};
+
 const formatForExcel = (data: Socio[]) => {
   return data.map(socio => {
     const status = getStatus(socio);
+    const isNew = status === 'active' && !socio.renewalDate;
     const tesseraNumberStr = socio.tessera ? socio.tessera.split('-').pop() || '' : '';
     const tesseraNumber = tesseraNumberStr ? parseInt(tesseraNumberStr, 10) : undefined;
 
     return {
+      'NUOVO SOCIO': isNew ? 'SI (NUOVO)' : '', // Marker per distinguere i nuovi soci
       'Stato': statusTranslations[status] || status,
       'N. Tessera': isNaN(tesseraNumber!) ? '' : tesseraNumber,
+      'Anno': socio.membershipYear || '',
       'Cognome': socio.lastName,
       'Nome': socio.firstName,
       'Genere': socio.gender === 'male' ? 'Maschio' : 'Femmina',
@@ -32,7 +67,6 @@ const formatForExcel = (data: Socio[]) => {
       'Telefono': socio.phone || '',
       'Consenso WhatsApp': socio.whatsappConsent ? 'SI' : 'NO',
       'Consenso Privacy': socio.privacyConsent ? 'SI' : 'NO',
-      'Anno Associativo': socio.membershipYear || '',
       'Data Richiesta': formatDate(socio.requestDate),
       'Data Ammissione': formatDate(socio.joinDate),
       'Data Rinnovo': formatDate(socio.renewalDate),
@@ -52,38 +86,45 @@ export const exportToExcel = (members: Socio[], requests: Socio[]) => {
 
   const fitToColumn = (data: any[]) => {
     if (data.length === 0) return [];
-    const json = data;
     const widths: { wch: number }[] = [];
-    const header = Object.keys(json[0]);
+    const header = Object.keys(data[0]);
     for (const key of header) {
-        widths.push({ wch: Math.max(key.length, ...json.map(item => (item[key] || '').toString().length)) });
+        widths.push({ wch: Math.max(key.length, ...data.map(item => (item[key] || '').toString().length)) });
     }
     return widths;
   };
 
-  // 1. Soci Attivi
-  const activeMembers = members.filter(m => getStatus(m) === 'active');
+  // 1. Soci Attivi (Ordinati per Tessera)
+  const activeMembers = members
+    .filter(m => getStatus(m) === 'active')
+    .sort(sortByTessera);
   const activeData = formatForExcel(activeMembers);
   const worksheetActive = XLSX.utils.json_to_sheet(activeData);
   worksheetActive['!cols'] = fitToColumn(activeData);
   XLSX.utils.book_append_sheet(workbook, worksheetActive, 'Soci Attivi');
 
-  // 2. Nuovi Soci (Attivi senza rinnovo)
-  const newMembers = members.filter(m => getStatus(m) === 'active' && !m.renewalDate);
+  // 2. Nuovi Soci (Ordinati per Tessera)
+  const newMembers = members
+    .filter(m => getStatus(m) === 'active' && !m.renewalDate)
+    .sort(sortByTessera);
   const newData = formatForExcel(newMembers);
   const worksheetNew = XLSX.utils.json_to_sheet(newData);
   worksheetNew['!cols'] = fitToColumn(newData);
   XLSX.utils.book_append_sheet(workbook, worksheetNew, 'Nuovi Soci');
 
-  // 3. Sospesi (Scaduti)
-  const expiredMembers = members.filter(m => getStatus(m) === 'expired');
+  // 3. Sospesi (Ordinati per Tessera)
+  const expiredMembers = members
+    .filter(m => getStatus(m) === 'expired')
+    .sort(sortByTessera);
   const expiredData = formatForExcel(expiredMembers);
   const worksheetExpired = XLSX.utils.json_to_sheet(expiredData);
   worksheetExpired['!cols'] = fitToColumn(expiredData);
   XLSX.utils.book_append_sheet(workbook, worksheetExpired, 'Sospesi');
 
-  // 4. Richieste (In attesa)
-  const pendingRequests = requests.filter(r => getStatus(r) === 'pending');
+  // 4. Richieste (In attesa - Ordinate per data richiesta)
+  const pendingRequests = requests
+    .filter(r => getStatus(r) === 'pending')
+    .sort(sortByRequestDate);
   const requestsData = formatForExcel(pendingRequests);
   const worksheetRequests = XLSX.utils.json_to_sheet(requestsData);
   worksheetRequests['!cols'] = fitToColumn(requestsData);
