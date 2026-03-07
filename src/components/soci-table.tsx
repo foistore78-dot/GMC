@@ -61,16 +61,17 @@ export const getFullName = (socio: any) => `${socio.lastName || ''} ${socio.firs
 
 /**
  * Determina lo stato del socio in modo robusto.
- * Se lo stato è 'active' o esiste una tessera, è un membro (attivo o scaduto).
- * Altrimenti è una richiesta (pendente o rifiutata).
+ * Se il socio appartiene alla lista dei membri, DEVE essere active o expired.
  */
-export const getStatus = (socio: Socio): 'active' | 'pending' | 'rejected' | 'expired' => {
-    // Se è in collezione soci (status active) o ha una tessera, è un membro
-    if (socio.status === 'active' || (socio.tessera && socio.tessera.length > 0)) {
+export const getStatus = (socio: Socio, isFromMembersCollection: boolean = true): 'active' | 'pending' | 'rejected' | 'expired' => {
+    if (socio.status === 'rejected') return 'rejected';
+    
+    // Se proviene dalla collezione members, è un socio (attivo o scaduto)
+    if (isFromMembersCollection || socio.status === 'active' || socio.tessera) {
         return isSocioExpired(socio.expirationDate, socio.membershipYear) ? 'expired' : 'active';
     }
-    // Altrimenti gestiamo come richiesta
-    return socio.status === 'rejected' ? 'rejected' : 'pending';
+    
+    return 'pending';
 };
 
 
@@ -161,7 +162,7 @@ const SocioTableRow = ({
     setMounted(true);
   }, []);
 
-  const status = useMemo(() => getStatus(socio), [socio]);
+  const status = useMemo(() => getStatus(socio, activeTab !== 'requests'), [socio, activeTab]);
   const socioIsMinor = useMemo(() => isMinor(socio.birthDate), [socio.birthDate]);
   const isRenewedMember = activeTab === 'active' && !!socio.renewalDate;
 
@@ -214,7 +215,7 @@ const SocioTableRow = ({
     setIsDeleting(true);
 
     try {
-        const socioStatus = getStatus(socioToDelete);
+        const socioStatus = getStatus(socioToDelete, activeTab !== 'requests');
         const collectionName = (socioStatus === 'active' || socioStatus === 'expired') ? 'members' : 'membership_requests';
         const docRef = doc(firestore, collectionName, socioToDelete.id);
         
@@ -693,7 +694,72 @@ const handleRenew = async () => {
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-lg">
-                            {/* ... Contenuto rinnovo ... */}
+                            <DialogHeader>
+                                <DialogTitle>Rinnova Tesseramento</DialogTitle>
+                                <DialogDescription>
+                                    Stai rinnovando il tesseramento per <strong className="text-foreground">{getFullName(socio)}</strong>.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-6 py-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+                                    <Label htmlFor="renewal-year" className="sm:text-right">Anno</Label>
+                                    <Input id="renewal-year" value={renewalYear} onChange={(e) => setRenewalYear(e.target.value)} className="w-28 col-span-3" />
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+                                    <Label htmlFor="renew-tessera" className="sm:text-right">N. Tessera</Label>
+                                    <div className="col-span-3">
+                                        <Input
+                                            id="renew-tessera"
+                                            value={`GMC-${renewalYear}-${renewMemberNumber}`}
+                                            onChange={(e) => {
+                                                const parts = e.target.value.split('-');
+                                                setRenewMemberNumber(parts[parts.length - 1] || '');
+                                            }}
+                                            className="w-40"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-2 sm:gap-4">
+                                    <Label className="sm:text-right pt-2">Qualifiche</Label>
+                                    <div className="col-span-3 space-y-2">
+                                        {QUALIFICHE.map((q) => (
+                                            <div key={q} className="flex items-center space-x-2">
+                                                <Checkbox 
+                                                    id={`qualifica-${q}-renew`} 
+                                                    checked={renewQualifiche.includes(q)}
+                                                    onCheckedChange={(checked) => handleQualificaChange(q, !!checked, setRenewQualifiche)}
+                                                />
+                                                <label htmlFor={`qualifica-${q}-renew`} className="text-sm font-medium leading-none">
+                                                    {q}
+                                                </label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+                                    <Label htmlFor="renewal-fee" className="sm:text-right">Quota (€)</Label>
+                                    <div className="col-span-3 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                        <Input
+                                            id="renewal-fee"
+                                            type="number"
+                                            value={renewalFee}
+                                            onChange={(e) => setRenewalFee(Number(e.target.value))}
+                                            className="w-28"
+                                        />
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox id="fee-paid-renew" checked={renewFeePaid} onCheckedChange={(checked) => setRenewFeePaid(!!checked)} />
+                                            <Label htmlFor="fee-paid-renew" className="text-sm font-medium">Quota Versata</Label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button variant="ghost" onClick={() => handleRenewDialogChange(false)}>Annulla</Button>
+                                <Button onClick={handleRenew} disabled={isRenewing || !renewFeePaid}>
+                                    {isRenewing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Conferma Rinnovo e Stampa
+                                </Button>
+                            </DialogFooter>
                         </DialogContent>
                     </Dialog>
                 )}
@@ -825,7 +891,7 @@ export const SociTable = ({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                   Nessun socio trovato.
                 </TableCell>
               </TableRow>

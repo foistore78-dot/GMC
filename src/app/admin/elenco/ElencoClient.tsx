@@ -62,10 +62,17 @@ const filterAndSortData = (
           const email = (item.email || '').toLowerCase();
           const tessera = (item.tessera || '').toLowerCase();
           const fiscalCode = (item.fiscalCode || '').toLowerCase();
+          const city = (item.city || '').toLowerCase();
+          const address = (item.address || '').toLowerCase();
+          const phone = (item.phone || '').toLowerCase();
+          
           return fullName.includes(lowerCaseFilter) || 
                  email.includes(lowerCaseFilter) || 
                  tessera.includes(lowerCaseFilter) ||
-                 fiscalCode.includes(lowerCaseFilter);
+                 fiscalCode.includes(lowerCaseFilter) ||
+                 city.includes(lowerCaseFilter) ||
+                 address.includes(lowerCaseFilter) ||
+                 phone.includes(lowerCaseFilter);
         });
     }
 
@@ -250,9 +257,9 @@ export default function ElencoClient() {
     const applyFinalFilter = (data: Socio[]) => filterAndSortData(data, filter, sortConfig, activeTab);
     
     // Conteggi basati sul filtro globale (per vedere quanti soci totali ci sono nelle tab)
-    const countActive = allMembers.filter((s) => getStatus(s) === "active").length;
-    const countExpired = allMembers.filter((s) => getStatus(s) === "expired").length;
-    const countRequests = allRequests.filter((req) => getStatus(req) === "pending").length;
+    const countActive = allMembers.filter((s) => getStatus(s, true) === "active").length;
+    const countExpired = allMembers.filter((s) => getStatus(s, true) === "expired").length;
+    const countRequests = allRequests.filter((req) => getStatus(req, false) === "pending").length;
 
     const counts = {
         active: countActive,
@@ -262,11 +269,11 @@ export default function ElencoClient() {
 
     let dataForTab: Socio[];
     if (activeTab === 'active') {
-        dataForTab = applyFinalFilter(allMembers.filter((s) => getStatus(s) === "active"));
+        dataForTab = applyFinalFilter(allMembers.filter((s) => getStatus(s, true) === "active"));
     } else if (activeTab === 'expired') {
-        dataForTab = applyFinalFilter(allMembers.filter((s) => getStatus(s) === "expired"));
+        dataForTab = applyFinalFilter(allMembers.filter((s) => getStatus(s, true) === "expired"));
     } else { // requests
-        dataForTab = applyFinalFilter(allRequests.filter((req) => getStatus(req) === "pending"));
+        dataForTab = applyFinalFilter(allRequests.filter((req) => getStatus(req, false) === "pending"));
     }
     
     const totalPages = Math.ceil(dataForTab.length / ITEMS_PER_PAGE);
