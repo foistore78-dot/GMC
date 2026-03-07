@@ -1,4 +1,1 @@
-import { config } from 'dotenv';
-config();
-
-import '@/ai/flows/ai-data-schema-suggestion-flow.ts';
+// Flows will be imported for their side effects in this file.
