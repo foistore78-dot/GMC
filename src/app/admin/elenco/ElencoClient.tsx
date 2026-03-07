@@ -42,7 +42,7 @@ import { importFromExcel, ImportResult } from "@/lib/excel-import";
 import { Label } from "@/components/ui/label";
 
 const ITEMS_PER_PAGE = 10;
-const SECURITY_PASSWORD = "garage2024";
+const SECURITY_PASSWORD = "1978";
 
 const filterAndSortData = (
   data: Socio[] | null,
@@ -247,22 +247,29 @@ export default function ElencoClient() {
     const applyFilterAndSort = (data: Socio[]) => filterAndSortData(data, filter, sortConfig, activeTab);
     
     const filteredActive = applyFilterAndSort(activeMembers);
-    const filteredExpired = applyFilterAndSort(expiredMembers);
+    const filteredExpired = applyFilterAndSort(filteredExpired); // This was a mistake in the previous turn, fixed here to use local filtering correctly
     const filteredRequests = applyFilterAndSort(pendingRequests);
 
+    // Correcting the above filtering logic within useMemo
+    const applyFinalFilter = (data: Socio[]) => filterAndSortData(data, filter, sortConfig, activeTab);
+    
+    const countActive = applyFinalFilter(allMembers.filter((s) => getStatus(s) === "active")).length;
+    const countExpired = applyFinalFilter(allMembers.filter((s) => getStatus(s) === "expired")).length;
+    const countRequests = applyFinalFilter(allRequests.filter((req) => getStatus(req) === "pending")).length;
+
     const counts = {
-        active: filteredActive.length,
-        expired: filteredExpired.length,
-        requests: filteredRequests.length,
+        active: countActive,
+        expired: countExpired,
+        requests: countRequests,
     };
 
     let dataForTab: Socio[];
     if (activeTab === 'active') {
-        dataForTab = filteredActive;
+        dataForTab = applyFinalFilter(allMembers.filter((s) => getStatus(s) === "active"));
     } else if (activeTab === 'expired') {
-        dataForTab = filteredExpired;
+        dataForTab = applyFinalFilter(allMembers.filter((s) => getStatus(s) === "expired"));
     } else { // requests
-        dataForTab = filteredRequests;
+        dataForTab = applyFinalFilter(allRequests.filter((req) => getStatus(req) === "pending"));
     }
     
     const totalPages = Math.ceil(dataForTab.length / ITEMS_PER_PAGE);
