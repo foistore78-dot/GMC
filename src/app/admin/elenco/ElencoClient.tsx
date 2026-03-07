@@ -5,8 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
-import { collection, onSnapshot, DocumentData, QuerySnapshot } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown, AlertTriangle, RefreshCw } from "lucide-react";
+import { collection, onSnapshot } from "firebase/firestore";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown, AlertTriangle, RefreshCw, Lock } from "lucide-react";
 
 import { SociTable, type SortConfig, getStatus, getFullName } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
@@ -25,14 +25,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 import type { Socio } from "@/lib/soci-data";
 import { useFirestore, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { exportToExcel } from "@/lib/excel-export";
 import { importFromExcel, ImportResult } from "@/lib/excel-import";
+import { Label } from "@/components/ui/label";
 
 const ITEMS_PER_PAGE = 10;
+const SECURITY_PASSWORD = "garage2024";
 
 const filterAndSortData = (
   data: Socio[] | null,
@@ -166,6 +176,11 @@ export default function ElencoClient() {
   const [error, setError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
 
+  // Security Password States
+  const [isSecurityDialogOpen, setIsSecurityDialogOpen] = useState(false);
+  const [securityPasswordInput, setSecurityPasswordInput] = useState("");
+  const [pendingAction, setPendingAction] = useState<'import' | 'export' | null>(null);
+
   useEffect(() => {
     if (!firestore) {
         setError("Servizio database non disponibile.");
@@ -179,7 +194,6 @@ export default function ElencoClient() {
     const membersRef = collection(firestore, "members");
     const requestsRef = collection(firestore, "membership_requests");
 
-    // Sottoscrizione in tempo reale per i membri
     const unsubscribeMembers = onSnapshot(
       membersRef,
       (snapshot) => {
@@ -194,12 +208,11 @@ export default function ElencoClient() {
           operation: 'list'
         });
         errorEmitter.emit('permission-error', permissionError);
-        setError("Permessi insufficienti per leggere l'elenco soci.");
+        setError("Permessi amministratore non validi o sessione scaduta.");
         setIsDataLoading(false);
       }
     );
 
-    // Sottoscrizione in tempo reale per le richieste
     const unsubscribeRequests = onSnapshot(
       requestsRef,
       (snapshot) => {
@@ -361,6 +374,30 @@ export default function ElencoClient() {
     }
   };
   
+  const initiateAction = (action: 'import' | 'export') => {
+    setPendingAction(action);
+    setSecurityPasswordInput("");
+    setIsSecurityDialogOpen(true);
+  };
+
+  const verifySecurityPassword = () => {
+    if (securityPasswordInput === SECURITY_PASSWORD) {
+      setIsSecurityDialogOpen(false);
+      if (pendingAction === 'export') {
+        handleExport();
+      } else if (pendingAction === 'import') {
+        importFileRef.current?.click();
+      }
+      setPendingAction(null);
+    } else {
+      toast({
+        title: "Password Errata",
+        description: "La password di sicurezza inserita non è corretta.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleExport = () => {
     exportToExcel(membersData, requestsData);
     toast({
@@ -407,11 +444,11 @@ export default function ElencoClient() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" onClick={handleExport} disabled={isDataLoading}>
+            <Button variant="outline" onClick={() => initiateAction('export')} disabled={isDataLoading}>
                 <FileDown className="mr-2 h-4 w-4" />
                 Esporta
             </Button>
-            <Button variant="outline" onClick={() => importFileRef.current?.click()} disabled={isImporting}>
+            <Button variant="outline" onClick={() => initiateAction('import')} disabled={isImporting}>
                 {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
                 Importa
             </Button>
@@ -561,6 +598,40 @@ export default function ElencoClient() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Security Password Dialog */}
+      <Dialog open={isSecurityDialogOpen} onOpenChange={setIsSecurityDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-primary" />
+              Verifica di Sicurezza
+            </DialogTitle>
+            <DialogDescription>
+              Inserisci la password di sicurezza per procedere con l&apos;operazione di {pendingAction === 'export' ? 'esportazione' : 'importazione'} dei dati.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="security-password">Password</Label>
+              <Input
+                id="security-password"
+                type="password"
+                value={securityPasswordInput}
+                onChange={(e) => setSecurityPasswordInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') verifySecurityPassword();
+                }}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsSecurityDialogOpen(false)}>Annulla</Button>
+            <Button onClick={verifySecurityPassword}>Conferma</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
