@@ -46,63 +46,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer, MessageCircle, Building, Cake, Trash2, MoreVertical, Sparkles, MapPin, UserCheck, Info, AlertTriangle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, parseDate, isMinorCheck as isMinor, isSocioExpired } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
 import { useFirestore } from "@/firebase";
 import { doc, writeBatch, deleteDoc } from "firebase/firestore";
-import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
+import { QUALIFICHE } from "./edit-socio-form";
 import { Separator } from "./ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 export const getFullName = (socio: any) => `${socio.lastName || ''} ${socio.firstName || ''}`.trim();
 
-const isDate = (d: any): d is Date => d instanceof Date && !isNaN(d.valueOf());
-
-const parseDate = (dateString: any): Date | null => {
-    if (!dateString) return null;
-    let date;
-
-    if (dateString && typeof dateString.toDate === 'function') {
-        date = dateString.toDate();
-    } else if (typeof dateString === 'string') {
-        date = new Date(dateString);
-    } else if (dateString instanceof Date) {
-        date = dateString;
-    } else {
-        return null;
-    }
-    
-    return isDate(date) ? date : null;
-}
-
-
-const isExpired = (socio: Socio): boolean => {
-    if (!socio.tessera) {
-        return false;
-    }
-
-    const currentYear = new Date().getFullYear();
-    const membershipYear = socio.membershipYear ? parseInt(socio.membershipYear, 10) : 0;
-    
-    if (membershipYear && membershipYear < currentYear) {
-        return true;
-    }
-
-    const expirationDate = parseDate(socio.expirationDate);
-    if (!expirationDate) return false;
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); 
-    
-    return expirationDate < today;
-};
-
 export const getStatus = (socio: Socio): 'active' | 'pending' | 'rejected' | 'expired' => {
     if (socio.tessera) {
-        return isExpired(socio) ? 'expired' : 'active';
+        return isSocioExpired(socio.expirationDate, socio.membershipYear) ? 'expired' : 'active';
     }
     return socio.status === 'rejected' ? 'rejected' : 'pending';
 };
@@ -189,8 +148,14 @@ const SocioTableRow = ({
   const [socioToDelete, setSocioToDelete] = useState<Socio | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const status = getStatus(socio);
-  const socioIsMinor = isMinor(socio.birthDate);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const status = useMemo(() => getStatus(socio), [socio]);
+  const socioIsMinor = useMemo(() => isMinor(socio.birthDate), [socio.birthDate]);
   const isRenewedMember = activeTab === 'active' && !!socio.renewalDate;
 
   // Check for potential duplicates in the members list
@@ -437,6 +402,24 @@ const handleRenew = async () => {
     if (activeTab === 'requests') return socio.requestDate;
     return undefined;
   }, [activeTab, socio]);
+
+  // Prevent hydration issues by showing consistent UI during SSR
+  if (!mounted) {
+    return (
+      <TableRow className="text-xs sm:text-sm">
+        {activeTab !== 'requests' && (
+          <>
+            <TableCell className="w-12 text-center">-</TableCell>
+            <TableCell className="hidden sm:table-cell">-</TableCell>
+          </>
+        )}
+        <TableCell className="font-medium">{getFullName(socio)}</TableCell>
+        <TableCell className="hidden md:table-cell">-</TableCell>
+        <TableCell>-</TableCell>
+        <TableCell className="text-right">-</TableCell>
+      </TableRow>
+    );
+  }
 
   return (
     <>

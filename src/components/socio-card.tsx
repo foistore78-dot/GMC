@@ -1,23 +1,13 @@
+
 "use client";
 
 import type { Socio } from "@/lib/soci-data";
 import { GarageMusicClubLogo } from "./icons/garage-music-club-logo";
 import { formatDate } from "./soci-table";
+import { isMinorCheck } from "@/lib/utils";
 
 type SocioCardProps = {
   socio: Socio;
-};
-
-const isMinorCheck = (birthDate: string | undefined | Date): boolean => {
-  if (!birthDate) return false;
-  const date = new Date(birthDate);
-  if (isNaN(date.getTime())) return false;
-
-  const today = new Date();
-  let age = today.getFullYear() - date.getFullYear();
-  const m = today.getMonth() - date.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < date.getDate())) age--;
-  return age < 18;
 };
 
 type FieldProps = { label: string; value?: string | null };

@@ -41,6 +41,11 @@ export function MembershipForm() {
   const [currentStep, setCurrentStep] = useState(0);
   const firestore = useFirestore();
   const [isMinor, setIsMinor] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const cameFromAdmin = searchParams.get('from') === 'admin';
 
@@ -65,7 +70,7 @@ export function MembershipForm() {
     guardianLastName: z.string().optional(),
     guardianBirthDate: z.string().optional(),
   }).refine(data => {
-      if (!data.birthDate) return true;
+      if (!data.birthDate || !mounted) return true;
       const age = differenceInYears(new Date(), new Date(data.birthDate));
       if (age < 18) {
           return !!data.guardianFirstName && !!data.guardianLastName && !!data.guardianBirthDate;
@@ -74,7 +79,7 @@ export function MembershipForm() {
   }, {
       message: t('validation.guardianRequired'),
       path: ["guardianFirstName"],
-  }), [t]);
+  }), [t, mounted]);
 
   type FormValues = z.infer<typeof formSchema>;
 
@@ -161,7 +166,7 @@ export function MembershipForm() {
     if (!output) return;
 
     if (steps[currentStep].id === 3) {
-      if(birthDate) {
+      if(birthDate && mounted) {
         const age = differenceInYears(new Date(), new Date(birthDate));
         setIsMinor(age < 18);
       } else {
@@ -231,6 +236,8 @@ export function MembershipForm() {
 
   const progress = ((currentStep + 1) / steps.length) * 100;
   const isPhoneEntered = phoneValue && phoneValue.trim().length > 4;
+
+  if (!mounted) return <div className="h-[400px] flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
 
   return (
     <>

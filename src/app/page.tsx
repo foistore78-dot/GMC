@@ -1,7 +1,8 @@
+
 "use client";
 
 import Image from "next/image";
-import { Guitar, Mic, Speaker } from "lucide-react";
+import { Guitar, Mic, Speaker, Loader2 } from "lucide-react";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { LanguageSelector } from "@/components/language-selector";
 import { useLanguage } from "@/components/language-provider";
+import { Suspense } from "react";
 
 export default function Home() {
   const heroImage = PlaceHolderImages.find((img) => img.id === "hero-concert");
@@ -100,7 +102,9 @@ export default function Home() {
             <div className="max-w-2xl mx-auto">
               <Card className="bg-secondary border-primary/20">
                 <CardContent className="p-6 md:p-8">
-                  <MembershipForm />
+                  <Suspense fallback={<div className="flex items-center justify-center p-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>}>
+                    <MembershipForm />
+                  </Suspense>
                 </CardContent>
               </Card>
             </div>
