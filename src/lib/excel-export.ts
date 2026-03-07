@@ -50,16 +50,6 @@ const formatForExcel = (data: Socio[]) => {
 export const exportToExcel = (members: Socio[], requests: Socio[]) => {
   const workbook = XLSX.utils.book_new();
 
-  // Sheet 1: Elenco Completo
-  const allSoci = [...members, ...requests];
-  const allSociSheetData = formatForExcel(allSoci);
-  const worksheetAll = XLSX.utils.json_to_sheet(allSociSheetData);
-  
-  // Sheet 2: Solo Nuovi Soci (Membri attivi senza data di rinnovo)
-  const newMembersOnly = members.filter(m => getStatus(m) === 'active' && !m.renewalDate);
-  const newMembersSheetData = formatForExcel(newMembersOnly);
-  const worksheetNew = XLSX.utils.json_to_sheet(newMembersSheetData);
-
   const fitToColumn = (data: any[]) => {
     if (data.length === 0) return [];
     const json = data;
@@ -70,12 +60,34 @@ export const exportToExcel = (members: Socio[], requests: Socio[]) => {
     }
     return widths;
   };
-  
-  worksheetAll['!cols'] = fitToColumn(allSociSheetData);
-  worksheetNew['!cols'] = fitToColumn(newMembersSheetData);
 
-  XLSX.utils.book_append_sheet(workbook, worksheetAll, 'Elenco Completo');
+  // 1. Soci Attivi
+  const activeMembers = members.filter(m => getStatus(m) === 'active');
+  const activeData = formatForExcel(activeMembers);
+  const worksheetActive = XLSX.utils.json_to_sheet(activeData);
+  worksheetActive['!cols'] = fitToColumn(activeData);
+  XLSX.utils.book_append_sheet(workbook, worksheetActive, 'Soci Attivi');
+
+  // 2. Nuovi Soci (Attivi senza rinnovo)
+  const newMembers = members.filter(m => getStatus(m) === 'active' && !m.renewalDate);
+  const newData = formatForExcel(newMembers);
+  const worksheetNew = XLSX.utils.json_to_sheet(newData);
+  worksheetNew['!cols'] = fitToColumn(newData);
   XLSX.utils.book_append_sheet(workbook, worksheetNew, 'Nuovi Soci');
+
+  // 3. Sospesi (Scaduti)
+  const expiredMembers = members.filter(m => getStatus(m) === 'expired');
+  const expiredData = formatForExcel(expiredMembers);
+  const worksheetExpired = XLSX.utils.json_to_sheet(expiredData);
+  worksheetExpired['!cols'] = fitToColumn(expiredData);
+  XLSX.utils.book_append_sheet(workbook, worksheetExpired, 'Sospesi');
+
+  // 4. Richieste (In attesa)
+  const pendingRequests = requests.filter(r => getStatus(r) === 'pending');
+  const requestsData = formatForExcel(pendingRequests);
+  const worksheetRequests = XLSX.utils.json_to_sheet(requestsData);
+  worksheetRequests['!cols'] = fitToColumn(requestsData);
+  XLSX.utils.book_append_sheet(workbook, worksheetRequests, 'Richieste');
 
   const today = formatDate(new Date(), 'dd.MM.yyyy');
   XLSX.writeFile(workbook, `ELENCO SOCI AL ${today}.xlsx`);
