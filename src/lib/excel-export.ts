@@ -21,21 +21,18 @@ const sortByTessera = (a: Socio, b: Socio) => {
   const partsA = a.tessera.split('-');
   const partsB = b.tessera.split('-');
   
-  // Formato previsto: GMC-YYYY-NNN
+  // Formato GMC-YYYY-NNN
   const yearA = parseInt(partsA[1], 10) || 0;
   const yearB = parseInt(partsB[1], 10) || 0;
   
-  if (yearA !== yearB) return yearB - yearA; // Gli anni più recenti per primi
+  if (yearA !== yearB) return yearB - yearA;
   
   const numA = parseInt(partsA[2], 10) || 0;
   const numB = parseInt(partsB[2], 10) || 0;
   
-  return numA - numB; // Numero progressivo crescente all'interno dello stesso anno
+  return numA - numB;
 };
 
-/**
- * Ordina le richieste per data di invio (dalla più recente).
- */
 const sortByRequestDate = (a: Socio, b: Socio) => {
   const dateA = a.requestDate ? new Date(a.requestDate).getTime() : 0;
   const dateB = b.requestDate ? new Date(b.requestDate).getTime() : 0;
@@ -66,17 +63,12 @@ const formatForExcel = (data: Socio[]) => {
       'CAP': socio.postalCode,
       'Email': socio.email || '',
       'Telefono': socio.phone || '',
-      'Consenso WhatsApp': socio.whatsappConsent ? 'SI' : 'NO',
-      'Consenso Privacy': socio.privacyConsent ? 'SI' : 'NO',
       'Data Richiesta': formatDate(socio.requestDate),
       'Data Ammissione': formatDate(socio.joinDate),
       'Data Rinnovo': formatDate(socio.renewalDate),
       'Data Scadenza': formatDate(socio.expirationDate),
       'Quota Versata (€)': socio.membershipFee || 0,
       'Qualifiche': socio.qualifica?.join(', ') || '',
-      'Cognome Tutore': socio.guardianLastName || '',
-      'Nome Tutore': socio.guardianFirstName || '',
-      'Data Nascita Tutore': socio.guardianBirthDate ? formatDate(socio.guardianBirthDate) : '',
       'Note': socio.notes || ''
     };
   });
@@ -95,37 +87,29 @@ export const exportToExcel = (members: Socio[], requests: Socio[]) => {
     return widths;
   };
 
-  // 1. Soci Attivi (Ordinati per Tessera)
-  const activeMembers = members
-    .filter(m => getStatus(m) === 'active')
-    .sort(sortByTessera);
+  // 1. Soci Attivi
+  const activeMembers = members.filter(m => getStatus(m) === 'active').sort(sortByTessera);
   const activeData = formatForExcel(activeMembers);
   const worksheetActive = XLSX.utils.json_to_sheet(activeData);
   worksheetActive['!cols'] = fitToColumn(activeData);
   XLSX.utils.book_append_sheet(workbook, worksheetActive, 'Soci Attivi');
 
-  // 2. Nuovi Soci (Ordinati per Tessera)
-  const newMembers = members
-    .filter(m => getStatus(m) === 'active' && !m.renewalDate)
-    .sort(sortByTessera);
+  // 2. Nuovi Soci
+  const newMembers = members.filter(m => getStatus(m) === 'active' && !m.renewalDate).sort(sortByTessera);
   const newData = formatForExcel(newMembers);
   const worksheetNew = XLSX.utils.json_to_sheet(newData);
   worksheetNew['!cols'] = fitToColumn(newData);
   XLSX.utils.book_append_sheet(workbook, worksheetNew, 'Nuovi Soci');
 
-  // 3. Sospesi (Ordinati per Tessera)
-  const expiredMembers = members
-    .filter(m => getStatus(m) === 'expired')
-    .sort(sortByTessera);
+  // 3. Sospesi (Scaduti)
+  const expiredMembers = members.filter(m => getStatus(m) === 'expired').sort(sortByTessera);
   const expiredData = formatForExcel(expiredMembers);
   const worksheetExpired = XLSX.utils.json_to_sheet(expiredData);
   worksheetExpired['!cols'] = fitToColumn(expiredData);
   XLSX.utils.book_append_sheet(workbook, worksheetExpired, 'Sospesi');
 
-  // 4. Richieste (In attesa - Ordinate per data richiesta)
-  const pendingRequests = requests
-    .filter(r => getStatus(r) === 'pending')
-    .sort(sortByRequestDate);
+  // 4. Richieste Pendenti
+  const pendingRequests = requests.filter(r => getStatus(r) === 'pending').sort(sortByRequestDate);
   const requestsData = formatForExcel(pendingRequests);
   const worksheetRequests = XLSX.utils.json_to_sheet(requestsData);
   worksheetRequests['!cols'] = fitToColumn(requestsData);

@@ -41,6 +41,7 @@ import { exportToExcel } from "@/lib/excel-export";
 import { importFromExcel, ImportResult } from "@/lib/excel-import";
 import { Label } from "@/components/ui/label";
 
+// Aumentato a 50 per facilitare la ricerca di soci con numeri alti
 const ITEMS_PER_PAGE = 50;
 const SECURITY_PASSWORD = "1978";
 
@@ -60,7 +61,11 @@ const filterAndSortData = (
           const fullName = getFullName(item).toLowerCase();
           const email = (item.email || '').toLowerCase();
           const tessera = (item.tessera || '').toLowerCase();
-          return fullName.includes(lowerCaseFilter) || email.includes(lowerCaseFilter) || tessera.includes(lowerCaseFilter);
+          const fiscalCode = (item.fiscalCode || '').toLowerCase();
+          return fullName.includes(lowerCaseFilter) || 
+                 email.includes(lowerCaseFilter) || 
+                 tessera.includes(lowerCaseFilter) ||
+                 fiscalCode.includes(lowerCaseFilter);
         });
     }
 
@@ -194,6 +199,7 @@ export default function ElencoClient() {
     const membersRef = collection(firestore, "members");
     const requestsRef = collection(firestore, "membership_requests");
 
+    // Sottoscrizione in tempo reale per i membri
     const unsubscribeMembers = onSnapshot(
       membersRef,
       (snapshot) => {
@@ -213,6 +219,7 @@ export default function ElencoClient() {
       }
     );
 
+    // Sottoscrizione in tempo reale per le richieste
     const unsubscribeRequests = onSnapshot(
       requestsRef,
       (snapshot) => {
@@ -242,9 +249,10 @@ export default function ElencoClient() {
 
     const applyFinalFilter = (data: Socio[]) => filterAndSortData(data, filter, sortConfig, activeTab);
     
-    const countActive = applyFinalFilter(allMembers.filter((s) => getStatus(s) === "active")).length;
-    const countExpired = applyFinalFilter(allMembers.filter((s) => getStatus(s) === "expired")).length;
-    const countRequests = applyFinalFilter(allRequests.filter((req) => getStatus(req) === "pending")).length;
+    // Conteggi basati sul filtro globale (per vedere quanti soci totali ci sono nelle tab)
+    const countActive = allMembers.filter((s) => getStatus(s) === "active").length;
+    const countExpired = allMembers.filter((s) => getStatus(s) === "expired").length;
+    const countRequests = allRequests.filter((req) => getStatus(req) === "pending").length;
 
     const counts = {
         active: countActive,
@@ -446,7 +454,7 @@ export default function ElencoClient() {
                 {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
                 Importa
             </Button>
-            <input type="file" hide="" ref={importFileRef} onChange={handleFileImport} className="hidden" accept=".xlsx, .xls"/>
+            <input type="file" ref={importFileRef} onChange={handleFileImport} className="hidden" accept=".xlsx, .xls"/>
             <Button asChild>
                 <Link href="/?from=admin#apply">
                 <UserPlus className="mr-2 h-4 w-4" />
@@ -503,7 +511,7 @@ export default function ElencoClient() {
                   <div className="relative flex-1">
                     <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Filtra per nome, tessera..."
+                      placeholder="Filtra per nome, tessera, CF..."
                       value={filter}
                       onChange={(event) => setFilter(event.target.value)}
                       className="pl-10 pr-10"

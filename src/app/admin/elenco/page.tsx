@@ -19,14 +19,14 @@ export default function ElencoPage() {
   const checkAdminStatus = useCallback(async () => {
     setIsCheckingAdmin(true);
     if (user && firestore) {
-        // Controllo primario: Email
+        // Controllo primario: Email predefinita
         const adminEmail = "garage.music.club2024@gmail.com";
         const emailMatch = user.email?.toLowerCase() === adminEmail.toLowerCase();
         
         if (emailMatch) {
             setIsAdmin(true);
         } else {
-            // Controllo secondario: Database roles_admin
+            // Controllo secondario: Ruolo salvato nel database
             try {
                 const adminRef = doc(firestore, "roles_admin", user.uid);
                 const adminSnap = await getDoc(adminRef);
