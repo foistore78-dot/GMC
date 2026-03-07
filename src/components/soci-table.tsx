@@ -431,7 +431,7 @@ const handleRenew = async () => {
       <TableRow className={cn(
         "text-xs sm:text-sm transition-all duration-300", 
         status === 'expired' && 'bg-yellow-500/10 hover:bg-yellow-500/20',
-        isRenewedMember && 'bg-indigo-500/5 hover:bg-indigo-500/10 border-l-[6px] border-l-indigo-400'
+        isRenewedMember && 'bg-indigo-500/5 hover:bg-indigo-500/10'
       )}>
         {activeTab !== 'requests' && (
             <>
