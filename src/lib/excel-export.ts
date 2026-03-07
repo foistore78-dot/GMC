@@ -1,3 +1,4 @@
+
 import * as XLSX from 'xlsx';
 import type { Socio } from './soci-data';
 import { getStatus, formatDate } from '@/components/soci-table';

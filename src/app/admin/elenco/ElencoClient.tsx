@@ -240,17 +240,6 @@ export default function ElencoClient() {
     const allMembers = membersData || [];
     const allRequests = requestsData || [];
 
-    const activeMembers = allMembers.filter((s) => getStatus(s) === "active");
-    const expiredMembers = allMembers.filter((s) => getStatus(s) === "expired");
-    const pendingRequests = allRequests.filter((req) => getStatus(req) === "pending");
-
-    const applyFilterAndSort = (data: Socio[]) => filterAndSortData(data, filter, sortConfig, activeTab);
-    
-    const filteredActive = applyFilterAndSort(activeMembers);
-    const filteredExpired = applyFilterAndSort(filteredExpired); // This was a mistake in the previous turn, fixed here to use local filtering correctly
-    const filteredRequests = applyFilterAndSort(pendingRequests);
-
-    // Correcting the above filtering logic within useMemo
     const applyFinalFilter = (data: Socio[]) => filterAndSortData(data, filter, sortConfig, activeTab);
     
     const countActive = applyFinalFilter(allMembers.filter((s) => getStatus(s) === "active")).length;
