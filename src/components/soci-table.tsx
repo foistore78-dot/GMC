@@ -59,8 +59,13 @@ import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 export const getFullName = (socio: any) => `${socio.lastName || ''} ${socio.firstName || ''}`.trim();
 
+/**
+ * Determina lo stato del socio in modo robusto.
+ * Se lo stato è 'active' o esiste una tessera, è un membro (attivo o scaduto).
+ * Altrimenti è una richiesta (pendente o rifiutata).
+ */
 export const getStatus = (socio: Socio): 'active' | 'pending' | 'rejected' | 'expired' => {
-    if (socio.tessera) {
+    if (socio.status === 'active' || socio.tessera) {
         return isSocioExpired(socio.expirationDate, socio.membershipYear) ? 'expired' : 'active';
     }
     return socio.status === 'rejected' ? 'rejected' : 'pending';
@@ -234,7 +239,7 @@ const SocioTableRow = ({
   const getNextMemberNumberForYear = useCallback((year: number) => {
       const yearMemberNumbers = allMembers
         .filter(m => m.membershipYear === String(year) && m.tessera)
-        .map(m => parseInt(m.tessera!.split('-')[2], 10))
+        .map(m => parseInt(m.tessera!.split('-').pop() || '0', 10))
         .filter(n => !isNaN(n));
       
       const maxNumber = yearMemberNumbers.length > 0 ? Math.max(...yearMemberNumbers) : 0;
@@ -393,7 +398,7 @@ const handleRenew = async () => {
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const tesseraDisplayDesktop = socio.tessera ? `${socio.tessera.split('-')[1]}-${socio.tessera.split('-')[2]}` : '-';
+  const tesseraDisplayDesktop = socio.tessera ? `${socio.tessera.split('-')[1] || ''}-${socio.tessera.split('-')[2] || ''}` : '-';
   const tesseraDisplayMobile = socio.tessera ? socio.tessera.split('-').pop() : '-';
 
   const contextualDate = useMemo(() => {

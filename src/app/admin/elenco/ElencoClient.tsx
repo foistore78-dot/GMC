@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
 import { collection, onSnapshot } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown, AlertTriangle, RefreshCw, Lock } from "lucide-react";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown, AlertTriangle, RefreshCw, Lock, X } from "lucide-react";
 
 import { SociTable, type SortConfig, getStatus, getFullName } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
@@ -41,7 +41,7 @@ import { exportToExcel } from "@/lib/excel-export";
 import { importFromExcel, ImportResult } from "@/lib/excel-import";
 import { Label } from "@/components/ui/label";
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 50;
 const SECURITY_PASSWORD = "1978";
 
 const filterAndSortData = (
@@ -134,7 +134,7 @@ const PaginationControls = ({
       <ChevronLeft className="mr-2 h-4 w-4" />
       Indietro
     </Button>
-    <span className="text-sm text-muted-foreground">
+    <span className="text-sm text-muted-foreground font-medium">
       Pagina {currentPage} di {Math.max(1, totalPages)}
     </span>
     <Button
@@ -163,7 +163,7 @@ export default function ElencoClient() {
   const initialFilter = searchParams.get("filter") || "";
 
   const [activeTab, setActiveTab] = useState(initialTab as 'active' | 'expired' | 'requests');
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "contextualDate", direction: "descending" });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "descending" });
   const [filter, setFilter] = useState(initialFilter);
   const [currentPage, setCurrentPage] = useState(1);
   
@@ -291,10 +291,8 @@ export default function ElencoClient() {
 
     if (tab === "requests") {
       setSortConfig({ key: "requestDate", direction: "descending" });
-    } else if (tab === 'expired') {
-      setSortConfig({ key: "contextualDate", direction: "ascending" });
-    } else { // active
-      setSortConfig({ key: "contextualDate", direction: "descending" });
+    } else {
+      setSortConfig({ key: "tessera", direction: "descending" });
     }
   };
 
@@ -448,7 +446,7 @@ export default function ElencoClient() {
                 {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
                 Importa
             </Button>
-            <input type="file" ref={importFileRef} onChange={handleFileImport} className="hidden" accept=".xlsx, .xls"/>
+            <input type="file" hide="" ref={importFileRef} onChange={handleFileImport} className="hidden" accept=".xlsx, .xls"/>
             <Button asChild>
                 <Link href="/?from=admin#apply">
                 <UserPlus className="mr-2 h-4 w-4" />
@@ -501,14 +499,24 @@ export default function ElencoClient() {
                   </TabsTrigger>
                 </TabsList>
                 
-                <div className="relative w-full sm:max-w-xs">
-                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Filtra per nome, tessera..."
-                    value={filter}
-                    onChange={(event) => setFilter(event.target.value)}
-                    className="pl-10"
-                  />
+                <div className="relative w-full sm:max-w-xs flex gap-2">
+                  <div className="relative flex-1">
+                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Filtra per nome, tessera..."
+                      value={filter}
+                      onChange={(event) => setFilter(event.target.value)}
+                      className="pl-10 pr-10"
+                    />
+                    {filter && (
+                      <button 
+                        onClick={() => setFilter("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -552,9 +560,13 @@ export default function ElencoClient() {
               </TabsContent>
             </Tabs>
 
-            {totalPages > 1 && (
+            {totalPages > 1 ? (
               <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
-            )}
+            ) : filter && paginatedData.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground">
+                Nessun socio trovato con il filtro &quot;{filter}&quot;.
+              </div>
+            ) : null}
           </>
         )}
       </div>
