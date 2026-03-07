@@ -45,7 +45,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer, MessageCircle, Building, Cake, Trash2, MoreVertical, Sparkles, MapPin, UserCheck, Info } from "lucide-react";
+import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer, MessageCircle, Building, Cake, Trash2, MoreVertical, Sparkles, MapPin, UserCheck, Info, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
@@ -55,6 +55,7 @@ import { useFirestore } from "@/firebase";
 import { doc, writeBatch, deleteDoc } from "firebase/firestore";
 import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
 import { Separator } from "./ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 export const getFullName = (socio: any) => `${socio.lastName || ''} ${socio.firstName || ''}`.trim();
 
@@ -191,6 +192,16 @@ const SocioTableRow = ({
   const status = getStatus(socio);
   const socioIsMinor = isMinor(socio.birthDate);
   const isRenewedMember = activeTab === 'active' && !!socio.renewalDate;
+
+  // Check for potential duplicates in the members list
+  const potentialDuplicate = useMemo(() => {
+    if (activeTab !== 'requests') return null;
+    return allMembers.find(m => 
+      m.firstName.toLowerCase().trim() === socio.firstName.toLowerCase().trim() &&
+      m.lastName.toLowerCase().trim() === socio.lastName.toLowerCase().trim() &&
+      m.birthDate === socio.birthDate
+    );
+  }, [allMembers, socio.firstName, socio.lastName, socio.birthDate, activeTab]);
 
   const resetApproveDialog = useCallback(() => {
     setShowApproveDialog(false);
@@ -620,6 +631,15 @@ const handleRenew = async () => {
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="grid gap-6 py-4">
+                                {potentialDuplicate && (
+                                  <Alert variant="destructive" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <AlertTitle>Possibile Duplicato!</AlertTitle>
+                                    <AlertDescription>
+                                      Un socio con lo stesso nome, cognome e data di nascita è già presente nell'elenco (Tessera: {potentialDuplicate.tessera || 'N/A'}).
+                                    </AlertDescription>
+                                  </Alert>
+                                )}
                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
                                     <Label htmlFor="membership-number-mob" className="sm:text-right">
                                         N. Tessera
@@ -789,6 +809,15 @@ const handleRenew = async () => {
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-6 py-4">
+                            {potentialDuplicate && (
+                              <Alert variant="destructive" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/30">
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertTitle>Possibile Duplicato!</AlertTitle>
+                                <AlertDescription>
+                                  Un socio con lo stesso nome, cognome e data di nascita è già presente (Tessera: {potentialDuplicate.tessera || 'N/A'}).
+                                </AlertDescription>
+                              </Alert>
+                            )}
                             <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
                                 <Label htmlFor="membership-number" className="sm:text-right">
                                     N. Tessera
