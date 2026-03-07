@@ -45,7 +45,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer, MessageCircle, Building, Cake, Trash2, MoreVertical, Sparkles } from "lucide-react";
+import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer, MessageCircle, Building, Cake, Trash2, MoreVertical, Sparkles, MapPin, UserCheck, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
@@ -54,6 +54,7 @@ import { Checkbox } from "./ui/checkbox";
 import { useFirestore } from "@/firebase";
 import { doc, writeBatch, deleteDoc } from "firebase/firestore";
 import { QUALIFICHE, isMinorCheck as isMinor } from "./edit-socio-form";
+import { Separator } from "./ui/separator";
 
 export const getFullName = (socio: any) => `${socio.lastName || ''} ${socio.firstName || ''}`.trim();
 
@@ -140,9 +141,9 @@ const DetailItem = ({ icon, label, value, className }: { icon?: React.ReactNode,
   return (
     <div className={cn("flex items-start gap-3", className)}>
       {icon && <div className="text-primary mt-1">{icon}</div>}
-      <div className="flex-1">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <div className="font-medium text-sm leading-tight">{value}</div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</p>
+        <div className="font-medium text-sm leading-tight break-words">{value}</div>
       </div>
     </div>
   );
@@ -244,7 +245,7 @@ const SocioTableRow = ({
         onSocioUpdate();
     } catch (error) {
         toast({
-            title: "Errore di Eliminazione",
+            title: "Errore di Approvazione",
             description: `Impossibile eliminare ${getFullName(socioToDelete)}. Dettagli: ${(error as Error).message}`,
             variant: "destructive",
         });
@@ -316,7 +317,7 @@ const SocioTableRow = ({
         membershipFee: approveMembershipFee,
         qualifica: approveQualifiche,
         requestDate: socio.requestDate || new Date().toISOString(),
-        notes: socio.notes || '', // Carry over existing notes from request
+        notes: socio.notes || '', 
     };
 
     batch.set(memberDocRef, newMemberData, { merge: true });
@@ -445,7 +446,106 @@ const handleRenew = async () => {
         )}
         <TableCell className="font-medium">
            <div className="flex items-center gap-3 flex-wrap">
-              <span className="transition-colors">{getFullName(socio)}</span>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <button className="text-left hover:text-primary transition-colors cursor-pointer group flex items-center gap-2">
+                    <span className="font-bold underline decoration-primary/30 group-hover:decoration-primary">{getFullName(socio)}</span>
+                    <Info className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader className="pb-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <DialogTitle className="text-2xl font-headline tracking-wide text-primary">
+                        {getFullName(socio)}
+                      </DialogTitle>
+                      <Badge className={cn(
+                        "capitalize",
+                        status === 'active' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 
+                        status === 'expired' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' : 
+                        'bg-orange-500/20 text-orange-400 border-orange-500/30'
+                      )}>
+                        {status === 'active' ? 'Attivo' : status === 'expired' ? 'Scaduto' : 'Richiesta'}
+                      </Badge>
+                    </div>
+                  </DialogHeader>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-2">
+                    {/* Anagrafica */}
+                    <div className="space-y-4">
+                      <h4 className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-widest border-b pb-1">
+                        <User className="h-4 w-4" /> Anagrafica
+                      </h4>
+                      <div className="grid grid-cols-1 gap-4">
+                        <DetailItem label="Data di Nascita" value={formatDate(socio.birthDate)} icon={<Cake className="h-4 w-4" />} />
+                        <DetailItem label="Luogo di Nascita" value={socio.birthPlace} icon={<MapPin className="h-4 w-4" />} />
+                        <DetailItem label="Codice Fiscale" value={socio.fiscalCode || 'Non inserito'} icon={<Hash className="h-4 w-4" />} />
+                        <DetailItem label="Genere" value={socio.gender === 'male' ? 'Maschio' : 'Femmina'} icon={<UserCheck className="h-4 w-4" />} />
+                      </div>
+                    </div>
+
+                    {/* Contatti e Residenza */}
+                    <div className="space-y-4">
+                      <h4 className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-widest border-b pb-1">
+                        <Phone className="h-4 w-4" /> Contatti e Residenza
+                      </h4>
+                      <div className="grid grid-cols-1 gap-4">
+                        <DetailItem label="Email" value={socio.email || 'Nessuna email'} icon={<Mail className="h-4 w-4" />} />
+                        <DetailItem label="Telefono" value={socio.phone || 'Nessun telefono'} icon={<Phone className="h-4 w-4" />} />
+                        <DetailItem label="Residenza" value={`${socio.address}, ${socio.postalCode} ${socio.city} (${socio.province})`} icon={<Home className="h-4 w-4" />} />
+                        <DetailItem label="Gruppo WhatsApp" value={socio.whatsappConsent ? 'Consenso fornito' : 'Consenso negato'} icon={<MessageCircle className="h-4 w-4" />} />
+                      </div>
+                    </div>
+
+                    {/* Tesseramento */}
+                    <div className="space-y-4">
+                      <h4 className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-widest border-b pb-1">
+                        <ShieldCheck className="h-4 w-4" /> Tesseramento
+                      </h4>
+                      <div className="grid grid-cols-1 gap-4">
+                        <DetailItem label="N. Tessera" value={socio.tessera || 'N/A'} icon={<Hash className="h-4 w-4" />} />
+                        <DetailItem label="Anno Associativo" value={socio.membershipYear || 'N/A'} icon={<Calendar className="h-4 w-4" />} />
+                        <DetailItem label="Data Ammissione" value={formatDate(socio.joinDate) || 'N/A'} icon={<CheckCircle className="h-4 w-4" />} />
+                        <DetailItem label="Ultimo Rinnovo" value={formatDate(socio.renewalDate) || 'Nessun rinnovo'} icon={<RefreshCw className="h-4 w-4" />} />
+                        <DetailItem label="Scadenza" value={formatDate(socio.expirationDate) || 'N/A'} icon={<FileLock2 className="h-4 w-4" />} />
+                        <DetailItem label="Quota Versata" value={formatCurrency(socio.membershipFee)} icon={<Euro className="h-4 w-4" />} />
+                      </div>
+                    </div>
+
+                    {/* Qualifiche e Note */}
+                    <div className="space-y-4">
+                      <h4 className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-widest border-b pb-1">
+                        <Award className="h-4 w-4" /> Qualifiche e Note
+                      </h4>
+                      <div className="grid grid-cols-1 gap-4">
+                        <DetailItem label="Qualifiche" value={socio.qualifica?.length ? (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {socio.qualifica.map(q => (
+                              <Badge key={q} variant="secondary" className="text-[10px] py-0">{q}</Badge>
+                            ))}
+                          </div>
+                        ) : 'Nessuna qualifica'} icon={<Award className="h-4 w-4" />} />
+                        
+                        {socioIsMinor && (
+                          <DetailItem label="Tutore Legale" value={`${socio.guardianFirstName} ${socio.guardianLastName}`} icon={<ShieldCheck className="h-4 w-4 text-yellow-500" />} />
+                        )}
+
+                        <DetailItem label="Note Amministrative" value={socio.notes || 'Nessuna nota'} icon={<StickyNote className="h-4 w-4" />} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <DialogFooter className="mt-6 border-t pt-4">
+                    <Button variant="outline" onClick={() => onPrint(socio)} className="gap-2">
+                      <Printer className="h-4 w-4" /> Stampa Scheda
+                    </Button>
+                    <Button onClick={() => onEdit(socio)} className="gap-2">
+                      <Pencil className="h-4 w-4" /> Modifica Dati
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
                  <div className="flex items-center gap-1">
                     {isRenewedMember && (
                       <Badge variant="outline" className="text-[9px] py-0 px-1 bg-indigo-400/10 text-indigo-300 border-indigo-400/30 font-bold tracking-tight uppercase">
