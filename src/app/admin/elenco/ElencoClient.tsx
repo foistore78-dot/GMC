@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
-import { collection, getDocs, QuerySnapshot, DocumentData } from "firebase/firestore";
+import { collection, onSnapshot, DocumentData, QuerySnapshot } from "firebase/firestore";
 import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown, AlertTriangle, RefreshCw } from "lucide-react";
 
 import { SociTable, type SortConfig, getStatus, getFullName } from "@/components/soci-table";
@@ -27,9 +27,8 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import type { Socio } from "@/lib/soci-data";
-import { useFirestore } from "@/firebase";
+import { useFirestore, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { Separator } from "@/components/ui/separator";
 import { exportToExcel } from "@/lib/excel-export";
 import { importFromExcel, ImportResult } from "@/lib/excel-import";
 
@@ -167,47 +166,61 @@ export default function ElencoClient() {
   const [error, setError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
 
-
-  const fetchData = useCallback(async () => {
+  useEffect(() => {
     if (!firestore) {
         setError("Servizio database non disponibile.");
         setIsDataLoading(false);
         return;
-    };
+    }
+
     setIsDataLoading(true);
     setError(null);
-    try {
-      const membersQuery = collection(firestore, "members");
-      const requestsQuery = collection(firestore, "membership_requests");
 
-      const [membersSnapshot, requestsSnapshot] = await Promise.all([
-        getDocs(membersQuery),
-        getDocs(requestsQuery),
-      ]).catch((err) => {
-        // This will catch permission errors or other issues with getDocs
-        throw new Error("Errore di permessi o di rete nel recuperare i dati da Firestore. Controlla le regole di sicurezza e la connessione.");
-      });
+    const membersRef = collection(firestore, "members");
+    const requestsRef = collection(firestore, "membership_requests");
 
-      const members = (membersSnapshot as QuerySnapshot<DocumentData>).docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
-      const requests = (requestsSnapshot as QuerySnapshot<DocumentData>).docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
+    // Sottoscrizione in tempo reale per i membri
+    const unsubscribeMembers = onSnapshot(
+      membersRef,
+      (snapshot) => {
+        const members = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
+        setMembersData(members);
+        setIsDataLoading(false);
+      },
+      (err) => {
+        console.error("Errore listener membri:", err);
+        const permissionError = new FirestorePermissionError({
+          path: membersRef.path,
+          operation: 'list'
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        setError("Permessi insufficienti per leggere l'elenco soci.");
+        setIsDataLoading(false);
+      }
+    );
 
-      setMembersData(members);
-      setRequestsData(requests);
-    } catch (e: any) {
-      setError(e.message || "Impossibile caricare i dati. Verifica la console per i dettagli.");
-      toast({
-        title: "Errore di Caricamento",
-        description: e.message || "Si è verificato un problema durante il recupero dei dati.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDataLoading(false);
-    }
-  }, [firestore, toast]);
-  
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    // Sottoscrizione in tempo reale per le richieste
+    const unsubscribeRequests = onSnapshot(
+      requestsRef,
+      (snapshot) => {
+        const requests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
+        setRequestsData(requests);
+      },
+      (err) => {
+        console.error("Errore listener richieste:", err);
+        const permissionError = new FirestorePermissionError({
+          path: requestsRef.path,
+          operation: 'list'
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      }
+    );
+
+    return () => {
+      unsubscribeMembers();
+      unsubscribeRequests();
+    };
+  }, [firestore]);
 
 
   const { paginatedData, totalPages, counts } = useMemo(() => {
@@ -278,10 +291,9 @@ export default function ElencoClient() {
 
   const handleSocioUpdate = useCallback(
     (switchToTab?: "active" | "expired" | "requests") => {
-      fetchData();
       if (switchToTab) setActiveTab(switchToTab);
     },
-    [fetchData]
+    []
   );
 
   const handlePrintCard = (socio: Socio) => {
@@ -294,7 +306,7 @@ export default function ElencoClient() {
 
     const printWindow = window.open("", "_blank", "height=800,width=800");
     if (!printWindow) {
-      alert("Please allow pop-ups for this website");
+      alert("Attiva i pop-up per questo sito per stampare la scheda.");
       return;
     }
 
@@ -372,7 +384,6 @@ export default function ElencoClient() {
             description: `${result.createdCount} nuovi soci creati. ${result.updatedTessere.length} soci aggiornati. Errori: ${result.errorCount}.`,
             duration: 5000,
         });
-        fetchData();
     } catch(error) {
         toast({
             title: "Errore di Importazione",
@@ -427,9 +438,9 @@ export default function ElencoClient() {
                 <p className="text-destructive font-semibold text-lg mb-2">Si è verificato un errore</p>
                 <p className="text-muted-foreground max-w-md">{error}</p>
             </div>
-            <Button onClick={fetchData} variant="outline">
+            <Button onClick={() => window.location.reload()} variant="outline">
                 <RefreshCw className="mr-2 h-4 w-4"/>
-                Tenta di nuovo
+                Ricarica Pagina
             </Button>
           </div>
         ) : (

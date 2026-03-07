@@ -1,3 +1,4 @@
+
 'use client'
 
 import { Suspense, useState, useCallback, useEffect } from "react";
@@ -8,27 +9,40 @@ import { Loader2 } from "lucide-react";
 import ElencoClient from "./ElencoClient";
 import { useFirebase } from "@/firebase";
 import { signOut } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function ElencoPage() {
-  const { auth, user, isUserLoading } = useFirebase();
+  const { auth, user, firestore, isUserLoading } = useFirebase();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
 
   const checkAdminStatus = useCallback(async () => {
     setIsCheckingAdmin(true);
-    if (user) {
-        // In a real app, you would check a custom claim or a document in Firestore.
-        // For this demo, we'll check if the email matches the admin email.
+    if (user && firestore) {
+        // Controllo primario: Email
         const adminEmail = "garage.music.club2024@gmail.com";
-        setIsAdmin(user.email === adminEmail);
+        const emailMatch = user.email?.toLowerCase() === adminEmail.toLowerCase();
+        
+        if (emailMatch) {
+            setIsAdmin(true);
+        } else {
+            // Controllo secondario: Database roles_admin
+            try {
+                const adminRef = doc(firestore, "roles_admin", user.uid);
+                const adminSnap = await getDoc(adminRef);
+                setIsAdmin(adminSnap.exists());
+            } catch (e) {
+                console.error("Errore verifica admin roles:", e);
+                setIsAdmin(false);
+            }
+        }
     } else {
         setIsAdmin(false);
     }
     setIsCheckingAdmin(false);
-  }, [user]);
+  }, [user, firestore]);
   
   useEffect(() => {
-    // Only run check when the user loading state is finalized
     if (!isUserLoading) {
       checkAdminStatus();
     }
@@ -38,8 +52,6 @@ export default function ElencoPage() {
   const handleLogout = useCallback(() => {
     if (auth) {
       signOut(auth);
-      // After sign-out, the AuthGuard will automatically take over.
-      // We also reset the local admin state.
       setIsAdmin(false);
     }
   }, [auth]);
@@ -52,7 +64,7 @@ export default function ElencoPage() {
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
             <div>
               <p className="font-semibold text-lg">Verifica in corso...</p>
-              <p className="text-muted-foreground">Connessione ai servizi Firebase.</p>
+              <p className="text-muted-foreground">Controllo permessi amministratore.</p>
             </div>
           </div>
         </div>

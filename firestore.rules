@@ -9,8 +9,9 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      // Controllo basato sull'email dell'amministratore del Garage Music Club
-      return request.auth.token.email == "garage.music.club2024@gmail.com";
+      // Controllo basato sull'email dell'amministratore o sulla presenza nella collezione roles_admin
+      return request.auth.token.email == "garage.music.club2024@gmail.com" || 
+             exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
     // ----------------------------------------------------------------------
@@ -35,11 +36,12 @@ service cloud.firestore {
     }
 
     /**
-     * @description Al momento non utilizzata per ruoli dinamici.
+     * @description Ruoli amministrativi basati su UID.
      * @path /roles_admin/{adminId}
      */
     match /roles_admin/{adminId} {
-      allow read, write: if false; 
+      allow read: if isSignedIn() && (request.auth.uid == adminId || isAdmin());
+      allow write: if false; // Solo gestione manuale da console per sicurezza
     }
   }
 }
