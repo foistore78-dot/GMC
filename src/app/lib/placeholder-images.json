@@ -1,0 +1,23 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "project-1",
+      "description": "Abstract design for Project Canvas",
+      "imageUrl": "https://picsum.photos/seed/pc1/600/400",
+      "imageHint": "abstract design"
+    },
+    {
+      "id": "project-2",
+      "description": "Data visualization representation",
+      "imageUrl": "https://picsum.photos/seed/pc2/600/400",
+      "imageHint": "data visualization"
+    },
+    {
+      "id": "project-3",
+      "description": "Modern workspace for planning",
+      "imageUrl": "https://picsum.photos/seed/pc3/600/400",
+      "imageHint": "modern workspace"
+    }
+  ]
+}
