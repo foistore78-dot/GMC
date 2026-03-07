@@ -49,7 +49,7 @@ const formatForExcel = (data: Socio[]) => {
     const tesseraNumber = tesseraNumberStr ? parseInt(tesseraNumberStr, 10) : undefined;
 
     return {
-      'NUOVO SOCIO': isNew ? 'SI (NUOVO)' : '', // Marker per distinguere i nuovi soci
+      'NUOVO SOCIO': isNew ? 'SI (NUOVO)' : (status === 'active' ? 'RINNOVO' : ''), 
       'Stato': statusTranslations[status] || status,
       'N. Tessera': isNaN(tesseraNumber!) ? '' : tesseraNumber,
       'Anno': socio.membershipYear || '',
