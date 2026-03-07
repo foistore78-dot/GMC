@@ -48,10 +48,18 @@ const formatForExcel = (data: Socio[]) => {
 };
 
 export const exportToExcel = (members: Socio[], requests: Socio[]) => {
+  const workbook = XLSX.utils.book_new();
+
+  // Sheet 1: Elenco Completo
   const allSoci = [...members, ...requests];
   const allSociSheetData = formatForExcel(allSoci);
-  const worksheet = XLSX.utils.json_to_sheet(allSociSheetData);
+  const worksheetAll = XLSX.utils.json_to_sheet(allSociSheetData);
   
+  // Sheet 2: Solo Nuovi Soci (Membri attivi senza data di rinnovo)
+  const newMembersOnly = members.filter(m => getStatus(m) === 'active' && !m.renewalDate);
+  const newMembersSheetData = formatForExcel(newMembersOnly);
+  const worksheetNew = XLSX.utils.json_to_sheet(newMembersSheetData);
+
   const fitToColumn = (data: any[]) => {
     if (data.length === 0) return [];
     const json = data;
@@ -63,10 +71,11 @@ export const exportToExcel = (members: Socio[], requests: Socio[]) => {
     return widths;
   };
   
-  worksheet['!cols'] = fitToColumn(allSociSheetData);
+  worksheetAll['!cols'] = fitToColumn(allSociSheetData);
+  worksheetNew['!cols'] = fitToColumn(newMembersSheetData);
 
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Elenco Completo Soci');
+  XLSX.utils.book_append_sheet(workbook, worksheetAll, 'Elenco Completo');
+  XLSX.utils.book_append_sheet(workbook, worksheetNew, 'Nuovi Soci');
 
   const today = formatDate(new Date(), 'dd.MM.yyyy');
   XLSX.writeFile(workbook, `ELENCO SOCI AL ${today}.xlsx`);
