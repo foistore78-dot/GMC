@@ -9,9 +9,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      // In a real app, this would check a custom claim or a document in a 'roles' collection.
-      // For this demo, we are checking the admin's specific email address.
-      // This is more secure than no check, but role-based access control is the best practice.
+      // Controllo basato sull'email dell'amministratore del Garage Music Club
       return request.auth.token.email == "garage.music.club2024@gmail.com";
     }
 
@@ -20,16 +18,16 @@ service cloud.firestore {
     // ----------------------------------------------------------------------
 
     /**
-     * @description Public can create membership requests. Admins can manage them.
+     * @description Pubblico può creare richieste di iscrizione. Gli admin le gestiscono.
      * @path /membership_requests/{membershipRequestId}
      */
     match /membership_requests/{membershipRequestId} {
-      allow create: if true; // Anyone can submit the form
+      allow create: if true; 
       allow read, update, delete: if isSignedIn() && isAdmin();
     }
 
     /**
-     * @description Admins can read and write to the members collection.
+     * @description Solo gli admin possono leggere e scrivere nella collezione soci.
      * @path /members/{memberId}
      */
     match /members/{memberId} {
@@ -37,7 +35,7 @@ service cloud.firestore {
     }
 
     /**
-     * @description Nobody can access this collection. It's not used.
+     * @description Al momento non utilizzata per ruoli dinamici.
      * @path /roles_admin/{adminId}
      */
     match /roles_admin/{adminId} {
