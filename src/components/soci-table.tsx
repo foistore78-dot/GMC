@@ -60,14 +60,18 @@ import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 export const getFullName = (socio: any) => `${socio.lastName || ''} ${socio.firstName || ''}`.trim();
 
 /**
- * Determina lo stato del socio in modo robusto.
+ * Determina lo stato del socio in modo infallibile.
  * Se il socio appartiene alla lista dei membri, DEVE essere active o expired.
  */
 export const getStatus = (socio: Socio, isFromMembersCollection: boolean = true): 'active' | 'pending' | 'rejected' | 'expired' => {
-    if (socio.status === 'rejected') return 'rejected';
+    // Se proviene dalla collezione members, ignoriamo lo stato salvato e ricalcoliamo in base alla scadenza
+    if (isFromMembersCollection) {
+        return isSocioExpired(socio.expirationDate, socio.membershipYear) ? 'expired' : 'active';
+    }
     
-    // Se proviene dalla collezione members, è un socio (attivo o scaduto)
-    if (isFromMembersCollection || socio.status === 'active' || socio.tessera) {
+    // Per la collezione delle richieste
+    if (socio.status === 'rejected') return 'rejected';
+    if (socio.status === 'active' || socio.tessera) {
         return isSocioExpired(socio.expirationDate, socio.membershipYear) ? 'expired' : 'active';
     }
     
@@ -242,7 +246,7 @@ const SocioTableRow = ({
   const getNextMemberNumberForYear = useCallback((year: number) => {
       const yearMemberNumbers = allMembers
         .filter(m => m.membershipYear === String(year) && m.tessera)
-        .map(m => parseInt(m.tessera!.split('-').pop() || '0', 10))
+        .map(m => parseInt(String(m.tessera!).split('-').pop() || '0', 10))
         .filter(n => !isNaN(n));
       
       const maxNumber = yearMemberNumbers.length > 0 ? Math.max(...yearMemberNumbers) : 0;
@@ -393,7 +397,7 @@ const handleRenew = async () => {
     const groupInviteLink = "https://chat.whatsapp.com/KKes4gzve7T8xET9OD3bm5";
     const message = `Ciao ${socio.firstName}! Benvenuto/a nel Garage Music Club. Questo è il link per unirti al nostro gruppo WhatsApp ufficiale e rimanere aggiornato su tutte le attività: ${groupInviteLink}`;
     
-    const cleanedPhone = socio.phone.replace(/\D/g, '');
+    const cleanedPhone = String(socio.phone).replace(/\D/g, '');
     const finalPhone = cleanedPhone.startsWith('39') ? cleanedPhone : `39${cleanedPhone}`;
 
     const whatsappUrl = `https://wa.me/${finalPhone}?text=${encodeURIComponent(message)}`;
@@ -401,8 +405,8 @@ const handleRenew = async () => {
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const tesseraDisplayDesktop = socio.tessera ? `${socio.tessera.split('-')[1] || ''}-${socio.tessera.split('-')[2] || ''}` : '-';
-  const tesseraDisplayMobile = socio.tessera ? socio.tessera.split('-').pop() : '-';
+  const tesseraDisplayDesktop = socio.tessera ? `${String(socio.tessera).split('-')[1] || ''}-${String(socio.tessera).split('-')[2] || ''}` : '-';
+  const tesseraDisplayMobile = socio.tessera ? String(socio.tessera).split('-').pop() : '-';
 
   const contextualDate = useMemo(() => {
     if (activeTab === 'active') return socio.renewalDate || socio.joinDate;

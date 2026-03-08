@@ -41,7 +41,6 @@ import { exportToExcel } from "@/lib/excel-export";
 import { importFromExcel, ImportResult } from "@/lib/excel-import";
 import { Label } from "@/components/ui/label";
 
-// Aumentato a 50 per facilitare la ricerca di soci con numeri alti
 const ITEMS_PER_PAGE = 50;
 const SECURITY_PASSWORD = "1978";
 
@@ -59,12 +58,13 @@ const filterAndSortData = (
       const lowerCaseFilter = searchFilter.toLowerCase();
       filteredData = filteredData.filter(item => {
           const fullName = getFullName(item).toLowerCase();
-          const email = (item.email || '').toLowerCase();
-          const tessera = (item.tessera || '').toLowerCase();
-          const fiscalCode = (item.fiscalCode || '').toLowerCase();
-          const city = (item.city || '').toLowerCase();
-          const address = (item.address || '').toLowerCase();
-          const phone = (item.phone || '').toLowerCase();
+          // Forziamo la conversione a stringa per evitare crash se il campo è un numero (es. Codice Fiscale numerico o tessera)
+          const email = String(item.email || '').toLowerCase();
+          const tessera = String(item.tessera || '').toLowerCase();
+          const fiscalCode = String(item.fiscalCode || '').toLowerCase();
+          const city = String(item.city || '').toLowerCase();
+          const address = String(item.address || '').toLowerCase();
+          const phone = String(item.phone || '').toLowerCase();
           
           return fullName.includes(lowerCaseFilter) || 
                  email.includes(lowerCaseFilter) || 
@@ -98,8 +98,8 @@ const filterAndSortData = (
           bVal = b.requestDate;
         }
       } else if (key === 'tessera') {
-        const numA = parseInt((a.tessera || '').split('-').pop() ?? '0', 10);
-        const numB = parseInt((b.tessera || '').split('-').pop() ?? '0', 10);
+        const numA = parseInt(String(a.tessera || '').split('-').pop() ?? '0', 10);
+        const numB = parseInt(String(b.tessera || '').split('-').pop() ?? '0', 10);
         if (numA < numB) return asc ? -1 : 1;
         if (numA > numB) return asc ? 1 : -1;
         return 0;
@@ -117,8 +117,8 @@ const filterAndSortData = (
         return 0;
       }
 
-      aVal = aVal ?? '';
-      bVal = bVal ?? '';
+      aVal = String(aVal ?? '');
+      bVal = String(bVal ?? '');
 
       if (typeof aVal === 'string' && typeof bVal === 'string') {
         return aVal.localeCompare(bVal) * (asc ? 1 : -1);
@@ -256,7 +256,7 @@ export default function ElencoClient() {
 
     const applyFinalFilter = (data: Socio[]) => filterAndSortData(data, filter, sortConfig, activeTab);
     
-    // Conteggi basati sul filtro globale (per vedere quanti soci totali ci sono nelle tab)
+    // Conteggi basati sul filtro globale
     const countActive = allMembers.filter((s) => getStatus(s, true) === "active").length;
     const countExpired = allMembers.filter((s) => getStatus(s, true) === "expired").length;
     const countRequests = allRequests.filter((req) => getStatus(req, false) === "pending").length;
