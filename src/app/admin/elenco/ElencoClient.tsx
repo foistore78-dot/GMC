@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useDeferredValue } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
@@ -175,6 +176,11 @@ export default function ElencoClient() {
   const [activeTab, setActiveTab] = useState(initialTab as 'active' | 'expired' | 'requests');
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "descending" });
   const [filter, setFilter] = useState(initialFilter);
+  
+  // Ottimizzazione: utilizzo di useDeferredValue per la ricerca
+  // Questo evita blocchi dell'interfaccia mentre l'utente digita
+  const deferredFilter = useDeferredValue(filter);
+  
   const [currentPage, setCurrentPage] = useState(1);
   
   const [showPrintDialog, setShowPrintDialog] = useState(false);
@@ -250,7 +256,8 @@ export default function ElencoClient() {
     const allMembers = membersData || [];
     const allRequests = requestsData || [];
 
-    const applyFinalFilter = (data: Socio[]) => filterAndSortData(data, filter, sortConfig, activeTab);
+    // Utilizzo deferredFilter per il calcolo pesante
+    const applyFinalFilter = (data: Socio[]) => filterAndSortData(data, deferredFilter, sortConfig, activeTab);
     
     const countActive = allMembers.filter((s) => getStatus(s, true) === "active").length;
     const countExpired = allMembers.filter((s) => getStatus(s, true) === "expired").length;
@@ -275,7 +282,7 @@ export default function ElencoClient() {
     const paginatedData = dataForTab.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     return { paginatedData, totalPages, counts };
-}, [membersData, requestsData, filter, activeTab, sortConfig, currentPage]);
+}, [membersData, requestsData, deferredFilter, activeTab, sortConfig, currentPage]);
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
@@ -574,7 +581,7 @@ export default function ElencoClient() {
 
             {totalPages > 1 ? (
               <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
-            ) : filter && paginatedData.length === 0 ? (
+            ) : (filter || deferredFilter) && paginatedData.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
                 Nessun socio trovato con il filtro &quot;{filter}&quot;.
               </div>

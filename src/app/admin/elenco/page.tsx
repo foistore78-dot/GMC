@@ -17,24 +17,31 @@ export default function ElencoPage() {
   const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
 
   const checkAdminStatus = useCallback(async () => {
-    setIsCheckingAdmin(true);
-    if (user && firestore) {
-        // Controllo primario: Email predefinita
-        const adminEmail = "garage.music.club2024@gmail.com";
-        const emailMatch = user.email?.toLowerCase() === adminEmail.toLowerCase();
-        
-        if (emailMatch) {
-            setIsAdmin(true);
-        } else {
-            // Controllo secondario: Ruolo salvato nel database
-            try {
-                const adminRef = doc(firestore, "roles_admin", user.uid);
-                const adminSnap = await getDoc(adminRef);
-                setIsAdmin(adminSnap.exists());
-            } catch (e) {
-                console.error("Errore verifica admin roles:", e);
-                setIsAdmin(false);
-            }
+    if (!user) {
+        setIsAdmin(false);
+        setIsCheckingAdmin(false);
+        return;
+    }
+
+    // Ottimizzazione: Controllo immediato dell'email senza attendere il DB
+    const adminEmail = "garage.music.club2024@gmail.com";
+    const emailMatch = user.email?.toLowerCase() === adminEmail.toLowerCase();
+    
+    if (emailMatch) {
+        setIsAdmin(true);
+        setIsCheckingAdmin(false);
+        return;
+    }
+
+    // Controllo secondario: Ruolo salvato nel database (solo se l'email non è quella principale)
+    if (firestore) {
+        try {
+            const adminRef = doc(firestore, "roles_admin", user.uid);
+            const adminSnap = await getDoc(adminRef);
+            setIsAdmin(adminSnap.exists());
+        } catch (e) {
+            console.error("Errore verifica admin roles:", e);
+            setIsAdmin(false);
         }
     } else {
         setIsAdmin(false);
