@@ -1,12 +1,11 @@
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
-import { collection, onSnapshot, writeBatch, doc } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown, AlertTriangle, RefreshCw, Lock, X, Sparkles, Wand2 } from "lucide-react";
+import { collection, onSnapshot } from "firebase/firestore";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown, AlertTriangle, RefreshCw, Lock, X } from "lucide-react";
 
 import { SociTable, type SortConfig, getStatus, getFullName } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
@@ -40,7 +39,6 @@ import { useToast } from "@/hooks/use-toast";
 import { exportToExcel } from "@/lib/excel-export";
 import { importFromExcel, ImportResult } from "@/lib/excel-import";
 import { Label } from "@/components/ui/label";
-import { normalizeSocioData } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 50;
 const SECURITY_PASSWORD = "1978";
@@ -187,12 +185,11 @@ export default function ElencoClient() {
   const [requestsData, setRequestsData] = useState<Socio[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
-  const [isNormalizing, setIsNormalizing] = useState(false);
 
   // Security Password States
   const [isSecurityDialogOpen, setIsSecurityDialogOpen] = useState(false);
   const [securityPasswordInput, setSecurityPasswordInput] = useState("");
-  const [pendingAction, setPendingAction] = useState<'import' | 'export' | 'normalize' | null>(null);
+  const [pendingAction, setPendingAction] = useState<'import' | 'export' | null>(null);
 
   useEffect(() => {
     if (!firestore) {
@@ -381,7 +378,7 @@ export default function ElencoClient() {
     }
   };
   
-  const initiateAction = (action: 'import' | 'export' | 'normalize') => {
+  const initiateAction = (action: 'import' | 'export') => {
     setPendingAction(action);
     setSecurityPasswordInput("");
     setIsSecurityDialogOpen(true);
@@ -397,8 +394,6 @@ export default function ElencoClient() {
         handleExport();
       } else if (action === 'import') {
         importFileRef.current?.click();
-      } else if (action === 'normalize') {
-        handleNormalizeDatabase();
       }
     } else {
       toast({
@@ -416,70 +411,6 @@ export default function ElencoClient() {
         description: "Il download del file Excel inizierà a breve."
     });
   }
-
-  const handleNormalizeDatabase = async () => {
-    if (!firestore || isNormalizing) return;
-    setIsNormalizing(true);
-    
-    const allData = [...membersData, ...requestsData];
-    let updatedCount = 0;
-    
-    try {
-      const batches = [];
-      let currentBatch = writeBatch(firestore);
-      let opCount = 0;
-
-      for (const socio of allData) {
-        const normalized = normalizeSocioData(socio);
-        
-        // Controlliamo se ci sono differenze reali per non fare update inutili
-        const hasChanges = Object.keys(normalized).some(key => {
-          if (Array.isArray(normalized[key])) {
-            return JSON.stringify(normalized[key]) !== JSON.stringify((socio as any)[key]);
-          }
-          return normalized[key] !== (socio as any)[key];
-        });
-
-        if (hasChanges) {
-          const colName = membersData.some(m => m.id === socio.id) ? 'members' : 'membership_requests';
-          const docRef = doc(firestore, colName, socio.id);
-          currentBatch.update(docRef, normalized);
-          opCount++;
-          updatedCount++;
-
-          if (opCount === 450) { // Limite Firestore è 500
-            batches.push(currentBatch);
-            currentBatch = writeBatch(firestore);
-            opCount = 0;
-          }
-        }
-      }
-
-      if (opCount > 0) batches.push(currentBatch);
-
-      if (batches.length === 0) {
-        toast({
-          title: "Database già pulito",
-          description: "Tutti i dati risultano già correttamente formattati.",
-        });
-      } else {
-        await Promise.all(batches.map(b => b.commit()));
-        toast({
-          title: "Normalizzazione Completata",
-          description: `Aggiornati correttamente ${updatedCount} soci.`,
-        });
-      }
-    } catch (err) {
-      console.error("Errore durante normalizzazione:", err);
-      toast({
-        title: "Errore Manutenzione",
-        description: "Si è verificato un problema durante l'aggiornamento dei dati.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsNormalizing(false);
-    }
-  };
 
   const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -519,10 +450,6 @@ export default function ElencoClient() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={() => initiateAction('normalize')} disabled={isDataLoading || isNormalizing} className="border-primary/30 hover:bg-primary/10">
-                {isNormalizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4 text-primary" />}
-                Normalizza Dati
-            </Button>
             <Button variant="outline" size="sm" onClick={() => initiateAction('export')} disabled={isDataLoading}>
                 <FileDown className="mr-2 h-4 w-4" />
                 Esporta
@@ -701,10 +628,7 @@ export default function ElencoClient() {
               Verifica di Sicurezza
             </DialogTitle>
             <DialogDescription>
-              {pendingAction === 'normalize' 
-                ? "Inserisci la password per avviare la normalizzazione automatica di tutti i nomi, città e codici fiscali nel database."
-                : `Inserisci la password di sicurezza per procedere con l'operazione di ${pendingAction === 'export' ? 'esportazione' : 'importazione'} dei dati.`
-              }
+              Inserisci la password di sicurezza per procedere con l'operazione di {pendingAction === 'export' ? 'esportazione' : 'importazione'} dei dati.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
