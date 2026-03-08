@@ -1,7 +1,7 @@
-
 import * as XLSX from 'xlsx';
 import type { Socio } from './soci-data';
 import { collection, writeBatch, Firestore, doc, getDocs, query, where } from 'firebase/firestore';
+import { normalizeSocioData } from './utils';
 
 const parseExcelDate = (excelDate: string | number | undefined): string | undefined => {
     if (typeof excelDate === 'number') {
@@ -74,7 +74,10 @@ const excelRowToSocio = (row: any): PartialSocioWithStatus => {
     
     Object.keys(socio).forEach(key => (socio as any)[key] === undefined && delete (socio as any)[key]);
 
-    return { ...socio, statusForImport };
+    // Normalizziamo i dati importati
+    const normalizedSocio = normalizeSocioData(socio);
+
+    return { ...normalizedSocio, statusForImport };
 };
 
 export interface ImportResult {
@@ -219,4 +222,3 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
     reader.readAsBinaryString(file);
   });
 };
-

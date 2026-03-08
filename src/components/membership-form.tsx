@@ -1,4 +1,3 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,6 +28,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useLanguage } from "./language-provider";
+import { normalizeSocioData } from "@/lib/utils";
 
 export function MembershipForm() {
   const { t, language } = useLanguage();
@@ -136,8 +136,12 @@ export function MembershipForm() {
       if (!firestore) {
         throw new Error("Firestore is not initialized");
       }
+
+      // Normalizzazione dati prima del salvataggio
+      const cleanedValues = normalizeSocioData(values);
+
       const membershipRequestData = {
-        ...values,
+        ...cleanedValues,
         requestDate: serverTimestamp(),
         status: 'pending',
       };

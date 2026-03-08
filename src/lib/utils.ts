@@ -48,3 +48,42 @@ export const isSocioExpired = (expirationDateInput: any, membershipYear?: string
     
     return expirationDate < today;
 };
+
+/**
+ * Normalizza una stringa in Title Case (Prima Lettera Maiuscola)
+ */
+export const toTitleCase = (str: string | undefined | null): string => {
+  if (!str) return '';
+  return str
+    .trim()
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
+/**
+ * Normalizza i dati di un socio (Nome, Cognome, Città, CF, etc.)
+ */
+export const normalizeSocioData = (data: any) => {
+  const normalized = { ...data };
+
+  // Campi da mettere in Title Case
+  const titleCaseFields = ['firstName', 'lastName', 'city', 'birthPlace', 'address', 'guardianFirstName', 'guardianLastName'];
+  titleCaseFields.forEach(field => {
+    if (normalized[field]) normalized[field] = toTitleCase(normalized[field]);
+  });
+
+  // Campi da mettere in Tutto Maiuscolo
+  const upperCaseFields = ['fiscalCode', 'province'];
+  upperCaseFields.forEach(field => {
+    if (normalized[field]) normalized[field] = String(normalized[field]).trim().toUpperCase();
+  });
+
+  // Email in tutto minuscolo
+  if (normalized.email) {
+    normalized.email = String(normalized.email).trim().toLowerCase();
+  }
+
+  return normalized;
+};

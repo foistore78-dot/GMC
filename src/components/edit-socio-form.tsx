@@ -1,4 +1,3 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,6 +27,7 @@ import { getFullName, formatDate, getStatus as getSocioStatus } from "./soci-tab
 import { Separator } from "./ui/separator";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
+import { normalizeSocioData } from "@/lib/utils";
 
 export const QUALIFICHE = ["FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
 
@@ -139,7 +139,10 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
 
     const originalStatus = getSocioStatus(socio);
     const newStatus = values.status;
-    const { status, ...dataToSave } = values;
+    
+    // Normalizzazione dati prima del salvataggio
+    const normalizedValues = normalizeSocioData(values);
+    const { status, ...dataToSave } = normalizedValues;
 
     const batch = writeBatch(firestore);
     let finalTab: 'active' | 'requests' | 'expired' | undefined;
@@ -225,7 +228,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
 
         toast({
             title: newStatus === 'rejected' ? "Richiesta Rifiutata" : "Socio aggiornato!",
-            description: `I dati di ${getFullName(values)} sono stati salvati.`,
+            description: `I dati di ${getFullName(normalizedValues)} sono stati salvati correttamente.`,
         });
         
         setIsSubmitting(false);
@@ -234,7 +237,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     } catch (error) {
         toast({
             title: "Errore durante l'aggiornamento",
-            description: `Impossibile salvare le modifiche per ${getFullName(values)}. Dettagli: ${(error as Error).message}`,
+            description: `Impossibile salvare le modifiche per ${getFullName(normalizedValues)}. Dettagli: ${(error as Error).message}`,
             variant: "destructive",
         });
         setIsSubmitting(false);
