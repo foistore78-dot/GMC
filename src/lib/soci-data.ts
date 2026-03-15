@@ -16,10 +16,6 @@ export type Socio = {
   requestDate?: string;
   expirationDate?: string;
   renewalDate?: string;
-  // This is the single source of truth for the member's current state.
-  // 'active' documents are in the 'members' collection.
-  // 'pending' and 'rejected' documents are in the 'membership_requests' collection.
-  // 'expired' is a derived status on the client for active members whose expirationDate is in the past.
   status?: 'pending' | 'active' | 'rejected' | 'expired';
   whatsappConsent: boolean;
   privacyConsent: boolean;
@@ -32,4 +28,13 @@ export type Socio = {
   membershipFee?: number;
   qualifica?: string[];
   tessera?: string;
+};
+
+export const QUALIFICHE = ["FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
+
+export const QUALIFICA_COLORS: Record<string, string> = {
+  "FONDATORE": "text-yellow-400",
+  "VOLONTARIO": "text-sky-400",
+  "MUSICISTA": "text-fuchsia-400",
+  "default": "text-gray-400",
 };

@@ -1,10 +1,8 @@
-
 "use client";
 
 import type { Socio } from "@/lib/soci-data";
 import { GarageMusicClubLogo } from "./icons/garage-music-club-logo";
-import { formatDate } from "./soci-table";
-import { isMinorCheck } from "@/lib/utils";
+import { isMinorCheck, formatDate } from "@/lib/utils";
 
 type SocioCardProps = {
   socio: Socio;
@@ -163,8 +161,6 @@ export function SocioCard({ socio }: SocioCardProps) {
         </tbody>
       </table>
 
-
-      {/* Title */}
       <div
         className="no-break"
         style={{
@@ -180,7 +176,6 @@ export function SocioCard({ socio }: SocioCardProps) {
         </h2>
       </div>
 
-      {/* Main Info (tabella 2 colonne) */}
       <table className="no-break" style={{ width: "100%", borderSpacing: 0, marginBottom: "20px" }}>
         <tbody>
           <tr>
@@ -224,7 +219,6 @@ export function SocioCard({ socio }: SocioCardProps) {
         </tbody>
       </table>
 
-      {/* Consents */}
       <div className="no-break" style={{ marginBottom: "15px" }}>
         <h3
           style={{
@@ -261,7 +255,6 @@ export function SocioCard({ socio }: SocioCardProps) {
         </div>
       </div>
 
-      {/* Signatures */}
       <table className="no-break" style={{ width: "100%", marginTop: "20px", marginBottom: "20px", fontSize: "12px" }}>
         <tbody>
           <tr>
@@ -271,7 +264,6 @@ export function SocioCard({ socio }: SocioCardProps) {
         </tbody>
       </table>
 
-      {/* Guardian Section (if minor) */}
       {isMinor && (
         <div className="no-break" style={{ marginTop: "15px", marginBottom: "20px" }}>
           <h3
@@ -309,7 +301,6 @@ export function SocioCard({ socio }: SocioCardProps) {
         </div>
       )}
 
-      {/* Association Box */}
       <div
         className="no-break"
         style={{
@@ -367,7 +358,6 @@ export function SocioCard({ socio }: SocioCardProps) {
         </table>
       </div>
       
-      {/* Notes Section */}
       {socio.notes && socio.notes.trim() !== "" && (
         <div className="no-break" style={{ marginTop: "15px" }}>
           <h3

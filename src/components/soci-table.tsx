@@ -1,8 +1,7 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, Dispatch, SetStateAction, useCallback } from "react";
-import type { Socio } from "@/lib/soci-data";
+import { Socio, QUALIFICHE, QUALIFICA_COLORS } from "@/lib/soci-data";
 import {
   Table,
   TableBody,
@@ -45,68 +44,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, HandHeart, Award, CircleDot, CheckCircle, Loader2, ArrowUpDown, FileLock2, ChevronLeft, ChevronRight, Printer, MessageCircle, Building, Cake, Trash2, MoreVertical, Sparkles, MapPin, UserCheck, Info, AlertTriangle } from "lucide-react";
-import { cn, parseDate, isMinorCheck as isMinor, isSocioExpired } from "@/lib/utils";
+import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, Award, CheckCircle, Loader2, ArrowUpDown, FileLock2, Printer, MessageCircle, Cake, Trash2, MoreVertical, MapPin, UserCheck, Info, AlertTriangle } from "lucide-react";
+import { cn, getFullName, getStatus, formatDate, formatCurrency, isMinorCheck as isMinor } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
 import { useFirestore } from "@/firebase";
 import { doc, writeBatch, deleteDoc } from "firebase/firestore";
-import { QUALIFICHE } from "./edit-socio-form";
-import { Separator } from "./ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
-
-export const getFullName = (socio: any) => `${socio.lastName || ''} ${socio.firstName || ''}`.trim();
-
-/**
- * Determina lo stato del socio in modo infallibile.
- * Se il socio appartiene alla lista dei membri, DEVE essere active o expired.
- */
-export const getStatus = (socio: Socio, isFromMembersCollection: boolean = true): 'active' | 'pending' | 'rejected' | 'expired' => {
-    // Se proviene dalla collezione members, ignoriamo lo stato salvato e ricalcoliamo in base alla scadenza
-    if (isFromMembersCollection) {
-        return isSocioExpired(socio.expirationDate, socio.membershipYear) ? 'expired' : 'active';
-    }
-    
-    // Per la collezione delle richieste
-    if (socio.status === 'rejected') return 'rejected';
-    if (socio.status === 'active' || socio.tessera) {
-        return isSocioExpired(socio.expirationDate, socio.membershipYear) ? 'expired' : 'active';
-    }
-    
-    return 'pending';
-};
-
-
-export const formatDate = (dateInput: any, outputFormat: string = 'dd/MM/yyyy') => {
-    const date = parseDate(dateInput);
-    if (!date) return '';
-
-    const d = date.getDate().toString().padStart(2, '0');
-    const m = (date.getMonth() + 1).toString().padStart(2, '0');
-    const y = date.getFullYear();
-
-    if (outputFormat === 'yyyy-MM-dd') {
-      return `${y}-${m}-${d}`;
-    }
-    
-    return `${d}/${m}/${y}`;
-};
-
-
-const formatCurrency = (value: number | undefined | null) => {
-    const number = value ?? 0;
-    return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(number);
-}
-
-const QUALIFICA_COLORS: Record<string, string> = {
-  "FONDATORE": "text-yellow-400",
-  "VOLONTARIO": "text-sky-400",
-  "MUSICISTA": "text-fuchsia-400",
-  "default": "text-gray-400",
-};
-
 
 const DetailItem = ({ icon, label, value, className }: { icon?: React.ReactNode, label: string, value?: string | number | null | React.ReactNode, className?: string }) => {
   if (!value && typeof value !== 'number' && typeof value !== 'object') return null;
@@ -120,7 +66,6 @@ const DetailItem = ({ icon, label, value, className }: { icon?: React.ReactNode,
     </div>
   );
 };
-
 
 const SocioTableRow = ({ 
   socio,
@@ -170,7 +115,6 @@ const SocioTableRow = ({
   const socioIsMinor = useMemo(() => isMinor(socio.birthDate), [socio.birthDate]);
   const isRenewedMember = activeTab === 'active' && !!socio.renewalDate;
 
-  // Controllo duplicati basato su Nome, Cognome e Data di Nascita
   const potentialDuplicate = useMemo(() => {
     if (activeTab !== 'requests') return null;
     return allMembers.find(m => 
@@ -253,7 +197,6 @@ const SocioTableRow = ({
       return maxNumber + 1;
   }, [allMembers]);
 
-
   useEffect(() => {
     if (showApproveDialog) {
       const currentYear = new Date().getFullYear();
@@ -278,7 +221,6 @@ const SocioTableRow = ({
       setRenewFeePaid(false);
     }
   }, [showRenewDialog, getNextMemberNumberForYear, socioIsMinor, socio.qualifica]);
-
 
   const handleApprove = async () => {
     if (!firestore || isApproving || !approveFeePaid) return;
@@ -377,7 +319,6 @@ const handleRenew = async () => {
     }
 };
 
-  
   const handleQualificaChange = (qualifica: string, checked: boolean, stateSetter: Dispatch<SetStateAction<string[]>>) => {
     stateSetter(prev => 
       checked ? [...prev, qualifica] : prev.filter(q => q !== qualifica)
@@ -401,7 +342,6 @@ const handleRenew = async () => {
     const finalPhone = cleanedPhone.startsWith('39') ? cleanedPhone : `39${cleanedPhone}`;
 
     const whatsappUrl = `https://wa.me/${finalPhone}?text=${encodeURIComponent(message)}`;
-    
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
@@ -792,7 +732,6 @@ const handleRenew = async () => {
   );
 };
 
-
 export type SortConfig = {
   key: keyof Socio | 'name' | 'tessera' | 'contextualDate';
   direction: 'ascending' | 'descending';
@@ -860,7 +799,6 @@ export const SociTable = ({
     if (activeTab === 'requests') return 'Richiesta';
     return 'Data';
   }, [activeTab]);
-
 
   return (
     <div>

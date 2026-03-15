@@ -21,28 +21,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Trash2 } from "lucide-react";
 import { useFirestore } from "@/firebase";
-import type { Socio } from "@/lib/soci-data";
+import { Socio, QUALIFICHE } from "@/lib/soci-data";
 import { Textarea } from "./ui/textarea";
-import { getFullName, formatDate, getStatus as getSocioStatus } from "./soci-table";
 import { Separator } from "./ui/separator";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
-import { normalizeSocioData } from "@/lib/utils";
-
-export const QUALIFICHE = ["FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
-
-export const isMinorCheck = (birthDate: string | undefined | Date): boolean => {
-  if (!birthDate) return false;
-  const date = new Date(birthDate);
-  if (isNaN(date.getTime())) return false;
-  const today = new Date();
-  let age = today.getFullYear() - date.getFullYear();
-  const m = today.getMonth() - date.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < date.getDate())) {
-      age--;
-  }
-  return age < 18;
-};
+import { normalizeSocioData, getFullName, formatDate, getStatus as getSocioStatus, isMinorCheck } from "@/lib/utils";
 
 const formSchema = z
   .object({
@@ -132,7 +116,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
   const isMinor = isMinorCheck(birthDateValue);
   const currentStatus = form.watch("status");
 
-
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!firestore) return;
     setIsSubmitting(true);
@@ -140,7 +123,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     const originalStatus = getSocioStatus(socio);
     const newStatus = values.status;
     
-    // Normalizzazione dati prima del salvataggio
     const normalizedValues = normalizeSocioData(values);
     const { status, ...dataToSave } = normalizedValues;
 
@@ -158,7 +140,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             finalTab = 'requests';
 
         } else if (originalStatus !== newStatus && !(originalStatus === 'expired' && newStatus === 'active')) {
-            if (newStatus === 'active') { // Moving from 'pending' to 'members'
+            if (newStatus === 'active') {
                 const oldDocRef = doc(firestore, 'membership_requests', socio.id);
                 const newDocRef = doc(firestore, 'members', socio.id);
                 
@@ -175,7 +157,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 batch.delete(oldDocRef);
                 finalTab = 'active';
 
-            } else if (newStatus === 'pending') { // Moving from 'active' or 'expired' to 'membership_requests'
+            } else if (newStatus === 'pending') {
                 const oldDocRef = doc(firestore, 'members', socio.id);
                 const newDocRef = doc(firestore, 'membership_requests', socio.id);
                 
@@ -184,9 +166,8 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                     ...dataToSave,
                     id: socio.id,
                     status: 'pending' as const,
-                    requestDate: socio.requestDate || new Date().toISOString(), // Keep original or set new
+                    requestDate: socio.requestDate || new Date().toISOString(),
                 };
-                // Remove member-specific fields
                 finalData.tessera = deleteField();
                 finalData.membershipFee = deleteField();
                 finalData.renewalDate = deleteField();
@@ -198,7 +179,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 finalTab = 'requests';
             }
         } else {
-            // Status has not changed collection-wise, just update the data
             const collectionName = (newStatus === 'active' || originalStatus === 'expired') ? 'members' : 'membership_requests';
             const docRef = doc(firestore, collectionName, socio.id);
             

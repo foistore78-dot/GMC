@@ -1,7 +1,6 @@
-
 import * as XLSX from 'xlsx';
 import type { Socio } from './soci-data';
-import { getStatus, formatDate } from '@/components/soci-table';
+import { getStatus, formatDate } from '@/lib/utils';
 
 const statusTranslations: Record<string, string> = {
   active: 'Attivo',
@@ -21,7 +20,6 @@ const sortByTessera = (a: Socio, b: Socio) => {
   const partsA = a.tessera.split('-');
   const partsB = b.tessera.split('-');
   
-  // Formato GMC-YYYY-NNN
   const yearA = parseInt(partsA[1], 10) || 0;
   const yearB = parseInt(partsB[1], 10) || 0;
   
@@ -87,28 +85,24 @@ export const exportToExcel = (members: Socio[], requests: Socio[]) => {
     return widths;
   };
 
-  // 1. Soci Attivi
   const activeMembers = members.filter(m => getStatus(m) === 'active').sort(sortByTessera);
   const activeData = formatForExcel(activeMembers);
   const worksheetActive = XLSX.utils.json_to_sheet(activeData);
   worksheetActive['!cols'] = fitToColumn(activeData);
   XLSX.utils.book_append_sheet(workbook, worksheetActive, 'Soci Attivi');
 
-  // 2. Nuovi Soci
   const newMembers = members.filter(m => getStatus(m) === 'active' && !m.renewalDate).sort(sortByTessera);
   const newData = formatForExcel(newMembers);
   const worksheetNew = XLSX.utils.json_to_sheet(newData);
   worksheetNew['!cols'] = fitToColumn(newData);
   XLSX.utils.book_append_sheet(workbook, worksheetNew, 'Nuovi Soci');
 
-  // 3. Sospesi (Scaduti)
   const expiredMembers = members.filter(m => getStatus(m) === 'expired').sort(sortByTessera);
   const expiredData = formatForExcel(expiredMembers);
   const worksheetExpired = XLSX.utils.json_to_sheet(expiredData);
   worksheetExpired['!cols'] = fitToColumn(expiredData);
   XLSX.utils.book_append_sheet(workbook, worksheetExpired, 'Sospesi');
 
-  // 4. Richieste Pendenti
   const pendingRequests = requests.filter(r => getStatus(r) === 'pending').sort(sortByRequestDate);
   const requestsData = formatForExcel(pendingRequests);
   const worksheetRequests = XLSX.utils.json_to_sheet(requestsData);

@@ -49,6 +49,39 @@ export const isSocioExpired = (expirationDateInput: any, membershipYear?: string
     return expirationDate < today;
 };
 
+export const getFullName = (socio: any) => `${socio.lastName || ''} ${socio.firstName || ''}`.trim();
+
+export const getStatus = (socio: any, isFromMembersCollection: boolean = true): 'active' | 'pending' | 'rejected' | 'expired' => {
+    if (isFromMembersCollection) {
+        return isSocioExpired(socio.expirationDate, socio.membershipYear) ? 'expired' : 'active';
+    }
+    if (socio.status === 'rejected') return 'rejected';
+    if (socio.status === 'active' || socio.tessera) {
+        return isSocioExpired(socio.expirationDate, socio.membershipYear) ? 'expired' : 'active';
+    }
+    return 'pending';
+};
+
+export const formatDate = (dateInput: any, outputFormat: string = 'dd/MM/yyyy') => {
+    const date = parseDate(dateInput);
+    if (!date) return '';
+
+    const d = date.getDate().toString().padStart(2, '0');
+    const m = (date.getMonth() + 1).toString().padStart(2, '0');
+    const y = date.getFullYear();
+
+    if (outputFormat === 'yyyy-MM-dd') {
+      return `${y}-${m}-${d}`;
+    }
+    
+    return `${d}/${m}/${y}`;
+};
+
+export const formatCurrency = (value: number | undefined | null) => {
+    const number = value ?? 0;
+    return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(number);
+}
+
 /**
  * Normalizza una stringa in Title Case (Prima Lettera Maiuscola)
  */
@@ -68,19 +101,16 @@ export const toTitleCase = (str: string | undefined | null): string => {
 export const normalizeSocioData = (data: any) => {
   const normalized = { ...data };
 
-  // Campi da mettere in Title Case
   const titleCaseFields = ['firstName', 'lastName', 'city', 'birthPlace', 'address', 'guardianFirstName', 'guardianLastName'];
   titleCaseFields.forEach(field => {
     if (normalized[field]) normalized[field] = toTitleCase(normalized[field]);
   });
 
-  // Campi da mettere in Tutto Maiuscolo
   const upperCaseFields = ['fiscalCode', 'province'];
   upperCaseFields.forEach(field => {
     if (normalized[field]) normalized[field] = String(normalized[field]).trim().toUpperCase();
   });
 
-  // Email in tutto minuscolo
   if (normalized.email) {
     normalized.email = String(normalized.email).trim().toLowerCase();
   }
