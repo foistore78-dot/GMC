@@ -5,7 +5,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Socio",
       "type": "object",
-      "description": "Represents a member of the Garage Music Club.",
+      "description": "Rappresenta un socio del Garage Music Club.",
       "properties": {
         "id": { "type": "string" },
         "gender": { "type": "string", "enum": ["male", "female"] },
@@ -36,7 +36,8 @@
           "type": "array",
           "items": { "type": "string", "enum": ["FONDATORE", "VOLONTARIO", "MUSICISTA"] }
         },
-        "tessera": { "type": "string" }
+        "tessera": { "type": "string" },
+        "requestDate": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "firstName", "lastName"]
     },
@@ -44,46 +45,43 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "AppConfig",
       "type": "object",
-      "description": "Global application settings like WhatsApp invite links.",
+      "description": "Impostazioni globali come i link WhatsApp.",
       "properties": {
         "whatsAppInviteLink1": { "type": "string", "format": "uri" },
         "whatsAppInviteLink2": { "type": "string", "format": "uri" }
       }
+    },
+    "Amministratore": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Amministratore",
+      "type": "object",
+      "description": "Ruolo amministrativo.",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string", "format": "email" }
+      },
+      "required": ["id", "email"]
     }
   },
   "auth": {
     "providers": ["password"]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/membership_requests/{requestId}",
-        "definition": {
-          "entityName": "RichiestaIscrizione",
-          "description": "Public membership requests."
-        }
-      },
-      {
-        "path": "/members/{memberId}",
-        "definition": {
-          "entityName": "Socio",
-          "description": "Secure member records."
-        }
-      },
-      {
-        "path": "/settings/{configId}",
-        "definition": {
-          "entityName": "AppConfig",
-          "description": "Application configuration."
-        }
-      },
-      {
-        "path": "/roles_admin/{adminId}",
-        "definition": {
-          "entityName": "Amministratore",
-          "description": "Admin roles by UID."
-        }
-      }
-    ]
+    "/membership_requests/{requestId}": {
+      "schema": { "$ref": "#/backend/entities/Socio" },
+      "description": "Richieste pubbliche di iscrizione."
+    },
+    "/members/{memberId}": {
+      "schema": { "$ref": "#/backend/entities/Socio" },
+      "description": "Record sicuri dei soci."
+    },
+    "/settings/{configId}": {
+      "schema": { "$ref": "#/backend/entities/AppConfig" },
+      "description": "Configurazioni applicazione."
+    },
+    "/roles_admin/{adminId}": {
+      "schema": { "$ref": "#/backend/entities/Amministratore" },
+      "description": "Ruoli admin per UID."
+    }
   }
 }
