@@ -22,12 +22,13 @@ const Field = ({ label, placeholder, defaultValue, className, style }: { label: 
   </div>
 );
 
-const Checkbox = ({ label, defaultChecked, className }: { label: string; defaultChecked?: boolean; className?: string }) => (
-  <div className={`flex items-start gap-2 mb-2 cursor-pointer ${className}`}>
+const Checkbox = ({ label, defaultChecked, className, disabled }: { label: string; defaultChecked?: boolean; className?: string; disabled?: boolean }) => (
+  <div className={`flex items-start gap-2 mb-2 ${disabled ? "" : "cursor-pointer"} ${className}`}>
     <input 
       type="checkbox" 
       defaultChecked={defaultChecked}
-      className="w-4 h-4 border border-black mt-0.5 flex-shrink-0 cursor-pointer" 
+      disabled={disabled}
+      className={`w-4 h-4 border border-black mt-0.5 flex-shrink-0 ${disabled ? "cursor-default opacity-80" : "cursor-pointer"}`} 
     />
     <div style={{ fontSize: "10px", lineHeight: "1.4" }}>
       <b>{label}</b>
@@ -149,7 +150,11 @@ export default function ModuloOfflinePage() {
             
             <Checkbox label="Consenso WhatsApp: Acconsente all'inserimento del proprio numero di telefono nel gruppo WhatsApp dell'associazione per comunicazioni relative alle attività." />
             
-            <Checkbox defaultChecked={true} label="Consenso Privacy (Art. 13 GDPR): Dichiara di aver ricevuto, letto e compreso l'informativa sul trattamento dei dati personali e acconsente al trattamento dei propri dati personali per le finalità associative (Obbligatorio per l'ammissione)." />
+            <Checkbox 
+              defaultChecked={true} 
+              disabled={true}
+              label="Consenso Privacy (Art. 13 GDPR): Dichiara di aver ricevuto, letto e compreso l'informativa sul trattamento dei dati personali e acconsente al trattamento dei propri dati personali per le finalità associative (Obbligatorio per l'ammissione)." 
+            />
           </div>
         </div>
 
