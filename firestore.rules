@@ -1,47 +1,99 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    /**
+     * Project Canvas Security Rules
+     * 
+     * Core Philosophy: 
+     * This ruleset implements a strict User-Ownership model. Access to data is partitioned by 
+     * the Firebase Authentication UID, ensuring that users can only interact with their own 
+     * profile and their own nested project data.
+     * 
+     * Data Structure:
+     * The hierarchy is strictly user-centric: /users/{userId} contains profile info, and 
+     * /users/{userId}/projects/{projectId} contains the user's projects.
+     * 
+     * Key Security Decisions:
+     * - Authorization Independence: Project documents include a denormalized 'userId' field 
+     *   to allow for fast, non-recursive security checks.
+     * - Structural Segregation: By nesting projects under the user's path, we leverage 
+     *   "Query-As-Permissions," naturally restricting list operations to the owner's scope.
+     * - Prototyping Flexibility: While ownership and relational integrity (linking a 
+     *   document to the correct path) are strictly enforced, the internal schema of 
+     *   content fields (like project names or WhatsApp links) remains flexible for rapid iteration.
+     * 
+     * Denormalization for Authorization:
+     * To avoid expensive get() calls, the 'userId' is required on Project documents. 
+     * This allows the rules to verify ownership directly using the path and the 
+     * document's own data.
+     */
+
+    // --- Global Helper Functions ---
+
+    /** @description Checks if the request is from an authenticated user. */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      // Controllo basato sull'email dell'amministratore o sulla presenza nella collezione roles_admin
-      return request.auth.token.email == "garage.music.club2024@gmail.com" || 
-             exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    /** @description Checks if the authenticated user matches the provided userId. */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    // ----------------------------------------------------------------------
-    // Collection Rules
-    // ----------------------------------------------------------------------
-
-    /**
-     * @description Pubblico può creare richieste di iscrizione. Gli admin le gestiscono.
-     * @path /membership_requests/{membershipRequestId}
-     */
-    match /membership_requests/{membershipRequestId} {
-      allow create: if true; 
-      allow read, update, delete: if isSignedIn() && isAdmin();
+    /** @description Combined check for ownership and document existence for state changes. */
+    function isExistingOwner(userId) {
+      return resource != null && isOwner(userId);
     }
 
-    /**
-     * @description Solo gli admin possono leggere e scrivere nella collezione soci.
-     * @path /members/{memberId}
-     */
-    match /members/{memberId} {
-      allow read, write: if isSignedIn() && isAdmin();
-    }
+    // --- Collection Rules ---
 
     /**
-     * @description Ruoli amministrativi basati su UID.
-     * @path /roles_admin/{adminId}
+     * @description Rules for individual User profile documents.
+     * @path /users/{userId}
+     * @allow (create) User 'abc' creating /users/abc
+     * @deny (create) User 'abc' creating /users/xyz
+     * @principle Self-creation and ownership for root user documents.
      */
-    match /roles_admin/{adminId} {
-      allow read: if isSignedIn() && (request.auth.uid == adminId || isAdmin());
-      allow write: if false; // Solo gestione manuale da console per sicurezza
+    match /users/{userId} {
+      allow get, list: if isOwner(userId);
+      
+      allow create: if isOwner(userId) 
+        && request.resource.data.id == userId;
+      
+      allow update: if isExistingOwner(userId) 
+        && request.resource.data.id == resource.data.id;
+      
+      allow delete: if isExistingOwner(userId);
+
+      /**
+       * @description Rules for Projects nested under a User.
+       * @path /users/{userId}/projects/{projectId}
+       * @allow (update) User 'abc' updating their own project with new WhatsApp links.
+       * @deny (list) User 'abc' trying to list projects at /users/xyz/projects.
+       * @principle Hierarchical ownership and relational integrity enforcement.
+       */
+      match /projects/{projectId} {
+        allow get, list: if isOwner(userId);
+
+        allow create: if isOwner(userId) 
+          && request.resource.data.userId == userId;
+
+        allow update: if isExistingOwner(userId) 
+          && request.resource.data.userId == resource.data.userId;
+
+        allow delete: if isExistingOwner(userId);
+      }
     }
   }
 }
+
+/** 
+ * SUMMARY OF COMPLIANCE:
+ * 1. WhatsApp Links: Modified via the 'update' rule on the Project document. Only the owner can change them.
+ * 2. Ownership: All paths are secured using the isOwner(userId) pattern.
+ * 3. Prototyping Mode: Data types for 'whatsAppInviteLink1' and 'whatsAppInviteLink2' are not 
+ *    strictly validated to allow for flexible development, but the write access is strictly authorized.
+ * 4. Relational Integrity: The 'userId' field in Project data must match the path's {userId} on creation 
+ *    and remain immutable on update.
+ */
