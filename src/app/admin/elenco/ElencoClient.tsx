@@ -8,7 +8,7 @@ import { createRoot } from "react-dom/client";
 import { collection, onSnapshot } from "firebase/firestore";
 import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown, AlertTriangle, RefreshCw, Lock, X, FileText } from "lucide-react";
 
-import { SociTable, type SortConfig, getStatus, getFullName } from "@/components/soci-table";
+import { SociTable, type SortConfig } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
 import { SocioCard } from "@/components/socio-card";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,7 @@ import { useToast } from "@/hooks/use-toast";
 import { exportToExcel } from "@/lib/excel-export";
 import { importFromExcel, ImportResult } from "@/lib/excel-import";
 import { Label } from "@/components/ui/label";
+import { getStatus, getFullName } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 50;
 const SECURITY_PASSWORD = "1978";
@@ -471,7 +472,7 @@ export default function ElencoClient() {
                 {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
                 Importa
             </Button>
-            <input type="file" handleFileImport onChange={handleFileImport} ref={importFileRef} className="hidden" accept=".xlsx, .xls"/>
+            <input type="file" onChange={handleFileImport} ref={importFileRef} className="hidden" accept=".xlsx, .xls"/>
             <Button asChild size="sm" className="bg-primary hover:bg-primary/90">
                 <Link href="/?from=admin#apply">
                 <UserPlus className="mr-2 h-4 w-4" />
