@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
 import { collection, onSnapshot } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown, AlertTriangle, RefreshCw, Lock, X, FileText } from "lucide-react";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown, AlertTriangle, RefreshCw, Lock, X } from "lucide-react";
 
 import { SociTable, type SortConfig } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
@@ -178,8 +178,6 @@ export default function ElencoClient() {
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "descending" });
   const [filter, setFilter] = useState(initialFilter);
   
-  // Ottimizzazione: utilizzo di useDeferredValue per la ricerca
-  // Questo evita blocchi dell'interfaccia mentre l'utente digita
   const deferredFilter = useDeferredValue(filter);
   
   const [currentPage, setCurrentPage] = useState(1);
@@ -193,7 +191,6 @@ export default function ElencoClient() {
   const [error, setError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
 
-  // Security Password States
   const [isSecurityDialogOpen, setIsSecurityDialogOpen] = useState(false);
   const [securityPasswordInput, setSecurityPasswordInput] = useState("");
   const [pendingAction, setPendingAction] = useState<'import' | 'export' | null>(null);
@@ -257,7 +254,6 @@ export default function ElencoClient() {
     const allMembers = membersData || [];
     const allRequests = requestsData || [];
 
-    // Utilizzo deferredFilter per il calcolo pesante
     const applyFinalFilter = (data: Socio[]) => filterAndSortData(data, deferredFilter, sortConfig, activeTab);
     
     const countActive = allMembers.filter((s) => getStatus(s, true) === "active").length;
@@ -458,12 +454,6 @@ export default function ElencoClient() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" asChild>
-                <Link href="/admin/modulo-offline">
-                  <FileText className="mr-2 h-4 w-4" />
-                  Modulo Offline
-                </Link>
-            </Button>
             <Button variant="outline" size="sm" onClick={() => initiateAction('export')} disabled={isDataLoading}>
                 <FileDown className="mr-2 h-4 w-4" />
                 Esporta
@@ -633,7 +623,6 @@ export default function ElencoClient() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Security Password Dialog */}
       <Dialog open={isSecurityDialogOpen} onOpenChange={setIsSecurityDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
