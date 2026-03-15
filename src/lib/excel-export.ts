@@ -37,15 +37,15 @@ const sortByRequestDate = (a: Socio, b: Socio) => {
   return dateB - dateA;
 };
 
-const formatForExcel = (data: Socio[]) => {
+const formatForExcel = (data: Socio[], isFromMembersCollection: boolean) => {
   return data.map(socio => {
-    const status = getStatus(socio);
-    const isNew = status === 'active' && !socio.renewalDate;
+    const status = getStatus(socio, isFromMembersCollection);
+    const isNew = isFromMembersCollection && status === 'active' && !socio.renewalDate;
     const tesseraNumberStr = socio.tessera ? socio.tessera.split('-').pop() || '' : '';
     const tesseraNumber = tesseraNumberStr ? parseInt(tesseraNumberStr, 10) : undefined;
 
     return {
-      'NUOVO SOCIO': isNew ? 'SI (NUOVO)' : (status === 'active' ? 'RINNOVO' : ''), 
+      'NUOVO SOCIO': isNew ? 'SI (NUOVO)' : (isFromMembersCollection && status === 'active' ? 'RINNOVO' : (isFromMembersCollection ? '' : 'RICHIESTA')), 
       'Stato': statusTranslations[status] || status,
       'N. Tessera': isNaN(tesseraNumber!) ? '' : tesseraNumber,
       'Anno': socio.membershipYear || '',
@@ -85,26 +85,26 @@ export const exportToExcel = (members: Socio[], requests: Socio[]) => {
     return widths;
   };
 
-  const activeMembers = members.filter(m => getStatus(m) === 'active').sort(sortByTessera);
-  const activeData = formatForExcel(activeMembers);
+  const activeMembers = members.filter(m => getStatus(m, true) === 'active').sort(sortByTessera);
+  const activeData = formatForExcel(activeMembers, true);
   const worksheetActive = XLSX.utils.json_to_sheet(activeData);
   worksheetActive['!cols'] = fitToColumn(activeData);
   XLSX.utils.book_append_sheet(workbook, worksheetActive, 'Soci Attivi');
 
-  const newMembers = members.filter(m => getStatus(m) === 'active' && !m.renewalDate).sort(sortByTessera);
-  const newData = formatForExcel(newMembers);
+  const newMembers = members.filter(m => getStatus(m, true) === 'active' && !m.renewalDate).sort(sortByTessera);
+  const newData = formatForExcel(newMembers, true);
   const worksheetNew = XLSX.utils.json_to_sheet(newData);
   worksheetNew['!cols'] = fitToColumn(newData);
   XLSX.utils.book_append_sheet(workbook, worksheetNew, 'Nuovi Soci');
 
-  const expiredMembers = members.filter(m => getStatus(m) === 'expired').sort(sortByTessera);
-  const expiredData = formatForExcel(expiredMembers);
+  const expiredMembers = members.filter(m => getStatus(m, true) === 'expired').sort(sortByTessera);
+  const expiredData = formatForExcel(expiredMembers, true);
   const worksheetExpired = XLSX.utils.json_to_sheet(expiredData);
   worksheetExpired['!cols'] = fitToColumn(expiredData);
   XLSX.utils.book_append_sheet(workbook, worksheetExpired, 'Sospesi');
 
-  const pendingRequests = requests.filter(r => getStatus(r) === 'pending').sort(sortByRequestDate);
-  const requestsData = formatForExcel(pendingRequests);
+  const pendingRequests = requests.filter(r => getStatus(r, false) === 'pending').sort(sortByRequestDate);
+  const requestsData = formatForExcel(pendingRequests, false);
   const worksheetRequests = XLSX.utils.json_to_sheet(requestsData);
   worksheetRequests['!cols'] = fitToColumn(requestsData);
   XLSX.utils.book_append_sheet(workbook, worksheetRequests, 'Richieste');
