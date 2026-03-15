@@ -241,8 +241,8 @@ export default function SettingsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="p-4 bg-primary/10 rounded-lg border border-primary/20 mb-4 text-sm text-primary-foreground/80">
-                  <AlertCircle className="w-5 h-5 shrink-0 inline mr-2 mb-1" />
+                <div className="p-4 bg-primary/10 rounded-lg border border-primary/20 mb-4 text-sm text-foreground/90">
+                  <AlertCircle className="w-5 h-5 shrink-0 inline mr-2 mb-1 text-primary" />
                   Assicurati che il file Excel segua il formato corretto per evitare errori di importazione.
                 </div>
                 <input type="file" onChange={handleFileImport} ref={importFileRef} className="hidden" accept=".xlsx, .xls"/>
@@ -258,8 +258,8 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <div className="p-4 bg-primary/10 rounded-lg border border-primary/20 flex gap-3 text-sm text-primary-foreground/80">
-              <AlertCircle className="w-5 h-5 shrink-0" />
+            <div className="p-4 bg-primary/10 rounded-lg border border-primary/20 flex gap-3 text-sm text-foreground/90">
+              <AlertCircle className="w-5 h-5 shrink-0 text-primary" />
               <p>
                 Queste impostazioni sono riservate agli amministratori. I cambiamenti avranno effetto immediato su tutte le funzionalità dell'app.
               </p>
