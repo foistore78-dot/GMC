@@ -7,22 +7,23 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, Printer } from "lucide-react";
 import Link from "next/link";
 
-const Field = ({ label, placeholder, className }: { label: string; placeholder?: string; className?: string }) => (
-  <div className={`w-full ${className}`}>
+const Field = ({ label, placeholder, defaultValue, className, style }: { label: string; placeholder?: string; defaultValue?: string; className?: string; style?: React.CSSProperties }) => (
+  <div className={`w-full ${className}`} style={style}>
     <div style={{ fontSize: "9px", textTransform: "uppercase", color: "#6b7280", margin: "0 0 2px 0", letterSpacing: "0.5px" }}>
       {label}
     </div>
     <input
       type="text"
       placeholder={placeholder}
+      defaultValue={defaultValue}
       className="w-full border-b border-gray-300 focus:border-black outline-none py-1 text-[12px] font-bold bg-transparent print:border-gray-200"
       style={{ minHeight: "24px" }}
     />
   </div>
 );
 
-const Checkbox = ({ label, defaultChecked }: { label: string; defaultChecked?: boolean }) => (
-  <div className="flex items-start gap-2 mb-2 cursor-pointer">
+const Checkbox = ({ label, defaultChecked, className }: { label: string; defaultChecked?: boolean; className?: string }) => (
+  <div className={`flex items-start gap-2 mb-2 cursor-pointer ${className}`}>
     <input 
       type="checkbox" 
       defaultChecked={defaultChecked}
@@ -34,12 +35,23 @@ const Checkbox = ({ label, defaultChecked }: { label: string; defaultChecked?: b
   </div>
 );
 
+const InlineInput = ({ placeholder, width = "150px" }: { placeholder?: string; width?: string }) => (
+  <input
+    type="text"
+    placeholder={placeholder}
+    className="border-b border-gray-300 focus:border-black outline-none px-1 text-[11px] font-bold bg-transparent inline-block text-center"
+    style={{ width, margin: "0 4px" }}
+  />
+);
+
 export default function ModuloOfflinePage() {
   const [generationDate, setGenerationDate] = useState<string>("");
+  const [currentYear, setCurrentYear] = useState<string>("2025");
 
   useEffect(() => {
-    // Impostiamo la data solo sul client per evitare errori di idratazione
-    setGenerationDate(new Date().toLocaleDateString());
+    const now = new Date();
+    setGenerationDate(now.toLocaleDateString());
+    setCurrentYear(now.getFullYear().toString());
   }, []);
 
   const handlePrint = () => {
@@ -63,7 +75,7 @@ export default function ModuloOfflinePage() {
       </div>
 
       {/* Area del Modulo */}
-      <div className="bg-white shadow-2xl mx-auto p-[1.5cm] w-[21cm] min-h-[29.7cm] print:shadow-none print:p-[1cm] print:w-full print:min-h-0 text-black font-sans">
+      <div className="bg-white shadow-2xl mx-auto p-[1.5cm] w-[21cm] min-h-[29.7cm] print:shadow-none print:p-[1cm] print:w-full print:min-h-0 text-black font-sans flex flex-col">
         <style jsx global>{`
           @media print {
             body { background: white !important; }
@@ -108,23 +120,21 @@ export default function ModuloOfflinePage() {
         {/* Sezione Dati Anagrafici */}
         <div className="space-y-6 mb-8">
           <div className="grid grid-cols-2 gap-8">
-            <Field label="COGNOME E NOME" placeholder="Rossi Mario" />
+            <Field label="COGNOME E NOME" placeholder="Es. Rossi Mario" />
             <Field label="DATA DI NASCITA" placeholder="GG/MM/AAAA" />
           </div>
 
           <div className="grid grid-cols-2 gap-8">
-            <Field label="LUOGO DI NASCITA" placeholder="Gradisca d'Isonzo" />
+            <Field label="LUOGO DI NASCITA" placeholder="Es. Gradisca d'Isonzo" />
             <Field label="CODICE FISCALE" placeholder="RSSMRA80A01..." />
           </div>
 
-          <Field label="INDIRIZZO DI RESIDENZA" placeholder="Via Roma 1, 34072 Gradisca d'Isonzo (GO)" />
+          <Field label="INDIRIZZO DI RESIDENZA" placeholder="Es. Via Roma 1, 34072 Gradisca d'Isonzo (GO)" />
 
           <div className="grid grid-cols-2 gap-8">
             <Field label="TELEFONO" placeholder="+39 333 1234567" />
             <Field label="EMAIL" placeholder="mario.rossi@esempio.it" />
           </div>
-
-          <Field label="QUALIFICA" placeholder="Musicista, Volontario, ecc." />
         </div>
 
         {/* Dichiarazioni e Consensi */}
@@ -145,7 +155,7 @@ export default function ModuloOfflinePage() {
 
         {/* Firme */}
         <div className="grid grid-cols-2 gap-8 mb-10 text-[12px]">
-          <div>Data: _________________________</div>
+          <div>Data: <InlineInput width="120px" placeholder="GG/MM/AAAA" /></div>
           <div style={{ textAlign: "right" }}>Firma del Socio: _________________________</div>
         </div>
 
@@ -154,11 +164,11 @@ export default function ModuloOfflinePage() {
           <h3 style={{ fontSize: "12px", fontWeight: "bold", margin: "0 0 10px 0", textAlign: "center", textTransform: "uppercase" }}>
             Per Soci Minorenni
           </h3>
-          <p style={{ fontSize: "10px", marginBottom: "10px" }}>
-            Il/La sottoscritto/a ________________________________________________ nato/a a ________________ il _______________, in qualità di genitore/tutore legale del minore, dichiara di approvare la presente domanda.
+          <p style={{ fontSize: "10px", marginBottom: "10px", lineHeight: "2" }}>
+            Il/La sottoscritto/a <InlineInput width="250px" placeholder="Nome e Cognome Tutore" /> nato/a a <InlineInput width="150px" placeholder="Luogo di Nascita" /> il <InlineInput width="100px" placeholder="GG/MM/AAAA" />, in qualità di genitore/tutore legale del minore, dichiara di approvare la presente domanda.
           </p>
           <div className="grid grid-cols-2 gap-8 text-[11px] mt-4">
-            <div>Data: _________________________</div>
+            <div>Data: <InlineInput width="120px" placeholder="GG/MM/AAAA" /></div>
             <div style={{ textAlign: "right" }}>Firma Tutore: _________________________</div>
           </div>
         </div>
@@ -168,16 +178,30 @@ export default function ModuloOfflinePage() {
           <h3 style={{ fontSize: "12px", fontWeight: "bold", margin: "0 0 10px 0", textAlign: "center" }}>
             RISERVATO ALL'ASSOCIAZIONE
           </h3>
+          
           <div className="grid grid-cols-2 gap-8 mb-4">
-            <Field label="N. TESSERA" />
-            <Field label="DATA AMMISSIONE" />
+            <Field label="N. TESSERA" defaultValue={`GMC-${currentYear}-`} />
+            <Field label="DATA AMMISSIONE" placeholder="GG/MM/AAAA" />
           </div>
-          <div className="grid grid-cols-2 gap-8 mb-6">
-            <Field label="ANNO ASSOCIATIVO" />
-            <Field label="QUOTA VERSATA (€)" />
+          
+          <div className="grid grid-cols-2 gap-8 mb-4">
+            <Field label="ANNO ASSOCIATIVO" defaultValue={currentYear} />
+            <Field label="QUOTA VERSATA (€)" placeholder="Es. 10.00" />
           </div>
-          <div className="grid grid-cols-2 gap-8 text-[11px]">
-            <div>Data: _________________________</div>
+
+          <div className="mt-2 mb-4">
+            <div style={{ fontSize: "9px", textTransform: "uppercase", color: "#6b7280", margin: "0 0 4px 0", letterSpacing: "0.5px" }}>
+              QUALIFICA
+            </div>
+            <div className="flex gap-6">
+              <Checkbox label="FONDATORE" className="mb-0" />
+              <Checkbox label="VOLONTARIO" className="mb-0" />
+              <Checkbox label="MUSICISTA" className="mb-0" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-8 text-[11px] mt-2">
+            <div>Data Delibera: <InlineInput width="120px" placeholder="GG/MM/AAAA" /></div>
           </div>
         </div>
 
