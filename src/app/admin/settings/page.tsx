@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -200,23 +199,23 @@ export default function SettingsPage() {
                 ) : (
                   <>
                     <div className="space-y-2">
-                      <Label htmlFor="link1" className="text-primary font-bold">Link Gruppo 1</Label>
+                      <Label htmlFor="link1" className="text-foreground font-bold">Link Gruppo 1</Label>
                       <Input 
                         id="link1" 
                         placeholder="https://chat.whatsapp.com/..." 
                         value={config.whatsAppInviteLink1}
                         onChange={(e) => setConfig({...config, whatsAppInviteLink1: e.target.value})}
-                        className="bg-secondary/50 border-primary/20"
+                        className="bg-secondary/50 border-primary/20 text-foreground"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="link2" className="text-primary font-bold">Link Gruppo 2</Label>
+                      <Label htmlFor="link2" className="text-foreground font-bold">Link Gruppo 2</Label>
                       <Input 
                         id="link2" 
                         placeholder="https://chat.whatsapp.com/..." 
                         value={config.whatsAppInviteLink2}
                         onChange={(e) => setConfig({...config, whatsAppInviteLink2: e.target.value})}
-                        className="bg-secondary/50 border-primary/20"
+                        className="bg-secondary/50 border-primary/20 text-foreground"
                       />
                     </div>
                   </>
@@ -242,8 +241,10 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent>
                 <div className="p-4 bg-primary/10 rounded-lg border border-primary/20 mb-4 text-sm text-foreground/90">
-                  <AlertCircle className="w-5 h-5 shrink-0 inline mr-2 mb-1 text-primary" />
-                  Assicurati che il file Excel segua il formato corretto per evitare errori di importazione.
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 shrink-0 text-primary" />
+                    <p>Assicurati che il file Excel segua il formato corretto (scaricato tramite la funzione Esporta) per evitare errori di importazione.</p>
+                  </div>
                 </div>
                 <input type="file" onChange={handleFileImport} ref={importFileRef} className="hidden" accept=".xlsx, .xls"/>
                 <Button 

@@ -5,8 +5,8 @@ import "./globals.css";
 import { LanguageProvider } from "@/components/language-provider";
 
 export const metadata: Metadata = {
-  title: "Manager del Garage Music Club",
-  description: "Gestisci i membri del Garage Music Club",
+  title: "Garage Music Club | Portale Soci",
+  description: "Area gestione e iscrizioni per l'Associazione Culturale Garage Music Club di Gradisca d'Isonzo.",
 };
 
 export default function RootLayout({

@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -7,7 +6,8 @@ import { usePathname } from "next/navigation";
 import { GarageMusicClubLogo } from "./icons/garage-music-club-logo";
 import { Button } from "./ui/button";
 import { Sheet, SheetTrigger, SheetContent, SheetTitle } from "./ui/sheet";
-import { Menu, Home, List, LogOut, Settings } from "lucide-react";
+import { Menu, Home, List, LogOut, Settings, UserCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface HeaderProps {
     onLogout?: () => void;
@@ -41,14 +41,14 @@ export function Header({ onLogout }: HeaderProps) {
         </Link>
         <nav className="hidden md:flex items-center gap-2">
             {!isAdminPage && (
-              <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary">
-                <Link href="/admin/elenco">Area Riservata</Link>
+              <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary gap-2">
+                <Link href="/admin/elenco"><UserCircle className="w-4 h-4" /> Area Riservata</Link>
               </Button>
             )}
             {isAdminPage && (
               <>
                 <Button asChild variant="ghost" className={cn("hover:bg-primary/10 hover:text-primary", pathname === '/admin/elenco' && "bg-primary/10 text-primary")}>
-                  <Link href="/admin/elenco">Soci</Link>
+                  <Link href="/admin/elenco"><List className="mr-2 h-4 w-4" /> Soci</Link>
                 </Button>
                 <Button asChild variant="ghost" className={cn("hover:bg-primary/10 hover:text-primary", pathname === '/admin/settings' && "bg-primary/10 text-primary")}>
                   <Link href="/admin/settings"><Settings className="mr-2 h-4 w-4" /> Opzioni</Link>
@@ -98,8 +98,4 @@ export function Header({ onLogout }: HeaderProps) {
       </div>
     </header>
   );
-}
-
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(" ");
 }
