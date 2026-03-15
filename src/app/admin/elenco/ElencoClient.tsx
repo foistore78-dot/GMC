@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useDeferredValue } from "react";
+import { useCallback, useEffect, useMemo, useState, useDeferredValue } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
@@ -248,15 +247,27 @@ export default function ElencoClient() {
 
 
   const { paginatedData, totalPages, counts } = useMemo(() => {
-    const allMembers = membersData || [];
-    const allRequests = requestsData || [];
+    // Prima filtriamo TUTTI i dati in base alla ricerca (deferredFilter)
+    // per ottenere i contatori corretti in tempo reale
+    const filterBySearch = (data: Socio[]) => {
+        if (!deferredFilter) return data;
+        const lowerFilter = deferredFilter.toLowerCase();
+        return data.filter(item => {
+            const fullName = getFullName(item).toLowerCase();
+            const tessera = String(item.tessera || '').toLowerCase();
+            const fiscalCode = String(item.fiscalCode || '').toLowerCase();
+            const city = String(item.city || '').toLowerCase();
+            const phone = String(item.phone || '').toLowerCase();
+            return fullName.includes(lowerFilter) || tessera.includes(lowerFilter) || fiscalCode.includes(lowerFilter) || city.includes(lowerFilter) || phone.includes(lowerFilter);
+        });
+    };
 
-    const applySearchFilter = (data: Socio[], tab: 'active' | 'expired' | 'requests') => 
-      filterAndSortData(data, deferredFilter, sortConfig, tab);
-    
-    const filteredActive = applySearchFilter(allMembers.filter((s) => getStatus(s, true) === "active"), 'active');
-    const filteredExpired = applySearchFilter(allMembers.filter((s) => getStatus(s, true) === "expired"), 'expired');
-    const filteredRequests = applySearchFilter(allRequests.filter((req) => getStatus(req, false) === "pending"), 'requests');
+    const filteredMembersSet = filterBySearch(membersData);
+    const filteredRequestsSet = filterBySearch(requestsData);
+
+    const filteredActive = filteredMembersSet.filter((s) => getStatus(s, true) === "active");
+    const filteredExpired = filteredMembersSet.filter((s) => getStatus(s, true) === "expired");
+    const filteredRequests = filteredRequestsSet.filter((req) => getStatus(req, false) === "pending");
 
     const counts = {
         active: filteredActive.length,
@@ -273,8 +284,11 @@ export default function ElencoClient() {
         dataForTab = filteredRequests;
     }
     
-    const totalPages = Math.ceil(dataForTab.length / ITEMS_PER_PAGE);
-    const paginatedData = dataForTab.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    // Applichiamo l'ordinamento finale al set di dati della tab corrente
+    const sortedData = filterAndSortData(dataForTab, '', sortConfig, activeTab);
+    
+    const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE);
+    const paginatedData = sortedData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     return { paginatedData, totalPages, counts };
 }, [membersData, requestsData, deferredFilter, activeTab, sortConfig, currentPage]);

@@ -6,7 +6,11 @@ import { LanguageProvider } from "@/components/language-provider";
 
 export const metadata: Metadata = {
   title: "Garage Music Club | Portale Soci",
-  description: "Area gestione e iscrizioni per l'Associazione Culturale Garage Music Club di Gradisca d'Isonzo.",
+  description: "Area gestione e iscrizioni per l'Associazione Culturale Garage Music Club di Gradisca d'Isonzo. Unisciti alla nostra comunità di musicisti.",
+  viewport: "width=device-width, initial-scale=1",
+  icons: {
+    icon: "https://i.imgur.com/Pp0tSQj.png",
+  }
 };
 
 export default function RootLayout({
