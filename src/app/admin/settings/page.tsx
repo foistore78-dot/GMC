@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -11,24 +11,39 @@ import { Button } from "@/components/ui/button";
 import { useFirestore, useFirebase } from "@/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Settings as SettingsIcon, Save, Link as LinkIcon, AlertCircle } from "lucide-react";
+import { Loader2, Settings as SettingsIcon, Save, Link as LinkIcon, AlertCircle, FileUp, Lock } from "lucide-react";
 import AuthGuard from "../elenco/AuthGuard";
 import { signOut } from "firebase/auth";
-import { useCallback } from "react";
+import { importFromExcel, type ImportResult } from "@/lib/excel-import";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+const SECURITY_PASSWORD = "1978";
 
 export default function SettingsPage() {
   const { auth, user, firestore, isUserLoading } = useFirebase();
   const { toast } = useToast();
+  const importFileRef = useRef<HTMLInputElement>(null);
   
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+  const [isImporting, setIsImporting] = useState(false);
   
   const [config, setConfig] = useState({
     whatsAppInviteLink1: "",
     whatsAppInviteLink2: ""
   });
+
+  const [isSecurityDialogOpen, setIsSecurityDialogOpen] = useState(false);
+  const [securityPasswordInput, setSecurityPasswordInput] = useState("");
 
   const checkAdminStatus = useCallback(async () => {
     if (!user) {
@@ -101,6 +116,53 @@ export default function SettingsPage() {
     if (auth) signOut(auth);
   };
 
+  const initiateImport = () => {
+    setSecurityPasswordInput("");
+    setIsSecurityDialogOpen(true);
+  };
+
+  const verifySecurityPassword = () => {
+    if (securityPasswordInput === SECURITY_PASSWORD) {
+      setIsSecurityDialogOpen(false);
+      importFileRef.current?.click();
+    } else {
+      toast({
+        title: "Password Errata",
+        description: "La password di sicurezza inserita non è corretta.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !firestore) {
+        return;
+    }
+    
+    setIsImporting(true);
+
+    try {
+        const result: ImportResult = await importFromExcel(file, firestore);
+        toast({
+            title: "Importazione Completata",
+            description: `${result.createdCount} nuovi soci creati. ${result.updatedTessere.length} soci aggiornati. Errori: ${result.errorCount}.`,
+            duration: 5000,
+        });
+    } catch(error) {
+        toast({
+            title: "Errore di Importazione",
+            description: (error as Error).message || "Si è verificato un errore sconosciuto.",
+            variant: "destructive",
+        });
+    } finally {
+        setIsImporting(false);
+        if (importFileRef.current) {
+          importFileRef.current.value = "";
+        }
+    }
+  };
+
   if (isUserLoading || isCheckingAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-secondary">
@@ -114,7 +176,7 @@ export default function SettingsPage() {
       <Header onLogout={isAdmin ? handleLogout : undefined} />
       <main className="flex-grow container mx-auto px-4 py-8">
         <AuthGuard isAdmin={isAdmin}>
-          <div className="max-w-2xl mx-auto space-y-6">
+          <div className="max-w-2xl mx-auto space-y-8">
             <div className="flex items-center gap-4 mb-2">
               <SettingsIcon className="w-8 h-8 text-primary" />
               <h1 className="font-headline text-3xl text-primary">Opzioni</h1>
@@ -168,16 +230,77 @@ export default function SettingsPage() {
               </CardFooter>
             </Card>
 
+            <Card className="border-primary/20 bg-background/50 backdrop-blur-sm shadow-xl">
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <FileUp className="w-5 h-5 text-primary" />
+                  Importazione Dati
+                </CardTitle>
+                <CardDescription>
+                  Carica un file Excel (.xlsx) per importare o aggiornare l'elenco soci.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="p-4 bg-primary/10 rounded-lg border border-primary/20 mb-4 text-sm text-primary-foreground/80">
+                  <AlertCircle className="w-5 h-5 shrink-0 inline mr-2 mb-1" />
+                  Assicurati che il file Excel segua il formato corretto per evitare errori di importazione.
+                </div>
+                <input type="file" onChange={handleFileImport} ref={importFileRef} className="hidden" accept=".xlsx, .xls"/>
+                <Button 
+                  onClick={initiateImport} 
+                  disabled={isImporting} 
+                  variant="outline" 
+                  className="w-full border-primary/20 hover:bg-primary/10"
+                >
+                  {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
+                  {isImporting ? "Importazione in corso..." : "Seleziona file Excel"}
+                </Button>
+              </CardContent>
+            </Card>
+
             <div className="p-4 bg-primary/10 rounded-lg border border-primary/20 flex gap-3 text-sm text-primary-foreground/80">
               <AlertCircle className="w-5 h-5 shrink-0" />
               <p>
-                Questi link verranno utilizzati quando clicchi sull'icona WhatsApp accanto al nome del socio nella tabella elenco.
+                Queste impostazioni sono riservate agli amministratori. I cambiamenti avranno effetto immediato su tutte le funzionalità dell'app.
               </p>
             </div>
           </div>
         </AuthGuard>
       </main>
       <Footer />
+
+      <Dialog open={isSecurityDialogOpen} onOpenChange={setIsSecurityDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-primary" />
+              Verifica di Sicurezza
+            </DialogTitle>
+            <DialogDescription>
+              Inserisci la password di sicurezza per procedere con l'importazione dei dati.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="security-password">Password</Label>
+              <Input
+                id="security-password"
+                type="password"
+                value={securityPasswordInput}
+                onChange={(e) => setSecurityPasswordInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') verifySecurityPassword();
+                }}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsSecurityDialogOpen(false)}>Annulla</Button>
+            <Button onClick={verifySecurityPassword}>Conferma</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

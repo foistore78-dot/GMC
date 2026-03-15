@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
 import { collection, onSnapshot } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown, AlertTriangle, RefreshCw, Lock, X } from "lucide-react";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, Lock, X } from "lucide-react";
 
 import { SociTable, type SortConfig } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
@@ -38,7 +38,6 @@ import type { Socio } from "@/lib/soci-data";
 import { useFirestore, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { exportToExcel } from "@/lib/excel-export";
-import { importFromExcel, ImportResult } from "@/lib/excel-import";
 import { Label } from "@/components/ui/label";
 import { getStatus, getFullName } from "@/lib/utils";
 
@@ -165,7 +164,6 @@ export default function ElencoClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const importFileRef = useRef<HTMLInputElement>(null);
 
   const firestore = useFirestore();
 
@@ -189,11 +187,10 @@ export default function ElencoClient() {
   const [membersData, setMembersData] = useState<Socio[]>([]);
   const [requestsData, setRequestsData] = useState<Socio[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
 
   const [isSecurityDialogOpen, setIsSecurityDialogOpen] = useState(false);
   const [securityPasswordInput, setSecurityPasswordInput] = useState("");
-  const [pendingAction, setPendingAction] = useState<'import' | 'export' | null>(null);
+  const [pendingAction, setPendingAction] = useState<'export' | null>(null);
 
   useEffect(() => {
     if (!firestore) {
@@ -383,7 +380,7 @@ export default function ElencoClient() {
     }
   };
   
-  const initiateAction = (action: 'import' | 'export') => {
+  const initiateAction = (action: 'export') => {
     setPendingAction(action);
     setSecurityPasswordInput("");
     setIsSecurityDialogOpen(true);
@@ -397,8 +394,6 @@ export default function ElencoClient() {
       
       if (action === 'export') {
         handleExport();
-      } else if (action === 'import') {
-        importFileRef.current?.click();
       }
     } else {
       toast({
@@ -417,35 +412,6 @@ export default function ElencoClient() {
     });
   }
 
-  const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !firestore) {
-        return;
-    }
-    
-    setIsImporting(true);
-
-    try {
-        const result: ImportResult = await importFromExcel(file, firestore);
-        toast({
-            title: "Importazione Completata",
-            description: `${result.createdCount} nuovi soci creati. ${result.updatedTessere.length} soci aggiornati. Errori: ${result.errorCount}.`,
-            duration: 5000,
-        });
-    } catch(error) {
-        toast({
-            title: "Errore di Importazione",
-            description: (error as Error).message || "Si è verificato un errore sconosciuto.",
-            variant: "destructive",
-        });
-    } finally {
-        setIsImporting(false);
-        if (importFileRef.current) {
-          importFileRef.current.value = "";
-        }
-    }
-  };
-
   return (
     <div className="flex-grow container mx-auto px-4 py-8">
       <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
@@ -459,11 +425,6 @@ export default function ElencoClient() {
                 <FileDown className="mr-2 h-4 w-4" />
                 Esporta
             </Button>
-            <Button variant="outline" size="sm" onClick={() => initiateAction('import')} disabled={isImporting}>
-                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
-                Importa
-            </Button>
-            <input type="file" onChange={handleFileImport} ref={importFileRef} className="hidden" accept=".xlsx, .xls"/>
             <Button asChild size="sm" className="bg-primary hover:bg-primary/90">
                 <Link href="/?from=admin#apply">
                 <UserPlus className="mr-2 h-4 w-4" />
@@ -632,7 +593,7 @@ export default function ElencoClient() {
               Verifica di Sicurezza
             </DialogTitle>
             <DialogDescription>
-              Inserisci la password di sicurezza per procedere con l'operazione di {pendingAction === 'export' ? 'esportazione' : 'importazione'} dei dati.
+              Inserisci la password di sicurezza per procedere con l'operazione di esportazione dei dati.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
