@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
 import { collection, onSnapshot } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown, AlertTriangle, RefreshCw, Lock, X } from "lucide-react";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileUp, FileDown, AlertTriangle, RefreshCw, Lock, X, FileText } from "lucide-react";
 
 import { SociTable, type SortConfig, getStatus, getFullName } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
@@ -457,6 +457,12 @@ export default function ElencoClient() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" asChild>
+                <Link href="/admin/modulo-offline">
+                  <FileText className="mr-2 h-4 w-4" />
+                  Modulo Offline
+                </Link>
+            </Button>
             <Button variant="outline" size="sm" onClick={() => initiateAction('export')} disabled={isDataLoading}>
                 <FileDown className="mr-2 h-4 w-4" />
                 Esporta
@@ -465,7 +471,7 @@ export default function ElencoClient() {
                 {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
                 Importa
             </Button>
-            <input type="file" ref={importFileRef} onChange={handleFileImport} className="hidden" accept=".xlsx, .xls"/>
+            <input type="file" handleFileImport onChange={handleFileImport} ref={importFileRef} className="hidden" accept=".xlsx, .xls"/>
             <Button asChild size="sm" className="bg-primary hover:bg-primary/90">
                 <Link href="/?from=admin#apply">
                 <UserPlus className="mr-2 h-4 w-4" />
