@@ -25,7 +25,17 @@ import { Socio, QUALIFICHE } from "@/lib/soci-data";
 import { Textarea } from "./ui/textarea";
 import { Separator } from "./ui/separator";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle, 
+  AlertDialogTrigger 
+} from "@/components/ui/alert-dialog";
 import { normalizeSocioData, getFullName, formatDate, getStatus as getSocioStatus, isMinorCheck } from "@/lib/utils";
 
 const formSchema = z
@@ -87,7 +97,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     
     return {
       ...s,
-      status: formStatus,
+      status: formStatus as any,
       birthDate: s.birthDate ? formatDate(s.birthDate, "yyyy-MM-dd") : "",
       guardianBirthDate: s.guardianBirthDate ? formatDate(s.guardianBirthDate, "yyyy-MM-dd") : "",
       requestDate: s.requestDate ? formatDate(s.requestDate, "yyyy-MM-dd") : (formStatus === 'pending' ? new Date().toISOString().split("T")[0] : ''),
@@ -655,7 +665,11 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel disabled={isDeleting}>Annulla</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => handleDelete()} disabled={isDeleting} className={buttonVariants({ variant: "destructive" })}>
+                    <AlertDialogAction 
+                      onClick={() => handleDelete()} 
+                      disabled={isDeleting} 
+                      className={buttonVariants({ variant: "destructive" })}
+                    >
                         {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {isDeleting ? 'Eliminazione...' : 'Conferma Eliminazione'}
                     </AlertDialogAction>

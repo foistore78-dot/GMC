@@ -94,7 +94,7 @@ export const exportToExcel = (members: Socio[], requests: Socio[]) => {
   worksheetExpired['!cols'] = fitToColumn(expiredData);
   XLSX.utils.book_append_sheet(workbook, worksheetExpired, 'Sospesi');
 
-  // Prendiamo tutte le richieste dalla collezione requests
+  // Includiamo TUTTE le richieste presenti, senza filtraggi di stato stringenti
   const pendingRequests = [...requests].sort(sortByRequestDate);
   const requestsData = formatForExcel(pendingRequests, false);
   const worksheetRequests = XLSX.utils.json_to_sheet(requestsData);

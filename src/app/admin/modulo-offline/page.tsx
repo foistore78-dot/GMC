@@ -46,7 +46,7 @@ const InlineInput = ({ placeholder, width = "150px" }: { placeholder?: string; w
 
 export default function ModuloOfflinePage() {
   const [generationDate, setGenerationDate] = useState<string>("");
-  const [currentYear, setCurrentYear] = useState<string>("2025");
+  const [currentYear, setCurrentYear] = useState<string>("");
 
   useEffect(() => {
     const now = new Date();
@@ -55,38 +55,37 @@ export default function ModuloOfflinePage() {
   }, []);
 
   const handlePrint = () => {
-    if (typeof window !== "undefined") {
-      // Piccolo timeout per assicurarsi che il browser catturi il click e prepari la vista
-      setTimeout(() => {
-        window.print();
-      }, 50);
-    }
+    window.print();
   };
 
   return (
     <div className="min-h-screen bg-gray-100 py-8 print:p-0 print:bg-white">
+      {/* Intestazione visibile solo a schermo */}
       <div className="max-w-[18cm] mx-auto mb-6 flex justify-between items-center px-4 print:hidden">
         <Button variant="ghost" asChild>
           <Link href="/admin/elenco">
             <ChevronLeft className="mr-2 h-4 w-4" /> Torna all'Elenco
           </Link>
         </Button>
-        <div className="flex gap-2">
-          <Button variant="default" onClick={handlePrint} className="bg-primary text-primary-foreground font-bold shadow-lg hover:scale-105 transition-transform">
-            <Printer className="mr-2 h-4 w-4" /> Stampa o Salva PDF
-          </Button>
-        </div>
+        <Button 
+          variant="default" 
+          onClick={handlePrint} 
+          className="bg-primary text-primary-foreground font-bold shadow-lg hover:scale-105 transition-transform"
+        >
+          <Printer className="mr-2 h-4 w-4" /> Stampa o Salva PDF
+        </Button>
       </div>
 
-      <div className="bg-white shadow-2xl mx-auto p-[1.5cm] w-[21cm] min-h-[29.7cm] print:shadow-none print:p-[1cm] print:w-full print:min-h-0 text-black font-sans flex flex-col">
-        <style jsx global>{`
+      <div className="bg-white shadow-2xl mx-auto p-[1.5cm] w-[21cm] min-h-[29.7cm] print:shadow-none print:p-[1cm] print:w-full print:min-h-0 text-black font-sans flex flex-col relative">
+        {/* Regole di stampa specifiche via tag style standard per compatibilità */}
+        <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             body { background: white !important; }
             .print-hidden { display: none !important; }
             @page { size: A4; margin: 0; }
+            input::placeholder { color: transparent !important; }
           }
-          input::placeholder { color: #d1d5db; font-weight: normal; }
-        `}</style>
+        `}} />
 
         <table style={{ width: '100%', borderSpacing: 0, marginBottom: '10px' }}>
           <tbody>
@@ -205,7 +204,7 @@ export default function ModuloOfflinePage() {
           </div>
         </div>
 
-        <div className="mt-6 text-center text-[9px] text-gray-400 print:block">
+        <div className="mt-6 text-center text-[9px] text-gray-400">
           Modulo generato digitalmente dal Manager GMC il {generationDate}
         </div>
       </div>

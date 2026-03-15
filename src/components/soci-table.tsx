@@ -150,7 +150,7 @@ const SocioTableRow = ({
      if (!isOpen) {
         resetRenewDialog();
         if (renewedSocioData) {
-            onSocioUpdate('expired');
+            onSocioUpdate('active');
         }
     } else {
         setShowRenewDialog(true);
@@ -162,7 +162,7 @@ const SocioTableRow = ({
     setIsDeleting(true);
 
     const socioStatus = getStatus(socioToDelete, activeTab !== 'requests');
-    const collectionName = (socioStatus === 'active' || socioStatus === 'expired') ? 'members' : 'membership_requests';
+    const collectionName = (activeTab === 'active' || activeTab === 'expired') ? 'members' : 'membership_requests';
     const docRef = doc(firestore, collectionName, socioToDelete.id);
     
     deleteDocumentNonBlocking(docRef);
@@ -531,7 +531,7 @@ const handleRenew = () => {
         <TableCell className="text-muted-foreground">{formatDate(contextualDate)}</TableCell>
         <TableCell className="text-right space-x-1">
             <div className="flex items-center justify-end">
-                {status === 'pending' && (
+                {activeTab === 'requests' && (
                     <Dialog open={showApproveDialog} onOpenChange={handleApproveDialogChange}>
                         <DialogTrigger asChild>
                         <Button variant="ghost" size="sm" className="text-green-500 hover:text-green-500 hover:bg-green-500/10 h-8">
@@ -614,7 +614,7 @@ const handleRenew = () => {
                         </DialogContent>
                     </Dialog>
                 )}
-                {status === 'expired' && (
+                {activeTab === 'expired' && (
                      <Dialog open={showRenewDialog} onOpenChange={handleRenewDialogChange}>
                         <DialogTrigger asChild>
                             <Button variant="ghost" size="sm" className="text-orange-500 hover:text-orange-500 hover:bg-orange-500/10 h-8">
@@ -840,7 +840,7 @@ export const SociTable = ({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={activeTab === 'requests' ? 4 : 6} className="h-24 text-center text-muted-foreground">
                   Nessun socio trovato.
                 </TableCell>
               </TableRow>
