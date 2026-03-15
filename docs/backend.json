@@ -1,138 +1,89 @@
+
 {
   "entities": {
-    "User": {
+    "Socio": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "User",
+      "title": "Socio",
       "type": "object",
-      "description": "Represents an authenticated user within the Project Canvas application. This entity stores basic user profile information, assuming an external authentication system manages credentials.",
+      "description": "Represents a member of the Garage Music Club.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the User entity."
+        "id": { "type": "string" },
+        "gender": { "type": "string", "enum": ["male", "female"] },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "birthPlace": { "type": "string" },
+        "birthDate": { "type": "string", "format": "date" },
+        "fiscalCode": { "type": "string" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "province": { "type": "string" },
+        "postalCode": { "type": "string" },
+        "whatsappConsent": { "type": "boolean" },
+        "privacyConsent": { "type": "boolean" },
+        "guardianFirstName": { "type": "string" },
+        "guardianLastName": { "type": "string" },
+        "guardianBirthDate": { "type": "string", "format": "date" },
+        "membershipStatus": { "type": "string" },
+        "joinDate": { "type": "string", "format": "date-time" },
+        "expirationDate": { "type": "string", "format": "date-time" },
+        "renewalDate": { "type": "string", "format": "date-time" },
+        "membershipYear": { "type": "string" },
+        "notes": { "type": "string" },
+        "membershipFee": { "type": "number" },
+        "qualifica": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["FONDATORE", "VOLONTARIO", "MUSICISTA"] }
         },
-        "email": {
-          "type": "string",
-          "description": "The user's email address, used for identification.",
-          "format": "email"
-        },
-        "username": {
-          "type": "string",
-          "description": "A unique display name or handle for the user."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the user account was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp indicating the last time the user's information was updated.",
-          "format": "date-time"
-        }
+        "tessera": { "type": "string" }
       },
-      "required": [
-        "id",
-        "email",
-        "username",
-        "createdAt"
-      ]
+      "required": ["id", "firstName", "lastName"]
     },
-    "Project": {
+    "AppConfig": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Project",
+      "title": "AppConfig",
       "type": "object",
-      "description": "Represents a project created by a user, serving as the central canvas for organizing and managing various datasets and related information.",
+      "description": "Global application settings like WhatsApp invite links.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Project entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the project."
-        },
-        "description": {
-          "type": "string",
-          "description": "A detailed description of the project's purpose or contents."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who owns or created this project. (Relationship: User 1:N Project)"
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the project was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp indicating the last time the project's information was updated.",
-          "format": "date-time"
-        },
-        "whatsAppInviteLink1": {
-          "type": "string",
-          "description": "The first WhatsApp invitation link associated with this project. This link can be modified in the project options page.",
-          "format": "uri"
-        },
-        "whatsAppInviteLink2": {
-          "type": "string",
-          "description": "The second WhatsApp invitation link associated with this project. This link can be modified in the project options page.",
-          "format": "uri"
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "userId",
-        "createdAt"
-      ]
+        "whatsAppInviteLink1": { "type": "string", "format": "uri" },
+        "whatsAppInviteLink2": { "type": "string", "format": "uri" }
+      }
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password"]
   },
   "firestore": {
     "structure": [
       {
-        "path": "/users/{userId}",
+        "path": "/membership_requests/{requestId}",
         "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Collection for storing individual user profiles. Access is typically restricted to the user themselves (i.e., request.auth.uid == userId).",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user, corresponding to Firebase Authentication UID."
-            }
-          ]
+          "entityName": "RichiestaIscrizione",
+          "description": "Public membership requests."
         }
       },
       {
-        "path": "/users/{userId}/projects/{projectId}",
+        "path": "/members/{memberId}",
         "definition": {
-          "entityName": "Project",
-          "schema": {
-            "$ref": "#/backend/entities/Project"
-          },
-          "description": "Subcollection for storing projects, with each project owned by a specific user. This structure ensures strong user-based data segregation. Includes denormalized 'userId' for authorization independence and 'whatsAppInviteLink1', 'whatsAppInviteLink2' for project-specific invitation links.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user who owns this project, corresponding to Firebase Authentication UID."
-            },
-            {
-              "name": "projectId",
-              "description": "The unique identifier of the project."
-            }
-          ]
+          "entityName": "Socio",
+          "description": "Secure member records."
+        }
+      },
+      {
+        "path": "/settings/{configId}",
+        "definition": {
+          "entityName": "AppConfig",
+          "description": "Application configuration."
+        }
+      },
+      {
+        "path": "/roles_admin/{adminId}",
+        "definition": {
+          "entityName": "Amministratore",
+          "description": "Admin roles by UID."
         }
       }
-    ],
-    "reasoning": "The proposed Firestore data structure prioritizes secure, scalable, and debuggable authorization by adhering to the core design principles and strategy mandates. To accommodate the user's request for two modifiable WhatsApp invite links per project, these links are integrated directly into the `Project` entity.\n\n**Authorization Independence via Denormalization:**\nEach `Project` document will be stored under a user-specific path: `/users/{userId}/projects/{projectId}`. The `Project` entity explicitly includes a `userId` field, which matches the `{userId}` wildcard in the path. This denormalization ensures that the authorization for a project is self-contained within the project document itself, making it independent of its parent `User` document. Security rules can then directly check `request.auth.uid == resource.data.userId` or `request.auth.uid == userId` from the path, eliminating the need for expensive and complex `get()` calls to a parent document. This design maintains atomicity for operations like creating a project, as its authorization context is immediately available within the document.\n\n**QAPs (Rules are not Filters) Support:**\nStructural segregation is applied by nesting `Project` documents under their respective `User` documents. This directly supports Query-As-Permissions (QAPs) for listing projects. When a user queries `/users/{request.auth.uid}/projects`, Firestore's security rules can be written to only permit access to this specific path. This means a user can only list projects that are directly owned by them, without requiring the rules engine to filter results after a broad query. This approach is highly efficient and secure, preventing unauthorized data leakage through broad list operations.\n\n**Addressing the User Request:**\n1.  **\"pagina opzioni dove posso modificare il link di invito whats app\"**: The `Project` entity now includes `whatsAppInviteLink1` and `whatsAppInviteLink2` fields. An \"options page\" UI would simply allow the user to read and update these specific fields within their `Project` document. The security rules, based on the `userId` ownership, would ensure only the project owner can modify these links.\n2.  **\"due link di invito quindi quando invio l'invito mi devi chiedere se voglio inviare l'invito al gruppo 1 o 2\"**: The two distinct fields (`whatsAppInviteLink1`, `whatsAppInviteLink2`) directly store the two links. The application's UI logic would retrieve these values from the `Project` document and then present the user with the choice of which link to send, fulfilling this requirement client-side with securely stored data."
+    ]
   }
 }

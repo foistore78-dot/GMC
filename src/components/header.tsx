@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -6,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { GarageMusicClubLogo } from "./icons/garage-music-club-logo";
 import { Button } from "./ui/button";
 import { Sheet, SheetTrigger, SheetContent, SheetTitle } from "./ui/sheet";
-import { Menu, Home, List, LogOut } from "lucide-react";
+import { Menu, Home, List, LogOut, Settings } from "lucide-react";
 
 interface HeaderProps {
     onLogout?: () => void;
@@ -17,9 +18,15 @@ export function Header({ onLogout }: HeaderProps) {
   const pathname = usePathname();
   const isAdminPage = pathname.startsWith('/admin');
 
-  const NavLink = ({ href, children }: { href: string; children: React.ReactNode }) => (
-    <Button asChild variant="ghost" className="justify-start text-base w-full hover:bg-primary/10 hover:text-primary" onClick={() => setIsOpen(false)}>
-      <Link href={href}>{children}</Link>
+  const NavLink = ({ href, children, icon: Icon }: { href: string; children: React.ReactNode, icon?: any }) => (
+    <Button asChild variant="ghost" className={cn(
+      "justify-start text-base w-full hover:bg-primary/10 hover:text-primary",
+      pathname === href && "bg-primary/10 text-primary"
+    )} onClick={() => setIsOpen(false)}>
+      <Link href={href}>
+        {Icon && <Icon className="mr-2 h-4 w-4" />}
+        {children}
+      </Link>
     </Button>
   );
 
@@ -38,11 +45,21 @@ export function Header({ onLogout }: HeaderProps) {
                 <Link href="/admin/elenco">Area Riservata</Link>
               </Button>
             )}
-            {isAdminPage && onLogout && (
-                 <Button variant="ghost" onClick={onLogout} className="hover:bg-primary/10 hover:text-primary">
+            {isAdminPage && (
+              <>
+                <Button asChild variant="ghost" className={cn("hover:bg-primary/10 hover:text-primary", pathname === '/admin/elenco' && "bg-primary/10 text-primary")}>
+                  <Link href="/admin/elenco">Soci</Link>
+                </Button>
+                <Button asChild variant="ghost" className={cn("hover:bg-primary/10 hover:text-primary", pathname === '/admin/settings' && "bg-primary/10 text-primary")}>
+                  <Link href="/admin/settings"><Settings className="mr-2 h-4 w-4" /> Opzioni</Link>
+                </Button>
+                {onLogout && (
+                  <Button variant="ghost" onClick={onLogout} className="hover:bg-primary/10 hover:text-primary">
                     <LogOut className="mr-2 h-4 w-4" />
                     Logout
-                </Button>
+                  </Button>
+                )}
+              </>
             )}
         </nav>
         <div className="md:hidden">
@@ -60,13 +77,18 @@ export function Header({ onLogout }: HeaderProps) {
                     <div className="font-headline text-lg font-bold text-foreground">MENU</div>
                  </div>
                  <div className="flex flex-col gap-2 p-4 flex-grow">
-                    <NavLink href="/"><Home className="mr-2 h-4 w-4" /> Home</NavLink>
-                    <NavLink href="/admin/elenco"><List className="mr-2 h-4 w-4" /> Area Riservata</NavLink>
-                     {isAdminPage && onLogout && (
-                        <Button variant="ghost" onClick={() => { onLogout(); setIsOpen(false); }} className="justify-start text-base w-full hover:bg-primary/10 hover:text-primary">
-                           <LogOut className="mr-2 h-4 w-4" />
-                           Logout
-                        </Button>
+                    <NavLink href="/" icon={Home}>Home</NavLink>
+                    <NavLink href="/admin/elenco" icon={List}>Elenco Soci</NavLink>
+                    {isAdminPage && (
+                      <>
+                        <NavLink href="/admin/settings" icon={Settings}>Opzioni</NavLink>
+                        {onLogout && (
+                          <Button variant="ghost" onClick={() => { onLogout(); setIsOpen(false); }} className="justify-start text-base w-full hover:bg-primary/10 hover:text-primary">
+                            <LogOut className="mr-2 h-4 w-4" />
+                            Logout
+                          </Button>
+                        )}
+                      </>
                     )}
                  </div>
               </div>
@@ -76,4 +98,8 @@ export function Header({ onLogout }: HeaderProps) {
       </div>
     </header>
   );
+}
+
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(" ");
 }

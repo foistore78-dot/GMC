@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, Dispatch, SetStateAction, useCallback } from "react";
@@ -43,14 +44,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, Award, CheckCircle, Loader2, ArrowUpDown, FileLock2, Printer, MessageCircle, Cake, Trash2, MoreVertical, MapPin, UserCheck, Info, AlertTriangle } from "lucide-react";
+import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, Award, CheckCircle, Loader2, ArrowUpDown, FileLock2, Printer, MessageCircle, Cake, Trash2, MoreVertical, MapPin, UserCheck, Info, AlertTriangle, Users } from "lucide-react";
 import { cn, getFullName, getStatus, formatDate, formatCurrency, isMinorCheck as isMinor } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
 import { useFirestore, deleteDocumentNonBlocking } from "@/firebase";
-import { doc, writeBatch } from "firebase/firestore";
+import { doc, writeBatch, getDoc } from "firebase/firestore";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 const DetailItem = ({ icon, label, value, className }: { icon?: React.ReactNode, label: string, value?: string | number | null | React.ReactNode, className?: string }) => {
@@ -103,6 +104,9 @@ const SocioTableRow = ({
 
   const [socioToDelete, setSocioToDelete] = useState<Socio | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const [showWhatsAppDialog, setShowWhatsAppDialog] = useState(false);
+  const [config, setConfig] = useState<any>(null);
 
   const [mounted, setMounted] = useState(false);
 
@@ -161,7 +165,6 @@ const SocioTableRow = ({
     if (!firestore || !socioToDelete) return;
     setIsDeleting(true);
 
-    const socioStatus = getStatus(socioToDelete, activeTab !== 'requests');
     const collectionName = (activeTab === 'active' || activeTab === 'expired') ? 'members' : 'membership_requests';
     const docRef = doc(firestore, collectionName, socioToDelete.id);
     
@@ -310,7 +313,7 @@ const handleRenew = () => {
     );
   };
   
-  const handleWhatsAppClick = (e: React.MouseEvent) => {
+  const handleWhatsAppClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!socio.phone) {
         toast({
@@ -320,14 +323,35 @@ const handleRenew = () => {
         });
         return;
     }
-    const groupInviteLink = "https://chat.whatsapp.com/KKes4gzve7T8xET9OD3bm5";
-    const message = `Ciao ${socio.firstName}! Benvenuto/a nel Garage Music Club. Questo è il link per unirti al nostro gruppo WhatsApp ufficiale e rimanere aggiornato su tutte le attività: ${groupInviteLink}`;
+
+    if (!firestore) return;
+    
+    try {
+      const snap = await getDoc(doc(firestore, "settings", "general"));
+      if (snap.exists()) {
+        setConfig(snap.data());
+        setShowWhatsAppDialog(true);
+      } else {
+        toast({
+          title: "Configurazione mancante",
+          description: "Configura i link WhatsApp nelle impostazioni.",
+          variant: "destructive"
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const sendInvite = (groupLink: string) => {
+    const message = `Ciao ${socio.firstName}! Benvenuto/a nel Garage Music Club. Questo è il link per unirti al nostro gruppo WhatsApp ufficiale e rimanere aggiornato su tutte le attività: ${groupLink}`;
     
     const cleanedPhone = String(socio.phone).replace(/\D/g, '');
     const finalPhone = cleanedPhone.startsWith('39') ? cleanedPhone : `39${cleanedPhone}`;
 
     const whatsappUrl = `https://wa.me/${finalPhone}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    setShowWhatsAppDialog(false);
   };
 
   const tesseraDisplayDesktop = socio.tessera ? `${String(socio.tessera).split('-')[1] || ''}-${String(socio.tessera).split('-')[2] || ''}` : '-';
@@ -713,6 +737,48 @@ const handleRenew = () => {
             </div>
         </TableCell>
       </TableRow>
+
+      <Dialog open={showWhatsAppDialog} onOpenChange={setShowWhatsAppDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="text-green-500" /> Seleziona Gruppo WhatsApp
+            </DialogTitle>
+            <DialogDescription>
+              Scegli a quale gruppo inviare l'invito per <strong>{getFullName(socio)}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Button 
+              onClick={() => sendInvite(config?.whatsAppInviteLink1)} 
+              variant="outline" 
+              className="h-16 justify-start gap-4 border-primary/20 hover:bg-primary/10"
+              disabled={!config?.whatsAppInviteLink1}
+            >
+              <div className="bg-primary/20 p-2 rounded-full"><Users className="w-6 h-6 text-primary" /></div>
+              <div className="text-left">
+                <div className="font-bold">Gruppo 1</div>
+                <div className="text-xs text-muted-foreground truncate max-w-[250px]">{config?.whatsAppInviteLink1 || 'Non configurato'}</div>
+              </div>
+            </Button>
+            <Button 
+              onClick={() => sendInvite(config?.whatsAppInviteLink2)} 
+              variant="outline" 
+              className="h-16 justify-start gap-4 border-accent/20 hover:bg-accent/10"
+              disabled={!config?.whatsAppInviteLink2}
+            >
+              <div className="bg-accent/20 p-2 rounded-full"><Users className="w-6 h-6 text-accent" /></div>
+              <div className="text-left">
+                <div className="font-bold">Gruppo 2</div>
+                <div className="text-xs text-muted-foreground truncate max-w-[250px]">{config?.whatsAppInviteLink2 || 'Non configurato'}</div>
+              </div>
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowWhatsAppDialog(false)}>Annulla</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!socioToDelete} onOpenChange={(open) => !open && setSocioToDelete(null)}>
         <AlertDialogContent>
