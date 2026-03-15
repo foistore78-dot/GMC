@@ -21,9 +21,13 @@ const Field = ({ label, placeholder, className }: { label: string; placeholder?:
   </div>
 );
 
-const Checkbox = ({ label }: { label: string }) => (
-  <div className="flex items-start gap-2 mb-2">
-    <div className="w-4 h-4 border border-black mt-0.5 flex-shrink-0" />
+const Checkbox = ({ label, defaultChecked }: { label: string; defaultChecked?: boolean }) => (
+  <div className="flex items-start gap-2 mb-2 cursor-pointer">
+    <input 
+      type="checkbox" 
+      defaultChecked={defaultChecked}
+      className="w-4 h-4 border border-black mt-0.5 flex-shrink-0 cursor-pointer" 
+    />
     <div style={{ fontSize: "10px", lineHeight: "1.4" }}>
       <b>{label}</b>
     </div>
@@ -128,7 +132,7 @@ export default function ModuloOfflinePage() {
             
             <Checkbox label="Consenso WhatsApp: Acconsente all'inserimento del proprio numero di telefono nel gruppo WhatsApp dell'associazione per comunicazioni relative alle attività." />
             
-            <Checkbox label="Consenso Privacy (Art. 13 GDPR): Dichiara di aver ricevuto, letto e compreso l'informativa sul trattamento dei dati personali e acconsente al trattamento dei propri dati personali per le finalità associative (Obbligatorio per l'ammissione)." />
+            <Checkbox defaultChecked={true} label="Consenso Privacy (Art. 13 GDPR): Dichiara di aver ricevuto, letto e compreso l'informativa sul trattamento dei dati personali e acconsente al trattamento dei propri dati personali per le finalità associative (Obbligatorio per l'ammissione)." />
           </div>
         </div>
 
@@ -167,7 +171,6 @@ export default function ModuloOfflinePage() {
           </div>
           <div className="grid grid-cols-2 gap-8 text-[11px]">
             <div>Data: _________________________</div>
-            <div style={{ textAlign: "right" }}>Il Presidente: _________________________</div>
           </div>
         </div>
 
