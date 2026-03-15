@@ -56,12 +56,14 @@ export default function ModuloOfflinePage() {
   }, []);
 
   const handlePrint = () => {
-    window.print();
+    if (typeof window !== "undefined") {
+      window.print();
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-100 py-8 print:p-0 print:bg-white">
-      {/* Menu Azioni - Nascosto in stampa */}
+      {/* Menu Azioni - Nascosto in stampa tramite classe standard Tailwind */}
       <div className="max-w-[18cm] mx-auto mb-6 flex justify-between items-center px-4 print:hidden">
         <Button variant="ghost" asChild>
           <Link href="/admin/elenco">
@@ -69,7 +71,7 @@ export default function ModuloOfflinePage() {
           </Link>
         </Button>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handlePrint}>
+          <Button variant="default" onClick={handlePrint}>
             <Printer className="mr-2 h-4 w-4" /> Stampa o Salva PDF
           </Button>
         </div>
@@ -80,7 +82,7 @@ export default function ModuloOfflinePage() {
         <style jsx global>{`
           @media print {
             body { background: white !important; }
-            .print\\:hidden { display: none !important; }
+            .print-hidden { display: none !important; }
             @page { size: A4; margin: 0; }
           }
           input::placeholder { color: #d1d5db; font-weight: normal; }
@@ -186,7 +188,7 @@ export default function ModuloOfflinePage() {
           
           <div className="grid grid-cols-2 gap-8 mb-4">
             <Field label="N. TESSERA" defaultValue={`GMC-${currentYear}-`} />
-            <Field label="DATA AMMISSIONE" placeholder="GG/MM/AAAA" />
+            <Field label="DATA" placeholder="GG/MM/AAAA" />
           </div>
           
           <div className="grid grid-cols-2 gap-8 mb-4">
