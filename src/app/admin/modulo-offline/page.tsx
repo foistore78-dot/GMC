@@ -201,7 +201,7 @@ export default function ModuloOfflinePage() {
           </div>
 
           <div className="grid grid-cols-2 gap-8 text-[11px] mt-2">
-            <div>Data Delibera: <InlineInput width="120px" placeholder="GG/MM/AAAA" /></div>
+            <div>Data: <InlineInput width="120px" placeholder="GG/MM/AAAA" /></div>
           </div>
         </div>
 
