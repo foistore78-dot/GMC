@@ -4,14 +4,11 @@ import { getStatus, formatDate } from '@/lib/utils';
 
 const statusTranslations: Record<string, string> = {
   active: 'Attivo',
-  pending: 'Sospeso',
+  pending: 'In Attesa',
   rejected: 'Rifiutato',
   expired: 'Scaduto'
 };
 
-/**
- * Ordina i soci per Anno Associativo (decrescente) e poi per Numero di Tessera (crescente).
- */
 const sortByTessera = (a: Socio, b: Socio) => {
   if (!a.tessera && !b.tessera) return 0;
   if (!a.tessera) return 1;
@@ -45,7 +42,7 @@ const formatForExcel = (data: Socio[], isFromMembersCollection: boolean) => {
     const tesseraNumber = tesseraNumberStr ? parseInt(tesseraNumberStr, 10) : undefined;
 
     return {
-      'NUOVO SOCIO': isNew ? 'SI (NUOVO)' : (isFromMembersCollection && status === 'active' ? 'RINNOVO' : (isFromMembersCollection ? '' : 'RICHIESTA')), 
+      'TIPO': isFromMembersCollection ? (status === 'active' ? (isNew ? 'NUOVO SOCIO' : 'RINNOVO') : 'SOSPESO') : 'RICHIESTA', 
       'Stato': statusTranslations[status] || status,
       'N. Tessera': isNaN(tesseraNumber!) ? '' : tesseraNumber,
       'Anno': socio.membershipYear || '',
@@ -91,24 +88,19 @@ export const exportToExcel = (members: Socio[], requests: Socio[]) => {
   worksheetActive['!cols'] = fitToColumn(activeData);
   XLSX.utils.book_append_sheet(workbook, worksheetActive, 'Soci Attivi');
 
-  const newMembers = members.filter(m => getStatus(m, true) === 'active' && !m.renewalDate).sort(sortByTessera);
-  const newData = formatForExcel(newMembers, true);
-  const worksheetNew = XLSX.utils.json_to_sheet(newData);
-  worksheetNew['!cols'] = fitToColumn(newData);
-  XLSX.utils.book_append_sheet(workbook, worksheetNew, 'Nuovi Soci');
-
   const expiredMembers = members.filter(m => getStatus(m, true) === 'expired').sort(sortByTessera);
   const expiredData = formatForExcel(expiredMembers, true);
   const worksheetExpired = XLSX.utils.json_to_sheet(expiredData);
   worksheetExpired['!cols'] = fitToColumn(expiredData);
   XLSX.utils.book_append_sheet(workbook, worksheetExpired, 'Sospesi');
 
-  const pendingRequests = requests.filter(r => getStatus(r, false) === 'pending').sort(sortByRequestDate);
+  // Prendiamo tutte le richieste dalla collezione requests
+  const pendingRequests = [...requests].sort(sortByRequestDate);
   const requestsData = formatForExcel(pendingRequests, false);
   const worksheetRequests = XLSX.utils.json_to_sheet(requestsData);
   worksheetRequests['!cols'] = fitToColumn(requestsData);
   XLSX.utils.book_append_sheet(workbook, worksheetRequests, 'Richieste');
 
   const today = formatDate(new Date(), 'dd.MM.yyyy');
-  XLSX.writeFile(workbook, `ELENCO SOCI AL ${today}.xlsx`);
+  XLSX.writeFile(workbook, `ELENCO SOCI GMC ${today}.xlsx`);
 };

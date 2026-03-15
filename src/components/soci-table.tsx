@@ -21,7 +21,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   Dialog,
@@ -50,8 +49,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
-import { useFirestore } from "@/firebase";
-import { doc, writeBatch, deleteDoc } from "firebase/firestore";
+import { useFirestore, deleteDocumentNonBlocking } from "@/firebase";
+import { doc, writeBatch } from "firebase/firestore";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 const DetailItem = ({ icon, label, value, className }: { icon?: React.ReactNode, label: string, value?: string | number | null | React.ReactNode, className?: string }) => {
@@ -158,33 +157,24 @@ const SocioTableRow = ({
     }
   };
   
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!firestore || !socioToDelete) return;
     setIsDeleting(true);
 
-    try {
-        const socioStatus = getStatus(socioToDelete, activeTab !== 'requests');
-        const collectionName = (socioStatus === 'active' || socioStatus === 'expired') ? 'members' : 'membership_requests';
-        const docRef = doc(firestore, collectionName, socioToDelete.id);
-        
-        await deleteDoc(docRef);
+    const socioStatus = getStatus(socioToDelete, activeTab !== 'requests');
+    const collectionName = (socioStatus === 'active' || socioStatus === 'expired') ? 'members' : 'membership_requests';
+    const docRef = doc(firestore, collectionName, socioToDelete.id);
+    
+    deleteDocumentNonBlocking(docRef);
 
-        toast({
-            title: "Socio Eliminato",
-            description: `${getFullName(socioToDelete)} è stato rimosso dall'elenco.`,
-        });
-        
-        setSocioToDelete(null);
-        onSocioUpdate();
-    } catch (error) {
-        toast({
-            title: "Errore di Eliminazione",
-            description: `Impossibile eliminare ${getFullName(socioToDelete)}. Dettagli: ${(error as Error).message}`,
-            variant: "destructive",
-        });
-    } finally {
-        setIsDeleting(false);
-    }
+    toast({
+        title: "Socio Eliminato",
+        description: `${getFullName(socioToDelete)} è stato rimosso dall'elenco.`,
+    });
+    
+    setSocioToDelete(null);
+    setIsDeleting(false);
+    onSocioUpdate();
   };
 
   const getNextMemberNumberForYear = useCallback((year: number) => {
@@ -222,7 +212,7 @@ const SocioTableRow = ({
     }
   }, [showRenewDialog, getNextMemberNumberForYear, socioIsMinor, socio.qualifica]);
 
-  const handleApprove = async () => {
+  const handleApprove = () => {
     if (!firestore || isApproving || !approveFeePaid) return;
 
     setIsApproving(true);
@@ -253,8 +243,7 @@ const SocioTableRow = ({
     batch.set(memberDocRef, newMemberData, { merge: true });
     batch.delete(requestDocRef);
 
-    try {
-        await batch.commit();
+    batch.commit().then(() => {
         toast({
             title: "Socio Approvato!",
             description: `${getFullName(socio)} è ora un membro attivo. N. tessera: ${membershipCardNumber}`,
@@ -262,61 +251,57 @@ const SocioTableRow = ({
         onPrint(newMemberData);
         handleApproveDialogChange(false);
         onSocioUpdate('active');
-    } catch (error) {
+    }).catch((error) => {
         toast({
             title: "Errore di Approvazione",
             description: `Impossibile approvare ${getFullName(socio)}. Dettagli: ${(error as Error).message}`,
             variant: "destructive",
         });
         setIsApproving(false);
-    } 
+    });
   };
   
-const handleRenew = async () => {
+const handleRenew = () => {
     if (!firestore || isRenewing || !renewFeePaid) return;
     setIsRenewing(true);
 
-    try {
-        const memberDocRef = doc(firestore, 'members', socio.id);
-        const renewalDateISO = new Date().toISOString();
-        const newTessera = `GMC-${renewalYear}-${renewMemberNumber}`;
-        const oldNotes = socio.notes || '';
-        
-        const renewalNote = `--- RINNOVO ${formatDate(renewalDateISO)} ---\nAnno: ${renewalYear}. Tessera precedente anno ${socio.membershipYear || 'N/A'}: ${socio.tessera || 'N/A'}. Quota versata: ${formatCurrency(renewalFee)}.`;
-        
-        const newNotes = `${renewalNote}\n\n${oldNotes}`.trim();
+    const memberDocRef = doc(firestore, 'members', socio.id);
+    const renewalDateISO = new Date().toISOString();
+    const newTessera = `GMC-${renewalYear}-${renewMemberNumber}`;
+    const oldNotes = socio.notes || '';
+    
+    const renewalNote = `--- RINNOVO ${formatDate(renewalDateISO)} ---\nAnno: ${renewalYear}. Tessera precedente anno ${socio.membershipYear || 'N/A'}: ${socio.tessera || 'N/A'}. Quota versata: ${formatCurrency(renewalFee)}.`;
+    
+    const newNotes = `${renewalNote}\n\n${oldNotes}`.trim();
 
-        const updatedData = {
-            renewalDate: renewalDateISO,
-            expirationDate: new Date(parseInt(renewalYear, 10), 11, 31).toISOString(),
-            membershipYear: renewalYear,
-            membershipFee: renewalFee,
-            qualifica: renewQualifiche,
-            tessera: newTessera,
-            notes: newNotes,
-        };
+    const updatedData = {
+        renewalDate: renewalDateISO,
+        expirationDate: new Date(parseInt(renewalYear, 10), 11, 31).toISOString(),
+        membershipYear: renewalYear,
+        membershipFee: renewalFee,
+        qualifica: renewQualifiche,
+        tessera: newTessera,
+        notes: newNotes,
+    };
 
-        const batch = writeBatch(firestore);
-        batch.update(memberDocRef, updatedData);
-        await batch.commit();
-
+    const batch = writeBatch(firestore);
+    batch.update(memberDocRef, updatedData);
+    
+    batch.commit().then(() => {
         const newlyRenewedSocio = { ...socio, ...updatedData };
-        
         toast({
             title: 'Rinnovo Effettuato!',
             description: `Il tesseramento di ${getFullName(socio)} è stato rinnovato. Nuova tessera: ${newTessera}.`,
         });
-        
         setRenewedSocioData(newlyRenewedSocio);
-      
-    } catch (error) {
+    }).catch((error) => {
         toast({
             title: 'Errore di Rinnovo',
             description: `Impossibile rinnovare ${getFullName(socio)}. Dettagli: ${(error as Error).message}`,
             variant: 'destructive',
         });
         setIsRenewing(false);
-    }
+    });
 };
 
   const handleQualificaChange = (qualifica: string, checked: boolean, stateSetter: Dispatch<SetStateAction<string[]>>) => {
@@ -740,10 +725,7 @@ const handleRenew = async () => {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Annulla</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={(e) => {
-                e.preventDefault();
-                handleDelete();
-              }}
+              onClick={() => handleDelete()}
               className={buttonVariants({ variant: "destructive" })}
               disabled={isDeleting}
             >

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -51,19 +50,21 @@ export default function ModuloOfflinePage() {
 
   useEffect(() => {
     const now = new Date();
-    setGenerationDate(now.toLocaleDateString());
+    setGenerationDate(now.toLocaleDateString('it-IT'));
     setCurrentYear(now.getFullYear().toString());
   }, []);
 
   const handlePrint = () => {
     if (typeof window !== "undefined") {
-      window.print();
+      // Piccolo timeout per assicurarsi che il browser catturi il click e prepari la vista
+      setTimeout(() => {
+        window.print();
+      }, 50);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-100 py-8 print:p-0 print:bg-white">
-      {/* Menu Azioni - Nascosto in stampa tramite classe standard Tailwind */}
       <div className="max-w-[18cm] mx-auto mb-6 flex justify-between items-center px-4 print:hidden">
         <Button variant="ghost" asChild>
           <Link href="/admin/elenco">
@@ -71,13 +72,12 @@ export default function ModuloOfflinePage() {
           </Link>
         </Button>
         <div className="flex gap-2">
-          <Button variant="default" onClick={handlePrint}>
+          <Button variant="default" onClick={handlePrint} className="bg-primary text-primary-foreground font-bold shadow-lg hover:scale-105 transition-transform">
             <Printer className="mr-2 h-4 w-4" /> Stampa o Salva PDF
           </Button>
         </div>
       </div>
 
-      {/* Area del Modulo */}
       <div className="bg-white shadow-2xl mx-auto p-[1.5cm] w-[21cm] min-h-[29.7cm] print:shadow-none print:p-[1cm] print:w-full print:min-h-0 text-black font-sans flex flex-col">
         <style jsx global>{`
           @media print {
@@ -88,7 +88,6 @@ export default function ModuloOfflinePage() {
           input::placeholder { color: #d1d5db; font-weight: normal; }
         `}</style>
 
-        {/* Header */}
         <table style={{ width: '100%', borderSpacing: 0, marginBottom: '10px' }}>
           <tbody>
             <tr>
@@ -113,14 +112,12 @@ export default function ModuloOfflinePage() {
           </tbody>
         </table>
 
-        {/* Titolo Documento */}
         <div style={{ textAlign: "center", margin: "15px 0", borderTop: "2px solid black", borderBottom: "2px solid black", padding: "8px 0" }}>
           <h2 style={{ fontSize: "16px", fontWeight: "bold", margin: 0, letterSpacing: "1px" }}>
             DOMANDA DI AMMISSIONE A SOCIO (MODULO DI EMERGENZA)
           </h2>
         </div>
 
-        {/* Sezione Dati Anagrafici */}
         <div className="space-y-6 mb-8">
           <div className="grid grid-cols-2 gap-8">
             <Field label="COGNOME E NOME" placeholder="Es. Rossi Mario" />
@@ -140,7 +137,6 @@ export default function ModuloOfflinePage() {
           </div>
         </div>
 
-        {/* Dichiarazioni e Consensi */}
         <div className="mb-8">
           <h3 style={{ fontSize: "13px", fontWeight: "bold", margin: "0 0 10px 0", borderBottom: "1px solid #ccc", paddingBottom: "5px" }}>
             DICHIARAZIONI E CONSENSI
@@ -160,13 +156,11 @@ export default function ModuloOfflinePage() {
           </div>
         </div>
 
-        {/* Firme */}
         <div className="grid grid-cols-2 gap-8 mb-10 text-[12px]">
           <div>Data: <InlineInput width="120px" placeholder="GG/MM/AAAA" /></div>
           <div style={{ textAlign: "right" }}>Firma del Socio: _________________________</div>
         </div>
 
-        {/* Sezione Minori */}
         <div style={{ border: "1px dashed #ccc", padding: "15px", marginBottom: "20px" }}>
           <h3 style={{ fontSize: "12px", fontWeight: "bold", margin: "0 0 10px 0", textAlign: "center", textTransform: "uppercase" }}>
             Per Soci Minorenni
@@ -180,7 +174,6 @@ export default function ModuloOfflinePage() {
           </div>
         </div>
 
-        {/* Parte Riservata Associazione */}
         <div style={{ border: "2px solid black", padding: "15px", marginTop: "auto" }}>
           <h3 style={{ fontSize: "12px", fontWeight: "bold", margin: "0 0 10px 0", textAlign: "center" }}>
             RISERVATO ALL'ASSOCIAZIONE

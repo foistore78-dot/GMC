@@ -3,8 +3,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useCallback, useState, useEffect } from "react";
-import { doc, writeBatch, deleteField, deleteDoc } from "firebase/firestore";
+import { useState, useEffect, useCallback } from "react";
+import { doc, writeBatch, deleteField } from "firebase/firestore";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Trash2 } from "lucide-react";
-import { useFirestore } from "@/firebase";
+import { useFirestore, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { Socio, QUALIFICHE } from "@/lib/soci-data";
 import { Textarea } from "./ui/textarea";
 import { Separator } from "./ui/separator";
@@ -116,7 +116,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
   const isMinor = isMinorCheck(birthDateValue);
   const currentStatus = form.watch("status");
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (!firestore) return;
     setIsSubmitting(true);
 
@@ -129,129 +129,98 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     const batch = writeBatch(firestore);
     let finalTab: 'active' | 'requests' | 'expired' | undefined;
 
-    try {
-        if (newStatus === 'rejected') {
-            if (socio.id) {
-                const requestDocRef = doc(firestore, 'membership_requests', socio.id);
-                const memberDocRef = doc(firestore, 'members', socio.id);
-                batch.delete(requestDocRef);
-                batch.delete(memberDocRef);
-            }
-            finalTab = 'requests';
-
-        } else if (originalStatus !== newStatus && !(originalStatus === 'expired' && newStatus === 'active')) {
-            if (newStatus === 'active') {
-                const oldDocRef = doc(firestore, 'membership_requests', socio.id);
-                const newDocRef = doc(firestore, 'members', socio.id);
-                
-                const finalData: any = {
-                    ...socio,
-                    ...dataToSave,
-                    id: socio.id,
-                    status: 'active' as const,
-                    joinDate: values.joinDate ? new Date(values.joinDate).toISOString() : new Date().toISOString(),
-                    expirationDate: new Date(parseInt(values.membershipYear || new Date().getFullYear().toString(), 10), 11, 31).toISOString(),
-                };
-                
-                batch.set(newDocRef, finalData, { merge: true });
-                batch.delete(oldDocRef);
-                finalTab = 'active';
-
-            } else if (newStatus === 'pending') {
-                const oldDocRef = doc(firestore, 'members', socio.id);
-                const newDocRef = doc(firestore, 'membership_requests', socio.id);
-                
-                const finalData: any = {
-                    ...socio,
-                    ...dataToSave,
-                    id: socio.id,
-                    status: 'pending' as const,
-                    requestDate: socio.requestDate || new Date().toISOString(),
-                };
-                finalData.tessera = deleteField();
-                finalData.membershipFee = deleteField();
-                finalData.renewalDate = deleteField();
-                finalData.joinDate = deleteField();
-                finalData.expirationDate = deleteField();
-                
-                batch.set(newDocRef, finalData, { merge: true });
-                batch.delete(oldDocRef);
-                finalTab = 'requests';
-            }
-        } else {
-            const collectionName = (newStatus === 'active' || originalStatus === 'expired') ? 'members' : 'membership_requests';
-            const docRef = doc(firestore, collectionName, socio.id);
-            
-            const expirationYear = values.membershipYear ? parseInt(values.membershipYear, 10) : new Date().getFullYear();
-
-            const finalData: any = {
-              ...dataToSave,
-              joinDate: values.joinDate ? new Date(values.joinDate).toISOString() : (socio.joinDate || null),
-              renewalDate: values.renewalDate ? new Date(values.renewalDate).toISOString() : (socio.renewalDate || null),
-              expirationDate: new Date(expirationYear, 11, 31).toISOString(),
-              privacyConsent: socio.privacyConsent,
-            };
-            
-            if (collectionName === 'membership_requests') {
-                finalData.tessera = deleteField();
-                finalData.membershipFee = 0;
-                finalTab = 'requests';
-            } else {
-              finalData.tessera = values.tessera;
-              finalTab = getSocioStatus({ ...socio, ...finalData }) === 'expired' ? 'expired' : 'active';
-            }
-
-            batch.set(docRef, finalData, { merge: true });
+    if (newStatus === 'rejected') {
+        if (socio.id) {
+            batch.delete(doc(firestore, 'membership_requests', socio.id));
+            batch.delete(doc(firestore, 'members', socio.id));
         }
-        
-        await batch.commit();
-
-        toast({
-            title: newStatus === 'rejected' ? "Richiesta Rifiutata" : "Socio aggiornato!",
-            description: `I dati di ${getFullName(normalizedValues)} sono stati salvati correttamente.`,
-        });
-        
-        setIsSubmitting(false);
-        onClose(finalTab);
-
-    } catch (error) {
-        toast({
-            title: "Errore durante l'aggiornamento",
-            description: `Impossibile salvare le modifiche per ${getFullName(normalizedValues)}. Dettagli: ${(error as Error).message}`,
-            variant: "destructive",
-        });
-        setIsSubmitting(false);
+        finalTab = 'requests';
+    } else if (originalStatus !== newStatus && !(originalStatus === 'expired' && newStatus === 'active')) {
+        if (newStatus === 'active') {
+            const oldDocRef = doc(firestore, 'membership_requests', socio.id);
+            const newDocRef = doc(firestore, 'members', socio.id);
+            const finalData: any = {
+                ...socio,
+                ...dataToSave,
+                id: socio.id,
+                status: 'active' as const,
+                joinDate: values.joinDate ? new Date(values.joinDate).toISOString() : new Date().toISOString(),
+                expirationDate: new Date(parseInt(values.membershipYear || new Date().getFullYear().toString(), 10), 11, 31).toISOString(),
+            };
+            batch.set(newDocRef, finalData, { merge: true });
+            batch.delete(oldDocRef);
+            finalTab = 'active';
+        } else if (newStatus === 'pending') {
+            const oldDocRef = doc(firestore, 'members', socio.id);
+            const newDocRef = doc(firestore, 'membership_requests', socio.id);
+            const finalData: any = {
+                ...socio,
+                ...dataToSave,
+                id: socio.id,
+                status: 'pending' as const,
+                requestDate: socio.requestDate || new Date().toISOString(),
+            };
+            finalData.tessera = deleteField();
+            finalData.membershipFee = deleteField();
+            finalData.renewalDate = deleteField();
+            finalData.joinDate = deleteField();
+            finalData.expirationDate = deleteField();
+            batch.set(newDocRef, finalData, { merge: true });
+            batch.delete(oldDocRef);
+            finalTab = 'requests';
+        }
+    } else {
+        const collectionName = (newStatus === 'active' || originalStatus === 'expired') ? 'members' : 'membership_requests';
+        const docRef = doc(firestore, collectionName, socio.id);
+        const expirationYear = values.membershipYear ? parseInt(values.membershipYear, 10) : new Date().getFullYear();
+        const finalData: any = {
+          ...dataToSave,
+          joinDate: values.joinDate ? new Date(values.joinDate).toISOString() : (socio.joinDate || null),
+          renewalDate: values.renewalDate ? new Date(values.renewalDate).toISOString() : (socio.renewalDate || null),
+          expirationDate: new Date(expirationYear, 11, 31).toISOString(),
+          privacyConsent: socio.privacyConsent,
+        };
+        if (collectionName === 'membership_requests') {
+            finalData.tessera = deleteField();
+            finalData.membershipFee = 0;
+            finalTab = 'requests';
+        } else {
+          finalData.tessera = values.tessera;
+          finalTab = getSocioStatus({ ...socio, ...finalData }) === 'expired' ? 'expired' : 'active';
+        }
+        batch.set(docRef, finalData, { merge: true });
     }
+    
+    batch.commit().catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: `members/${socio.id}`,
+            operation: 'write',
+            requestResourceData: normalizedValues,
+        }));
+    });
+
+    toast({
+        title: newStatus === 'rejected' ? "Richiesta Rifiutata" : "Socio aggiornato!",
+        description: `I dati di ${getFullName(normalizedValues)} sono stati salvati correttamente.`,
+    });
+    setIsSubmitting(false);
+    onClose(finalTab);
   };
   
-    const handleDelete = async () => {
-        if (!firestore) return;
-        setIsDeleting(true);
-
-        try {
-            const originalStatus = getSocioStatus(socio);
-            const collectionName = (originalStatus === 'active' || originalStatus === 'expired') ? 'members' : 'membership_requests';
-            const docRef = doc(firestore, collectionName, socio.id);
-            
-            await deleteDoc(docRef);
-
-            toast({
-                title: "Socio Eliminato",
-                description: `${getFullName(socio)} è stato rimosso definitivamente.`,
-            });
-            
-            setIsDeleting(false);
-            onClose();
-
-        } catch (error) {
-            toast({
-                title: "Errore di Eliminazione",
-                description: `Impossibile eliminare ${getFullName(socio)}. Dettagli: ${(error as Error).message}`,
-                variant: "destructive",
-            });
-            setIsDeleting(false);
-        }
-    };
+  const handleDelete = () => {
+      if (!firestore) return;
+      setIsDeleting(true);
+      const originalStatus = getSocioStatus(socio);
+      const collectionName = (originalStatus === 'active' || originalStatus === 'expired') ? 'members' : 'membership_requests';
+      const docRef = doc(firestore, collectionName, socio.id);
+      deleteDocumentNonBlocking(docRef);
+      toast({
+          title: "Socio Eliminato",
+          description: `${getFullName(socio)} è stato rimosso definitivamente.`,
+      });
+      setIsDeleting(false);
+      onClose();
+  };
 
   useEffect(() => {
     form.reset(getDefaultValues(socio));
@@ -273,11 +242,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Nome</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                      />
-                    </FormControl>
+                    <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -288,11 +253,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Cognome</FormLabel>
-                     <FormControl>
-                      <Input
-                        {...field}
-                      />
-                    </FormControl>
+                     <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -338,11 +299,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Luogo di Nascita</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                      />
-                    </FormControl>
+                    <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -354,12 +311,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Codice Fiscale</FormLabel>
-                   <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value || ''}
-                    />
-                  </FormControl>
+                   <FormControl><Input {...field} value={field.value || ''} /></FormControl>
                    <FormDescription>Campo opzionale</FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -377,12 +329,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Nome Tutore</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              value={field.value || ''}
-                            />
-                          </FormControl>
+                          <FormControl><Input {...field} value={field.value || ''} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -393,12 +340,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Cognome Tutore</FormLabel>
-                           <FormControl>
-                            <Input
-                              {...field}
-                              value={field.value || ''}
-                            />
-                          </FormControl>
+                           <FormControl><Input {...field} value={field.value || ''} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -441,11 +383,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem className="col-span-12 sm:col-span-7">
                     <FormLabel>Città</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                      />
-                    </FormControl>
+                    <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -456,11 +394,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 render={({ field }) => (
                   <FormItem className="col-span-6 sm:col-span-2">
                     <FormLabel>Prov.</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                      />
-                    </FormControl>
+                    <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -544,28 +478,20 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                       className="flex items-center space-x-2 sm:space-x-4"
                     >
                       <FormItem className="flex items-center space-x-2">
-                        <FormControl>
-                          <RadioGroupItem value="active" />
-                        </FormControl>
+                        <FormControl><RadioGroupItem value="active" /></FormControl>
                         <FormLabel className="font-normal">Attivo</FormLabel>
                       </FormItem>
                       <FormItem className="flex items-center space-x-2">
-                        <FormControl>
-                          <RadioGroupItem value="pending" />
-                        </FormControl>
+                        <FormControl><RadioGroupItem value="pending" /></FormControl>
                         <FormLabel className="font-normal">Sospeso</FormLabel>
                       </FormItem>
                       <FormItem className="flex items-center space-x-2">
-                        <FormControl>
-                          <RadioGroupItem value="rejected" />
-                        </FormControl>
+                        <FormControl><RadioGroupItem value="rejected" /></FormControl>
                         <FormLabel className="font-normal">Rifiutato</FormLabel>
                       </FormItem>
                     </RadioGroup>
                   </FormControl>
-                  <FormDescription>
-                    Attiva, metti in sospeso o rifiuta la richiesta.
-                  </FormDescription>
+                  <FormDescription>Attiva, metti in sospeso o rifiuta la richiesta.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -729,7 +655,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel disabled={isDeleting}>Annulla</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className={buttonVariants({ variant: "destructive" })}>
+                    <AlertDialogAction onClick={() => handleDelete()} disabled={isDeleting} className={buttonVariants({ variant: "destructive" })}>
                         {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {isDeleting ? 'Eliminazione...' : 'Conferma Eliminazione'}
                     </AlertDialogAction>

@@ -1,10 +1,9 @@
-
 "use client";
 
 import { useProjectStore } from "@/lib/store";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, FileText, Database, Activity, ArrowRight } from "lucide-react";
+import { PlusCircle, FileText, Database, Activity, ArrowRight, FolderKanban } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
@@ -130,5 +129,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-import { FolderKanban } from "lucide-react";
