@@ -1,10 +1,10 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { GarageMusicClubLogo } from "@/components/icons/garage-music-club-logo";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Printer, FileDown } from "lucide-react";
+import { ChevronLeft, Printer } from "lucide-react";
 import Link from "next/link";
 
 const Field = ({ label, placeholder, className }: { label: string; placeholder?: string; className?: string }) => (
@@ -35,6 +35,13 @@ const Checkbox = ({ label, defaultChecked }: { label: string; defaultChecked?: b
 );
 
 export default function ModuloOfflinePage() {
+  const [generationDate, setGenerationDate] = useState<string>("");
+
+  useEffect(() => {
+    // Impostiamo la data solo sul client per evitare errori di idratazione
+    setGenerationDate(new Date().toLocaleDateString());
+  }, []);
+
   const handlePrint = () => {
     window.print();
   };
@@ -175,7 +182,7 @@ export default function ModuloOfflinePage() {
         </div>
 
         <div className="mt-6 text-center text-[9px] text-gray-400 print:block">
-          Modulo generato digitalmente dal Manager GMC il {new Date().toLocaleDateString()}
+          Modulo generato digitalmente dal Manager GMC il {generationDate}
         </div>
       </div>
     </div>

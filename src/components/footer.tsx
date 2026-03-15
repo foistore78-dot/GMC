@@ -1,7 +1,17 @@
+
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { GarageMusicClubLogo } from "./icons/garage-music-club-logo";
 
 export function Footer() {
+  const [year, setYear] = useState<number | string>("");
+
+  useEffect(() => {
+    setYear(new Date().getFullYear());
+  }, []);
+
   return (
     <footer className="bg-secondary border-t border-border py-8">
       <div className="container mx-auto px-4 text-center text-muted-foreground">
@@ -22,7 +32,7 @@ export function Footer() {
             </Link>
         </div>
         <p className="text-sm mt-4">
-          &copy; {new Date().getFullYear()} Garage Music Club. Tutti i diritti riservati.
+          &copy; {year} Garage Music Club. Tutti i diritti riservati.
         </p>
       </div>
     </footer>
