@@ -174,6 +174,7 @@ const SocioTableRow = ({
             description: `${getFullName(socioToDelete)} è stato rimosso dall'elenco.`,
         });
         
+        setSocioToDelete(null);
         onSocioUpdate();
     } catch (error) {
         toast({
@@ -183,7 +184,6 @@ const SocioTableRow = ({
         });
     } finally {
         setIsDeleting(false);
-        setSocioToDelete(null);
     }
   };
 
@@ -728,6 +728,31 @@ const handleRenew = async () => {
             </div>
         </TableCell>
       </TableRow>
+
+      <AlertDialog open={!!socioToDelete} onOpenChange={(open) => !open && setSocioToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sei assolutamente sicuro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Questa azione non può essere annullata. Questo eliminerà permanentemente il socio <strong className="text-foreground">{socioToDelete ? getFullName(socioToDelete) : ""}</strong> e rimuoverà i suoi dati dai nostri server.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annulla</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete();
+              }}
+              className={buttonVariants({ variant: "destructive" })}
+              disabled={isDeleting}
+            >
+              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              {isDeleting ? "Eliminazione..." : "Conferma Eliminazione"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </>
   );
 };
