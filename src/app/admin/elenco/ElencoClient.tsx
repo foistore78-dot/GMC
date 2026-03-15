@@ -254,25 +254,26 @@ export default function ElencoClient() {
     const allMembers = membersData || [];
     const allRequests = requestsData || [];
 
-    const applyFinalFilter = (data: Socio[]) => filterAndSortData(data, deferredFilter, sortConfig, activeTab);
+    const applySearchFilter = (data: Socio[], tab: 'active' | 'expired' | 'requests') => 
+      filterAndSortData(data, deferredFilter, sortConfig, tab);
     
-    const countActive = allMembers.filter((s) => getStatus(s, true) === "active").length;
-    const countExpired = allMembers.filter((s) => getStatus(s, true) === "expired").length;
-    const countRequests = allRequests.filter((req) => getStatus(req, false) === "pending").length;
+    const filteredActive = applySearchFilter(allMembers.filter((s) => getStatus(s, true) === "active"), 'active');
+    const filteredExpired = applySearchFilter(allMembers.filter((s) => getStatus(s, true) === "expired"), 'expired');
+    const filteredRequests = applySearchFilter(allRequests.filter((req) => getStatus(req, false) === "pending"), 'requests');
 
     const counts = {
-        active: countActive,
-        expired: countExpired,
-        requests: countRequests,
+        active: filteredActive.length,
+        expired: filteredExpired.length,
+        requests: filteredRequests.length,
     };
 
     let dataForTab: Socio[];
     if (activeTab === 'active') {
-        dataForTab = applyFinalFilter(allMembers.filter((s) => getStatus(s, true) === "active"));
+        dataForTab = filteredActive;
     } else if (activeTab === 'expired') {
-        dataForTab = applyFinalFilter(allMembers.filter((s) => getStatus(s, true) === "expired"));
+        dataForTab = filteredExpired;
     } else { // requests
-        dataForTab = applyFinalFilter(allRequests.filter((req) => getStatus(req, false) === "pending"));
+        dataForTab = filteredRequests;
     }
     
     const totalPages = Math.ceil(dataForTab.length / ITEMS_PER_PAGE);
