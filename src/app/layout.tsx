@@ -1,3 +1,4 @@
+
 import type { Metadata } from "next";
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from "@/firebase";
@@ -5,8 +6,8 @@ import "./globals.css";
 import { LanguageProvider } from "@/components/language-provider";
 
 export const metadata: Metadata = {
-  title: "Garage Music Club | Portale Soci",
-  description: "Area gestione e iscrizioni per l'Associazione Culturale Garage Music Club di Gradisca d'Isonzo. Unisciti alla nostra comunità di musicisti.",
+  title: "Garage Music Club | Area Soci Online",
+  description: "Area gestione e iscrizioni per l'Associazione Culturale Garage Music Club di Gradisca d'Isonzo. Unisciti alla nostra comunità di musicisti e partecipa alle nostre attività.",
   viewport: "width=device-width, initial-scale=1",
   icons: {
     icon: "https://i.imgur.com/Pp0tSQj.png",
