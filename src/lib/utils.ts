@@ -49,6 +49,15 @@ export const isSocioExpired = (expirationDateInput: any, membershipYear?: string
     return expirationDate < today;
 };
 
+export const isOlderThanDays = (dateInput: any, days: number): boolean => {
+    const date = parseDate(dateInput);
+    if (!date) return false;
+    const today = new Date();
+    const diffTime = Math.abs(today.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > days;
+};
+
 export const getFullName = (socio: any) => `${socio.lastName || ''} ${socio.firstName || ''}`.trim();
 
 export const getStatus = (socio: any, isFromMembersCollection: boolean = true): 'active' | 'pending' | 'rejected' | 'expired' => {

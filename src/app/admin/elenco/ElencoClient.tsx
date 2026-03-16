@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState, useDeferredValue } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
-import { collection, onSnapshot } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, Lock, X } from "lucide-react";
+import { collection, onSnapshot, doc, writeBatch } from "firebase/firestore";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, Lock, X, Trash2, Info } from "lucide-react";
 
 import { SociTable, type SortConfig } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
@@ -32,13 +32,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 import type { Socio } from "@/lib/soci-data";
 import { useFirestore, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { exportToExcel } from "@/lib/excel-export";
 import { Label } from "@/components/ui/label";
-import { getStatus, getFullName, parseDate } from "@/lib/utils";
+import { getStatus, getFullName, parseDate, isOlderThanDays } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 50;
 const SECURITY_PASSWORD = "1978";
@@ -192,7 +193,8 @@ export default function ElencoClient() {
 
   const [isSecurityDialogOpen, setIsSecurityDialogOpen] = useState(false);
   const [securityPasswordInput, setSecurityPasswordInput] = useState("");
-  const [pendingAction, setPendingAction] = useState<'export' | null>(null);
+  const [pendingAction, setPendingAction] = useState<'export' | 'cleanup' | null>(null);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
 
   useEffect(() => {
     if (!firestore) {
@@ -249,7 +251,7 @@ export default function ElencoClient() {
   }, [firestore]);
 
 
-  const { paginatedData, totalPages, counts } = useMemo(() => {
+  const { paginatedData, totalPages, counts, oldRequests } = useMemo(() => {
     const filterBySearch = (data: Socio[]) => {
         if (!deferredFilter) return data;
         const lowerFilter = deferredFilter.toLowerCase();
@@ -276,6 +278,8 @@ export default function ElencoClient() {
         requests: filteredRequests.length,
     };
 
+    const oldRequests = filteredRequests.filter(req => isOlderThanDays(req.requestDate, 60));
+
     let dataForTab: Socio[];
     if (activeTab === 'active') {
         dataForTab = filteredActive;
@@ -290,7 +294,7 @@ export default function ElencoClient() {
     const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE);
     const paginatedData = sortedData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-    return { paginatedData, totalPages, counts };
+    return { paginatedData, totalPages, counts, oldRequests };
 }, [membersData, requestsData, deferredFilter, activeTab, sortConfig, currentPage]);
 
   useEffect(() => {
@@ -394,7 +398,7 @@ export default function ElencoClient() {
     }
   };
   
-  const initiateAction = (action: 'export') => {
+  const initiateAction = (action: 'export' | 'cleanup') => {
     setPendingAction(action);
     setSecurityPasswordInput("");
     setIsSecurityDialogOpen(true);
@@ -408,6 +412,8 @@ export default function ElencoClient() {
       
       if (action === 'export') {
         handleExport();
+      } else if (action === 'cleanup') {
+        handleCleanupOldRequests();
       }
     } else {
       toast({
@@ -425,6 +431,33 @@ export default function ElencoClient() {
         description: "Il download del file Excel inizierà a breve."
     });
   }
+
+  const handleCleanupOldRequests = async () => {
+    if (!firestore || oldRequests.length === 0) return;
+    
+    setIsCleaningUp(true);
+    try {
+        const batch = writeBatch(firestore);
+        oldRequests.forEach(req => {
+            const docRef = doc(firestore, "membership_requests", req.id);
+            batch.delete(docRef);
+        });
+        
+        await batch.commit();
+        toast({
+            title: "Pulizia Completata",
+            description: `Sono state rimosse ${oldRequests.length} richieste più vecchie di 60 giorni.`,
+        });
+    } catch (e) {
+        toast({
+            title: "Errore durante la pulizia",
+            description: "Non è stato possibile completare l'operazione.",
+            variant: "destructive"
+        });
+    } finally {
+        setIsCleaningUp(false);
+    }
+  };
 
   return (
     <div className="flex-grow container mx-auto px-4 py-8">
@@ -538,7 +571,28 @@ export default function ElencoClient() {
                 />
               </TabsContent>
 
-              <TabsContent value="requests" className="rounded-lg bg-orange-500/5 p-1 sm:p-4">
+              <TabsContent value="requests" className="rounded-lg bg-orange-500/5 p-1 sm:p-4 space-y-4">
+                {oldRequests.length > 0 && (
+                    <Alert className="bg-orange-500/10 border-orange-500/30">
+                        <Info className="h-4 w-4 text-orange-500" />
+                        <AlertTitle className="text-orange-400 font-bold">Richieste in sospeso</AlertTitle>
+                        <AlertDescription className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <span className="text-muted-foreground">
+                                Ci sono <strong>{oldRequests.length}</strong> richieste più vecchie di 60 giorni che non sono ancora state elaborate.
+                            </span>
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="border-orange-500/50 hover:bg-orange-500/20 text-orange-400 h-8 gap-2"
+                                onClick={() => initiateAction('cleanup')}
+                                disabled={isCleaningUp}
+                            >
+                                {isCleaningUp ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                Pulisci ora
+                            </Button>
+                        </AlertDescription>
+                    </Alert>
+                )}
                 <SociTable
                   soci={paginatedData}
                   onEdit={handleEditSocio}
@@ -607,7 +661,9 @@ export default function ElencoClient() {
               Verifica di Sicurezza
             </DialogTitle>
             <DialogDescription>
-              Inserisci la password di sicurezza per procedere con l'operazione di esportazione dei dati.
+              {pendingAction === 'cleanup' 
+                ? "Inserisci la password di sicurezza per eliminare definitivamente le richieste vecchie."
+                : "Inserisci la password di sicurezza per procedere con l'operazione di esportazione dei dati."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
