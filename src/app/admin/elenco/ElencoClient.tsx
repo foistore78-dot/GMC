@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useDeferredValue, useRef } from "react";
@@ -552,15 +551,9 @@ export default function ElencoClient() {
                   </TabsTrigger>
                   <TabsTrigger
                     value="requests"
-                    className="text-xs px-2 sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300 relative"
+                    className="text-xs px-2 sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300"
                   >
                     RICHIESTE ({counts.requests})
-                    {counts.requests > 0 && (
-                      <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
-                      </span>
-                    )}
                   </TabsTrigger>
                 </TabsList>
                 
