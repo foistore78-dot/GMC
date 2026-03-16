@@ -1,17 +1,21 @@
-
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from "@/firebase";
 import "./globals.css";
 import { LanguageProvider } from "@/components/language-provider";
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#00f2ea",
+};
+
 export const metadata: Metadata = {
   title: "Garage Music Club | Area Soci Online",
   description: "Area gestione e iscrizioni per l'Associazione Culturale Garage Music Club di Gradisca d'Isonzo. Unisciti alla nostra comunità di musicisti e partecipa alle nostre attività.",
-  viewport: "width=device-width, initial-scale=1",
   icons: {
     icon: "https://i.imgur.com/Pp0tSQj.png",
-  }
+  },
 };
 
 export default function RootLayout({
