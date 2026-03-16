@@ -116,7 +116,10 @@ const SocioTableRow = ({
 
   const status = useMemo(() => getStatus(socio, activeTab !== 'requests'), [socio, activeTab]);
   const socioIsMinor = useMemo(() => isMinor(socio.birthDate), [socio.birthDate]);
+  
+  // Logic to distinguish new members from renewals
   const isRenewedMember = activeTab === 'active' && !!socio.renewalDate;
+  const isNewMember = activeTab === 'active' && !socio.renewalDate && !!socio.joinDate;
 
   const potentialDuplicate = useMemo(() => {
     if (activeTab !== 'requests') return null;
@@ -386,7 +389,8 @@ const handleRenew = () => {
       <TableRow className={cn(
         "text-xs sm:text-sm transition-all duration-300", 
         status === 'expired' && 'bg-yellow-500/10 hover:bg-yellow-500/20',
-        isRenewedMember && 'bg-indigo-500/5 hover:bg-indigo-500/10'
+        isRenewedMember && 'bg-indigo-500/10 hover:bg-indigo-500/20', // Rinnovo (Indaco)
+        isNewMember && 'bg-emerald-500/10 hover:bg-emerald-500/20'     // Nuovo (Smeraldo)
       )}>
         {activeTab !== 'requests' && (
             <>
@@ -500,6 +504,11 @@ const handleRenew = () => {
                     {isRenewedMember && (
                       <Badge variant="outline" className="text-[9px] py-0 px-1 bg-indigo-400/10 text-indigo-300 border-indigo-400/30 font-bold tracking-tight uppercase">
                         Rinnovo
+                      </Badge>
+                    )}
+                    {isNewMember && (
+                      <Badge variant="outline" className="text-[9px] py-0 px-1 bg-emerald-400/10 text-emerald-300 border-emerald-400/30 font-bold tracking-tight uppercase">
+                        Nuovo
                       </Badge>
                     )}
                     {socio.whatsappConsent && (
