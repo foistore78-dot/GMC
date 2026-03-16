@@ -97,9 +97,17 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     const formStatus = initialStatus === 'expired' ? 'active' : initialStatus;
     
     return {
-      ...s,
-      status: formStatus as any,
+      firstName: s.firstName || "",
+      lastName: s.lastName || "",
+      gender: (s.gender as "male" | "female") || "male",
+      status: formStatus as "active" | "pending" | "rejected",
       birthDate: s.birthDate ? formatDate(s.birthDate, "yyyy-MM-dd") : "",
+      birthPlace: s.birthPlace || "",
+      fiscalCode: s.fiscalCode || "",
+      address: s.address || "",
+      city: s.city || "",
+      province: s.province || "",
+      postalCode: s.postalCode || "",
       guardianBirthDate: s.guardianBirthDate ? formatDate(s.guardianBirthDate, "yyyy-MM-dd") : "",
       requestDate: s.requestDate ? formatDate(s.requestDate, "yyyy-MM-dd") : (formStatus === 'pending' ? new Date().toISOString().split("T")[0] : ''),
       joinDate: s.joinDate ? formatDate(s.joinDate, "yyyy-MM-dd") : "",
@@ -113,7 +121,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
       guardianFirstName: s.guardianFirstName || "",
       guardianLastName: s.guardianLastName || "",
       whatsappConsent: s.whatsappConsent ?? false,
-      fiscalCode: s.fiscalCode || "",
       tessera: s.tessera || "",
     };
   }, []);
@@ -133,7 +140,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
 
     const originalStatus = getSocioStatus(socio);
     const newStatus = values.status;
-    
     const normalizedValues = normalizeSocioData(values);
     const { status, ...dataToSave } = normalizedValues;
 
@@ -329,52 +335,50 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
               )}
             />
             {isMinor && (
-              <>
-                <Separator className="my-6" />
-                <div className="p-4 border border-yellow-500/30 rounded-lg bg-yellow-500/10 space-y-4">
-                  <h3 className="text-md font-semibold text-yellow-300">Dati del Tutore (Socio Minorenne)</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="guardianFirstName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nome Tutore</FormLabel>
-                          <FormControl><Input {...field} value={field.value || ''} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="guardianLastName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Cognome Tutore</FormLabel>
-                           <FormControl><Input {...field} value={field.value || ''} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+              <div className="p-4 border border-yellow-500/30 rounded-lg bg-yellow-500/10 space-y-4 mt-4">
+                <h3 className="text-md font-semibold text-yellow-300">Dati del Tutore (Minorenne)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="guardianBirthDate"
+                    name="guardianFirstName"
                     render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Data di Nascita Tutore</FormLabel>
-                        <FormControl><Input type="date" {...field} value={field.value || ''}/></FormControl>
+                      <FormItem>
+                        <FormLabel>Nome Tutore</FormLabel>
+                        <FormControl><Input {...field} value={field.value || ''} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="guardianLastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cognome Tutore</FormLabel>
+                         <FormControl><Input {...field} value={field.value || ''} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
-              </>
+                <FormField
+                  control={form.control}
+                  name="guardianBirthDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Data di Nascita Tutore</FormLabel>
+                      <FormControl><Input type="date" {...field} value={field.value || ''}/></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             )}
           </div>
         </div>
+
         <div>
-          <h3 className="text-lg font-medium text-primary mb-2">Dati di Residenza</h3>
+          <h3 className="text-lg font-medium text-primary mb-2">Residenza e Contatti</h3>
           <div className="space-y-4 rounded-md border p-4">
             <FormField
               control={form.control}
@@ -422,11 +426,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 )}
               />
             </div>
-          </div>
-        </div>
-        <div>
-          <h3 className="text-lg font-medium text-primary mb-2">Contatti</h3>
-          <div className="space-y-4 rounded-md border p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -435,7 +434,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl><Input type="email" {...field} value={field.value || ''} /></FormControl>
-                     <FormDescription>Campo opzionale</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -447,7 +445,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                   <FormItem>
                     <FormLabel>Telefono</FormLabel>
                     <FormControl><Input {...field} value={field.value || ''}/></FormControl>
-                     <FormDescription>Campo opzionale</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -473,8 +470,9 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             />
           </div>
         </div>
+
         <div>
-          <h3 className="text-lg font-medium text-primary mb-2">Dati Tesseramento</h3>
+          <h3 className="text-lg font-medium text-primary mb-2">Tesseramento</h3>
           <div className="space-y-4 rounded-md border p-4">
             <FormField
               control={form.control}
@@ -502,7 +500,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                       </FormItem>
                     </RadioGroup>
                   </FormControl>
-                  <FormDescription>Attiva, metti in sospeso o rifiuta la richiesta.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -576,8 +573,8 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
               name="qualifica"
               render={() => (
                 <FormItem>
-                  <div className="mb-4"><FormLabel className="text-base">Qualifiche Socio</FormLabel></div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
+                  <FormLabel className="text-base">Qualifiche Socio</FormLabel>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 mt-2">
                     {QUALIFICHE.map((item) => (
                       <FormField
                         key={item}
@@ -631,6 +628,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             />
           </div>
         </div>
+
         <div>
           <h3 className="text-lg font-medium text-primary mb-2">Note Amministrative</h3>
           <div className="rounded-md border p-4">
@@ -641,7 +639,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 <FormItem>
                   <FormLabel>Note</FormLabel>
                   <FormControl><Textarea {...field} value={field.value || ''} placeholder="Aggiungi note..."/></FormControl>
-                   <FormDescription>Queste note sono visibili solo agli amministratori.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -649,7 +646,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
           </div>
         </div>
         
-        <div className="flex justify-between items-center pt-4 sticky bottom-0 bg-secondary/80 backdrop-blur-sm pb-4 rounded-b-lg">
+        <div className="flex justify-between items-center pt-4 sticky bottom-0 bg-secondary/90 backdrop-blur-sm pb-4 rounded-b-lg">
           <AlertDialog>
             <AlertDialogTrigger asChild>
                 <Button type="button" variant="destructive" disabled={isSubmitting || isDeleting}>
@@ -661,7 +658,7 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                 <AlertDialogHeader>
                     <AlertDialogTitle>Sei assolutamente sicuro?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Questa azione non può essere annullata. Questo eliminerà permanentemente il socio <strong className="text-foreground">{getFullName(socio)}</strong> e rimuoverà i suoi dati dai nostri server.
+                        Questa azione non può essere annullata. Questo eliminerà permanentemente il socio <strong className="text-foreground">{getFullName(socio)}</strong>.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

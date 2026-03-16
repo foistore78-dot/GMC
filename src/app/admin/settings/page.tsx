@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -135,17 +136,14 @@ export default function SettingsPage() {
 
   const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !firestore) {
-        return;
-    }
+    if (!file || !firestore) return;
     
     setIsImporting(true);
-
     try {
         const result: ImportResult = await importFromExcel(file, firestore);
         toast({
             title: "Importazione Completata",
-            description: `${result.createdCount} nuovi soci creati. ${result.updatedTessere.length} soci aggiornati. Errori: ${result.errorCount}.`,
+            description: `${result.createdCount} nuovi soci creati. ${result.updatedTessere.length} soci aggiornati.`,
             duration: 5000,
         });
     } catch(error) {
@@ -156,9 +154,7 @@ export default function SettingsPage() {
         });
     } finally {
         setIsImporting(false);
-        if (importFileRef.current) {
-          importFileRef.current.value = "";
-        }
+        if (importFileRef.current) importFileRef.current.value = "";
     }
   };
 
@@ -187,8 +183,8 @@ export default function SettingsPage() {
                   <LinkIcon className="w-5 h-5 text-primary" />
                   Link Invito WhatsApp
                 </CardTitle>
-                <CardDescription>
-                  Inserisci i link dei gruppi WhatsApp. Potrai scegliere quale inviare al momento della notifica al socio.
+                <CardDescription className="text-muted-foreground">
+                  Inserisci i link dei gruppi WhatsApp per l'invio rapido delle notifiche.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -235,15 +231,15 @@ export default function SettingsPage() {
                   <FileUp className="w-5 h-5 text-primary" />
                   Importazione Dati
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-muted-foreground">
                   Carica un file Excel (.xlsx) per importare o aggiornare l'elenco soci.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="p-4 bg-primary/10 rounded-lg border border-primary/20 mb-4 text-sm text-foreground/90">
+                <div className="p-4 bg-primary/10 rounded-lg border border-primary/20 mb-4 text-sm text-foreground">
                   <div className="flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 shrink-0 text-primary" />
-                    <p>Assicurati che il file Excel segua il formato corretto (scaricato tramite la funzione Esporta) per evitare errori di importazione.</p>
+                    <p>Assicurati che il file Excel segua il formato corretto scaricato tramite la funzione "Esporta".</p>
                   </div>
                 </div>
                 <input type="file" onChange={handleFileImport} ref={importFileRef} className="hidden" accept=".xlsx, .xls"/>
@@ -258,13 +254,6 @@ export default function SettingsPage() {
                 </Button>
               </CardContent>
             </Card>
-
-            <div className="p-4 bg-primary/10 rounded-lg border border-primary/20 flex gap-3 text-sm text-foreground/90">
-              <AlertCircle className="w-5 h-5 shrink-0 text-primary" />
-              <p>
-                Queste impostazioni sono riservate agli amministratori. I cambiamenti avranno effetto immediato su tutte le funzionalità dell'app.
-              </p>
-            </div>
           </div>
         </AuthGuard>
       </main>
@@ -278,7 +267,7 @@ export default function SettingsPage() {
               Verifica di Sicurezza
             </DialogTitle>
             <DialogDescription>
-              Inserisci la password di sicurezza per procedere con l'importazione dei dati.
+              Inserisci la password di sicurezza per procedere con l'importazione.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -289,9 +278,7 @@ export default function SettingsPage() {
                 type="password"
                 value={securityPasswordInput}
                 onChange={(e) => setSecurityPasswordInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') verifySecurityPassword();
-                }}
+                onKeyDown={(e) => e.key === 'Enter' && verifySecurityPassword()}
                 autoFocus
               />
             </div>
