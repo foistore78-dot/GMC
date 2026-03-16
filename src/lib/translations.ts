@@ -1,4 +1,3 @@
-
 export const translations = {
   it: {
     hero: {
@@ -77,7 +76,7 @@ export const translations = {
         },
       },
       guardian: {
-        title: "Dati del Tutore (per mladoletne)",
+        title: "Dati del Tutore (per minorenni)",
         description: "Essendo minorenne, è necessario inserire i dati di un genitore o tutore legale.",
         firstName: "Nome del Tutore",
         firstNamePlaceholder: "Luigi",
@@ -115,7 +114,7 @@ export const translations = {
         description: "Grazie per il tuo interesse. Abbiamo ricevuto la tua richiesta.",
         nextSteps: {
           title: "Prossimi Passi",
-          description: "Ti invitiamo a passare in sede per versare la quota associativa e finalizzare la tua iscrizione. Un nostro responsabile ti contatterà presto.",
+          description: "Ti invitiamo a passare in sede per versare la quota associativa e finalizzare la tua iscrizione. Un nostro responsabile ti contatterà presto. <br/><br/><b>Nota importante:</b> La tua richiesta ha una validità di <b>60 giorni</b>, oltre i quali verrà rimossa automaticamente dal sistema se non finalizzata.",
         },
         newApplication: "Invia un'altra candidatura",
         goHome: "Chiudi e torna alla Home",
@@ -241,7 +240,7 @@ export const translations = {
         description: "Thank you for your interest. We have received your request.",
         nextSteps: {
           title: "Next Steps",
-          description: "We invite you to visit our office to pay the membership fee and finalize your registration. One of our staff will contact you soon.",
+          description: "We invite you to visit our office to pay the membership fee and finalize your registration. One of our staff will contact you soon. <br/><br/><b>Important note:</b> Your request is valid for <b>60 days</b>, after which it will be automatically removed from the system if not finalized.",
         },
         newApplication: "Submit another application",
         goHome: "Close and return Home",
@@ -367,7 +366,7 @@ export const translations = {
         description: "Hvala za vaše zanimanje. Prejeli smo vašo prijavo.",
         nextSteps: {
           title: "Naslednji Koraki",
-          description: "Vabimo vas, da se oglasite v naši pisarni, poravnate članarino in dokončate vpis. Kmalu vas bo kontaktiral eden od naših uslužbencev.",
+          description: "Vabimo vas, da se oglasite v naši pisarni, poravnate članarino in dokončate vpis. Kmalu vas bo kontaktiral eden od naših uslužbencev. <br/><br/><b>Pomembna opomba:</b> Vaša zahteva velja <b>60 dni</b>, nato pa bo samodejno odstranjena iz sistema, če ne bo dokončana.",
         },
         newApplication: "Pošlji novo prijavo",
         goHome: "Zapri in se vrni domov",
@@ -379,5 +378,3 @@ export const translations = {
     }
   },
 };
-
-    
