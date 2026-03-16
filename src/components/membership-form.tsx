@@ -1,4 +1,3 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -128,10 +127,12 @@ export function MembershipForm() {
   const birthDate = form.watch("birthDate");
   const phoneValue = form.watch("phone");
 
+  // Determiniamo se è stato inserito un numero di telefono reale (oltre il prefisso)
   const isPhoneEntered = useMemo(() => {
     return phoneValue && phoneValue.trim().length > 4;
   }, [phoneValue]);
 
+  // Se il telefono viene rimosso, togliamo automaticamente il consenso WhatsApp
   useEffect(() => {
     if (!isPhoneEntered && form.getValues("whatsappConsent")) {
       form.setValue("whatsappConsent", false);

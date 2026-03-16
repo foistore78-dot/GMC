@@ -1,12 +1,11 @@
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useDeferredValue, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
-import { collection, onSnapshot, doc, writeBatch } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, Lock, X, Trash2, Info, Bell } from "lucide-react";
+import { collection, onSnapshot, doc, writeBatch, query, orderBy } from "firebase/firestore";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, X, Trash2, Info, Bell } from "lucide-react";
 
 import { SociTable, type SortConfig } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
@@ -177,6 +176,7 @@ export default function ElencoClient() {
 
   const [activeTab, setActiveTab] = useState(initialTab);
   const [sortConfig, setSortConfig] = useState<SortConfig>(() => {
+    // Per le richieste mettiamo di default l'ordinamento decrescente per data
     if (initialTab === "requests") {
       return { key: "contextualDate", direction: "descending" };
     }
@@ -312,6 +312,7 @@ export default function ElencoClient() {
         requests: filteredRequests.length,
     };
 
+    // Identifica richieste più vecchie di 60 giorni
     const oldRequests = filteredRequests.filter(req => isOlderThanDays(req.requestDate, 60));
 
     let dataForTab: Socio[];
@@ -353,6 +354,7 @@ export default function ElencoClient() {
     }
     setCurrentPage(1);
 
+    // Quando si passa alle richieste, ordiniamo per data decrescente
     if (tab === "requests") {
       setSortConfig({ key: "contextualDate", direction: "descending" });
     } else {
@@ -696,7 +698,7 @@ export default function ElencoClient() {
             </DialogTitle>
             <DialogDescription>
               {pendingAction === 'cleanup' 
-                ? "Inserisci la password di sicurezza per eliminare definitivamente le richieste vecchie."
+                ? "Inserisci la password di sicurezza per eliminare definitivamente le richieste vecchie (più di 60gg)."
                 : "Inserisci la password di sicurezza per procedere con l'operazione di esportazione dei dati."}
             </DialogDescription>
           </DialogHeader>

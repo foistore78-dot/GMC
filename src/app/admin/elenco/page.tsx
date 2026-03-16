@@ -1,9 +1,15 @@
 import { Suspense } from "react";
 import ElencoPageClient from "./ElencoPageClient";
 import { Loader2 } from "lucide-react";
+import type { Metadata, Viewport } from "next";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Elenco Soci | Admin Garage Music Club",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function ElencoPage() {

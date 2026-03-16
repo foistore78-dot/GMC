@@ -12,12 +12,15 @@ export const parseDate = (dateString: any): Date | null => {
     if (!dateString) return null;
     let date;
 
+    // Gestione specifica per i Timestamp di Firestore (oggetti con toDate())
     if (dateString && typeof dateString.toDate === 'function') {
         date = dateString.toDate();
     } else if (typeof dateString === 'string') {
         date = new Date(dateString);
     } else if (dateString instanceof Date) {
         date = dateString;
+    } else if (dateString?.seconds) { // Fallback per oggetti timestamp grezzi
+        date = new Date(dateString.seconds * 1000);
     } else {
         return null;
     }
@@ -91,9 +94,6 @@ export const formatCurrency = (value: number | undefined | null) => {
     return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(number);
 }
 
-/**
- * Normalizza una stringa in Title Case (Prima Lettera Maiuscola)
- */
 export const toTitleCase = (str: string | undefined | null): string => {
   if (!str) return '';
   return str
@@ -104,9 +104,6 @@ export const toTitleCase = (str: string | undefined | null): string => {
     .join(' ');
 };
 
-/**
- * Normalizza i dati di un socio (Nome, Cognome, Città, CF, etc.)
- */
 export const normalizeSocioData = (data: any) => {
   const normalized = { ...data };
 

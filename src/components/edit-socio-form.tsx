@@ -23,7 +23,6 @@ import { Loader2, Trash2 } from "lucide-react";
 import { useFirestore, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { Socio, QUALIFICHE } from "@/lib/soci-data";
 import { Textarea } from "./ui/textarea";
-import { Separator } from "./ui/separator";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { 
   AlertDialog, 
@@ -134,12 +133,10 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
   const currentStatus = form.watch("status");
   const phoneValue = form.watch("phone");
 
-  // Determine if a real phone number is entered
   const isPhoneEntered = useMemo(() => {
     return phoneValue && phoneValue.trim().length > 4;
   }, [phoneValue]);
 
-  // Automatically uncheck whatsapp consent if phone is removed
   useEffect(() => {
     if (!isPhoneEntered && form.getValues("whatsappConsent")) {
       form.setValue("whatsappConsent", false);
