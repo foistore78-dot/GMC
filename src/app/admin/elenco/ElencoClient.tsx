@@ -691,7 +691,7 @@ export default function ElencoClient() {
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Lock className="h-5 w-5 text-primary" />
+              <Bell className="h-5 w-5 text-primary" />
               Verifica di Sicurezza
             </DialogTitle>
             <DialogDescription>
