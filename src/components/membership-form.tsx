@@ -157,7 +157,9 @@ export function MembershipForm() {
       };
       
       const requestsCollection = collection(firestore, 'membership_requests');
-      await addDocumentNonBlocking(requestsCollection, membershipRequestData);
+      
+      // CRITICAL: We don't await the mutation for maximum UI responsiveness
+      addDocumentNonBlocking(requestsCollection, membershipRequestData);
 
       setIsSubmitted(true);
     } catch (error) {
