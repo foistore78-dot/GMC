@@ -38,7 +38,7 @@ import { useFirestore, errorEmitter, FirestorePermissionError } from "@/firebase
 import { useToast } from "@/hooks/use-toast";
 import { exportToExcel } from "@/lib/excel-export";
 import { Label } from "@/components/ui/label";
-import { getStatus, getFullName } from "@/lib/utils";
+import { getStatus, getFullName, parseDate } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 50;
 const SECURITY_PASSWORD = "1978";
@@ -107,9 +107,12 @@ const filterAndSortData = (
         bVal = b[key as keyof Socio];
       }
 
-      if (['renewalDate', 'joinDate', 'requestDate', 'birthDate', 'contextualDate'].includes(key)) {
-        const dateA = aVal ? new Date(aVal).getTime() : 0;
-        const dateB = bVal ? new Date(bVal).getTime() : 0;
+      // Gestione corretta delle date per l'ordinamento, inclusi i Timestamps di Firestore
+      if (['renewalDate', 'joinDate', 'requestDate', 'birthDate', 'contextualDate', 'expirationDate'].includes(key)) {
+        const dA = parseDate(aVal);
+        const dB = parseDate(bVal);
+        const dateA = dA ? dA.getTime() : 0;
+        const dateB = dB ? dB.getTime() : 0;
         if (dateA < dateB) return asc ? -1 : 1;
         if (dateA > dateB) return asc ? 1 : -1;
         return 0;
@@ -247,8 +250,6 @@ export default function ElencoClient() {
 
 
   const { paginatedData, totalPages, counts } = useMemo(() => {
-    // Prima filtriamo TUTTI i dati in base alla ricerca (deferredFilter)
-    // per ottenere i contatori corretti in tempo reale
     const filterBySearch = (data: Socio[]) => {
         if (!deferredFilter) return data;
         const lowerFilter = deferredFilter.toLowerCase();
@@ -284,7 +285,6 @@ export default function ElencoClient() {
         dataForTab = filteredRequests;
     }
     
-    // Applichiamo l'ordinamento finale al set di dati della tab corrente
     const sortedData = filterAndSortData(dataForTab, '', sortConfig, activeTab);
     
     const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE);
@@ -316,7 +316,7 @@ export default function ElencoClient() {
     setCurrentPage(1);
 
     if (tab === "requests") {
-      setSortConfig({ key: "requestDate", direction: "descending" });
+      setSortConfig({ key: "contextualDate", direction: "descending" });
     } else {
       setSortConfig({ key: "tessera", direction: "descending" });
     }
