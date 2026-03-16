@@ -127,6 +127,18 @@ export function MembershipForm() {
   const birthDate = form.watch("birthDate");
   const phoneValue = form.watch("phone");
 
+  // Determine if a real phone number is entered (ignoring just the "+39 ")
+  const isPhoneEntered = useMemo(() => {
+    return phoneValue && phoneValue.trim().length > 4;
+  }, [phoneValue]);
+
+  // Automatically uncheck whatsapp consent if phone is removed
+  useEffect(() => {
+    if (!isPhoneEntered && form.getValues("whatsappConsent")) {
+      form.setValue("whatsappConsent", false);
+    }
+  }, [isPhoneEntered, form]);
+
   const steps = isMinor ? [...baseSteps.slice(0, 3), guardianStep, ...baseSteps.slice(3)] : baseSteps;
   
   async function processForm(values: FormValues) {
@@ -239,7 +251,6 @@ export function MembershipForm() {
   }
 
   const progress = ((currentStep + 1) / steps.length) * 100;
-  const isPhoneEntered = phoneValue && phoneValue.trim().length > 4;
 
   if (!mounted) return <div className="h-[400px] flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
 
@@ -531,7 +542,7 @@ export function MembershipForm() {
                             />
                           </FormControl>
                           <div className="space-y-1 leading-none">
-                            <FormLabel>
+                            <FormLabel className={!isPhoneEntered ? "text-muted-foreground" : ""}>
                               {t('steps.contact.whatsappLabel')}
                             </FormLabel>
                             <FormDescription>

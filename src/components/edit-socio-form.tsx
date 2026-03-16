@@ -1,10 +1,9 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { doc, writeBatch, deleteField } from "firebase/firestore";
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -133,6 +132,19 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
   const birthDateValue = form.watch("birthDate");
   const isMinor = isMinorCheck(birthDateValue);
   const currentStatus = form.watch("status");
+  const phoneValue = form.watch("phone");
+
+  // Determine if a real phone number is entered
+  const isPhoneEntered = useMemo(() => {
+    return phoneValue && phoneValue.trim().length > 4;
+  }, [phoneValue]);
+
+  // Automatically uncheck whatsapp consent if phone is removed
+  useEffect(() => {
+    if (!isPhoneEntered && form.getValues("whatsappConsent")) {
+      form.setValue("whatsappConsent", false);
+    }
+  }, [isPhoneEntered, form]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (!firestore) return;
@@ -454,15 +466,16 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
               control={form.control}
               name="whatsappConsent"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
+                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 data-[disabled=true]:opacity-50" data-disabled={!isPhoneEntered}>
                   <FormControl>
                     <Checkbox
                       checked={!!field.value}
                       onCheckedChange={(checked) => field.onChange(checked === true)}
+                      disabled={!isPhoneEntered}
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel>Consenso WhatsApp</FormLabel>
+                    <FormLabel className={!isPhoneEntered ? "text-muted-foreground" : ""}>Consenso WhatsApp</FormLabel>
                     <FormDescription>Autorizza l&apos;uso del numero per il gruppo WhatsApp.</FormDescription>
                   </div>
                 </FormItem>
