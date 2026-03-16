@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useDeferredValue } from "react";
@@ -172,11 +173,17 @@ export default function ElencoClient() {
 
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
 
-  const initialTab = searchParams.get("tab") || "active";
+  const initialTab = (searchParams.get("tab") || "active") as 'active' | 'expired' | 'requests';
   const initialFilter = searchParams.get("filter") || "";
 
-  const [activeTab, setActiveTab] = useState(initialTab as 'active' | 'expired' | 'requests');
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "tessera", direction: "descending" });
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const [sortConfig, setSortConfig] = useState<SortConfig>(() => {
+    if (initialTab === "requests") {
+      return { key: "contextualDate", direction: "descending" };
+    }
+    return { key: "tessera", direction: "descending" };
+  });
+  
   const [filter, setFilter] = useState(initialFilter);
   
   const deferredFilter = useDeferredValue(filter);
