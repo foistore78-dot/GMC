@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -127,12 +128,10 @@ export function MembershipForm() {
   const birthDate = form.watch("birthDate");
   const phoneValue = form.watch("phone");
 
-  // Determine if a real phone number is entered (ignoring just the "+39 ")
   const isPhoneEntered = useMemo(() => {
     return phoneValue && phoneValue.trim().length > 4;
   }, [phoneValue]);
 
-  // Automatically uncheck whatsapp consent if phone is removed
   useEffect(() => {
     if (!isPhoneEntered && form.getValues("whatsappConsent")) {
       form.setValue("whatsappConsent", false);
@@ -149,7 +148,6 @@ export function MembershipForm() {
         throw new Error("Firestore is not initialized");
       }
 
-      // Normalizzazione dati prima del salvataggio
       const cleanedValues = normalizeSocioData(values);
 
       const membershipRequestData = {
@@ -230,9 +228,10 @@ export function MembershipForm() {
             <Alert className="mt-6 text-left bg-secondary border-primary/20">
               <Info className="h-4 w-4 text-primary" />
               <AlertTitle className="font-semibold text-primary">{t('submission.success.nextSteps.title')}</AlertTitle>
-              <AlertDescription className="text-foreground/90">
-                {t('submission.success.nextSteps.description')}
-              </AlertDescription>
+              <AlertDescription 
+                className="text-foreground/90" 
+                dangerouslySetInnerHTML={{ __html: t('submission.success.nextSteps.description') }} 
+              />
             </Alert>
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
                 <Button onClick={resetForm} variant="outline">

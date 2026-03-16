@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useDeferredValue, useRef } from "react";
@@ -199,7 +200,6 @@ export default function ElencoClient() {
   const [pendingAction, setPendingAction] = useState<'export' | 'cleanup' | null>(null);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
 
-  // Per le notifiche: teniamo traccia degli ID già visti
   const seenRequestIds = useRef<Set<string>>(new Set());
   const isInitialLoad = useRef(true);
 
@@ -240,7 +240,6 @@ export default function ElencoClient() {
       (snapshot) => {
         const requests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
         
-        // Logica notifiche per nuove richieste
         if (!isInitialLoad.current) {
           snapshot.docChanges().forEach((change) => {
             if (change.type === "added") {
@@ -251,7 +250,10 @@ export default function ElencoClient() {
                   description: `${getFullName(newSocio)} ha appena inviato una domanda di adesione.`,
                   variant: "default",
                   action: (
-                    <Button variant="outline" size="sm" onClick={() => setActiveTab('requests')}>
+                    <Button variant="outline" size="sm" onClick={() => {
+                        setActiveTab('requests');
+                        setSortConfig({ key: "contextualDate", direction: "descending" });
+                    }}>
                       Vedi
                     </Button>
                   ),
@@ -263,7 +265,6 @@ export default function ElencoClient() {
           isInitialLoad.current = false;
         }
 
-        // Aggiorna il set degli ID visti
         seenRequestIds.current = new Set(snapshot.docs.map(doc => doc.id));
         setRequestsData(requests);
       },
