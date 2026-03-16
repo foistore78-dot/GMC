@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useDeferredValue } from "react";
+import { useCallback, useEffect, useMemo, useState, useDeferredValue, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
 import { collection, onSnapshot, doc, writeBatch } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, Lock, X, Trash2, Info } from "lucide-react";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, Lock, X, Trash2, Info, Bell } from "lucide-react";
 
 import { SociTable, type SortConfig } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
@@ -109,7 +109,6 @@ const filterAndSortData = (
         bVal = b[key as keyof Socio];
       }
 
-      // Gestione corretta delle date per l'ordinamento, inclusi i Timestamps di Firestore
       if (['renewalDate', 'joinDate', 'requestDate', 'birthDate', 'contextualDate', 'expirationDate'].includes(key)) {
         const dA = parseDate(aVal);
         const dB = parseDate(bVal);
@@ -185,9 +184,7 @@ export default function ElencoClient() {
   });
   
   const [filter, setFilter] = useState(initialFilter);
-  
   const deferredFilter = useDeferredValue(filter);
-  
   const [currentPage, setCurrentPage] = useState(1);
   
   const [showPrintDialog, setShowPrintDialog] = useState(false);
@@ -202,6 +199,10 @@ export default function ElencoClient() {
   const [securityPasswordInput, setSecurityPasswordInput] = useState("");
   const [pendingAction, setPendingAction] = useState<'export' | 'cleanup' | null>(null);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
+
+  // Per le notifiche: teniamo traccia degli ID già visti
+  const seenRequestIds = useRef<Set<string>>(new Set());
+  const isInitialLoad = useRef(true);
 
   useEffect(() => {
     if (!firestore) {
@@ -239,6 +240,32 @@ export default function ElencoClient() {
       requestsRef,
       (snapshot) => {
         const requests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
+        
+        // Logica notifiche per nuove richieste
+        if (!isInitialLoad.current) {
+          snapshot.docChanges().forEach((change) => {
+            if (change.type === "added") {
+              const newSocio = change.doc.data() as Socio;
+              if (!seenRequestIds.current.has(change.doc.id)) {
+                toast({
+                  title: "Nuova Richiesta!",
+                  description: `${getFullName(newSocio)} ha appena inviato una domanda di adesione.`,
+                  variant: "default",
+                  action: (
+                    <Button variant="outline" size="sm" onClick={() => setActiveTab('requests')}>
+                      Vedi
+                    </Button>
+                  ),
+                });
+              }
+            }
+          });
+        } else {
+          isInitialLoad.current = false;
+        }
+
+        // Aggiorna il set degli ID visti
+        seenRequestIds.current = new Set(snapshot.docs.map(doc => doc.id));
         setRequestsData(requests);
       },
       (err) => {
@@ -255,7 +282,7 @@ export default function ElencoClient() {
       unsubscribeMembers();
       unsubscribeRequests();
     };
-  }, [firestore]);
+  }, [firestore, toast]);
 
 
   const { paginatedData, totalPages, counts, oldRequests } = useMemo(() => {
@@ -525,9 +552,15 @@ export default function ElencoClient() {
                   </TabsTrigger>
                   <TabsTrigger
                     value="requests"
-                    className="text-xs px-2 sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300"
+                    className="text-xs px-2 sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300 relative"
                   >
                     RICHIESTE ({counts.requests})
+                    {counts.requests > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+                      </span>
+                    )}
                   </TabsTrigger>
                 </TabsList>
                 
