@@ -1,51 +1,37 @@
-
 'use client';
 
-import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getAuth, Auth } from 'firebase/auth';
+import { getFirestore, Firestore } from 'firebase/firestore';
+import { firebaseConfig } from './config';
 
-// Singleton SDK instances
-let initializedSdks: {
-  firebaseApp: FirebaseApp;
-  auth: any;
-  firestore: any;
-} | null = null;
+let firebaseApp: FirebaseApp | undefined;
+let auth: Auth | undefined;
+let firestore: Firestore | undefined;
 
-// IMPORTANT: DO NOT MODIFY THIS FUNCTION
+/**
+ * Inizializza i servizi Firebase garantendo che siano singleton lato client.
+ */
 export function initializeFirebase() {
-  if (typeof window === 'undefined') {
-    throw new Error('initializeFirebase must be called on the client side');
-  }
+  if (typeof window === 'undefined') return null;
 
-  if (initializedSdks) {
-    return initializedSdks;
-  }
-
-  let firebaseApp: FirebaseApp;
-
-  if (!getApps().length) {
-    try {
-      // Attempt to initialize via Firebase App Hosting environment variables
-      firebaseApp = initializeApp();
-    } catch (e) {
-      if (process.env.NODE_ENV === "production") {
-        console.warn('Automatic initialization failed. Falling back to firebase config object.', e);
-      }
-      firebaseApp = initializeApp(firebaseConfig);
+  try {
+    if (!firebaseApp) {
+      // Verifica se l'app è già stata inizializzata per evitare errori di duplicazione
+      firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+      auth = getAuth(firebaseApp);
+      firestore = getFirestore(firebaseApp);
     }
-  } else {
-    firebaseApp = getApp();
+
+    return {
+      firebaseApp,
+      auth: auth!,
+      firestore: firestore!
+    };
+  } catch (error) {
+    console.error("Errore critico durante l'inizializzazione di Firebase:", error);
+    return null;
   }
-
-  initializedSdks = {
-    firebaseApp,
-    auth: getAuth(firebaseApp),
-    firestore: getFirestore(firebaseApp)
-  };
-
-  return initializedSdks;
 }
 
 export * from './provider';
