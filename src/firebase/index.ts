@@ -1,13 +1,17 @@
 'use client';
+
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { firebaseConfig } from './config';
 
-let app: FirebaseApp;
-let auth: Auth;
-let firestore: Firestore;
+let firebaseApp: FirebaseApp | undefined;
+let firebaseAuth: Auth | undefined;
+let firebaseFirestore: Firestore | undefined;
 
+/**
+ * Initializes Firebase services safely on the client.
+ */
 export function initializeFirebase() {
   if (typeof window === 'undefined') {
     return {
@@ -17,20 +21,34 @@ export function initializeFirebase() {
     };
   }
 
-  if (getApps().length === 0) {
-    app = initializeApp(firebaseConfig);
-  } else {
-    app = getApp();
+  try {
+    if (getApps().length === 0) {
+      firebaseApp = initializeApp(firebaseConfig);
+    } else {
+      firebaseApp = getApp();
+    }
+
+    if (!firebaseAuth && firebaseApp) {
+      firebaseAuth = getAuth(firebaseApp);
+    }
+
+    if (!firebaseFirestore && firebaseApp) {
+      firebaseFirestore = getFirestore(firebaseApp);
+    }
+
+    return {
+      firebaseApp: firebaseApp || null,
+      auth: firebaseAuth || null,
+      firestore: firebaseFirestore || null,
+    };
+  } catch (error) {
+    console.error("Firebase initialization failed:", error);
+    return {
+      firebaseApp: null as any,
+      auth: null as any,
+      firestore: null as any,
+    };
   }
-
-  auth = getAuth(app);
-  firestore = getFirestore(app);
-
-  return {
-    firebaseApp: app,
-    auth,
-    firestore,
-  };
 }
 
 export * from './provider';
