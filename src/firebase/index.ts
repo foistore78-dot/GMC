@@ -1,30 +1,38 @@
 'use client';
-
-import { firebaseConfig } from './config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getAuth, Auth } from 'firebase/auth';
+import { getFirestore, Firestore } from 'firebase/firestore';
+import { firebaseConfig } from './config';
+
+let app: FirebaseApp;
+let auth: Auth;
+let firestore: Firestore;
 
 export function initializeFirebase() {
-  // Se l'app non è già inizializzata, la creiamo usando il config che mi hai dato
-  if (!getApps().length) {
-    const firebaseApp = initializeApp(firebaseConfig);
-    return getSdks(firebaseApp);
+  if (typeof window === 'undefined') {
+    return {
+      firebaseApp: null as any,
+      auth: null as any,
+      firestore: null as any,
+    };
   }
 
-  // Se è già attiva, restituiamo quella esistente
-  return getSdks(getApp());
-}
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = getApp();
+  }
 
-export function getSdks(firebaseApp: FirebaseApp) {
+  auth = getAuth(app);
+  firestore = getFirestore(app);
+
   return {
-    firebaseApp,
-    auth: getAuth(firebaseApp),
-    firestore: getFirestore(firebaseApp)
+    firebaseApp: app,
+    auth,
+    firestore,
   };
 }
 
-// Esporta tutto il resto come prima
 export * from './provider';
 export * from './client-provider';
 export * from './firestore/use-collection';
