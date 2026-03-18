@@ -1,7 +1,8 @@
+
 import { Suspense } from "react";
-import ElencoPageClient from "./ElencoPageClient";
 import { Loader2 } from "lucide-react";
 import type { Metadata, Viewport } from "next";
+import dynamic from 'next/dynamic';
 
 export const metadata: Metadata = {
   title: "Elenco Soci | Admin Garage Music Club",
@@ -11,6 +12,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
 };
+
+const ElencoPageClient = dynamic(() => import('./ElencoPageClient'), { ssr: false });
 
 export default function ElencoPage() {
   return (
