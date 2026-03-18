@@ -1,86 +1,389 @@
 {
   "entities": {
-    "Socio": {
+    "UserProfile": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Socio",
+      "title": "UserProfile",
       "type": "object",
-      "description": "Rappresenta un socio del Garage Music Club.",
+      "description": "Represents a user's profile information, excluding authentication credentials. Each user can own multiple projects.",
       "properties": {
-        "id": { "type": "string" },
-        "gender": { "type": "string", "enum": ["male", "female"] },
-        "firstName": { "type": "string" },
-        "lastName": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "phone": { "type": "string" },
-        "birthPlace": { "type": "string" },
-        "birthDate": { "type": "string", "format": "date" },
-        "fiscalCode": { "type": "string" },
-        "address": { "type": "string" },
-        "city": { "type": "string" },
-        "province": { "type": "string" },
-        "postalCode": { "type": "string" },
-        "whatsappConsent": { "type": "boolean" },
-        "privacyConsent": { "type": "boolean" },
-        "guardianFirstName": { "type": "string" },
-        "guardianLastName": { "type": "string" },
-        "guardianBirthDate": { "type": "string", "format": "date" },
-        "membershipStatus": { "type": "string" },
-        "joinDate": { "type": "string", "format": "date-time" },
-        "expirationDate": { "type": "string", "format": "date-time" },
-        "renewalDate": { "type": "string", "format": "date-time" },
-        "membershipYear": { "type": "string" },
-        "notes": { "type": "string" },
-        "membershipFee": { "type": "number" },
-        "qualifica": {
-          "type": "array",
-          "items": { "type": "string", "enum": ["FONDATORE", "VOLONTARIO", "MUSICISTA"] }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserProfile entity."
         },
-        "tessera": { "type": "string" },
-        "requestDate": { "type": "string", "format": "date-time" }
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "name": {
+          "type": "string",
+          "description": "The full name or display name of the user."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was last updated.",
+          "format": "date-time"
+        }
       },
-      "required": ["id", "firstName", "lastName"]
+      "required": [
+        "id",
+        "email",
+        "name",
+        "createdAt"
+      ]
     },
-    "AppConfig": {
+    "Project": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "AppConfig",
+      "title": "Project",
       "type": "object",
-      "description": "Impostazioni globali come i link WhatsApp.",
+      "description": "Represents a user's project, acting as a container for datasets, data items, and configurations.",
       "properties": {
-        "whatsAppInviteLink1": { "type": "string", "format": "uri" },
-        "whatsAppInviteLink2": { "type": "string", "format": "uri" }
-      }
-    },
-    "Amministratore": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Amministratore",
-      "type": "object",
-      "description": "Ruolo amministrativo.",
-      "properties": {
-        "id": { "type": "string" },
-        "email": { "type": "string", "format": "email" }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Project entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the project."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of the project."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the project was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the project was last updated.",
+          "format": "date-time"
+        },
+        "userProfileId": {
+          "type": "string",
+          "description": "Reference to the UserProfile that owns this project. (Relationship: UserProfile 1:N Project)"
+        }
       },
-      "required": ["id", "email"]
+      "required": [
+        "id",
+        "name",
+        "createdAt",
+        "userProfileId"
+      ]
+    },
+    "DataSet": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DataSet",
+      "type": "object",
+      "description": "Represents a collection of structured data imported into a specific project, often originating from a single source like a CSV or JSON file.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the DataSet entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "A descriptive name for the data set (e.g., 'Customer Data', 'Sales Records')."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of the data set's content."
+        },
+        "projectId": {
+          "type": "string",
+          "description": "Reference to the Project this data set belongs to. (Relationship: Project 1:N DataSet)"
+        },
+        "importTimestamp": {
+          "type": "string",
+          "description": "Timestamp when the data set was imported.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "projectId",
+        "importTimestamp"
+      ]
+    },
+    "ProjectDataItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ProjectDataItem",
+      "type": "object",
+      "description": "Represents a single record or item of data within a DataSet, containing the actual structured data.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ProjectDataItem entity."
+        },
+        "dataSetId": {
+          "type": "string",
+          "description": "Reference to the DataSet this data item belongs to. (Relationship: DataSet 1:N ProjectDataItem)"
+        },
+        "data": {
+          "type": "string",
+          "description": "The actual structured data for this item, stored as a JSON string to allow flexible schema."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the data item was created or imported.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the data item was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "dataSetId",
+        "data",
+        "createdAt"
+      ]
+    },
+    "ViewConfiguration": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ViewConfiguration",
+      "type": "object",
+      "description": "Stores user-defined preferences for how data within a project or dataset should be visualized (e.g., table layout, sorting, filtering).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ViewConfiguration entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "A user-friendly name for this view configuration."
+        },
+        "projectId": {
+          "type": "string",
+          "description": "Reference to the Project this view configuration applies to. (Relationship: Project 1:N ViewConfiguration)"
+        },
+        "dataSetId": {
+          "type": "string",
+          "description": "Optional reference to a specific DataSet if the view is data-set-specific. (Relationship: DataSet 1:N ViewConfiguration)"
+        },
+        "layoutType": {
+          "type": "string",
+          "description": "The type of layout used for this view (e.g., 'table', 'cards', 'grid')."
+        },
+        "configurationJson": {
+          "type": "string",
+          "description": "A JSON string containing the detailed configuration for the view, including sorting, filtering, visible columns, etc."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the view configuration was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the view configuration was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "projectId",
+        "layoutType",
+        "configurationJson",
+        "createdAt"
+      ]
+    },
+    "AISuggestion": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AISuggestion",
+      "type": "object",
+      "description": "Stores suggestions generated by the AI tool, such as optimal organizational structures or identified key entities for a project or dataset.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the AISuggestion entity."
+        },
+        "projectId": {
+          "type": "string",
+          "description": "Reference to the Project this AI suggestion is related to. (Relationship: Project 1:N AISuggestion)"
+        },
+        "dataSetId": {
+          "type": "string",
+          "description": "Optional reference to a specific DataSet if the suggestion is dataset-specific. (Relationship: DataSet 1:N AISuggestion)"
+        },
+        "suggestionType": {
+          "type": "string",
+          "description": "The type of suggestion provided by the AI (e.g., 'schema_recommendation', 'entity_identification', 'data_cleaning')."
+        },
+        "suggestionJson": {
+          "type": "string",
+          "description": "A JSON string containing the detailed suggestion content, which could be a proposed schema, identified entities, or other analytical insights."
+        },
+        "generatedAt": {
+          "type": "string",
+          "description": "Timestamp when the AI suggestion was generated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "projectId",
+        "suggestionType",
+        "suggestionJson",
+        "generatedAt"
+      ]
     }
   },
   "auth": {
-    "providers": ["password"]
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
-    "/membership_requests/{requestId}": {
-      "schema": { "$ref": "#/backend/entities/Socio" },
-      "description": "Richieste pubbliche di iscrizione."
-    },
-    "/members/{memberId}": {
-      "schema": { "$ref": "#/backend/entities/Socio" },
-      "description": "Record sicuri dei soci."
-    },
-    "/settings/{configId}": {
-      "schema": { "$ref": "#/backend/entities/AppConfig" },
-      "description": "Configurazioni applicazione."
-    },
-    "/roles_admin/{adminId}": {
-      "schema": { "$ref": "#/backend/entities/Amministratore" },
-      "description": "Ruoli admin per UID."
-    }
+    "structure": [
+      {
+        "path": "/users/{userProfileId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores individual user profile information. The 'userProfileId' must match the authenticated user's UID (request.auth.uid) for ownership.",
+          "params": [
+            {
+              "name": "userProfileId",
+              "description": "The unique ID of the user, corresponding to Firebase Authentication UID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userProfileId}/projects/{projectId}",
+        "definition": {
+          "entityName": "Project",
+          "schema": {
+            "$ref": "#/backend/entities/Project"
+          },
+          "description": "Projects owned by a specific user. Includes denormalized 'userProfileId' for authorization independence and efficient list queries.",
+          "params": [
+            {
+              "name": "userProfileId",
+              "description": "The unique ID of the user who owns this project."
+            },
+            {
+              "name": "projectId",
+              "description": "The unique ID of the project."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userProfileId}/projects/{projectId}/dataSets/{dataSetId}",
+        "definition": {
+          "entityName": "DataSet",
+          "schema": {
+            "$ref": "#/backend/entities/DataSet"
+          },
+          "description": "Collections of structured data belonging to a specific project. Includes denormalized 'userProfileId' and 'projectId' for authorization independence and list queries.",
+          "params": [
+            {
+              "name": "userProfileId",
+              "description": "The unique ID of the user who owns the parent project."
+            },
+            {
+              "name": "projectId",
+              "description": "The unique ID of the parent project."
+            },
+            {
+              "name": "dataSetId",
+              "description": "The unique ID of the data set."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userProfileId}/projects/{projectId}/dataSets/{dataSetId}/dataItems/{dataItemId}",
+        "definition": {
+          "entityName": "ProjectDataItem",
+          "schema": {
+            "$ref": "#/backend/entities/ProjectDataItem"
+          },
+          "description": "Individual data records within a specific data set. Includes denormalized 'userProfileId', 'projectId', and 'dataSetId' for authorization independence and list queries.",
+          "params": [
+            {
+              "name": "userProfileId",
+              "description": "The unique ID of the user who owns the grand-parent project."
+            },
+            {
+              "name": "projectId",
+              "description": "The unique ID of the parent project."
+            },
+            {
+              "name": "dataSetId",
+              "description": "The unique ID of the parent data set."
+            },
+            {
+              "name": "dataItemId",
+              "description": "The unique ID of the data item."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userProfileId}/projects/{projectId}/viewConfigurations/{viewConfigurationId}",
+        "definition": {
+          "entityName": "ViewConfiguration",
+          "schema": {
+            "$ref": "#/backend/entities/ViewConfiguration"
+          },
+          "description": "User-defined display preferences for project data. Includes denormalized 'userProfileId' and 'projectId' for authorization independence and list queries.",
+          "params": [
+            {
+              "name": "userProfileId",
+              "description": "The unique ID of the user who owns the parent project."
+            },
+            {
+              "name": "projectId",
+              "description": "The unique ID of the parent project."
+            },
+            {
+              "name": "viewConfigurationId",
+              "description": "The unique ID of the view configuration."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userProfileId}/projects/{projectId}/aiSuggestions/{aiSuggestionId}",
+        "definition": {
+          "entityName": "AISuggestion",
+          "schema": {
+            "$ref": "#/backend/entities/AISuggestion"
+          },
+          "description": "AI-generated suggestions related to a project or its datasets. Includes denormalized 'userProfileId' and 'projectId' for authorization independence and list queries.",
+          "params": [
+            {
+              "name": "userProfileId",
+              "description": "The unique ID of the user who owns the parent project."
+            },
+            {
+              "name": "projectId",
+              "description": "The unique ID of the parent project."
+            },
+            {
+              "name": "aiSuggestionId",
+              "description": "The unique ID of the AI suggestion."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The recommended Firestore structure prioritizes Authorization Independence and Query-Aware Security Rules (QAPs) by leveraging a strictly hierarchical path structure combined with strategic denormalization. All user-specific data is rooted under a top-level `/users/{userProfileId}` collection, where `{userProfileId}` directly corresponds to the Firebase Authentication `request.auth.uid`. This path-based ownership ensures that all direct access to a user's data collection inherently filters by their authenticated ID, making `list` operations secure by default (QAPs).\n\nTo achieve Authorization Independence for nested resources, key authorization attributes are denormalized into subcollection documents. For example:\n\n1.  **Project Ownership**: A `Project` document, located at `/users/{userProfileId}/projects/{projectId}`, will explicitly store `userProfileId` (referencing its owner). This allows rules for `projects` to simply check `request.auth.uid == resource.data.userProfileId` without needing to `get()` the parent `UserProfile` document.\n\n2.  **DataSet, ViewConfiguration, AISuggestion Ownership**: These entities are direct children of a `Project`. Their paths are `.../projects/{projectId}/dataSets/{dataSetId}`, `.../viewConfigurations/{viewConfigurationId}`, and `.../aiSuggestions/{aiSuggestionId}` respectively. Each document within these subcollections will denormalize both the `userProfileId` (from the grand-parent UserProfile) and the `projectId` (from the parent Project). This allows security rules for these documents to perform checks like `request.auth.uid == resource.data.userProfileId && request.auth.uid == get(/databases/$(database)/documents/users/$(resource.data.userProfileId)/projects/$(resource.data.projectId)).data.userProfileId` (though this specific `get` is avoided by denormalizing `userProfileId` into the child itself). The actual rule becomes `request.auth.uid == resource.data.userProfileId && resource.data.projectId == projectId` where `projectId` is the path wildcard, ensuring complete authorization context within the document or its immediate path.\n\n3.  **ProjectDataItem Ownership**: `ProjectDataItem` documents, located at `.../dataSets/{dataSetId}/dataItems/{dataItemId}`, will denormalize `userProfileId`, `projectId`, and `dataSetId`. This ensures that access rules for a `ProjectDataItem` can be evaluated purely based on its own `resource.data` and the path wildcards, e.g., `request.auth.uid == resource.data.userProfileId && resource.data.projectId == projectId && resource.data.dataSetId == dataSetId`.\n\nThis design completely eliminates the need for `get()` calls in security rules, supports atomic creation of related documents, and provides clear, debuggable authorization logic. The structural segregation principle is followed by ensuring all documents within a given collection (e.g., all documents in `/users/{userProfileId}/projects`) share the same security posture – they are owned by the `userProfileId` in the path."
   }
 }
