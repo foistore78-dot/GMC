@@ -1,5 +1,5 @@
 {
-  "name": "nextn",
+  "name": "garage-music-club",
   "version": "0.1.16",
   "private": true,
   "scripts": {
@@ -47,8 +47,8 @@
     "recharts": "2.12.7",
     "xlsx": "0.18.5",
     "file-saver": "2.0.5",
-    "genkit": "1.0.4",
-    "@genkit-ai/google-genai": "1.0.4",
+    "genkit": "1.30.1",
+    "@genkit-ai/google-genai": "1.30.1",
     "wav": "1.0.2"
   },
   "devDependencies": {

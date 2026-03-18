@@ -1,23 +1,28 @@
-
 {
   "placeholderImages": [
     {
+      "id": "hero-concert",
+      "description": "A dark concert hall with stage lights pointing at the viewer.",
+      "imageUrl": "https://images.unsplash.com/photo-1619229724167-220710df9ac2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxjb25jZXJ0JTIwc3RhZ2V8ZW58MHx8fHwxNzY3Nzk0NDM5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "concert stage"
+    },
+    {
       "id": "project-1",
-      "description": "Abstract design for Project Canvas",
+      "description": "Abstract music waves design",
       "imageUrl": "https://picsum.photos/seed/pc1/600/400",
-      "imageHint": "abstract design"
+      "imageHint": "abstract music"
     },
     {
       "id": "project-2",
-      "description": "Data visualization representation",
+      "description": "Instruments and recording gear",
       "imageUrl": "https://picsum.photos/seed/pc2/600/400",
-      "imageHint": "data visualization"
+      "imageHint": "music gear"
     },
     {
       "id": "project-3",
-      "description": "Modern workspace for planning",
+      "description": "Musicians collaborating in a studio",
       "imageUrl": "https://picsum.photos/seed/pc3/600/400",
-      "imageHint": "modern workspace"
+      "imageHint": "music collaboration"
     }
   ]
 }
