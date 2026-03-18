@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -94,23 +95,24 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     const initialStatus = getSocioStatus(s);
     const formStatus = initialStatus === 'expired' ? 'active' : initialStatus;
     
+    // Robust mapping with fallbacks for alternative field names
     return {
-      firstName: s.firstName || "",
-      lastName: s.lastName || "",
+      firstName: s.firstName || (s as any).nome || (s as any).Nome || "",
+      lastName: s.lastName || (s as any).cognome || (s as any).Cognome || "",
       gender: (s.gender as "male" | "female") || "male",
       status: formStatus as "active" | "pending" | "rejected",
       birthDate: s.birthDate ? formatDate(s.birthDate, "yyyy-MM-dd") : "",
-      birthPlace: s.birthPlace || "",
-      fiscalCode: s.fiscalCode || "",
-      address: s.address || "",
-      city: s.city || "",
-      province: s.province || "",
-      postalCode: s.postalCode || "",
+      birthPlace: s.birthPlace || (s as any).luogoNascita || "",
+      fiscalCode: s.fiscalCode || (s as any).codiceFiscale || "",
+      address: s.address || (s as any).indirizzo || "",
+      city: s.city || (s as any).citta || "",
+      province: s.province || (s as any).prov || "",
+      postalCode: s.postalCode || (s as any).cap || "",
       guardianBirthDate: s.guardianBirthDate ? formatDate(s.guardianBirthDate, "yyyy-MM-dd") : "",
       requestDate: s.requestDate ? formatDate(s.requestDate, "yyyy-MM-dd") : (formStatus === 'pending' ? new Date().toISOString().split("T")[0] : ''),
       joinDate: s.joinDate ? formatDate(s.joinDate, "yyyy-MM-dd") : "",
       renewalDate: s.renewalDate ? formatDate(s.renewalDate, "yyyy-MM-dd") : "",
-      phone: s.phone || "",
+      phone: s.phone || (s as any).cellulare || "",
       email: s.email || "",
       qualifica: s.qualifica || [],
       membershipYear: s.membershipYear || new Date().getFullYear().toString(),
@@ -142,6 +144,13 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
       form.setValue("whatsappConsent", false);
     }
   }, [isPhoneEntered, form]);
+
+  // Sync form when socio prop changes
+  useEffect(() => {
+    if (socio) {
+      form.reset(getDefaultValues(socio));
+    }
+  }, [socio, form, getDefaultValues]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (!firestore) return;
@@ -217,20 +226,21 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
         batch.set(docRef, finalData, { merge: true });
     }
     
-    batch.commit().catch(async (error) => {
+    batch.commit().then(() => {
+        toast({
+            title: newStatus === 'rejected' ? "Richiesta Rifiutata" : "Socio aggiornato!",
+            description: `I dati di ${getFullName(normalizedValues)} sono stati salvati correttamente.`,
+        });
+        setIsSubmitting(false);
+        onClose(finalTab);
+    }).catch(async (error) => {
+        setIsSubmitting(false);
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: `members/${socio.id}`,
             operation: 'write',
             requestResourceData: normalizedValues,
         }));
     });
-
-    toast({
-        title: newStatus === 'rejected' ? "Richiesta Rifiutata" : "Socio aggiornato!",
-        description: `I dati di ${getFullName(normalizedValues)} sono stati salvati correttamente.`,
-    });
-    setIsSubmitting(false);
-    onClose(finalTab);
   };
   
   const handleDelete = () => {
@@ -247,10 +257,6 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
       setIsDeleting(false);
       onClose();
   };
-
-  useEffect(() => {
-    form.reset(getDefaultValues(socio));
-  }, [socio, form, getDefaultValues]);
 
   return (
     <Form {...form}>

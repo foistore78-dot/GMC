@@ -1,3 +1,4 @@
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { differenceInYears } from 'date-fns';
@@ -61,7 +62,11 @@ export const isOlderThanDays = (dateInput: any, days: number): boolean => {
     return diffDays > days;
 };
 
-export const getFullName = (socio: any) => `${socio.lastName || ''} ${socio.firstName || ''}`.trim();
+export const getFullName = (socio: any) => {
+    const fn = socio.firstName || socio.nome || socio.Nome || '';
+    const ln = socio.lastName || socio.cognome || socio.Cognome || '';
+    return `${ln} ${fn}`.trim();
+};
 
 export const getStatus = (socio: any, isFromMembersCollection: boolean = true): 'active' | 'pending' | 'rejected' | 'expired' => {
     if (isFromMembersCollection) {
@@ -106,6 +111,14 @@ export const toTitleCase = (str: string | undefined | null): string => {
 
 export const normalizeSocioData = (data: any) => {
   const normalized = { ...data };
+
+  // Prioritize primary fields but keep fallbacks
+  if (!normalized.firstName && (normalized.nome || normalized.Nome)) {
+      normalized.firstName = normalized.nome || normalized.Nome;
+  }
+  if (!normalized.lastName && (normalized.cognome || normalized.Cognome)) {
+      normalized.lastName = normalized.cognome || normalized.Cognome;
+  }
 
   const titleCaseFields = ['firstName', 'lastName', 'city', 'birthPlace', 'address', 'guardianFirstName', 'guardianLastName'];
   titleCaseFields.forEach(field => {
