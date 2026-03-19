@@ -5,22 +5,26 @@ import { getFirestore, Firestore } from 'firebase/firestore';
 import { firebaseConfig } from './config';
 
 export function initializeFirebase() {
+  // Preveniamo l'esecuzione lato server
   if (typeof window === 'undefined') {
     return { firebaseApp: null, auth: null, firestore: null };
   }
 
   try {
     let app: FirebaseApp;
+    // Se l'app non è ancora stata inizializzata, la creiamo con la config corretta
     if (getApps().length === 0) {
       app = initializeApp(firebaseConfig);
     } else {
       app = getApp();
     }
+    
     const auth = getAuth(app);
     const firestore = getFirestore(app);
+    
     return { firebaseApp: app, auth, firestore };
   } catch (e) {
-    console.error("Errore inizializzazione Firebase:", e);
+    console.error("Errore critico inizializzazione Firebase:", e);
     return { firebaseApp: null, auth: null, firestore: null };
   }
 }

@@ -9,6 +9,7 @@ import { useFirebase } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { firebaseConfig } from '@/firebase/config';
 
 interface AuthGuardProps {
     children: ReactNode;
@@ -23,7 +24,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showRetry, setShowRetry] = useState(false);
 
-  const { auth, areServicesAvailable, firebaseApp } = useFirebase();
+  const { auth, areServicesAvailable } = useFirebase();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -44,7 +45,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
     }
 
     if (!auth) {
-        setError("Servizio di autenticazione non pronto.");
+        setError("Servizio di autenticazione non pronto. Ricarica la pagina.");
         return;
     }
 
@@ -58,15 +59,13 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
         description: "Benvenuto nel pannello di controllo.",
       });
     } catch (e: any) {
-      console.error("Login Error Details:", e.code, e.message);
+      console.error("Login Error:", e.code, e.message);
       if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
         setError('Password errata o credenziali non valide.');
-      } else if (e.code === 'auth/user-not-found') {
-        setError('Utente non trovato.');
       } else if (e.code === 'auth/invalid-api-key') {
-        setError('Errore critico: Chiave API non valida per questo progetto.');
+        setError('Errore Configurazione: Chiave API non valida. Verifica i dati del progetto.');
       } else {
-        setError(`Errore Firebase (${e.code}): ${e.message}`);
+        setError(`Errore Firebase (${e.code})`);
       }
     } finally {
         setIsSubmitting(false);
@@ -100,7 +99,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
-                disabled={isSubmitting || !areServicesAvailable}
+                disabled={isSubmitting}
                 className="bg-secondary/50"
               />
               <div className="relative">
@@ -110,14 +109,13 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
-                  disabled={isSubmitting || !areServicesAvailable}
+                  disabled={isSubmitting}
                   className="bg-secondary/50 pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
-                  disabled={!areServicesAvailable}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -127,7 +125,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
                 <Alert variant="destructive" className="py-2 px-3">
                     <div className="flex items-center gap-2">
                         <AlertCircle className="h-4 w-4 shrink-0" />
-                        <AlertDescription className="text-xs font-medium leading-tight">
+                        <AlertDescription className="text-xs font-medium">
                         {error}
                         </AlertDescription>
                     </div>
@@ -139,13 +137,13 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
               <div className="space-y-4">
                 <div className="flex items-center justify-center gap-2 text-muted-foreground animate-pulse py-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-xs">Collegamento al progetto {firebaseConfig.projectId}...</span>
+                  <span className="text-xs">Collegamento a {firebaseConfig.projectId}...</span>
                 </div>
                 {showRetry && (
                   <Button 
                     type="button" 
                     variant="outline" 
-                    className="w-full text-xs h-9" 
+                    className="w-full text-xs" 
                     onClick={handleForceRetry}
                   >
                     <RefreshCw className="mr-2 h-3 w-3" /> Ricarica Servizi
