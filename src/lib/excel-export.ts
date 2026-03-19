@@ -70,6 +70,7 @@ const formatForExcel = (data: Socio[], isFromMembersCollection: boolean) => {
 };
 
 export const exportToExcel = (members: Socio[], requests: Socio[]) => {
+  console.log("Inizio esportazione Excel...", { membersCount: members.length, requestsCount: requests.length });
   const workbook = XLSX.utils.book_new();
 
   const fitToColumn = (data: any[]) => {
@@ -83,12 +84,14 @@ export const exportToExcel = (members: Socio[], requests: Socio[]) => {
   };
 
   const activeMembers = members.filter(m => getStatus(m, true) === 'active').sort(sortByTessera);
+  console.log("Soci attivi filtrati:", activeMembers.length);
   const activeData = formatForExcel(activeMembers, true);
   const worksheetActive = XLSX.utils.json_to_sheet(activeData);
   worksheetActive['!cols'] = fitToColumn(activeData);
   XLSX.utils.book_append_sheet(workbook, worksheetActive, 'Soci Attivi');
 
   const expiredMembers = members.filter(m => getStatus(m, true) === 'expired').sort(sortByTessera);
+  console.log("Sospesi filtrati:", expiredMembers.length);
   const expiredData = formatForExcel(expiredMembers, true);
   const worksheetExpired = XLSX.utils.json_to_sheet(expiredData);
   worksheetExpired['!cols'] = fitToColumn(expiredData);
@@ -96,11 +99,18 @@ export const exportToExcel = (members: Socio[], requests: Socio[]) => {
 
   // Includiamo TUTTE le richieste presenti, senza filtraggi di stato stringenti
   const pendingRequests = [...requests].sort(sortByRequestDate);
+  console.log("Richieste filtrate:", pendingRequests.length);
   const requestsData = formatForExcel(pendingRequests, false);
   const worksheetRequests = XLSX.utils.json_to_sheet(requestsData);
   worksheetRequests['!cols'] = fitToColumn(requestsData);
   XLSX.utils.book_append_sheet(workbook, worksheetRequests, 'Richieste');
 
   const today = formatDate(new Date(), 'dd.MM.yyyy');
-  XLSX.writeFile(workbook, `ELENCO SOCI GMC ${today}.xlsx`);
+  console.log("Generando file:", `ELENCO SOCI GMC ${today}.xlsx`);
+  try {
+    XLSX.writeFile(workbook, `ELENCO SOCI GMC ${today}.xlsx`);
+    console.log("Esportazione completata con successo.");
+  } catch (error) {
+    console.error("Errore durante la scrittura del file Excel:", error);
+  }
 };

@@ -91,6 +91,10 @@ export const formatDate = (dateInput: any, outputFormat: string = 'dd/MM/yyyy') 
       return `${y}-${m}-${d}`;
     }
     
+    if (outputFormat === 'dd.MM.yyyy') {
+        return `${d}.${m}.${y}`;
+    }
+    
     return `${d}/${m}/${y}`;
 };
 
