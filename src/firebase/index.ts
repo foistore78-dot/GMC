@@ -9,21 +9,23 @@ let auth: Auth;
 let db: Firestore;
 
 export function initializeFirebase() {
-  if (typeof window !== 'undefined') {
-    try {
-      if (getApps().length === 0) {
-        app = initializeApp(firebaseConfig);
-      } else {
-        app = getApp();
-      }
-      auth = getAuth(app);
-      db = getFirestore(app);
-      return { firebaseApp: app, auth, firestore: db };
-    } catch (e) {
-      console.error("Firebase initialization error:", e);
-    }
+  if (typeof window === 'undefined') {
+    return { firebaseApp: null, auth: null, firestore: null };
   }
-  return { firebaseApp: null, auth: null, firestore: null };
+
+  try {
+    if (getApps().length === 0) {
+      app = initializeApp(firebaseConfig);
+    } else {
+      app = getApp();
+    }
+    auth = getAuth(app);
+    db = getFirestore(app);
+    return { firebaseApp: app, auth, firestore: db };
+  } catch (e) {
+    console.error("Firebase initialization error:", e);
+    return { firebaseApp: null, auth: null, firestore: null };
+  }
 }
 
 export * from './provider';

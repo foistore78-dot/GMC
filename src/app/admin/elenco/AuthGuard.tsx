@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, ReactNode } from 'react';
+import { useState, ReactNode, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,9 +21,18 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDelayed, setIsDelayed] = useState(false);
 
   const { auth, areServicesAvailable } = useFirebase();
   const { toast } = useToast();
+
+  // Se dopo 5 secondi non è ancora collegato, mostriamo un avviso più esplicito
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!areServicesAvailable) setIsDelayed(true);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [areServicesAvailable]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +43,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
     }
 
     if (!auth) {
-        setError("Servizio di autenticazione non pronto. Ricarica la pagina.");
+        setError("Servizio di autenticazione non pronto. Riprova tra un istante.");
         return;
     }
 
@@ -53,6 +62,8 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
         setError('Password errata o credenziali non valide.');
       } else if (e.code === 'auth/user-not-found') {
         setError('Utente non trovato.');
+      } else if (e.code === 'auth/invalid-api-key') {
+        setError('Errore di configurazione: API Key non valida.');
       } else {
         setError(`Errore: ${e.message}`);
       }
@@ -126,9 +137,16 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
               {isSubmitting ? "Verifica..." : "Accedi"}
             </Button>
             {!areServicesAvailable && (
-              <p className="text-[10px] text-center text-muted-foreground animate-pulse mt-2">
-                Collegamento ai servizi di sicurezza...
-              </p>
+              <div className="mt-2">
+                <p className="text-[10px] text-center text-muted-foreground animate-pulse">
+                  Collegamento ai servizi di sicurezza...
+                </p>
+                {isDelayed && (
+                  <p className="text-[10px] text-center text-destructive mt-1">
+                    Il caricamento sta impiegando più del previsto. Controlla la tua connessione o ricarica la pagina.
+                  </p>
+                )}
+              </div>
             )}
           </form>
         </CardContent>
