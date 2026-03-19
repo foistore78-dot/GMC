@@ -10,7 +10,7 @@ let auth: Auth | undefined;
 let firestore: Firestore | undefined;
 
 /**
- * Inizializza i servizi Firebase in modo sicuro sul client.
+ * Inizializza i servizi Firebase garantendo che siano disponibili dopo il primo caricamento.
  */
 export function initializeFirebase() {
   if (typeof window === 'undefined') {
@@ -18,13 +18,21 @@ export function initializeFirebase() {
   }
 
   try {
+    // 1. Inizializza l'app se non esiste
     if (!app) {
       app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    }
+    
+    // 2. Assicurati che i servizi siano collegati all'istanza corretta
+    if (!auth && app) {
       auth = getAuth(app);
+    }
+    
+    if (!firestore && app) {
       firestore = getFirestore(app);
     }
   } catch (error) {
-    console.error("Errore critico inizializzazione Firebase:", error);
+    console.error("Errore durante l'inizializzazione dei servizi Firebase:", error);
   }
 
   return {
