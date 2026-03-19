@@ -4,36 +4,26 @@ import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { firebaseConfig } from './config';
 
-let app: FirebaseApp | undefined;
-let auth: Auth | undefined;
-let db: Firestore | undefined;
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
+
+if (typeof window !== 'undefined') {
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = getApp();
+  }
+  auth = getAuth(app);
+  db = getFirestore(app);
+}
 
 export function initializeFirebase() {
-  if (typeof window === 'undefined') {
-    return { firebaseApp: null, auth: null, firestore: null };
-  }
-
-  try {
-    if (!app) {
-      if (getApps().length === 0) {
-        app = initializeApp(firebaseConfig);
-      } else {
-        app = getApp();
-      }
-    }
-    
-    if (!auth) auth = getAuth(app);
-    if (!db) db = getFirestore(app);
-
-    return {
-      firebaseApp: app,
-      auth: auth,
-      firestore: db,
-    };
-  } catch (error) {
-    console.error("Firebase Initialization Error:", error);
-    return { firebaseApp: null, auth: null, firestore: null };
-  }
+  return {
+    firebaseApp: typeof window !== 'undefined' ? app : null,
+    auth: typeof window !== 'undefined' ? auth : null,
+    firestore: typeof window !== 'undefined' ? db : null,
+  };
 }
 
 export * from './provider';

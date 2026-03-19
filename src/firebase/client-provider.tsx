@@ -4,26 +4,14 @@ import { FirebaseProvider } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
 
 export function FirebaseClientProvider({ children }: { children: ReactNode }) {
-  const [services, setServices] = useState<{
-    firebaseApp: any;
-    auth: any;
-    firestore: any;
-  }>({
-    firebaseApp: null,
-    auth: null,
-    firestore: null,
-  });
-
-  const [mounted, setMounted] = useState(false);
+  const [services, setServices] = useState<any>(null);
 
   useEffect(() => {
-    // Inizializzazione immediata al mount del client
     const initialized = initializeFirebase();
     setServices(initialized);
-    setMounted(true);
   }, []);
 
-  if (!mounted) {
+  if (!services) {
     return null;
   }
 
