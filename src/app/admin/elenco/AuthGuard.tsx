@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, ReactNode } from 'react';
+import { useState, ReactNode, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,7 +28,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) {
-        setError("I servizi di sicurezza non sono ancora pronti. Ricarica la pagina se il problema persiste.");
+        setError("I servizi di sicurezza non sono ancora pronti. Per favore, ricarica la pagina.");
         return;
     }
     if (!email || !password) {
@@ -48,9 +48,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
     } catch (e: any) {
       console.error("Errore Login Auth:", e.code, e.message);
       if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
-        setError('Credenziali non valide. Controlla email e password o verifica che l\'utente esista nella console Firebase.');
-      } else if (e.code === 'auth/user-not-found') {
-        setError('Utente non trovato. Crea l\'utente nella sezione Authentication di Firebase.');
+        setError('Credenziali non valide. Verifica email e password.');
       } else {
         setError(`Errore di accesso: ${e.message}`);
       }
@@ -120,7 +118,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
               {isSubmitting ? "Verifica..." : "Accedi"}
             </Button>
             {!areServicesAvailable && (
-              <p className="text-[10px] text-center text-muted-foreground animate-pulse">
+              <p className="text-[10px] text-center text-muted-foreground animate-pulse mt-2">
                 Inizializzazione servizi in corso...
               </p>
             )}

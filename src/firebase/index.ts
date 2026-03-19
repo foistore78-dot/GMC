@@ -1,6 +1,6 @@
 'use client';
 
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { firebaseConfig } from './config';
@@ -9,6 +9,10 @@ let app: FirebaseApp | undefined;
 let auth: Auth | undefined;
 let firestore: Firestore | undefined;
 
+/**
+ * Inizializza Firebase garantendo un'unica istanza (Singleton).
+ * Forza il recupero dei servizi se l'app è già presente.
+ */
 export function initializeFirebase() {
   if (typeof window === 'undefined') {
     return { firebaseApp: null, auth: null, firestore: null };
@@ -23,12 +27,12 @@ export function initializeFirebase() {
     }
     
     if (app) {
-      // Inizializziamo i servizi solo se non sono già stati creati per questo singleton
-      if (!auth) auth = getAuth(app);
-      if (!firestore) firestore = getFirestore(app);
+      // Otteniamo i servizi. Firebase JS SDK gestisce internamente il singleton dei servizi per l'app data.
+      auth = getAuth(app);
+      firestore = getFirestore(app);
     }
   } catch (error) {
-    console.error("Errore inizializzazione Firebase:", error);
+    console.error("Errore critico inizializzazione Firebase:", error);
   }
 
   return {
