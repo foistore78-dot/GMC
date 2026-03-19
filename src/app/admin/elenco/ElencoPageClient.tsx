@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import AuthGuard from "./AuthGuard";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -11,6 +12,7 @@ import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 
 export default function ElencoPageClient() {
+  const router = useRouter();
   const { auth, user, firestore, isUserLoading } = useFirebase();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
@@ -55,10 +57,12 @@ export default function ElencoPageClient() {
 
   const handleLogout = useCallback(() => {
     if (auth) {
-      signOut(auth);
+      signOut(auth).then(() => {
+        router.push('/');
+      });
       setIsAdmin(false);
     }
-  }, [auth]);
+  }, [auth, router]);
 
   if (isUserLoading || isCheckingAdmin) {
     return (

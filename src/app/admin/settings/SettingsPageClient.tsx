@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -27,6 +28,7 @@ import {
 const SECURITY_PASSWORD = "1978";
 
 export default function SettingsPageClient() {
+  const router = useRouter();
   const { auth, user, firestore, isUserLoading } = useFirebase();
   const { toast } = useToast();
   const importFileRef = useRef<HTMLInputElement>(null);
@@ -113,7 +115,11 @@ export default function SettingsPageClient() {
   };
 
   const handleLogout = () => {
-    if (auth) signOut(auth);
+    if (auth) {
+      signOut(auth).then(() => {
+        router.push('/');
+      });
+    }
   };
 
   const initiateImport = () => {
