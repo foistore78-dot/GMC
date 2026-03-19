@@ -1,11 +1,10 @@
-
 "use client";
 
-import { useEffect, useState, ReactNode } from 'react';
+import { useState, ReactNode } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lock, LogIn, Loader2, AlertCircle } from 'lucide-react';
+import { Lock, LogIn, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useFirebase } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -19,6 +18,7 @@ interface AuthGuardProps {
 export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
   const [email, setEmail] = useState('garage.music.club2024@gmail.com');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -28,11 +28,11 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) {
-        setError("Servizio di autenticazione non disponibile.");
+        setError("I servizi di sicurezza si stanno ancora caricando. Attendi un istante.");
         return;
     }
     if (!email || !password) {
-      setError('Inserisci email e password.');
+      setError('Inserisci sia l\'email che la password.');
       return;
     }
 
@@ -40,23 +40,19 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
     setError('');
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // On successful login, the parent component will detect the auth state change
-      // and re-render with isAdmin=true, so we don't need to do anything else here.
+      await signInWithEmailAndPassword(auth, email.trim(), password);
       toast({
         title: "Accesso Effettuato",
-        description: "Benvenuto nell'area di amministrazione.",
+        description: "Benvenuto nel pannello di controllo.",
       });
     } catch (e: any) {
-      switch (e.code) {
-        case 'auth/user-not-found':
-        case 'auth/wrong-password':
-        case 'auth/invalid-credential':
-          setError('Credenziali non valide. Riprova.');
-          break;
-        default:
-          setError('Si è verificato un errore imprevisto durante l\'accesso.');
-          break;
+      console.error("Errore Login Auth:", e.code, e.message);
+      if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
+        setError('Credenziali non valide. Controlla email e password.');
+      } else if (e.code === 'auth/user-not-found') {
+        setError('Utente non trovato. Contatta l\'amministratore del database.');
+      } else {
+        setError(`Errore di accesso: ${e.message}`);
       }
     } finally {
         setIsSubmitting(false);
@@ -68,20 +64,17 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
   }
   
   return (
-    <div className="flex-grow container mx-auto px-4 py-8 flex items-center justify-center">
-      <Card className="w-full max-w-sm">
+    <div className="flex-grow container mx-auto px-4 py-8 flex items-center justify-center min-h-[70vh]">
+      <Card className="w-full max-w-sm shadow-2xl border-primary/20 bg-background/80 backdrop-blur-md">
         <CardHeader className="text-center">
-            <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit">
+            <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit mb-2">
                 <Lock className="w-8 h-8 text-primary" />
             </div>
-          <CardTitle>Area Amministrazione</CardTitle>
-          <CardDescription>Inserisci le credenziali per accedere al pannello.</CardDescription>
+          <CardTitle className="font-headline text-2xl">Pannello Admin</CardTitle>
+          <CardDescription>Inserisci le tue credenziali per procedere</CardDescription>
         </CardHeader>
         <CardContent>
-          <form
-            onSubmit={handleLogin}
-            className="space-y-4"
-          >
+          <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
                <Input
                 type="email"
@@ -90,29 +83,41 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
                 disabled={isSubmitting}
+                className="bg-secondary/50"
               />
-              <Input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                disabled={isSubmitting}
-              />
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  disabled={isSubmitting}
+                  className="bg-secondary/50 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              
               {error && (
-                <Alert variant="destructive" className="p-2">
+                <Alert variant="destructive" className="py-2 px-3">
                     <div className="flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription className="text-xs">
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        <AlertDescription className="text-xs font-medium">
                         {error}
                         </AlertDescription>
                     </div>
                 </Alert>
               )}
             </div>
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" className="w-full font-bold h-11" disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
-              {isSubmitting ? "Accesso in corso..." : "Accedi"}
+              {isSubmitting ? "Verifica..." : "Accedi"}
             </Button>
           </form>
         </CardContent>
