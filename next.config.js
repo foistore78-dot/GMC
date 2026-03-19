@@ -6,6 +6,16 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    serverActions: {
+      allowedOrigins: [
+        '*.cloudworkstations.dev',
+        '*.cluster-64pjnskmlbaxowh5lzq6i7v4ra.cloudworkstations.dev',
+        '*.firebase-studio.com',
+        'localhost:9002'
+      ],
+    },
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },
