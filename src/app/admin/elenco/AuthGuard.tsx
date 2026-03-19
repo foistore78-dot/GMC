@@ -4,8 +4,8 @@ import { useState, ReactNode, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lock, LogIn, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
-import { useFirebase } from '@/firebase';
+import { Lock, LogIn, Loader2, AlertCircle, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { useFirebase, initializeFirebase } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -21,15 +21,17 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDelayed, setIsDelayed] = useState(false);
+  const [showRetry, setShowRetry] = useState(false);
 
   const { auth, areServicesAvailable } = useFirebase();
   const { toast } = useToast();
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (!areServicesAvailable) setIsDelayed(true);
-    }, 2000);
+      if (!areServicesAvailable) {
+        setShowRetry(true);
+      }
+    }, 5000);
     return () => clearTimeout(timer);
   }, [areServicesAvailable]);
 
@@ -42,7 +44,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
     }
 
     if (!auth) {
-        setError("I servizi non sono pronti. Ricarica la pagina.");
+        setError("I servizi non sono pronti. Prova a ricaricare la pagina.");
         return;
     }
 
@@ -62,13 +64,17 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
       } else if (e.code === 'auth/user-not-found') {
         setError('Utente non trovato.');
       } else if (e.code === 'auth/invalid-api-key') {
-        setError('Configurazione errata (API Key non valida).');
+        setError('Errore di configurazione: API Key non valida. Controlla il file config.ts.');
       } else {
         setError(`Errore: ${e.message}`);
       }
     } finally {
         setIsSubmitting(false);
     }
+  };
+
+  const handleForceRetry = () => {
+    window.location.reload();
   };
   
   if (isAdmin) {
@@ -94,7 +100,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !areServicesAvailable}
                 className="bg-secondary/50"
               />
               <div className="relative">
@@ -104,13 +110,14 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !areServicesAvailable}
                   className="bg-secondary/50 pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                  disabled={!areServicesAvailable}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -127,25 +134,33 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
                 </Alert>
               )}
             </div>
-            <Button 
-              type="submit" 
-              className="w-full font-bold h-11" 
-              disabled={isSubmitting || !areServicesAvailable}
-            >
-              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
-              {isSubmitting ? "Verifica..." : "Accedi"}
-            </Button>
-            {!areServicesAvailable && (
-              <div className="mt-2 text-center">
-                <p className="text-[10px] text-muted-foreground animate-pulse">
-                  Collegamento ai servizi di sicurezza...
-                </p>
-                {isDelayed && (
-                  <p className="text-[10px] text-destructive mt-1">
-                    Il caricamento richiede troppo tempo. Ricarica la pagina.
-                  </p>
+
+            {!areServicesAvailable ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-center gap-2 text-muted-foreground animate-pulse py-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-xs">Collegamento a Firebase...</span>
+                </div>
+                {showRetry && (
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="w-full text-xs h-9" 
+                    onClick={handleForceRetry}
+                  >
+                    <RefreshCw className="mr-2 h-3 w-3" /> Ricarica Servizi
+                  </Button>
                 )}
               </div>
+            ) : (
+              <Button 
+                type="submit" 
+                className="w-full font-bold h-11" 
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
+                {isSubmitting ? "Verifica..." : "Accedi"}
+              </Button>
             )}
           </form>
         </CardContent>

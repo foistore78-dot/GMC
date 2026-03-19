@@ -4,27 +4,30 @@ import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { firebaseConfig } from './config';
 
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
-
 export function initializeFirebase() {
   if (typeof window === 'undefined') {
     return { firebaseApp: null, auth: null, firestore: null };
   }
 
   try {
+    let app: FirebaseApp;
     if (getApps().length === 0) {
       app = initializeApp(firebaseConfig);
     } else {
       app = getApp();
     }
-    auth = getAuth(app);
-    db = getFirestore(app);
-    return { firebaseApp: app, auth, firestore: db };
+    const auth = getAuth(app);
+    const firestore = getFirestore(app);
+    return { firebaseApp: app, auth, firestore };
   } catch (e) {
     console.error("Firebase initialization error:", e);
-    return { firebaseApp: null, auth: null, firestore: null };
+    // Fallback: try to return existing instances if possible
+    try {
+      const app = getApp();
+      return { firebaseApp: app, auth: getAuth(app), firestore: getFirestore(app) };
+    } catch {
+      return { firebaseApp: null, auth: null, firestore: null };
+    }
   }
 }
 
