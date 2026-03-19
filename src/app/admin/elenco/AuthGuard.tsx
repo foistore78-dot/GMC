@@ -22,13 +22,13 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { auth } = useFirebase();
+  const { auth, areServicesAvailable } = useFirebase();
   const { toast } = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) {
-        setError("I servizi di sicurezza si stanno ancora caricando. Attendi un istante.");
+        setError("I servizi di sicurezza non sono ancora pronti. Ricarica la pagina se il problema persiste.");
         return;
     }
     if (!email || !password) {
@@ -48,9 +48,9 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
     } catch (e: any) {
       console.error("Errore Login Auth:", e.code, e.message);
       if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
-        setError('Credenziali non valide. Controlla email e password.');
+        setError('Credenziali non valide. Controlla email e password o verifica che l\'utente esista nella console Firebase.');
       } else if (e.code === 'auth/user-not-found') {
-        setError('Utente non trovato. Contatta l\'amministratore del database.');
+        setError('Utente non trovato. Crea l\'utente nella sezione Authentication di Firebase.');
       } else {
         setError(`Errore di accesso: ${e.message}`);
       }
@@ -115,10 +115,15 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
                 </Alert>
               )}
             </div>
-            <Button type="submit" className="w-full font-bold h-11" disabled={isSubmitting}>
+            <Button type="submit" className="w-full font-bold h-11" disabled={isSubmitting || !areServicesAvailable}>
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
               {isSubmitting ? "Verifica..." : "Accedi"}
             </Button>
+            {!areServicesAvailable && (
+              <p className="text-[10px] text-center text-muted-foreground animate-pulse">
+                Inizializzazione servizi in corso...
+              </p>
+            )}
           </form>
         </CardContent>
       </Card>

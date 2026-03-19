@@ -6,20 +6,27 @@ import { initializeFirebase } from '@/firebase';
 
 /**
  * Fornisce i servizi Firebase garantendo l'inizializzazione stabile sul client.
+ * Inizializza i servizi immediatamente se siamo in ambiente browser.
  */
 export function FirebaseClientProvider({ children }: { children: ReactNode }) {
   const [services, setServices] = useState<{
     firebaseApp: any;
     auth: any;
     firestore: any;
-  }>({
-    firebaseApp: null,
-    auth: null,
-    firestore: null
+  }>(() => {
+    // Tentativo di inizializzazione sincrona se siamo sul client
+    if (typeof window !== 'undefined') {
+      return initializeFirebase();
+    }
+    return {
+      firebaseApp: null,
+      auth: null,
+      firestore: null
+    };
   });
 
   useEffect(() => {
-    // Inizializzazione sicura al montaggio del componente
+    // Rafforziamo l'inizializzazione al montaggio
     const initialized = initializeFirebase();
     setServices(initialized);
   }, []);

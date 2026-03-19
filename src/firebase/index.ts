@@ -15,15 +15,17 @@ export function initializeFirebase() {
   }
 
   try {
-    if (getApps().length === 0) {
+    const apps = getApps();
+    if (apps.length === 0) {
       app = initializeApp(firebaseConfig);
     } else {
-      app = getApp();
+      app = apps[0];
     }
     
     if (app) {
-      auth = getAuth(app);
-      firestore = getFirestore(app);
+      // Inizializziamo i servizi solo se non sono già stati creati per questo singleton
+      if (!auth) auth = getAuth(app);
+      if (!firestore) firestore = getFirestore(app);
     }
   } catch (error) {
     console.error("Errore inizializzazione Firebase:", error);
