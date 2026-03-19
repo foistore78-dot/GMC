@@ -27,13 +27,15 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) {
-        setError("I servizi di sicurezza non sono ancora pronti. Per favore, ricarica la pagina.");
-        return;
-    }
+    
     if (!email || !password) {
       setError('Inserisci sia l\'email che la password.');
       return;
+    }
+
+    if (!auth) {
+        setError("I servizi di sicurezza non sono pronti. Per favore, ricarica la pagina.");
+        return;
     }
 
     setIsSubmitting(true);
@@ -115,13 +117,13 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
                 </Alert>
               )}
             </div>
-            <Button type="submit" className="w-full font-bold h-11" disabled={isSubmitting || !areServicesAvailable}>
+            <Button type="submit" className="w-full font-bold h-11" disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
               {isSubmitting ? "Verifica..." : "Accedi"}
             </Button>
             {!areServicesAvailable && (
               <p className="text-[10px] text-center text-muted-foreground animate-pulse mt-2">
-                Inizializzazione servizi in corso...
+                Caricamento servizi...
               </p>
             )}
           </form>
