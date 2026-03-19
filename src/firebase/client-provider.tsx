@@ -22,8 +22,9 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
     setMounted(true);
   }, []);
 
+  // Rendiamo il mount più veloce
   if (!mounted) {
-    return <>{children}</>;
+    return null;
   }
 
   return (

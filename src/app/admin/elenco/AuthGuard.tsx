@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, ReactNode, useEffect } from 'react';
+import { useState, ReactNode } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -48,9 +48,11 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
     } catch (e: any) {
       console.error("Errore Login Auth:", e.code, e.message);
       if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
-        setError('Credenziali non valide. Verifica email e password.');
+        setError('Password errata o credenziali non valide.');
+      } else if (e.code === 'auth/user-not-found') {
+        setError('Utente non trovato nel sistema.');
       } else {
-        setError(`Errore di accesso: ${e.message}`);
+        setError(`Errore: ${e.message}`);
       }
     } finally {
         setIsSubmitting(false);

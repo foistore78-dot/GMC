@@ -29,8 +29,18 @@ export function initializeFirebase() {
       firestore: db,
     };
   } catch (error) {
-    console.error("Errore inizializzazione Firebase:", error);
-    return { firebaseApp: null, auth: null, firestore: null };
+    console.error("Errore critico inizializzazione Firebase:", error);
+    // Tentativo di recupero se l'app è già presente ma i servizi non sono stati assegnati
+    try {
+        const recoveredApp = getApp();
+        return {
+            firebaseApp: recoveredApp,
+            auth: getAuth(recoveredApp),
+            firestore: getFirestore(recoveredApp)
+        };
+    } catch (e) {
+        return { firebaseApp: null, auth: null, firestore: null };
+    }
   }
 }
 
