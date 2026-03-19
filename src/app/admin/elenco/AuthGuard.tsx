@@ -32,7 +32,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
       if (!areServicesAvailable) {
         setShowRetry(true);
       }
-    }, 5000);
+    }, 4000);
     return () => clearTimeout(timer);
   }, [areServicesAvailable]);
 
@@ -45,7 +45,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
     }
 
     if (!auth) {
-        setError("Servizio di autenticazione non pronto. Ricarica la pagina.");
+        setError("I servizi non sono ancora pronti.");
         return;
     }
 
@@ -63,9 +63,9 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
       if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
         setError('Password errata o credenziali non valide.');
       } else if (e.code === 'auth/invalid-api-key') {
-        setError('Errore Configurazione: Chiave API non valida. Verifica i dati del progetto.');
+        setError('ERRORE CRITICO: Chiave API non valida. Controlla la console Firebase.');
       } else {
-        setError(`Errore Firebase (${e.code})`);
+        setError(`Errore: ${e.message}`);
       }
     } finally {
         setIsSubmitting(false);
@@ -91,66 +91,75 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
           <CardDescription>Inserisci le tue credenziali</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-               <Input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                disabled={isSubmitting}
-                className="bg-secondary/50"
-              />
-              <div className="relative">
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
-                  disabled={isSubmitting}
-                  className="bg-secondary/50 pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+          {!areServicesAvailable ? (
+            <div className="space-y-6 py-4">
+              <div className="flex flex-col items-center justify-center gap-4 text-muted-foreground animate-pulse">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <p className="text-sm font-medium">Collegamento al progetto in corso...</p>
+                <p className="text-[10px] opacity-50">{firebaseConfig.projectId}</p>
               </div>
-              
-              {error && (
-                <Alert variant="destructive" className="py-2 px-3">
-                    <div className="flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 shrink-0" />
-                        <AlertDescription className="text-xs font-medium">
-                        {error}
-                        </AlertDescription>
-                    </div>
-                </Alert>
-              )}
-            </div>
-
-            {!areServicesAvailable ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-center gap-2 text-muted-foreground animate-pulse py-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-xs">Collegamento a {firebaseConfig.projectId}...</span>
-                </div>
-                {showRetry && (
+              {showRetry && (
+                <div className="space-y-4">
+                  <Alert variant="destructive" className="py-2 px-3 text-xs">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Il collegamento sta impiegando troppo tempo. Potrebbe esserci un problema con le chiavi API.
+                    </AlertDescription>
+                  </Alert>
                   <Button 
                     type="button" 
                     variant="outline" 
-                    className="w-full text-xs" 
+                    className="w-full" 
                     onClick={handleForceRetry}
                   >
-                    <RefreshCw className="mr-2 h-3 w-3" /> Ricarica Servizi
+                    <RefreshCw className="mr-2 h-3 w-3" /> Ricarica Applicazione
                   </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Input
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  disabled={isSubmitting}
+                  className="bg-secondary/50"
+                />
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    disabled={isSubmitting}
+                    className="bg-secondary/50 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                
+                {error && (
+                  <Alert variant="destructive" className="py-2 px-3">
+                      <div className="flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 shrink-0" />
+                          <AlertDescription className="text-xs font-medium">
+                          {error}
+                          </AlertDescription>
+                      </div>
+                  </Alert>
                 )}
               </div>
-            ) : (
+
               <Button 
                 type="submit" 
                 className="w-full font-bold h-11" 
@@ -159,8 +168,8 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
                 {isSubmitting ? "Verifica..." : "Accedi"}
               </Button>
-            )}
-          </form>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>
