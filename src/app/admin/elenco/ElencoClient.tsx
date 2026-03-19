@@ -107,7 +107,7 @@ const filterAndSortData = (
       bVal = String(bVal ?? '');
 
       if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return aVal.localeCompare(bVal) * (asc ? 1 : -1);
+        return aVal.localeCompare(bVal, undefined, { numeric: true, sensitivity: 'base' }) * (asc ? 1 : -1);
       }
       
       return 0;
