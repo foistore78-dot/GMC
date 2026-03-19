@@ -4,9 +4,9 @@ import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { firebaseConfig } from './config';
 
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
+let app: FirebaseApp | undefined;
+let auth: Auth | undefined;
+let db: Firestore | undefined;
 
 export function initializeFirebase() {
   if (typeof window === 'undefined') {
@@ -14,15 +14,16 @@ export function initializeFirebase() {
   }
 
   try {
-    if (getApps().length === 0) {
-      app = initializeApp(firebaseConfig);
-    } else {
-      app = getApp();
+    if (!app) {
+      if (getApps().length === 0) {
+        app = initializeApp(firebaseConfig);
+      } else {
+        app = getApp();
+      }
     }
     
-    // Inizializziamo i servizi solo se non esistono già nell'istanza corrente
-    auth = getAuth(app);
-    db = getFirestore(app);
+    if (!auth) auth = getAuth(app);
+    if (!db) db = getFirestore(app);
 
     return {
       firebaseApp: app,
@@ -30,7 +31,7 @@ export function initializeFirebase() {
       firestore: db,
     };
   } catch (error) {
-    console.error("Errore critico inizializzazione Firebase:", error);
+    console.error("Firebase Initialization Error:", error);
     return { firebaseApp: null, auth: null, firestore: null };
   }
 }

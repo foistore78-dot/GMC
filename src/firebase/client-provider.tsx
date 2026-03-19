@@ -23,7 +23,6 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
     setMounted(true);
   }, []);
 
-  // Evitiamo il flickering aspettando il primo mount
   if (!mounted) {
     return null;
   }

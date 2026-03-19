@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, ReactNode } from 'react';
+import { useState, ReactNode, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,7 +34,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
     }
 
     if (!auth) {
-        setError("I servizi di sicurezza si stanno ancora caricando. Attendi un istante.");
+        setError("Servizio di autenticazione non pronto. Ricarica la pagina.");
         return;
     }
 
@@ -42,19 +42,19 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
     setError('');
 
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+      await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
       toast({
         title: "Accesso Effettuato",
         description: "Benvenuto nel pannello di controllo.",
       });
     } catch (e: any) {
-      console.error("Errore Login Auth:", e.code, e.message);
+      console.error("Login Error:", e.code, e.message);
       if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
         setError('Password errata o credenziali non valide.');
       } else if (e.code === 'auth/user-not-found') {
-        setError('Utente non trovato nel sistema.');
+        setError('Utente non trovato.');
       } else {
-        setError(`Errore di connessione: ${e.message}`);
+        setError(`Errore: ${e.message}`);
       }
     } finally {
         setIsSubmitting(false);
@@ -72,8 +72,8 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
             <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit mb-2">
                 <Lock className="w-8 h-8 text-primary" />
             </div>
-          <CardTitle className="font-headline text-2xl">Pannello Admin</CardTitle>
-          <CardDescription>Inserisci le tue credenziali per procedere</CardDescription>
+          <CardTitle className="font-headline text-2xl">Area Riservata</CardTitle>
+          <CardDescription>Inserisci le tue credenziali</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
@@ -127,7 +127,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
             </Button>
             {!areServicesAvailable && (
               <p className="text-[10px] text-center text-muted-foreground animate-pulse mt-2">
-                Inizializzazione servizi di sicurezza...
+                Collegamento ai servizi di sicurezza...
               </p>
             )}
           </form>
