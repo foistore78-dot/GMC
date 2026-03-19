@@ -29,7 +29,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!areServicesAvailable) setIsDelayed(true);
-    }, 3000);
+    }, 2000);
     return () => clearTimeout(timer);
   }, [areServicesAvailable]);
 
@@ -42,7 +42,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
     }
 
     if (!auth) {
-        setError("Servizio di autenticazione non pronto. Ricarica la pagina.");
+        setError("I servizi non sono pronti. Ricarica la pagina.");
         return;
     }
 
@@ -62,7 +62,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
       } else if (e.code === 'auth/user-not-found') {
         setError('Utente non trovato.');
       } else if (e.code === 'auth/invalid-api-key') {
-        setError('Configurazione errata: API Key non valida.');
+        setError('Configurazione errata (API Key non valida).');
       } else {
         setError(`Errore: ${e.message}`);
       }
@@ -142,7 +142,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
                 </p>
                 {isDelayed && (
                   <p className="text-[10px] text-destructive mt-1">
-                    Il caricamento richiede troppo tempo. Controlla la console o ricarica la pagina.
+                    Il caricamento richiede troppo tempo. Ricarica la pagina.
                   </p>
                 )}
               </div>

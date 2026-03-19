@@ -13,7 +13,6 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
     setServices(initialized);
   }, []);
 
-  // Evita flash di contenuto o pagina nera durante l'idratazione
   if (!mounted) {
     return <div className="min-h-screen bg-background" />;
   }
