@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Lock, LogIn, Loader2, AlertCircle, Eye, EyeOff, RefreshCw } from 'lucide-react';
-import { useFirebase, initializeFirebase } from '@/firebase';
+import { useFirebase } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -23,7 +23,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showRetry, setShowRetry] = useState(false);
 
-  const { auth, areServicesAvailable } = useFirebase();
+  const { auth, areServicesAvailable, firebaseApp } = useFirebase();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
     }
 
     if (!auth) {
-        setError("I servizi non sono pronti. Prova a ricaricare la pagina.");
+        setError("Servizio di autenticazione non pronto.");
         return;
     }
 
@@ -58,15 +58,15 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
         description: "Benvenuto nel pannello di controllo.",
       });
     } catch (e: any) {
-      console.error("Login Error:", e.code, e.message);
+      console.error("Login Error Details:", e.code, e.message);
       if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
         setError('Password errata o credenziali non valide.');
       } else if (e.code === 'auth/user-not-found') {
         setError('Utente non trovato.');
       } else if (e.code === 'auth/invalid-api-key') {
-        setError('Errore di configurazione: API Key non valida. Controlla il file config.ts.');
+        setError('Errore critico: Chiave API non valida per questo progetto.');
       } else {
-        setError(`Errore: ${e.message}`);
+        setError(`Errore Firebase (${e.code}): ${e.message}`);
       }
     } finally {
         setIsSubmitting(false);
@@ -127,7 +127,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
                 <Alert variant="destructive" className="py-2 px-3">
                     <div className="flex items-center gap-2">
                         <AlertCircle className="h-4 w-4 shrink-0" />
-                        <AlertDescription className="text-xs font-medium">
+                        <AlertDescription className="text-xs font-medium leading-tight">
                         {error}
                         </AlertDescription>
                     </div>
@@ -139,7 +139,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
               <div className="space-y-4">
                 <div className="flex items-center justify-center gap-2 text-muted-foreground animate-pulse py-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-xs">Collegamento a Firebase...</span>
+                  <span className="text-xs">Collegamento al progetto {firebaseConfig.projectId}...</span>
                 </div>
                 {showRetry && (
                   <Button 

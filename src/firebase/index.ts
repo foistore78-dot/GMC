@@ -20,14 +20,8 @@ export function initializeFirebase() {
     const firestore = getFirestore(app);
     return { firebaseApp: app, auth, firestore };
   } catch (e) {
-    console.error("Firebase initialization error:", e);
-    // Fallback: try to return existing instances if possible
-    try {
-      const app = getApp();
-      return { firebaseApp: app, auth: getAuth(app), firestore: getFirestore(app) };
-    } catch {
-      return { firebaseApp: null, auth: null, firestore: null };
-    }
+    console.error("Errore inizializzazione Firebase:", e);
+    return { firebaseApp: null, auth: null, firestore: null };
   }
 }
 
