@@ -26,11 +26,10 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
   const { auth, areServicesAvailable } = useFirebase();
   const { toast } = useToast();
 
-  // Se dopo 5 secondi non è ancora collegato, mostriamo un avviso più esplicito
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!areServicesAvailable) setIsDelayed(true);
-    }, 5000);
+    }, 3000);
     return () => clearTimeout(timer);
   }, [areServicesAvailable]);
 
@@ -43,7 +42,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
     }
 
     if (!auth) {
-        setError("Servizio di autenticazione non pronto. Riprova tra un istante.");
+        setError("Servizio di autenticazione non pronto. Ricarica la pagina.");
         return;
     }
 
@@ -63,7 +62,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
       } else if (e.code === 'auth/user-not-found') {
         setError('Utente non trovato.');
       } else if (e.code === 'auth/invalid-api-key') {
-        setError('Errore di configurazione: API Key non valida.');
+        setError('Configurazione errata: API Key non valida.');
       } else {
         setError(`Errore: ${e.message}`);
       }
@@ -137,13 +136,13 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
               {isSubmitting ? "Verifica..." : "Accedi"}
             </Button>
             {!areServicesAvailable && (
-              <div className="mt-2">
-                <p className="text-[10px] text-center text-muted-foreground animate-pulse">
+              <div className="mt-2 text-center">
+                <p className="text-[10px] text-muted-foreground animate-pulse">
                   Collegamento ai servizi di sicurezza...
                 </p>
                 {isDelayed && (
-                  <p className="text-[10px] text-center text-destructive mt-1">
-                    Il caricamento sta impiegando più del previsto. Controlla la tua connessione o ricarica la pagina.
+                  <p className="text-[10px] text-destructive mt-1">
+                    Il caricamento richiede troppo tempo. Controlla la console o ricarica la pagina.
                   </p>
                 )}
               </div>
