@@ -3,133 +3,43 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * CORE PHILOSOPHY
-     * This ruleset enforces a strict user-ownership model based on a hierarchical data structure. 
-     * Security is primary focused on ensuring that users can only access and modify data within 
-     * their own tree (/users/{userId}/...).
-     *
-     * DATA STRUCTURE
-     * All application data is nested under the root /users/{userProfileId} collection. 
-     * This structure leverages Firestore's path-based security, where the document ID 
-     * of the user profile matches the Firebase Authentication UID.
-     *
-     * KEY SECURITY DECISIONS
-     * 1. Authorization Independence: Critical ownership IDs (userProfileId, projectId, etc.) 
-     *    are denormalized into every document. This allows rules to perform fast, 
-     *    single-document checks without costly get() calls to parent documents.
-     * 2. Path-Data Consistency: On creation, the rules enforce that internal ID fields 
-     *    match the document's path. On update, these relational fields are immutable.
-     * 3. Prototyping Mode: Content fields (names, descriptions, JSON blobs) are not 
-     *    type-validated to allow for rapid frontend iteration, provided the user 
-     *    is authorized to perform the action.
-     * 4. Private by Default: No public listing or reading is permitted. All data 
-     *    is strictly private to the authenticated owner.
+     * @description Verifica se l'utente è un amministratore.
+     * Un utente è admin se la sua email è quella predefinita o se esiste un documento in /roles_admin/{uid}
      */
-
-    // --- Helper Functions ---
-
-    /** @description Checks if the request is from an authenticated user. */
-    function isSignedIn() {
-      return request.auth != null;
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.email == "garage.music.club2024@gmail.com" ||
+        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
+      );
     }
 
-    /** @description Checks if the authenticated user's UID matches the provided userId. */
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+    // Regole per le richieste di iscrizione
+    match /membership_requests/{requestId} {
+      // Chiunque può inviare una richiesta (create)
+      allow create: if true;
+      // Solo gli admin possono vedere o gestire le richieste
+      allow read, update, delete: if isAdmin();
     }
 
-    /** @description Checks ownership and ensures the document already exists for updates/deletes. */
-    function isExistingOwner(userId) {
-      return resource != null && isOwner(userId);
+    // Regole per i soci effettivi
+    match /members/{memberId} {
+      // Solo gli admin possono leggere, creare o modificare i dati dei soci
+      allow read, write: if isAdmin();
     }
 
-    // --- Collection Rules ---
-
-    /**
-     * @description Rules for the root UserProfile document.
-     * @path /users/{userProfileId}
-     * @allow (get) If auth.uid is 'abc' and path is /users/abc.
-     * @deny (list) If auth.uid is 'abc' but trying to list /users.
-     * @principle Enforces self-ownership for profile management.
-     */
-    match /users/{userProfileId} {
-      allow get, list: if isOwner(userProfileId);
-      allow create: if isOwner(userProfileId) && request.resource.data.id == userProfileId;
-      allow update: if isExistingOwner(userProfileId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userProfileId);
-
-      /**
-       * @description Rules for Projects owned by a user.
-       * @path /users/{userProfileId}/projects/{projectId}
-       * @allow (create) If auth.uid is 'abc', userProfileId is 'abc', and projectId matches document ID.
-       * @deny (update) If attempting to change the userProfileId (ownership transfer).
-       * @principle Validates relational integrity between the path and denormalized data.
-       */
-      match /projects/{projectId} {
-        allow get, list: if isOwner(userProfileId);
-        allow create: if isOwner(userProfileId) && request.resource.data.userProfileId == userProfileId && request.resource.data.id == projectId;
-        allow update: if isExistingOwner(userProfileId) && request.resource.data.userProfileId == resource.data.userProfileId && request.resource.data.id == resource.data.id;
-        allow delete: if isExistingOwner(userProfileId);
-
-        /**
-         * @description Rules for DataSets within a project.
-         * @path /users/{userProfileId}/projects/{projectId}/dataSets/{dataSetId}
-         * @allow (list) If the authenticated owner of the parent user tree is making the request.
-         * @deny (create) If the internal projectId does not match the parent project in the path.
-         * @principle Uses denormalized IDs to ensure data belongs to the correct parent project.
-         */
-        match /dataSets/{dataSetId} {
-          allow get, list: if isOwner(userProfileId);
-          allow create: if isOwner(userProfileId) && request.resource.data.userProfileId == userProfileId && request.resource.data.projectId == projectId && request.resource.data.id == dataSetId;
-          allow update: if isExistingOwner(userProfileId) && request.resource.data.userProfileId == resource.data.userProfileId && request.resource.data.projectId == resource.data.projectId && request.resource.data.id == resource.data.id;
-          allow delete: if isExistingOwner(userProfileId);
-
-          /**
-           * @description Rules for individual data items within a data set.
-           * @path /users/{userProfileId}/projects/{projectId}/dataSets/{dataSetId}/dataItems/{dataItemId}
-           * @allow (get) If the requestor is the owner of the top-level user profile.
-           * @deny (create) If the dataSetId in the payload doesn't match the dataSetId in the path.
-           * @principle Deeply nested relational validation using denormalized context.
-           */
-          match /dataItems/{dataItemId} {
-            allow get, list: if isOwner(userProfileId);
-            allow create: if isOwner(userProfileId) && request.resource.data.userProfileId == userProfileId && request.resource.data.projectId == projectId && request.resource.data.dataSetId == dataSetId && request.resource.data.id == dataItemId;
-            allow update: if isExistingOwner(userProfileId) && request.resource.data.userProfileId == resource.data.userProfileId && request.resource.data.projectId == resource.data.projectId && request.resource.data.dataSetId == resource.data.dataSetId && request.resource.data.id == resource.data.id;
-            allow delete: if isExistingOwner(userProfileId);
-          }
-        }
-
-        /**
-         * @description Rules for user-defined view configurations.
-         * @path /users/{userProfileId}/projects/{projectId}/viewConfigurations/{viewConfigurationId}
-         * @allow (update) If owner changes the layoutType but keeps the projectId the same.
-         * @deny (create) If an unauthenticated user attempts to write.
-         * @principle Restricts display preferences to the project owner.
-         */
-        match /viewConfigurations/{viewConfigurationId} {
-          allow get, list: if isOwner(userProfileId);
-          allow create: if isOwner(userProfileId) && request.resource.data.userProfileId == userProfileId && request.resource.data.projectId == projectId && request.resource.data.id == viewConfigurationId;
-          allow update: if isExistingOwner(userProfileId) && request.resource.data.userProfileId == resource.data.userProfileId && request.resource.data.projectId == resource.data.projectId && request.resource.data.id == resource.data.id;
-          allow delete: if isExistingOwner(userProfileId);
-        }
-
-        /**
-         * @description Rules for AI-generated suggestions.
-         * @path /users/{userProfileId}/projects/{projectId}/aiSuggestions/{aiSuggestionId}
-         * @allow (get) If the project owner is reviewing a suggestion.
-         * @deny (delete) If a different authenticated user tries to delete the suggestion.
-         * @principle Ensures AI-generated insights remain private to the project owner.
-         */
-        match /aiSuggestions/{aiSuggestionId} {
-          allow get, list: if isOwner(userProfileId);
-          allow create: if isOwner(userProfileId) && request.resource.data.userProfileId == userProfileId && request.resource.data.projectId == projectId && request.resource.data.id == aiSuggestionId;
-          allow update: if isExistingOwner(userProfileId) && request.resource.data.userProfileId == resource.data.userProfileId && request.resource.data.projectId == resource.data.projectId && request.resource.data.id == resource.data.id;
-          allow delete: if isExistingOwner(userProfileId);
-        }
-      }
+    // Regole per i ruoli admin
+    match /roles_admin/{adminId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
     }
-    
-    // Global Deny: Explicitly deny any access to paths not defined above.
+
+    // Regole per le impostazioni generali
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Negazione globale per tutto il resto
     match /{document=**} {
       allow read, write: if false;
     }

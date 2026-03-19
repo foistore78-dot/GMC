@@ -1,25 +1,31 @@
 'use client';
 
-import React, { useMemo, type ReactNode } from 'react';
+import React, { useState, useEffect, type ReactNode } from 'react';
 import { FirebaseProvider } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
 
 /**
- * Wrapper for FirebaseProvider that ensures services are only initialized
- * once during the application's lifecycle on the client.
+ * Fornisce i servizi Firebase garantendo l'inizializzazione solo sul client.
  */
 export function FirebaseClientProvider({ children }: { children: ReactNode }) {
-  // Use useMemo to ensure initializeFirebase is only called once per mount.
-  // This is safe because initializeFirebase itself handles the singleton logic.
-  const services = useMemo(() => initializeFirebase(), []);
+  const [services, setServices] = useState<{
+    firebaseApp: any;
+    auth: any;
+    firestore: any;
+  } | null>(null);
 
-  // If we're on the server or services failed to initialize,
-  // we still render the children but the provider state will reflect the unavailability.
+  useEffect(() => {
+    // Eseguiamo l'inizializzazione solo dopo il montaggio del componente
+    // per evitare problemi di hydration e assicurarci che 'window' esista.
+    const initialized = initializeFirebase();
+    setServices(initialized);
+  }, []);
+
   return (
     <FirebaseProvider
-      firebaseApp={services.firebaseApp}
-      auth={services.auth}
-      firestore={services.firestore}
+      firebaseApp={services?.firebaseApp ?? null}
+      auth={services?.auth ?? null}
+      firestore={services?.firestore ?? null}
     >
       {children}
     </FirebaseProvider>

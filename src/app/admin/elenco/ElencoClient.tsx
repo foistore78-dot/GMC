@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useDeferredValue, useRef } f
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
-import { collection, onSnapshot, doc, writeBatch, query, orderBy } from "firebase/firestore";
+import { collection, onSnapshot, doc, writeBatch } from "firebase/firestore";
 import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, X, Trash2, Info, Bell } from "lucide-react";
 
 import { SociTable, type SortConfig } from "@/components/soci-table";
@@ -35,7 +35,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 import type { Socio } from "@/lib/soci-data";
-import { useFirestore, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { useFirestore, errorEmitter, FirestorePermissionError, useFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { exportToExcel } from "@/lib/excel-export";
 import { Label } from "@/components/ui/label";
@@ -60,18 +60,10 @@ const filterAndSortData = (
           const fullName = getFullName(item).toLowerCase();
           const email = String(item.email || '').toLowerCase();
           const tessera = String(item.tessera || '').toLowerCase();
-          const fiscalCode = String(item.fiscalCode || '').toLowerCase();
-          const city = String(item.city || '').toLowerCase();
-          const address = String(item.address || '').toLowerCase();
-          const phone = String(item.phone || '').toLowerCase();
           
           return fullName.includes(lowerCaseFilter) || 
                  email.includes(lowerCaseFilter) || 
-                 tessera.includes(lowerCaseFilter) ||
-                 fiscalCode.includes(lowerCaseFilter) ||
-                 city.includes(lowerCaseFilter) ||
-                 address.includes(lowerCaseFilter) ||
-                 phone.includes(lowerCaseFilter);
+                 tessera.includes(lowerCaseFilter);
         });
     }
 
@@ -96,14 +88,7 @@ const filterAndSortData = (
           aVal = a.requestDate;
           bVal = b.requestDate;
         }
-      } else if (key === 'tessera') {
-        const numA = parseInt(String(a.tessera || '').split('-').pop() ?? '0', 10);
-        const numB = parseInt(String(b.tessera || '').split('-').pop() ?? '0', 10);
-        if (numA < numB) return asc ? -1 : 1;
-        if (numA > numB) return asc ? 1 : -1;
-        return 0;
-      }
-      else {
+      } else {
         aVal = a[key as keyof Socio];
         bVal = b[key as keyof Socio];
       }
@@ -125,8 +110,6 @@ const filterAndSortData = (
         return aVal.localeCompare(bVal) * (asc ? 1 : -1);
       }
       
-      if (aVal < bVal) return asc ? -1 : 1;
-      if (aVal > bVal) return asc ? 1 : -1;
       return 0;
     });
 
@@ -166,8 +149,7 @@ export default function ElencoClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-
-  const firestore = useFirestore();
+  const { firestore, areServicesAvailable } = useFirebase();
 
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
 
@@ -176,7 +158,6 @@ export default function ElencoClient() {
 
   const [activeTab, setActiveTab] = useState(initialTab);
   const [sortConfig, setSortConfig] = useState<SortConfig>(() => {
-    // Per le richieste mettiamo di default l'ordinamento decrescente per data
     if (initialTab === "requests") {
       return { key: "contextualDate", direction: "descending" };
     }
@@ -204,8 +185,11 @@ export default function ElencoClient() {
   const isInitialLoad = useRef(true);
 
   useEffect(() => {
+    // Se i servizi sono ancora in caricamento, non facciamo nulla
+    if (!areServicesAvailable) return;
+
     if (!firestore) {
-        setError("Servizio database non disponibile.");
+        setError("Servizio database non disponibile dopo l'inizializzazione.");
         setIsDataLoading(false);
         return;
     }
@@ -225,12 +209,7 @@ export default function ElencoClient() {
       },
       (err) => {
         console.error("Errore listener membri:", err);
-        const permissionError = new FirestorePermissionError({
-          path: membersRef.path,
-          operation: 'list'
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        setError("Permessi amministratore non validi o sessione scaduta.");
+        setError("Permessi non validi o sessione scaduta. Verifica le regole di sicurezza.");
         setIsDataLoading(false);
       }
     );
@@ -248,15 +227,6 @@ export default function ElencoClient() {
                 toast({
                   title: "Nuova Richiesta!",
                   description: `${getFullName(newSocio)} ha appena inviato una domanda di adesione.`,
-                  variant: "default",
-                  action: (
-                    <Button variant="outline" size="sm" onClick={() => {
-                        setActiveTab('requests');
-                        setSortConfig({ key: "contextualDate", direction: "descending" });
-                    }}>
-                      Vedi
-                    </Button>
-                  ),
                 });
               }
             }
@@ -270,11 +240,6 @@ export default function ElencoClient() {
       },
       (err) => {
         console.error("Errore listener richieste:", err);
-        const permissionError = new FirestorePermissionError({
-          path: requestsRef.path,
-          operation: 'list'
-        });
-        errorEmitter.emit('permission-error', permissionError);
       }
     );
 
@@ -282,7 +247,7 @@ export default function ElencoClient() {
       unsubscribeMembers();
       unsubscribeRequests();
     };
-  }, [firestore, toast]);
+  }, [firestore, areServicesAvailable, toast]);
 
 
   const { paginatedData, totalPages, counts, oldRequests } = useMemo(() => {
@@ -292,10 +257,7 @@ export default function ElencoClient() {
         return data.filter(item => {
             const fullName = getFullName(item).toLowerCase();
             const tessera = String(item.tessera || '').toLowerCase();
-            const fiscalCode = String(item.fiscalCode || '').toLowerCase();
-            const city = String(item.city || '').toLowerCase();
-            const phone = String(item.phone || '').toLowerCase();
-            return fullName.includes(lowerFilter) || tessera.includes(lowerFilter) || fiscalCode.includes(lowerFilter) || city.includes(lowerFilter) || phone.includes(lowerFilter);
+            return fullName.includes(lowerFilter) || tessera.includes(lowerFilter);
         });
     };
 
@@ -312,7 +274,6 @@ export default function ElencoClient() {
         requests: filteredRequests.length,
     };
 
-    // Identifica richieste più vecchie di 60 giorni
     const oldRequests = filteredRequests.filter(req => isOlderThanDays(req.requestDate, 60));
 
     let dataForTab: Socio[];
@@ -353,13 +314,6 @@ export default function ElencoClient() {
         setActiveTab(tab);
     }
     setCurrentPage(1);
-
-    // Quando si passa alle richieste, ordiniamo per data decrescente
-    if (tab === "requests") {
-      setSortConfig({ key: "contextualDate", direction: "descending" });
-    } else {
-      setSortConfig({ key: "tessera", direction: "descending" });
-    }
   };
 
   const handleSocioUpdate = useCallback(
@@ -447,26 +401,17 @@ export default function ElencoClient() {
       setPendingAction(null);
       
       if (action === 'export') {
-        handleExport();
+        exportToExcel(membersData, requestsData);
       } else if (action === 'cleanup') {
         handleCleanupOldRequests();
       }
     } else {
       toast({
         title: "Password Errata",
-        description: "La password di sicurezza inserita non è corretta.",
         variant: "destructive"
       });
     }
   };
-
-  const handleExport = () => {
-    exportToExcel(membersData, requestsData);
-    toast({
-        title: "Esportazione Avviata",
-        description: "Il download del file Excel inizierà a breve."
-    });
-  }
 
   const handleCleanupOldRequests = async () => {
     if (!firestore || oldRequests.length === 0) return;
@@ -482,18 +427,26 @@ export default function ElencoClient() {
         await batch.commit();
         toast({
             title: "Pulizia Completata",
-            description: `Sono state rimosse ${oldRequests.length} richieste più vecchie di 60 giorni.`,
+            description: `Rimosse ${oldRequests.length} richieste scadute.`,
         });
     } catch (e) {
         toast({
             title: "Errore durante la pulizia",
-            description: "Non è stato possibile completare l'operazione.",
             variant: "destructive"
         });
     } finally {
         setIsCleaningUp(false);
     }
   };
+
+  if (!areServicesAvailable) {
+    return (
+      <div className="flex flex-col justify-center items-center h-[60vh] gap-4">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="text-muted-foreground">Inizializzazione servizi database...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-grow container mx-auto px-4 py-8">
@@ -521,7 +474,7 @@ export default function ElencoClient() {
         {isDataLoading ? (
           <div className="flex flex-col justify-center items-center h-64 gap-4">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="text-muted-foreground">Caricamento dati dal database...</p>
+            <p className="text-muted-foreground">Caricamento dati...</p>
           </div>
         ) : error ? (
            <div className="flex flex-col justify-center items-center h-64 text-center gap-4">
@@ -540,133 +493,61 @@ export default function ElencoClient() {
             <Tabs value={activeTab} onValueChange={handleTabChange}>
               <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4">
                 <TabsList className="self-start">
-                  <TabsTrigger
-                    value="active"
-                    className="text-xs px-2 sm:text-sm data-[state=active]:bg-green-500/20 data-[state=active]:text-green-300"
-                  >
-                    ATTIVI ({counts.active})
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="expired"
-                    className="text-xs px-2 sm:text-sm data-[state=active]:bg-yellow-500/20 data-[state=active]:text-yellow-300"
-                  >
-                    SOSPESI ({counts.expired})
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="requests"
-                    className="text-xs px-2 sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300"
-                  >
-                    RICHIESTE ({counts.requests})
-                  </TabsTrigger>
+                  <TabsTrigger value="active" className="text-xs px-2 sm:text-sm">ATTIVI ({counts.active})</TabsTrigger>
+                  <TabsTrigger value="expired" className="text-xs px-2 sm:text-sm">SOSPESI ({counts.expired})</TabsTrigger>
+                  <TabsTrigger value="requests" className="text-xs px-2 sm:text-sm">RICHIESTE ({counts.requests})</TabsTrigger>
                 </TabsList>
                 
-                <div className="relative w-full sm:max-w-xs flex gap-2">
-                  <div className="relative flex-1">
-                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Filtra per nome, tessera, CF..."
-                      value={filter}
-                      onChange={(event) => setFilter(event.target.value)}
-                      className="pl-10 pr-10"
-                    />
-                    {filter && (
-                      <button 
-                        onClick={() => setFilter("")}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
+                <div className="relative w-full sm:max-w-xs">
+                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Filtra..."
+                    value={filter}
+                    onChange={(event) => setFilter(event.target.value)}
+                    className="pl-10 pr-10"
+                  />
+                  {filter && (
+                    <button onClick={() => setFilter("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><X className="h-4 w-4" /></button>
+                  )}
                 </div>
               </div>
 
-              <TabsContent value="active" className="rounded-lg p-1 sm:p-4">
-                <SociTable
-                  soci={paginatedData}
-                  onEdit={handleEditSocio}
-                  onPrint={handlePrintCard}
-                  allMembers={membersData || []}
-                  onSocioUpdate={handleSocioUpdate}
-                  sortConfig={sortConfig}
-                  setSortConfig={setSortConfig}
-                  activeTab="active"
-                />
+              <TabsContent value="active">
+                <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="active" />
               </TabsContent>
 
-              <TabsContent value="expired" className="rounded-lg bg-yellow-500/5 p-1 sm:p-4">
-                <SociTable
-                  soci={paginatedData}
-                  onEdit={handleEditSocio}
-                  onPrint={handlePrintCard}
-                  allMembers={membersData || []}
-                  onSocioUpdate={handleSocioUpdate}
-                  sortConfig={sortConfig}
-                  setSortConfig={setSortConfig}
-                  activeTab="expired"
-                />
+              <TabsContent value="expired">
+                <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="expired" />
               </TabsContent>
 
-              <TabsContent value="requests" className="rounded-lg bg-orange-500/5 p-1 sm:p-4 space-y-4">
+              <TabsContent value="requests" className="space-y-4">
                 {oldRequests.length > 0 && (
                     <Alert className="bg-orange-500/10 border-orange-500/30">
                         <Info className="h-4 w-4 text-orange-500" />
-                        <AlertTitle className="text-orange-400 font-bold">Richieste in sospeso</AlertTitle>
-                        <AlertDescription className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                            <span className="text-muted-foreground">
-                                Ci sono <strong>{oldRequests.length}</strong> richieste più vecchie di 60 giorni che non sono ancora state elaborate.
-                            </span>
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="border-orange-500/50 hover:bg-orange-500/20 text-orange-400 h-8 gap-2"
-                                onClick={() => initiateAction('cleanup')}
-                                disabled={isCleaningUp}
-                            >
-                                {isCleaningUp ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                                Pulisci ora
-                            </Button>
+                        <AlertTitle>Richieste vecchie</AlertTitle>
+                        <AlertDescription className="flex justify-between items-center">
+                            <span>Ci sono {oldRequests.length} richieste più vecchie di 60 giorni.</span>
+                            <Button variant="outline" size="sm" onClick={() => initiateAction('cleanup')} disabled={isCleaningUp}>Pulisci ora</Button>
                         </AlertDescription>
                     </Alert>
                 )}
-                <SociTable
-                  soci={paginatedData}
-                  onEdit={handleEditSocio}
-                  onPrint={handlePrintCard}
-                  allMembers={membersData || []}
-                  onSocioUpdate={handleSocioUpdate}
-                  sortConfig={sortConfig}
-                  setSortConfig={setSortConfig}
-                  activeTab="requests"
-                />
+                <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="requests" />
               </TabsContent>
             </Tabs>
 
-            {totalPages > 1 ? (
-              <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
-            ) : (filter || deferredFilter) && paginatedData.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground">
-                Nessun socio trovato con il filtro &quot;{filter}&quot;.
-              </div>
-            ) : null}
+            {totalPages > 1 && <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />}
           </>
         )}
       </div>
 
       <Sheet open={!!editingSocio} onOpenChange={handleSheetOpenChange}>
-        <SheetContent className="w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl overflow-y-auto min-w-[300px] max-w-[90vw] p-4 sm:p-6">
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
           {editingSocio && (
             <>
               <SheetHeader>
-                <SheetTitle className="truncate pr-8">Modifica: {getFullName(editingSocio)}</SheetTitle>
+                <SheetTitle>Modifica: {getFullName(editingSocio)}</SheetTitle>
               </SheetHeader>
-              <EditSocioForm
-                socio={editingSocio}
-                onClose={(updatedTab) => {
-                  setEditingSocio(null);
-                  handleSocioUpdate(updatedTab);
-                }}
-              />
+              <EditSocioForm socio={editingSocio} onClose={handleSocioUpdate} />
             </>
           )}
         </SheetContent>
@@ -674,53 +555,22 @@ export default function ElencoClient() {
 
       <AlertDialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Stampa Scheda Socio</AlertDialogTitle>
-            <AlertDialogDescription>
-              Stai per stampare la scheda per{" "}
-              <span className="font-bold">{socioToPrint ? getFullName(socioToPrint) : ""}</span>. Questo aprirà una nuova
-              finestra di stampa. Vuoi procedere?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>Stampa Scheda</AlertDialogTitle></AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setSocioToPrint(null)}>Annulla</AlertDialogCancel>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
             <AlertDialogAction onClick={executePrint}>Stampa</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       <Dialog open={isSecurityDialogOpen} onOpenChange={setIsSecurityDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5 text-primary" />
-              Verifica di Sicurezza
-            </DialogTitle>
-            <DialogDescription>
-              {pendingAction === 'cleanup' 
-                ? "Inserisci la password di sicurezza per eliminare definitivamente le richieste vecchie (più di 60gg)."
-                : "Inserisci la password di sicurezza per procedere con l'operazione di esportazione dei dati."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="security-password">Password</Label>
-              <Input
-                id="security-password"
-                type="password"
-                value={securityPasswordInput}
-                onChange={(e) => setSecurityPasswordInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') verifySecurityPassword();
-                }}
-                autoFocus
-              />
-            </div>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Verifica Password</DialogTitle></DialogHeader>
+          <div className="py-4">
+            <Label>Inserisci password di sicurezza</Label>
+            <Input type="password" value={securityPasswordInput} onChange={(e) => setSecurityPasswordInput(e.target.value)} />
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsSecurityDialogOpen(false)}>Annulla</Button>
-            <Button onClick={verifySecurityPassword}>Conferma</Button>
-          </DialogFooter>
+          <DialogFooter><Button onClick={verifySecurityPassword}>Conferma</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -5,50 +5,33 @@ import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { firebaseConfig } from './config';
 
-let firebaseApp: FirebaseApp | undefined;
-let firebaseAuth: Auth | undefined;
-let firebaseFirestore: Firestore | undefined;
+let app: FirebaseApp | undefined;
+let auth: Auth | undefined;
+let firestore: Firestore | undefined;
 
 /**
- * Initializes Firebase services safely on the client.
+ * Inizializza i servizi Firebase in modo sicuro sul client.
  */
 export function initializeFirebase() {
   if (typeof window === 'undefined') {
-    return {
-      firebaseApp: null as any,
-      auth: null as any,
-      firestore: null as any,
-    };
+    return { firebaseApp: null, auth: null, firestore: null };
   }
 
   try {
-    if (getApps().length === 0) {
-      firebaseApp = initializeApp(firebaseConfig);
-    } else {
-      firebaseApp = getApp();
+    if (!app) {
+      app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+      auth = getAuth(app);
+      firestore = getFirestore(app);
     }
-
-    if (!firebaseAuth && firebaseApp) {
-      firebaseAuth = getAuth(firebaseApp);
-    }
-
-    if (!firebaseFirestore && firebaseApp) {
-      firebaseFirestore = getFirestore(firebaseApp);
-    }
-
-    return {
-      firebaseApp: firebaseApp || null,
-      auth: firebaseAuth || null,
-      firestore: firebaseFirestore || null,
-    };
   } catch (error) {
-    console.error("Firebase initialization failed:", error);
-    return {
-      firebaseApp: null as any,
-      auth: null as any,
-      firestore: null as any,
-    };
+    console.error("Errore critico inizializzazione Firebase:", error);
   }
+
+  return {
+    firebaseApp: app || null,
+    auth: auth || null,
+    firestore: firestore || null,
+  };
 }
 
 export * from './provider';
