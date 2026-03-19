@@ -34,7 +34,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
     }
 
     if (!auth) {
-        setError("I servizi di sicurezza non sono pronti. Per favore, ricarica la pagina.");
+        setError("I servizi di sicurezza si stanno ancora caricando. Attendi un istante.");
         return;
     }
 
@@ -54,7 +54,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
       } else if (e.code === 'auth/user-not-found') {
         setError('Utente non trovato nel sistema.');
       } else {
-        setError(`Errore: ${e.message}`);
+        setError(`Errore di connessione: ${e.message}`);
       }
     } finally {
         setIsSubmitting(false);
@@ -117,13 +117,17 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
                 </Alert>
               )}
             </div>
-            <Button type="submit" className="w-full font-bold h-11" disabled={isSubmitting}>
+            <Button 
+              type="submit" 
+              className="w-full font-bold h-11" 
+              disabled={isSubmitting || !areServicesAvailable}
+            >
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
               {isSubmitting ? "Verifica..." : "Accedi"}
             </Button>
             {!areServicesAvailable && (
               <p className="text-[10px] text-center text-muted-foreground animate-pulse mt-2">
-                Caricamento servizi...
+                Inizializzazione servizi di sicurezza...
               </p>
             )}
           </form>

@@ -20,6 +20,7 @@ export function initializeFirebase() {
       app = getApp();
     }
     
+    // Inizializziamo i servizi solo se non esistono già nell'istanza corrente
     auth = getAuth(app);
     db = getFirestore(app);
 
@@ -29,7 +30,7 @@ export function initializeFirebase() {
       firestore: db,
     };
   } catch (error) {
-    console.error("Errore inizializzazione Firebase:", error);
+    console.error("Errore critico inizializzazione Firebase:", error);
     return { firebaseApp: null, auth: null, firestore: null };
   }
 }

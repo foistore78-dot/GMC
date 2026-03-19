@@ -17,12 +17,13 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // Inizializzazione immediata al mount del client
     const initialized = initializeFirebase();
     setServices(initialized);
     setMounted(true);
   }, []);
 
-  // Rendiamo il mount più veloce
+  // Evitiamo il flickering aspettando il primo mount
   if (!mounted) {
     return null;
   }
