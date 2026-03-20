@@ -46,7 +46,7 @@ const formatForExcel = (data: Socio[], isFromMembersCollection: boolean) => {
       'TIPO': isFromMembersCollection ? (status === 'active' ? (isNew ? 'NUOVO SOCIO' : 'RINNOVO') : 'SOSPESO') : 'RICHIESTA', 
       'Stato': statusTranslations[status] || status,
       'N. Tessera': isNaN(tesseraNumber!) ? '' : tesseraNumber,
-      'Anno': socio.membershipYear || '',
+      'Anno Associativo': socio.membershipYear || '',
       'Cognome': socio.lastName,
       'Nome': socio.firstName,
       'Genere': socio.gender === 'male' ? 'Maschio' : 'Femmina',
@@ -59,13 +59,18 @@ const formatForExcel = (data: Socio[], isFromMembersCollection: boolean) => {
       'CAP': socio.postalCode,
       'Email': socio.email || '',
       'Telefono': socio.phone || '',
+      'Consenso WhatsApp': socio.whatsappConsent ? 'SI' : 'NO',
+      'Consenso Privacy': socio.privacyConsent ? 'SI' : 'NO',
       'Data Richiesta': formatDate(socio.requestDate),
       'Data Ammissione': formatDate(socio.joinDate),
       'Data Rinnovo': formatDate(socio.renewalDate),
       'Data Scadenza': formatDate(socio.expirationDate),
       'Quota Versata (€)': socio.membershipFee || 0,
       'Qualifiche': socio.qualifica?.join(', ') || '',
-      'Note': socio.notes || ''
+      'Note': socio.notes || '',
+      'Nome Tutore': socio.guardianFirstName || '',
+      'Cognome Tutore': socio.guardianLastName || '',
+      'Data Nascita Tutore': formatDate(socio.guardianBirthDate)
     };
   });
 };

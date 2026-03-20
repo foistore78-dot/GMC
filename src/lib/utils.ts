@@ -116,7 +116,7 @@ export const toTitleCase = (str: string | undefined | null): string => {
 export const normalizeSocioData = (data: any) => {
   const normalized = { ...data };
 
-  // Prioritize primary fields but keep fallbacks
+  // Personal Info Fallbacks
   if (!normalized.firstName && (normalized.nome || normalized.Nome)) {
       normalized.firstName = normalized.nome || normalized.Nome;
   }
@@ -126,14 +126,20 @@ export const normalizeSocioData = (data: any) => {
   if (!normalized.birthPlace && normalized.luogoNascita) {
       normalized.birthPlace = normalized.luogoNascita;
   }
-  if (!normalized.fiscalCode && normalized.codiceFiscale) {
-      normalized.fiscalCode = normalized.codiceFiscale;
+  if (!normalized.fiscalCode && (normalized.codiceFiscale || normalized.codice_fiscale)) {
+      normalized.fiscalCode = normalized.codiceFiscale || normalized.codice_fiscale;
   }
+  if (!normalized.gender && (normalized.sesso || normalized.genere)) {
+      const g = (normalized.sesso || normalized.genere || '').toLowerCase();
+      normalized.gender = (g === 'maschio' || g === 'm') ? 'male' : 'female';
+  }
+
+  // Residence and Contacts
   if (!normalized.address && normalized.indirizzo) {
       normalized.address = normalized.indirizzo;
   }
-  if (!normalized.city && normalized.citta) {
-      normalized.city = normalized.citta;
+  if (!normalized.city && (normalized.citta || normalized.Citta || normalized.Città)) {
+      normalized.city = normalized.citta || normalized.Citta || normalized.Città;
   }
   if (!normalized.province && normalized.prov) {
       normalized.province = normalized.prov;
@@ -141,8 +147,36 @@ export const normalizeSocioData = (data: any) => {
   if (!normalized.postalCode && normalized.cap) {
       normalized.postalCode = normalized.cap;
   }
-  if (!normalized.phone && normalized.cellulare) {
-      normalized.phone = normalized.cellulare;
+  if (!normalized.phone && (normalized.cellulare || normalized.telefono)) {
+      normalized.phone = normalized.cellulare || normalized.telefono;
+  }
+
+  // Date Fallbacks
+  if (!normalized.birthDate && (normalized.dataNascita || normalized.data_nascita)) {
+      normalized.birthDate = normalized.dataNascita || normalized.data_nascita;
+  }
+  if (!normalized.joinDate && (normalized.dataIscrizione || normalized.dataAmmissione || normalized.iscrizione || normalized.ammissione)) {
+      normalized.joinDate = normalized.dataIscrizione || normalized.dataAmmissione || normalized.iscrizione || normalized.ammissione;
+  }
+  if (!normalized.requestDate && (normalized.dataRichiesta || normalized.richiesta)) {
+      normalized.requestDate = normalized.dataRichiesta || normalized.richiesta;
+  }
+  if (!normalized.renewalDate && (normalized.dataRinnovo || normalized.rinnovo)) {
+      normalized.renewalDate = normalized.dataRinnovo || normalized.rinnovo;
+  }
+  if (!normalized.expirationDate && (normalized.dataScadenza || normalized.scadenza)) {
+      normalized.expirationDate = normalized.dataScadenza || normalized.scadenza;
+  }
+  if (!normalized.membershipYear && (normalized.anno || normalized.annoAssociativo)) {
+      normalized.membershipYear = String(normalized.anno || normalized.annoAssociativo);
+  }
+
+  // Miscellaneous
+  if (!normalized.qualifica && normalized.qualifiche) {
+      normalized.qualifica = normalized.qualifiche;
+  }
+  if (!normalized.guardianBirthDate && normalized.dataNascitaTutore) {
+      normalized.guardianBirthDate = normalized.dataNascitaTutore;
   }
 
   const titleCaseFields = ['firstName', 'lastName', 'city', 'birthPlace', 'address', 'guardianFirstName', 'guardianLastName'];
