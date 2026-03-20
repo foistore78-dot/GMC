@@ -35,12 +35,13 @@ const sortByRequestDate = (a: Socio, b: Socio) => {
 };
 
 const formatForExcel = (data: Socio[], isFromMembersCollection: boolean) => {
-  return data.map(rawSocio => {
+  return data.map((rawSocio) => {
     const socio = normalizeSocioData(rawSocio);
     const status = getStatus(socio, isFromMembersCollection);
     const isNew = isFromMembersCollection && status === 'active' && !socio.renewalDate;
     const tesseraNumberStr = socio.tessera ? socio.tessera.split('-').pop() || '' : '';
     const tesseraNumber = tesseraNumberStr ? parseInt(tesseraNumberStr, 10) : undefined;
+
 
     return {
       'TIPO': isFromMembersCollection ? (status === 'active' ? (isNew ? 'NUOVO SOCIO' : 'RINNOVO') : 'SOSPESO') : 'RICHIESTA', 
@@ -112,9 +113,23 @@ export const exportToExcel = (members: Socio[], requests: Socio[]) => {
   XLSX.utils.book_append_sheet(workbook, worksheetRequests, 'Richieste');
 
   const today = formatDate(new Date(), 'dd.MM.yyyy');
-  console.log("Generando file:", `ELENCO SOCI GMC ${today}.xlsx`);
+  const fileName = `ELENCO SOCI GMC ${today}.xlsx`;
+  console.log("Generando file:", fileName);
   try {
-    XLSX.writeFile(workbook, `ELENCO SOCI GMC ${today}.xlsx`);
+    // Genera il file come ArrayBuffer con tipo xlsx per compatibilità browser
+    const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+    // Crea un link temporaneo e forza il download
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
     console.log("Esportazione completata con successo.");
   } catch (error) {
     console.error("Errore durante la scrittura del file Excel:", error);

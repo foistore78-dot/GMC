@@ -116,39 +116,39 @@ export const toTitleCase = (str: string | undefined | null): string => {
 export const normalizeSocioData = (data: any) => {
   const normalized = { ...data };
 
-  // Personal Info Fallbacks
-  if (!normalized.firstName && (normalized.nome || normalized.Nome)) {
-      normalized.firstName = normalized.nome || normalized.Nome;
+  // Personal Info Fallbacks - copertura estesa per nomi campo storici/alternativi
+  if (!normalized.firstName) {
+      normalized.firstName = normalized.nome || normalized.Nome || normalized.first_name || normalized.FirstName || normalized.name || '';
   }
-  if (!normalized.lastName && (normalized.cognome || normalized.Cognome)) {
-      normalized.lastName = normalized.cognome || normalized.Cognome;
+  if (!normalized.lastName) {
+      normalized.lastName = normalized.cognome || normalized.Cognome || normalized.last_name || normalized.LastName || normalized.surname || '';
   }
-  if (!normalized.birthPlace && normalized.luogoNascita) {
-      normalized.birthPlace = normalized.luogoNascita;
+  if (!normalized.birthPlace) {
+      normalized.birthPlace = normalized.luogoNascita || normalized.luogo_nascita || normalized.LuogoNascita || normalized.birthplace || normalized.birth_place || '';
   }
-  if (!normalized.fiscalCode && (normalized.codiceFiscale || normalized.codice_fiscale)) {
-      normalized.fiscalCode = normalized.codiceFiscale || normalized.codice_fiscale;
+  if (!normalized.fiscalCode) {
+      normalized.fiscalCode = normalized.codiceFiscale || normalized.codice_fiscale || normalized.CodiceFiscale || normalized.cf || normalized.CF || '';
   }
-  if (!normalized.gender && (normalized.sesso || normalized.genere)) {
-      const g = (normalized.sesso || normalized.genere || '').toLowerCase();
-      normalized.gender = (g === 'maschio' || g === 'm') ? 'male' : 'female';
+  if (!normalized.gender) {
+      const g = (normalized.sesso || normalized.genere || normalized.Genere || normalized.sex || '').toLowerCase();
+      if (g) normalized.gender = (g === 'maschio' || g === 'm' || g === 'male') ? 'male' : 'female';
   }
 
-  // Residence and Contacts
-  if (!normalized.address && normalized.indirizzo) {
-      normalized.address = normalized.indirizzo;
+  // Residence and Contacts - copertura estesa
+  if (!normalized.address) {
+      normalized.address = normalized.indirizzo || normalized.Indirizzo || normalized.via || normalized.Via || normalized.street || '';
   }
-  if (!normalized.city && (normalized.citta || normalized.Citta || normalized.Città)) {
-      normalized.city = normalized.citta || normalized.Citta || normalized.Città;
+  if (!normalized.city) {
+      normalized.city = normalized.citta || normalized.Citta || normalized.Città || normalized.città || normalized.comune || normalized.Comune || '';
   }
-  if (!normalized.province && normalized.prov) {
-      normalized.province = normalized.prov;
+  if (!normalized.province) {
+      normalized.province = normalized.prov || normalized.Prov || normalized.provincia || normalized.Provincia || '';
   }
-  if (!normalized.postalCode && normalized.cap) {
-      normalized.postalCode = normalized.cap;
+  if (!normalized.postalCode) {
+      normalized.postalCode = normalized.cap || normalized.Cap || normalized.CAP || normalized.postal_code || normalized.zip || '';
   }
-  if (!normalized.phone && (normalized.cellulare || normalized.telefono)) {
-      normalized.phone = normalized.cellulare || normalized.telefono;
+  if (!normalized.phone) {
+      normalized.phone = normalized.cellulare || normalized.Cellulare || normalized.telefono || normalized.Telefono || normalized.mobile || normalized.tel || '';
   }
 
   // Date Fallbacks
