@@ -123,6 +123,27 @@ export const normalizeSocioData = (data: any) => {
   if (!normalized.lastName && (normalized.cognome || normalized.Cognome)) {
       normalized.lastName = normalized.cognome || normalized.Cognome;
   }
+  if (!normalized.birthPlace && normalized.luogoNascita) {
+      normalized.birthPlace = normalized.luogoNascita;
+  }
+  if (!normalized.fiscalCode && normalized.codiceFiscale) {
+      normalized.fiscalCode = normalized.codiceFiscale;
+  }
+  if (!normalized.address && normalized.indirizzo) {
+      normalized.address = normalized.indirizzo;
+  }
+  if (!normalized.city && normalized.citta) {
+      normalized.city = normalized.citta;
+  }
+  if (!normalized.province && normalized.prov) {
+      normalized.province = normalized.prov;
+  }
+  if (!normalized.postalCode && normalized.cap) {
+      normalized.postalCode = normalized.cap;
+  }
+  if (!normalized.phone && normalized.cellulare) {
+      normalized.phone = normalized.cellulare;
+  }
 
   const titleCaseFields = ['firstName', 'lastName', 'city', 'birthPlace', 'address', 'guardianFirstName', 'guardianLastName'];
   titleCaseFields.forEach(field => {

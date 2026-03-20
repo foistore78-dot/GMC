@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import type { Socio } from './soci-data';
-import { getStatus, formatDate } from '@/lib/utils';
+import { getStatus, formatDate, normalizeSocioData } from '@/lib/utils';
 
 const statusTranslations: Record<string, string> = {
   active: 'Attivo',
@@ -35,7 +35,8 @@ const sortByRequestDate = (a: Socio, b: Socio) => {
 };
 
 const formatForExcel = (data: Socio[], isFromMembersCollection: boolean) => {
-  return data.map(socio => {
+  return data.map(rawSocio => {
+    const socio = normalizeSocioData(rawSocio);
     const status = getStatus(socio, isFromMembersCollection);
     const isNew = isFromMembersCollection && status === 'active' && !socio.renewalDate;
     const tesseraNumberStr = socio.tessera ? socio.tessera.split('-').pop() || '' : '';
