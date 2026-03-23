@@ -164,19 +164,16 @@ export default function SettingsPageClient() {
     }
   };
 
-  if (isUserLoading || isCheckingAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-secondary">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col min-h-screen bg-secondary">
       <Header onLogout={isAdmin ? handleLogout : undefined} />
       <main className="flex-grow container mx-auto px-4 py-8">
-        <AuthGuard isAdmin={isAdmin}>
+        {isUserLoading || isCheckingAdmin ? (
+          <div className="flex-grow flex items-center justify-center p-12">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          </div>
+        ) : (
+          <AuthGuard isAdmin={isAdmin}>
           <div className="max-w-2xl mx-auto space-y-8">
             <div className="flex items-center gap-4 mb-2">
               <SettingsIcon className="w-8 h-8 text-primary" />
@@ -262,6 +259,7 @@ export default function SettingsPageClient() {
             </Card>
           </div>
         </AuthGuard>
+        )}
       </main>
       <Footer />
 

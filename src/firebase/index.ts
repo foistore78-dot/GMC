@@ -1,7 +1,7 @@
 'use client';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { getFirestore, Firestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import { firebaseConfig } from './config';
 
 export function initializeFirebase() {
@@ -19,6 +19,12 @@ export function initializeFirebase() {
     
     const auth = getAuth(app);
     const firestore = getFirestore(app);
+    
+    if (typeof window !== 'undefined') {
+      enableIndexedDbPersistence(firestore).catch((err) => {
+        console.warn("Firestore persistence could not be enabled:", err.code);
+      });
+    }
     
     return { firebaseApp: app, auth, firestore };
   } catch (e) {

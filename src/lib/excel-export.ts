@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx';
 import type { Socio } from './soci-data';
 import { getStatus, formatDate, normalizeSocioData } from '@/lib/utils';
 
@@ -42,7 +41,6 @@ const formatForExcel = (data: Socio[], isFromMembersCollection: boolean) => {
     const tesseraNumberStr = socio.tessera ? socio.tessera.split('-').pop() || '' : '';
     const tesseraNumber = tesseraNumberStr ? parseInt(tesseraNumberStr, 10) : undefined;
 
-
     return {
       'TIPO': isFromMembersCollection ? (status === 'active' ? (isNew ? 'NUOVO SOCIO' : 'RINNOVO') : 'SOSPESO') : 'RICHIESTA', 
       'Stato': statusTranslations[status] || status,
@@ -76,62 +74,73 @@ const formatForExcel = (data: Socio[], isFromMembersCollection: boolean) => {
   });
 };
 
-export const exportToExcel = (members: Socio[], requests: Socio[]) => {
-  console.log("Inizio esportazione Excel...", { membersCount: members.length, requestsCount: requests.length });
-  const workbook = XLSX.utils.book_new();
-
-  const fitToColumn = (data: any[]) => {
-    if (data.length === 0) return [];
-    const widths: { wch: number }[] = [];
-    const header = Object.keys(data[0]);
-    for (const key of header) {
-        widths.push({ wch: Math.max(key.length, ...data.map(item => (item[key] || '').toString().length)) });
-    }
-    return widths;
-  };
-
-  const activeMembers = members.filter(m => getStatus(m, true) === 'active').sort(sortByTessera);
-  console.log("Soci attivi filtrati:", activeMembers.length);
-  const activeData = formatForExcel(activeMembers, true);
-  const worksheetActive = XLSX.utils.json_to_sheet(activeData);
-  worksheetActive['!cols'] = fitToColumn(activeData);
-  XLSX.utils.book_append_sheet(workbook, worksheetActive, 'Soci Attivi');
-
-  const expiredMembers = members.filter(m => getStatus(m, true) === 'expired').sort(sortByTessera);
-  console.log("Sospesi filtrati:", expiredMembers.length);
-  const expiredData = formatForExcel(expiredMembers, true);
-  const worksheetExpired = XLSX.utils.json_to_sheet(expiredData);
-  worksheetExpired['!cols'] = fitToColumn(expiredData);
-  XLSX.utils.book_append_sheet(workbook, worksheetExpired, 'Sospesi');
-
-  // Includiamo TUTTE le richieste presenti, senza filtraggi di stato stringenti
-  const pendingRequests = [...requests].sort(sortByRequestDate);
-  console.log("Richieste filtrate:", pendingRequests.length);
-  const requestsData = formatForExcel(pendingRequests, false);
-  const worksheetRequests = XLSX.utils.json_to_sheet(requestsData);
-  worksheetRequests['!cols'] = fitToColumn(requestsData);
-  XLSX.utils.book_append_sheet(workbook, worksheetRequests, 'Richieste');
-
-  const today = formatDate(new Date(), 'dd.MM.yyyy');
-  const fileName = `ELENCO SOCI GMC ${today}.xlsx`;
-  console.log("Generando file:", fileName);
+export const exportToExcel = async (members: Socio[], requests: Socio[]) => {
   try {
-    // Genera il file come ArrayBuffer con tipo xlsx per compatibilità browser
-    const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([wbout], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    });
-    // Crea un link temporaneo e forza il download
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    console.log("Esportazione completata con successo.");
-  } catch (error) {
-    console.error("Errore durante la scrittura del file Excel:", error);
+    console.log("ExportToExcel: Inizio caricamento libreria XLSX...");
+    const XLSX = await import('xlsx');
+    console.log("ExportToExcel: Libreria caricata.", !!XLSX.utils);
+
+    if (!members || !requests || (members.length === 0 && requests.length === 0)) {
+      if (typeof window !== 'undefined') alert("Attenzione: non ci sono dati da esportare nelle liste attuali.");
+      return;
+    }
+
+    const workbook = XLSX.utils.book_new();
+
+    const fitToColumn = (data: any[]) => {
+      if (data.length === 0) return [];
+      const widths: { wch: number }[] = [];
+      const firstItem = data[0];
+      const header = Object.keys(firstItem);
+      
+      for (const key of header) {
+        let maxLen = key.length;
+        for (const item of data) {
+          const val = item[key];
+          const len = val ? String(val).length : 0;
+          if (len > maxLen) maxLen = len;
+        }
+        widths.push({ wch: maxLen + 2 });
+      }
+      return widths;
+    };
+
+    const activeMembers = members.filter(m => getStatus(m, true) === 'active').sort(sortByTessera);
+    const activeData = formatForExcel(activeMembers, true);
+    if (activeData.length > 0) {
+      const worksheetActive = XLSX.utils.json_to_sheet(activeData);
+      worksheetActive['!cols'] = fitToColumn(activeData);
+      XLSX.utils.book_append_sheet(workbook, worksheetActive, 'Soci Attivi');
+    }
+
+    const expiredMembers = members.filter(m => getStatus(m, true) === 'expired').sort(sortByTessera);
+    const expiredData = formatForExcel(expiredMembers, true);
+    if (expiredData.length > 0) {
+      const worksheetExpired = XLSX.utils.json_to_sheet(expiredData);
+      worksheetExpired['!cols'] = fitToColumn(expiredData);
+      XLSX.utils.book_append_sheet(workbook, worksheetExpired, 'Sospesi');
+    }
+
+    const pendingRequests = [...requests].sort(sortByRequestDate);
+    const requestsData = formatForExcel(pendingRequests, false);
+    if (requestsData.length > 0) {
+      const worksheetRequests = XLSX.utils.json_to_sheet(requestsData);
+      worksheetRequests['!cols'] = fitToColumn(requestsData);
+      XLSX.utils.book_append_sheet(workbook, worksheetRequests, 'Richieste');
+    }
+
+    if (workbook.SheetNames.length === 0) {
+      if (typeof window !== 'undefined') alert("Nessun dato corrispondente ai criteri di esportazione.");
+      return;
+    }
+
+    const today = formatDate(new Date(), 'dd.MM.yyyy');
+    const fileName = `ELENCO SOCI GMC ${today}.xlsx`;
+    
+    XLSX.writeFile(workbook, fileName);
+    console.log("Esportazione completata.");
+  } catch (error: any) {
+    console.error("Errore exportToExcel:", error);
+    if (typeof window !== 'undefined') alert("Errore durante l'esportazione: " + error.message);
   }
 };

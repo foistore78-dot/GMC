@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useDeferredValue, useRef } f
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
-import { collection, onSnapshot, doc, writeBatch } from "firebase/firestore";
+import { collection, onSnapshot, doc, writeBatch, query, limit, orderBy, startAfter, QueryDocumentSnapshot, where } from "firebase/firestore";
 import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, X, Trash2, Info, Bell } from "lucide-react";
 
 import { SociTable, type SortConfig } from "@/components/soci-table";
@@ -39,7 +39,7 @@ import { useFirestore, errorEmitter, FirestorePermissionError, useFirebase } fro
 import { useToast } from "@/hooks/use-toast";
 import { exportToExcel } from "@/lib/excel-export";
 import { Label } from "@/components/ui/label";
-import { getStatus, getFullName, parseDate, isOlderThanDays } from "@/lib/utils";
+import { getStatus, getFullName, parseDate, isOlderThanDays, toTitleCase } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 50;
 const SECURITY_PASSWORD = "1978";
@@ -175,6 +175,9 @@ export default function ElencoClient() {
   const [membersData, setMembersData] = useState<Socio[]>([]);
   const [requestsData, setRequestsData] = useState<Socio[]>([]);
   const [error, setError] = useState<string | null>(null);
+  
+  const [membersLimit, setMembersLimit] = useState(100);
+  const [hasMoreMembers, setHasMoreMembers] = useState(true);
 
   const [isSecurityDialogOpen, setIsSecurityDialogOpen] = useState(false);
   const [securityPasswordInput, setSecurityPasswordInput] = useState("");
@@ -197,19 +200,50 @@ export default function ElencoClient() {
     setIsDataLoading(true);
     setError(null);
 
-    const membersRef = collection(firestore, "members");
+    // Costruiamo la query in base al filtro
+    let membersBaseQuery;
+    
+    if (deferredFilter.length >= 2) {
+        const searchStr = toTitleCase(deferredFilter);
+        membersBaseQuery = query(
+            collection(firestore, "members"),
+            where("lastName", ">=", searchStr),
+            where("lastName", "<=", searchStr + "\uf8ff"),
+            limit(100)
+        );
+    } else {
+        membersBaseQuery = query(
+            collection(firestore, "members"),
+            orderBy("lastName"),
+            limit(membersLimit)
+        );
+    }
+    
+    // Per le richieste carichiamo tutto (solitamente sono poche)
     const requestsRef = collection(firestore, "membership_requests");
 
     const unsubscribeMembers = onSnapshot(
-      membersRef,
+      membersBaseQuery,
       (snapshot) => {
-        const members = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
-        setMembersData(members);
+        setMembersData(prev => {
+            const newMap = new Map(prev.map(m => [m.id, m]));
+            snapshot.docChanges().forEach(change => {
+                if (change.type === "added" || change.type === "modified") {
+                    newMap.set(change.doc.id, { id: change.doc.id, ...change.doc.data() } as Socio);
+                } else if (change.type === "removed") {
+                    newMap.delete(change.doc.id);
+                }
+            });
+            return Array.from(newMap.values());
+        });
+        
+        const isSearchActive = deferredFilter.length >= 2;
+        setHasMoreMembers(!isSearchActive && snapshot.docs.length >= membersLimit);
         setIsDataLoading(false);
       },
-      (err) => {
+      (err: any) => {
         console.error("Errore listener membri:", err);
-        setError("Permessi non validi o sessione scaduta. Verifica le regole di sicurezza.");
+        setError(`Errore: ${err.message || "Permessi non validi o sessione scaduta."}`);
         setIsDataLoading(false);
       }
     );
@@ -217,26 +251,28 @@ export default function ElencoClient() {
     const unsubscribeRequests = onSnapshot(
       requestsRef,
       (snapshot) => {
-        const requests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
-        
-        if (!isInitialLoad.current) {
-          snapshot.docChanges().forEach((change) => {
-            if (change.type === "added") {
-              const newSocio = change.doc.data() as Socio;
-              if (!seenRequestIds.current.has(change.doc.id)) {
-                toast({
-                  title: "Nuova Richiesta!",
-                  description: `${getFullName(newSocio)} ha appena inviato una domanda di adesione.`,
-                });
-              }
-            }
-          });
-        } else {
-          isInitialLoad.current = false;
-        }
-
-        seenRequestIds.current = new Set(snapshot.docs.map(doc => doc.id));
-        setRequestsData(requests);
+        setRequestsData(prev => {
+            const newMap = new Map(prev.map(r => [r.id, r]));
+            snapshot.docChanges().forEach(change => {
+                if (change.type === "added") {
+                    const newSocio = change.doc.data() as Socio;
+                    if (!isInitialLoad.current && !seenRequestIds.current.has(change.doc.id)) {
+                        toast({
+                          title: "Nuova Richiesta!",
+                          description: `${getFullName(newSocio)} ha appena inviato una domanda di adesione.`,
+                        });
+                    }
+                    newMap.set(change.doc.id, { id: change.doc.id, ...change.doc.data() } as Socio);
+                } else if (change.type === "modified") {
+                    newMap.set(change.doc.id, { id: change.doc.id, ...change.doc.data() } as Socio);
+                } else if (change.type === "removed") {
+                    newMap.delete(change.doc.id);
+                }
+            });
+            isInitialLoad.current = false;
+            seenRequestIds.current = new Set(Array.from(newMap.keys()));
+            return Array.from(newMap.values());
+        });
       },
       (err) => {
         console.error("Errore listener richieste:", err);
@@ -247,7 +283,11 @@ export default function ElencoClient() {
       unsubscribeMembers();
       unsubscribeRequests();
     };
-  }, [firestore, areServicesAvailable, toast]);
+  }, [firestore, areServicesAvailable, toast, membersLimit]);
+
+  const handleLoadMore = () => {
+    setMembersLimit(prev => prev + 100);
+  };
 
 
   const { paginatedData, totalPages, counts, oldRequests } = useMemo(() => {
@@ -453,131 +493,171 @@ export default function ElencoClient() {
     );
   }
 
-  return (
-    <div className="flex-grow container mx-auto px-4 py-8">
-      <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
-        <div className="flex items-center gap-4">
-          <Users className="w-8 h-8 md:w-10 md:h-10 text-primary" />
-          <h1 className="font-headline text-3xl md:text-5xl text-primary">Elenco Soci</h1>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={() => initiateAction('export')} disabled={isDataLoading}>
-                <FileDown className="mr-2 h-4 w-4" />
-                Esporta
-            </Button>
-            <Button asChild size="sm" className="bg-primary hover:bg-primary/90">
-                <Link href="/?from=admin#apply">
-                <UserPlus className="mr-2 h-4 w-4" />
-                Nuova Iscrizione
-                </Link>
-            </Button>
-        </div>
-      </div>
-
-      <div className="bg-background rounded-lg border border-border shadow-lg p-2 sm:p-4">
-        {isDataLoading ? (
-          <div className="flex flex-col justify-center items-center h-64 gap-4">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="text-muted-foreground">Caricamento dati...</p>
+  try {
+    return (
+      <div className="flex-grow container mx-auto px-4 py-8">
+        <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
+          <div className="flex items-center gap-4">
+            <Users className="w-8 h-8 md:w-10 md:h-10 text-primary" />
+            <h1 className="font-headline text-3xl md:text-5xl text-primary">Elenco Soci</h1>
           </div>
-        ) : error ? (
-           <div className="flex flex-col justify-center items-center h-64 text-center gap-4">
-            <AlertTriangle className="h-12 w-12 text-destructive" />
-            <div>
-                <p className="text-destructive font-semibold text-lg mb-2">Si è verificato un errore</p>
-                <p className="text-muted-foreground max-w-md">{error}</p>
+  
+          <div className="flex items-center gap-2 flex-wrap">
+              <Button variant="outline" size="sm" onClick={() => {
+                try {
+                  exportToExcel(membersData, requestsData);
+                } catch (e: any) {
+                  alert("Errore durante l'export: " + e.message);
+                }
+              }} disabled={isDataLoading}>
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Esporta
+              </Button>
+              <Button asChild size="sm" className="bg-primary hover:bg-primary/90">
+                  <Link href="/?from=admin#apply">
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Nuova Iscrizione
+                  </Link>
+              </Button>
+          </div>
+        </div>
+  
+        <div className="bg-background rounded-lg border border-border shadow-lg p-2 sm:p-4">
+          {isDataLoading ? (
+            <div className="flex flex-col justify-center items-center h-64 gap-4">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              <p className="text-muted-foreground">Caricamento dati...</p>
             </div>
-            <Button onClick={() => window.location.reload()} variant="outline">
-                <RefreshCw className="mr-2 h-4 w-4"/>
-                Ricarica Pagina
-            </Button>
-          </div>
-        ) : (
-          <>
-            <Tabs value={activeTab} onValueChange={handleTabChange}>
-              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4">
-                <TabsList className="self-start">
-                  <TabsTrigger value="active" className="text-xs px-2 sm:text-sm">ATTIVI ({counts.active})</TabsTrigger>
-                  <TabsTrigger value="expired" className="text-xs px-2 sm:text-sm">SOSPESI ({counts.expired})</TabsTrigger>
-                  <TabsTrigger value="requests" className="text-xs px-2 sm:text-sm">RICHIESTE ({counts.requests})</TabsTrigger>
-                </TabsList>
-                
-                <div className="relative w-full sm:max-w-xs">
-                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Filtra..."
-                    value={filter}
-                    onChange={(event) => setFilter(event.target.value)}
-                    className="pl-10 pr-10"
-                  />
-                  {filter && (
-                    <button onClick={() => setFilter("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><X className="h-4 w-4" /></button>
-                  )}
-                </div>
+          ) : error ? (
+             <div className="flex flex-col justify-center items-center h-64 text-center gap-4">
+              <AlertTriangle className="h-12 w-12 text-destructive" />
+              <div>
+                  <p className="text-destructive font-semibold text-lg mb-2">Si è verificato un errore</p>
+                  <p className="text-muted-foreground max-w-md">{error}</p>
               </div>
-
-              <TabsContent value="active">
-                <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="active" />
-              </TabsContent>
-
-              <TabsContent value="expired">
-                <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="expired" />
-              </TabsContent>
-
-              <TabsContent value="requests" className="space-y-4">
-                {oldRequests.length > 0 && (
-                    <Alert className="bg-orange-500/10 border-orange-500/30">
-                        <Info className="h-4 w-4 text-orange-500" />
-                        <AlertTitle>Richieste vecchie</AlertTitle>
-                        <AlertDescription className="flex justify-between items-center">
-                            <span>Ci sono {oldRequests.length} richieste più vecchie di 60 giorni.</span>
-                            <Button variant="outline" size="sm" onClick={() => initiateAction('cleanup')} disabled={isCleaningUp}>Pulisci ora</Button>
-                        </AlertDescription>
-                    </Alert>
-                )}
-                <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="requests" />
-              </TabsContent>
-            </Tabs>
-
-            {totalPages > 1 && <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />}
-          </>
-        )}
-      </div>
-
-      <Sheet open={!!editingSocio} onOpenChange={handleSheetOpenChange}>
-        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-          {editingSocio && (
+              <Button onClick={() => window.location.reload()} variant="outline">
+                  <RefreshCw className="mr-2 h-4 w-4"/>
+                  Ricarica Pagina
+              </Button>
+            </div>
+          ) : (
             <>
-              <SheetHeader>
-                <SheetTitle>Modifica: {getFullName(editingSocio)}</SheetTitle>
-              </SheetHeader>
-              <EditSocioForm socio={editingSocio} onClose={handleSocioUpdate} />
+              <Tabs value={activeTab} onValueChange={handleTabChange}>
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4">
+                  <TabsList className="self-start">
+                    <TabsTrigger value="active" className="text-xs px-2 sm:text-sm">ATTIVI ({counts.active})</TabsTrigger>
+                    <TabsTrigger value="expired" className="text-xs px-2 sm:text-sm">SOSPESI ({counts.expired})</TabsTrigger>
+                    <TabsTrigger value="requests" className="text-xs px-2 sm:text-sm">RICHIESTE ({counts.requests})</TabsTrigger>
+                  </TabsList>
+                  
+                  <div className="relative w-full sm:max-w-xs">
+                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Filtra..."
+                      value={filter}
+                      onChange={(event) => setFilter(event.target.value)}
+                      className="pl-10 pr-10"
+                      autoComplete="off"
+                    />
+                    {filter && (
+                      <button onClick={() => setFilter("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><X className="h-4 w-4" /></button>
+                    )}
+                  </div>
+                </div>
+  
+                <TabsContent value="active">
+                  <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="active" />
+                </TabsContent>
+  
+                <TabsContent value="expired">
+                  <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="expired" />
+                </TabsContent>
+  
+                <TabsContent value="requests" className="space-y-4">
+                  {oldRequests.length > 0 && (
+                      <Alert className="bg-orange-500/10 border-orange-500/30">
+                          <Info className="h-4 w-4 text-orange-500" />
+                          <AlertTitle>Richieste vecchie</AlertTitle>
+                          <AlertDescription className="flex justify-between items-center">
+                              <span>Ci sono {oldRequests.length} richieste più vecchie di 60 giorni.</span>
+                              <Button variant="outline" size="sm" onClick={() => initiateAction('cleanup')} disabled={isCleaningUp}>Pulisci ora</Button>
+                          </AlertDescription>
+                      </Alert>
+                  )}
+                  <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="requests" />
+                </TabsContent>
+              </Tabs>
+              
+              {activeTab !== 'requests' && hasMoreMembers && (
+                <div className="flex justify-center py-4 border-t border-dashed mt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={handleLoadMore}
+                    className="gap-2 border-primary/20 hover:bg-primary/10"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Carica altri 100 soci...
+                  </Button>
+                </div>
+              )}
+  
+              {totalPages > 1 && <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />}
             </>
           )}
-        </SheetContent>
-      </Sheet>
-
-      <AlertDialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Stampa Scheda</AlertDialogTitle></AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annulla</AlertDialogCancel>
-            <AlertDialogAction onClick={executePrint}>Stampa</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <Dialog open={isSecurityDialogOpen} onOpenChange={setIsSecurityDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Verifica Password</DialogTitle></DialogHeader>
-          <div className="py-4">
-            <Label>Inserisci password di sicurezza</Label>
-            <Input type="password" value={securityPasswordInput} onChange={(e) => setSecurityPasswordInput(e.target.value)} />
-          </div>
-          <DialogFooter><Button onClick={verifySecurityPassword}>Conferma</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+        </div>
+  
+        <Sheet open={!!editingSocio} onOpenChange={handleSheetOpenChange}>
+          <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+            {editingSocio && (
+              <>
+                <SheetHeader>
+                  <SheetTitle>Modifica: {getFullName(editingSocio)}</SheetTitle>
+                </SheetHeader>
+                <EditSocioForm socio={editingSocio} onClose={handleSocioUpdate} />
+              </>
+            )}
+          </SheetContent>
+        </Sheet>
+  
+        <AlertDialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader><AlertDialogTitle>Stampa Scheda</AlertDialogTitle></AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annulla</AlertDialogCancel>
+              <AlertDialogAction onClick={executePrint}>Stampa</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+  
+        <Dialog open={isSecurityDialogOpen} onOpenChange={setIsSecurityDialogOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Verifica Password</DialogTitle></DialogHeader>
+            <div className="py-4 space-y-4">
+              {/* Hidden inputs to capture browser autofill and prevent it from affecting the main search */}
+              <div className="sr-only" aria-hidden="true" style={{ display: 'none' }}>
+                <input type="text" name="username" tabIndex={-1} autoComplete="username" />
+                <input type="password" name="password" tabIndex={-1} autoComplete="current-password" />
+              </div>
+              
+              <Label htmlFor="security-password">Inserisci password di sicurezza</Label>
+              <Input 
+                id="security-password"
+                type="password" 
+                value={securityPasswordInput} 
+                onChange={(e) => setSecurityPasswordInput(e.target.value)}
+                autoComplete="new-password"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') verifySecurityPassword();
+                }}
+                autoFocus
+              />
+            </div>
+            <DialogFooter><Button onClick={verifySecurityPassword}>Conferma</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  } catch (e: any) {
+    return <div className="p-8 text-destructive">Errore di rendering: {e.message}</div>;
+  }
 }

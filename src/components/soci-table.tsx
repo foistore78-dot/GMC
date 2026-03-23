@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, Dispatch, SetStateAction, useCallback } from "react";
+import { useState, useMemo, useEffect, Dispatch, SetStateAction, useCallback, memo } from "react";
 import { Socio, QUALIFICHE, QUALIFICA_COLORS } from "@/lib/soci-data";
 import {
   Table,
@@ -54,7 +54,7 @@ import { useFirestore, deleteDocumentNonBlocking } from "@/firebase";
 import { doc, writeBatch, getDoc } from "firebase/firestore";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
-const DetailItem = ({ icon, label, value, className }: { icon?: React.ReactNode, label: string, value?: string | number | null | React.ReactNode, className?: string }) => {
+const DetailItem = memo(({ icon, label, value, className }: { icon?: React.ReactNode, label: string, value?: string | number | null | React.ReactNode, className?: string }) => {
   if (!value && typeof value !== 'number' && typeof value !== 'object') return null;
   return (
     <div className={cn("flex items-start gap-3", className)}>
@@ -65,9 +65,11 @@ const DetailItem = ({ icon, label, value, className }: { icon?: React.ReactNode,
       </div>
     </div>
   );
-};
+});
 
-const SocioTableRow = ({ 
+DetailItem.displayName = "DetailItem";
+
+const SocioTableRow = memo(({ 
   socio,
   onEdit,
   onPrint,
@@ -812,7 +814,9 @@ const handleRenew = () => {
       </AlertDialog>
       </>
   );
-};
+});
+
+SocioTableRow.displayName = "SocioTableRow";
 
 export type SortConfig = {
   key: keyof Socio | 'name' | 'tessera' | 'contextualDate';

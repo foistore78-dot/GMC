@@ -64,31 +64,25 @@ export default function ElencoPageClient() {
     }
   }, [auth, router]);
 
-  if (isUserLoading || isCheckingAdmin) {
-    return (
-      <div className="flex flex-col min-h-screen bg-secondary">
-        <Header />
-        <main className="flex-grow flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <div>
-              <p className="font-semibold text-lg">Verifica in corso...</p>
-              <p className="text-muted-foreground">Controllo permessi amministratore.</p>
-            </div>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col min-h-screen bg-secondary">
       <Header onLogout={isAdmin ? handleLogout : undefined} />
       <main className="flex-grow flex flex-col">
-        <AuthGuard isAdmin={isAdmin}>
-          <ElencoClient />
-        </AuthGuard>
+        {isUserLoading || isCheckingAdmin ? (
+          <div className="flex-grow flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              <div>
+                <p className="font-semibold text-lg">Verifica in corso...</p>
+                <p className="text-muted-foreground">Controlle permessi amministratore.</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <AuthGuard isAdmin={isAdmin}>
+            <ElencoClient />
+          </AuthGuard>
+        )}
       </main>
       <Footer />
     </div>

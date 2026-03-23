@@ -3,14 +3,13 @@ import React, { useState, useEffect, type ReactNode } from 'react';
 import { FirebaseProvider } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
 
+const initializedServices = typeof window !== 'undefined' ? initializeFirebase() : { firebaseApp: null, auth: null, firestore: null };
+
 export function FirebaseClientProvider({ children }: { children: ReactNode }) {
-  const [services, setServices] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    const initialized = initializeFirebase();
-    setServices(initialized);
   }, []);
 
   if (!mounted) {
@@ -19,9 +18,9 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
 
   return (
     <FirebaseProvider
-      firebaseApp={services?.firebaseApp || null}
-      auth={services?.auth || null}
-      firestore={services?.firestore || null}
+      firebaseApp={initializedServices.firebaseApp}
+      auth={initializedServices.auth}
+      firestore={initializedServices.firestore}
     >
       {children}
     </FirebaseProvider>

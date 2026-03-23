@@ -13,14 +13,20 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-const SettingsPageClient = dynamic(() => import('./SettingsPageClient'), { ssr: false });
+import SettingsPageClient from './SettingsPageClient';
+import { Header } from "@/components/header";
+import { Footer } from "@/components/footer";
 
 export default function SettingsPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex-grow flex items-center justify-center min-h-screen bg-secondary">
-          <Loader2 className="h-16 w-16 animate-spin text-primary" />
+        <div className="flex flex-col min-h-screen bg-secondary">
+          <Header />
+          <main className="flex-grow flex items-center justify-center">
+            <Loader2 className="h-16 w-16 animate-spin text-primary" />
+          </main>
+          <Footer />
         </div>
       }
     >
