@@ -350,7 +350,7 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className="space-y-6 max-h-[85vh] overflow-y-auto p-1 pr-4 mt-4"
+        className="space-y-6 pt-4"
       >
         <div>
           <h3 className="text-lg font-medium text-primary mb-2">Dati Anagrafici</h3>
@@ -414,7 +414,7 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                                 onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
                                 value={field.value ? String(parseDate(field.value)?.getDate()).padStart(2, '0') : undefined}
                             >
-                                <SelectTrigger className="w-[70px]">
+                                <SelectTrigger className="w-[85px] flex-shrink-0">
                                     <SelectValue placeholder="GG" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -424,9 +424,9 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
 
                             <Select 
                                 onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
-                                value={field.value ? String(parseDate(field.value)!.getMonth() + 1).padStart(2, '0') : undefined}
+                                value={field.value ? String((parseDate(field.value)?.getMonth() ?? 0) + 1).padStart(2, '0') : undefined}
                             >
-                                <SelectTrigger className="flex-grow min-w-[110px]">
+                                <SelectTrigger className="flex-grow min-w-[130px]">
                                     <SelectValue placeholder="Mese" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -438,7 +438,7 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                                 onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
                                 value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
                             >
-                                <SelectTrigger className="w-[90px]">
+                                <SelectTrigger className="w-[110px] flex-shrink-0">
                                     <SelectValue placeholder="Anno" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -514,7 +514,7 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                                 onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
                                 value={field.value ? String(parseDate(field.value)?.getDate()).padStart(2, '0') : undefined}
                             >
-                                <SelectTrigger className="w-[70px]">
+                                <SelectTrigger className="w-[85px] flex-shrink-0">
                                     <SelectValue placeholder="GG" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -524,9 +524,9 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
 
                             <Select 
                                 onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
-                                value={field.value ? String(parseDate(field.value)!.getMonth() + 1).padStart(2, '0') : undefined}
+                                value={field.value ? String((parseDate(field.value)?.getMonth() ?? 0) + 1).padStart(2, '0') : undefined}
                             >
-                                <SelectTrigger className="flex-grow min-w-[110px]">
+                                <SelectTrigger className="flex-grow min-w-[130px]">
                                     <SelectValue placeholder="Mese" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -538,7 +538,7 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                                 onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
                                 value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
                             >
-                                <SelectTrigger className="w-[90px]">
+                                <SelectTrigger className="w-[110px] flex-shrink-0">
                                     <SelectValue placeholder="Anno" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -666,19 +666,19 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                       value={field.value}
                       className="flex items-center space-x-2 sm:space-x-4"
                     >
-                      <FormItem className="flex items-center space-x-2">
+                      <FormItem className="flex items-center space-x-2 space-y-0">
                         <FormControl><RadioGroupItem value="active" /></FormControl>
                         <FormLabel className="font-normal">Attivo</FormLabel>
                       </FormItem>
-                      <FormItem className="flex items-center space-x-2">
+                      <FormItem className="flex items-center space-x-2 space-y-0">
                         <FormControl><RadioGroupItem value="expired" /></FormControl>
                         <FormLabel className="font-normal">Sospeso</FormLabel>
                       </FormItem>
-                      <FormItem className="flex items-center space-x-2">
+                      <FormItem className="flex items-center space-x-2 space-y-0">
                         <FormControl><RadioGroupItem value="pending" /></FormControl>
                         <FormLabel className="font-normal">In Richiesta</FormLabel>
                       </FormItem>
-                      <FormItem className="flex items-center space-x-2">
+                      <FormItem className="flex items-center space-x-2 space-y-0">
                         <FormControl><RadioGroupItem value="rejected" /></FormControl>
                         <FormLabel className="font-normal">Respinto</FormLabel>
                       </FormItem>
@@ -688,13 +688,14 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                 </FormItem>
               )}
             />
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                <div className="grid grid-cols-2 gap-4 col-span-1">
+                <div className="flex items-end gap-3">
                    <FormField
                     control={form.control}
                     name="membershipYear"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="w-[100px] flex-shrink-0">
                         <FormLabel>Anno Ass.</FormLabel>
                         <FormControl><Input {...field} value={field.value || ''}/></FormControl>
                         <FormMessage />
@@ -706,7 +707,7 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                       control={form.control}
                       name="tessera"
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="flex-grow">
                           <FormLabel>N. Tessera</FormLabel>
                           <FormControl><Input {...field} value={field.value || ''}/></FormControl>
                           <FormMessage />
@@ -728,7 +729,7 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                                   onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
                                   value={field.value ? String(parseDate(field.value)?.getDate()).padStart(2, '0') : undefined}
                               >
-                                  <SelectTrigger className="w-[70px]">
+                                  <SelectTrigger className="w-[85px] flex-shrink-0 pointer-events-auto">
                                       <SelectValue placeholder="GG" />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -738,9 +739,9 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
 
                               <Select 
                                   onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
-                                  value={field.value ? String(parseDate(field.value)!.getMonth() + 1).padStart(2, '0') : undefined}
+                                  value={field.value ? String((parseDate(field.value)?.getMonth() ?? 0) + 1).padStart(2, '0') : undefined}
                               >
-                                  <SelectTrigger className="flex-grow min-w-[110px]">
+                                  <SelectTrigger className="flex-grow min-w-[130px] pointer-events-auto">
                                       <SelectValue placeholder="Mese" />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -752,7 +753,7 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                                   onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
                                   value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
                               >
-                                  <SelectTrigger className="w-[90px]">
+                                  <SelectTrigger className="w-[110px] flex-shrink-0 pointer-events-auto">
                                       <SelectValue placeholder="Anno" />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -765,8 +766,9 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                       </FormItem>
                     )}
                   />
-            </div>         {currentStatus === "active" && (
-                <>
+            </div>
+
+            {currentStatus === "active" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                     <FormField
                       control={form.control}
@@ -780,7 +782,7 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                                     onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
                                     value={field.value ? String(parseDate(field.value)?.getDate()).padStart(2, '0') : undefined}
                                 >
-                                    <SelectTrigger className="w-[70px]">
+                                    <SelectTrigger className="w-[85px] flex-shrink-0">
                                         <SelectValue placeholder="GG" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -790,9 +792,9 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
 
                                 <Select 
                                     onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
-                                    value={field.value ? String(parseDate(field.value)!.getMonth() + 1).padStart(2, '0') : undefined}
+                                    value={field.value ? String((parseDate(field.value)?.getMonth() ?? 0) + 1).padStart(2, '0') : undefined}
                                 >
-                                    <SelectTrigger className="flex-grow min-w-[110px]">
+                                    <SelectTrigger className="flex-grow min-w-[130px]">
                                         <SelectValue placeholder="Mese" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -804,7 +806,7 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                                     onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
                                     value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
                                 >
-                                    <SelectTrigger className="w-[90px]">
+                                    <SelectTrigger className="w-[110px] flex-shrink-0">
                                         <SelectValue placeholder="Anno" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -829,7 +831,7 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                                     onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
                                     value={field.value ? String(parseDate(field.value)?.getDate()).padStart(2, '0') : undefined}
                                 >
-                                    <SelectTrigger className="w-[70px]">
+                                    <SelectTrigger className="w-[85px] flex-shrink-0">
                                         <SelectValue placeholder="GG" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -839,9 +841,9 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
 
                                 <Select 
                                     onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
-                                    value={field.value ? String(parseDate(field.value)!.getMonth() + 1).padStart(2, '0') : undefined}
+                                    value={field.value ? String((parseDate(field.value)?.getMonth() ?? 0) + 1).padStart(2, '0') : undefined}
                                 >
-                                    <SelectTrigger className="flex-grow min-w-[110px]">
+                                    <SelectTrigger className="flex-grow min-w-[130px]">
                                         <SelectValue placeholder="Mese" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -853,7 +855,7 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                                     onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
                                     value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
                                 >
-                                    <SelectTrigger className="w-[90px]">
+                                    <SelectTrigger className="w-[110px] flex-shrink-0">
                                         <SelectValue placeholder="Anno" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -867,8 +869,7 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                       )}
                     />
                 </div>
-                </>
-              )}
+            )}
 
             <FormField
               control={form.control}

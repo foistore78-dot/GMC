@@ -393,7 +393,7 @@ export function MembershipForm() {
                                     onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
                                     value={field.value ? field.value.split('-')[2] : undefined}
                                 >
-                                    <SelectTrigger className="w-[70px]">
+                                    <SelectTrigger className="w-[85px] flex-shrink-0">
                                         <SelectValue placeholder="GG" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -405,7 +405,7 @@ export function MembershipForm() {
                                     onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
                                     value={field.value ? field.value.split('-')[1] : undefined}
                                 >
-                                    <SelectTrigger className="flex-grow min-w-[110px]">
+                                    <SelectTrigger className="flex-grow min-w-[130px]">
                                         <SelectValue placeholder="Mese" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -417,7 +417,7 @@ export function MembershipForm() {
                                     onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
                                     value={field.value ? field.value.split('-')[0] : undefined}
                                 >
-                                    <SelectTrigger className="w-[90px]">
+                                     <SelectTrigger className="w-[110px] flex-shrink-0">
                                         <SelectValue placeholder="Anno" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -499,37 +499,37 @@ export function MembershipForm() {
                                                 onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
                                                 value={field.value ? field.value.split('-')[2] : undefined}
                                             >
-                                                <SelectTrigger className="w-[70px]">
-                                                    <SelectValue placeholder="GG" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {days.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
+                                               <SelectTrigger className="w-[85px] flex-shrink-0 pointer-events-auto">
+                                         <SelectValue placeholder="GG" />
+                                     </SelectTrigger>
+                                     <SelectContent>
+                                         {days.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                                     </SelectContent>
+                                 </Select>
 
-                                            <Select 
-                                                onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
-                                                value={field.value ? field.value.split('-')[1] : undefined}
-                                            >
-                                                <SelectTrigger className="flex-grow min-w-[110px]">
-                                                    <SelectValue placeholder="Mese" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {months.map(m => <SelectItem key={m.value} value={m.value}>{toTitleCase(m.label)}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
+                                 <Select 
+                                     onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
+                                     value={field.value ? String((parseDate(field.value)?.getMonth() ?? 0) + 1).padStart(2, '0') : undefined}
+                                 >
+                                     <SelectTrigger className="flex-grow min-w-[130px] pointer-events-auto">
+                                         <SelectValue placeholder="Mese" />
+                                     </SelectTrigger>
+                                     <SelectContent>
+                                         {months.map(m => <SelectItem key={m.value} value={m.value}>{toTitleCase(m.label)}</SelectItem>)}
+                                     </SelectContent>
+                                 </Select>
 
-                                            <Select 
-                                                onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
-                                                value={field.value ? field.value.split('-')[0] : undefined}
-                                            >
-                                                <SelectTrigger className="w-[90px]">
-                                                    <SelectValue placeholder="Anno" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
+                                 <Select 
+                                     onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
+                                     value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
+                                 >
+                                     <SelectTrigger className="w-[110px] flex-shrink-0 pointer-events-auto">
+                                         <SelectValue placeholder="Anno" />
+                                     </SelectTrigger>
+                                     <SelectContent>
+                                         {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                                     </SelectContent>
+                                 </Select>
                                         </div>
                                     </FormControl>
                                     <FormMessage />
