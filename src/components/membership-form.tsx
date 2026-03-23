@@ -160,7 +160,8 @@ export function MembershipForm() {
      return Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
   }, []);
 
-  const handleDateChange = (type: 'day' | 'month' | 'year', value: string, currentVal: string, onChange: (val: string) => void) => {
+  const handleDateChange = (type: 'day' | 'month' | 'year', value: string, currentVal: string | undefined, onChange: (val: string) => void) => {
+
     const date = parseDate(currentVal) || new Date(2000, 0, 1);
     let y = date.getFullYear();
     let m = date.getMonth();
@@ -212,7 +213,8 @@ export function MembershipForm() {
 
   const nextStep = async () => {
     const fields = steps[currentStep].fields;
-    const output = await form.trigger(fields as FieldName[], { shouldFocus: true });
+    const output = await form.trigger(fields as any, { shouldFocus: true });
+
 
     if (!output) return;
 

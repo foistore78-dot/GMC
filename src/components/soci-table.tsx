@@ -1,8 +1,10 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, Dispatch, SetStateAction, useCallback, memo } from "react";
-import { Socio, QUALIFICHE, QUALIFICA_COLORS } from "@/lib/soci-data";
+import { useState, useMemo, useEffect, useCallback, memo, type Dispatch, type SetStateAction } from "react";
+import type { Socio } from "@/lib/soci-data";
+import { QUALIFICHE, QUALIFICA_COLORS } from "@/lib/soci-data";
+
 import {
   Table,
   TableBody,

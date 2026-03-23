@@ -2,12 +2,13 @@
     
 import { useState, useEffect } from 'react';
 import {
-  DocumentReference,
+  type DocumentReference,
   onSnapshot,
-  DocumentData,
-  FirestoreError,
-  DocumentSnapshot,
+  type DocumentData,
+  type FirestoreError,
+  type DocumentSnapshot,
 } from 'firebase/firestore';
+
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 

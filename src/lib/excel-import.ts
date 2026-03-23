@@ -1,6 +1,8 @@
 import * as XLSX from 'xlsx';
 import type { Socio } from './soci-data';
-import { collection, writeBatch, Firestore, doc, getDocs, query, where } from 'firebase/firestore';
+import { collection, writeBatch, doc, getDocs, query, where } from 'firebase/firestore';
+import type { Firestore } from 'firebase/firestore';
+
 import { normalizeSocioData } from './utils';
 
 const parseExcelDate = (excelDate: string | number | undefined): string | undefined => {

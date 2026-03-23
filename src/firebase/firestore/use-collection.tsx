@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import {
-  Query,
   onSnapshot,
-  DocumentData,
-  FirestoreError,
-  QuerySnapshot,
-  CollectionReference,
+  type Query,
+  type DocumentData,
+  type FirestoreError,
+  type QuerySnapshot,
+  type CollectionReference,
 } from 'firebase/firestore';
+
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 

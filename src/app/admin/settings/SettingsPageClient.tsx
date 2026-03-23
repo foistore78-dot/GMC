@@ -25,7 +25,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const SECURITY_PASSWORD = "1978";
+const SECURITY_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_SECURITY_PASSWORD || "1978";
+
 
 export default function SettingsPageClient() {
   const router = useRouter();
@@ -53,12 +54,6 @@ export default function SettingsPageClient() {
         setIsCheckingAdmin(false);
         return;
     }
-    const adminEmail = "garage.music.club2024@gmail.com";
-    if (user.email?.toLowerCase() === adminEmail.toLowerCase()) {
-        setIsAdmin(true);
-        setIsCheckingAdmin(false);
-        return;
-    }
     if (firestore) {
         try {
             const adminRef = doc(firestore, "roles_admin", user.uid);
@@ -68,6 +63,7 @@ export default function SettingsPageClient() {
             setIsAdmin(false);
         }
     }
+
     setIsCheckingAdmin(false);
   }, [user, firestore]);
 

@@ -8,10 +8,10 @@ service cloud.firestore {
      */
     function isAdmin() {
       return request.auth != null && (
-        request.auth.token.email == "garage.music.club2024@gmail.com" ||
         exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
       );
     }
+
 
     // Regole per le richieste di iscrizione
     match /membership_requests/{requestId} {

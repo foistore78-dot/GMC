@@ -42,7 +42,8 @@ import { Label } from "@/components/ui/label";
 import { getStatus, getFullName, parseDate, isOlderThanDays, toTitleCase, cn } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 50;
-const SECURITY_PASSWORD = "1978";
+const SECURITY_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_SECURITY_PASSWORD || "1978";
+
 
 const filterAndSortData = (
   data: Socio[] | null,
@@ -155,7 +156,8 @@ export default function ElencoClient() {
 
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
 
-  const initialTab = (searchParams.get("tab") || "active") as 'active' | 'expired' | 'requests';
+  const initialTab = (searchParams.get("tab") || "active") as 'active' | 'expired' | 'requests' | 'rejected';
+
   const initialFilter = searchParams.get("filter") || "";
 
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -395,6 +397,8 @@ export default function ElencoClient() {
 
   const executePrint = (socio?: Socio) => {
     const targetSocio = socio || socioToPrint;
+
+
     if (!targetSocio) return;
 
     const printWindow = window.open("", "_blank", "height=800,width=800");
@@ -443,10 +447,13 @@ export default function ElencoClient() {
       printWindow.addEventListener("load", mount, { once: true });
     }
 
+    // Clear print dialog state if it was used
     if (!socio) {
         setShowPrintDialog(false);
         setSocioToPrint(null);
     }
+
+
   };
 
   const handlePageChange = (page: number) => {
@@ -720,7 +727,7 @@ export default function ElencoClient() {
           <AlertDialogHeader><AlertDialogTitle>Stampa Scheda</AlertDialogTitle></AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annulla</AlertDialogCancel>
-            <AlertDialogAction onClick={executePrint}>Stampa</AlertDialogAction>
+            <AlertDialogAction onClick={() => executePrint()}>Stampa</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

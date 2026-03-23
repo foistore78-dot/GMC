@@ -1,6 +1,8 @@
 'use client';
 
-import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
+import { createContext, useContext, useState, useMemo, useEffect } from 'react';
+import type { ReactNode } from 'react';
+
 import { translations } from '@/lib/translations';
 
 type Language = 'it' | 'en' | 'sl';
