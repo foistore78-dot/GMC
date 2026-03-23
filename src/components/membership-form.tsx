@@ -28,7 +28,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useLanguage } from "./language-provider";
-import { normalizeSocioData } from "@/lib/utils";
+import { normalizeSocioData, parseDate, toTitleCase } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function MembershipForm() {
   const { t, language } = useLanguage();
@@ -140,6 +141,39 @@ export function MembershipForm() {
   }, [isPhoneEntered, form]);
 
   const steps = isMinor ? [...baseSteps.slice(0, 3), guardianStep, ...baseSteps.slice(3)] : baseSteps;
+  
+  // Helpers per i selettori di data separati
+  const years = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 100 }, (_, i) => String(currentYear - i));
+  }, []);
+
+  const months = useMemo(() => {
+    const locale = language === 'en' ? 'en-US' : 'it-IT';
+    return Array.from({ length: 12 }, (_, i) => ({
+        value: String(i + 1).padStart(2, '0'),
+        label: new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(2021, i))
+    }));
+  }, [language]);
+
+  const days = useMemo(() => {
+     return Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
+  }, []);
+
+  const handleDateChange = (type: 'day' | 'month' | 'year', value: string, currentVal: string, onChange: (val: string) => void) => {
+    const date = parseDate(currentVal) || new Date(2000, 0, 1);
+    let y = date.getFullYear();
+    let m = date.getMonth();
+    let d = date.getDate();
+
+    if (type === 'year') y = parseInt(value, 10);
+    if (type === 'month') m = parseInt(value, 10) - 1;
+    if (type === 'day') d = parseInt(value, 10);
+
+    // Formattiamo come YYYY-MM-DD per coerenza con il backend e Zod
+    const newDateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    onChange(newDateStr);
+  };
   
   async function processForm(values: FormValues) {
     setIsSubmitting(true);
@@ -345,13 +379,54 @@ export function MembershipForm() {
                 
                 {steps[currentStep].id === 3 && (
                   <div className="space-y-4">
-                     <FormField
+                    <FormField
                       control={form.control}
                       name="birthDate"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t('steps.birth.date')}</FormLabel>
-                          <FormControl><Input type="date" {...field} /></FormControl>
+                          <FormControl>
+                            <div className="flex gap-2">
+                                <Select 
+                                    onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
+                                    value={field.value ? field.value.split('-')[2] : undefined}
+                                >
+                                    <SelectTrigger className="flex-1">
+                                        <SelectValue placeholder="GG" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {days.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select 
+                                    onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
+                                    value={field.value ? field.value.split('-')[1] : undefined}
+                                >
+                                    <SelectTrigger className="flex-[2]">
+                                        <SelectValue placeholder="Mese" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {months.map(m => <SelectItem key={m.value} value={m.value}>{toTitleCase(m.label)}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select 
+                                    onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
+                                    value={field.value ? field.value.split('-')[0] : undefined}
+                                >
+                                    <SelectTrigger className="flex-[1.5]">
+                                        <SelectValue placeholder="Anno" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                          </FormControl>
+                          <FormDescription className="text-[10px] text-muted-foreground mt-1">
+                            Seleziona giorno, mese e anno di nascita
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -416,7 +491,45 @@ export function MembershipForm() {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>{t('steps.guardian.birthDate')}</FormLabel>
-                                    <FormControl><Input type="date" {...field} /></FormControl>
+                                    <FormControl>
+                                        <div className="flex gap-2">
+                                            <Select 
+                                                onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
+                                                value={field.value ? field.value.split('-')[2] : undefined}
+                                            >
+                                                <SelectTrigger className="flex-1">
+                                                    <SelectValue placeholder="GG" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {days.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+
+                                            <Select 
+                                                onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
+                                                value={field.value ? field.value.split('-')[1] : undefined}
+                                            >
+                                                <SelectTrigger className="flex-[2]">
+                                                    <SelectValue placeholder="Mese" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {months.map(m => <SelectItem key={m.value} value={m.value}>{toTitleCase(m.label)}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+
+                                            <Select 
+                                                onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
+                                                value={field.value ? field.value.split('-')[0] : undefined}
+                                            >
+                                                <SelectTrigger className="flex-[1.5]">
+                                                    <SelectValue placeholder="Anno" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}

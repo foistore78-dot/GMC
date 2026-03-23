@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState, useDeferredValue, useRef } f
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
-import { collection, onSnapshot, doc, writeBatch, query, limit, orderBy, startAfter, QueryDocumentSnapshot, where } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, X, Trash2, Info, Bell } from "lucide-react";
+import { collection, onSnapshot, doc, writeBatch, query, limit, orderBy, startAfter, QueryDocumentSnapshot, where, getDocs } from "firebase/firestore";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, X, Trash2, Info, Bell, UserCheck, Printer } from "lucide-react";
 
 import { SociTable, type SortConfig } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
@@ -39,7 +39,7 @@ import { useFirestore, errorEmitter, FirestorePermissionError, useFirebase } fro
 import { useToast } from "@/hooks/use-toast";
 import { exportToExcel } from "@/lib/excel-export";
 import { Label } from "@/components/ui/label";
-import { getStatus, getFullName, parseDate, isOlderThanDays, toTitleCase } from "@/lib/utils";
+import { getStatus, getFullName, parseDate, isOlderThanDays, toTitleCase, cn } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 50;
 const SECURITY_PASSWORD = "1978";
@@ -48,7 +48,7 @@ const filterAndSortData = (
   data: Socio[] | null,
   searchFilter: string,
   sortConfig: SortConfig,
-  activeTab: 'active' | 'expired' | 'requests'
+  activeTab: 'active' | 'expired' | 'requests' | 'rejected'
 ): Socio[] => {
     if (!data) return [];
 
@@ -81,7 +81,7 @@ const filterAndSortData = (
         if (activeTab === 'active') {
           aVal = a.renewalDate || a.joinDate;
           bVal = b.renewalDate || b.joinDate;
-        } else if (activeTab === 'expired') {
+        } else if (activeTab === 'expired' || activeTab === 'rejected') {
           aVal = a.joinDate;
           bVal = b.joinDate;
         } else { // requests
@@ -96,8 +96,10 @@ const filterAndSortData = (
       if (['renewalDate', 'joinDate', 'requestDate', 'birthDate', 'contextualDate', 'expirationDate'].includes(key)) {
         const dA = parseDate(aVal);
         const dB = parseDate(bVal);
-        const dateA = dA ? dA.getTime() : 0;
-        const dateB = dB ? dB.getTime() : 0;
+        // Se la data manca (es: serverTimestamp ancora pendente), 
+        // la trattiamo come "nuovissima" per farla apparire in cima
+        const dateA = dA ? dA.getTime() : Date.now() + 100000;
+        const dateB = dB ? dB.getTime() : Date.now() + 100000;
         if (dateA < dateB) return asc ? -1 : 1;
         if (dateA > dateB) return asc ? 1 : -1;
         return 0;
@@ -167,6 +169,7 @@ export default function ElencoClient() {
   const [filter, setFilter] = useState(initialFilter);
   const deferredFilter = useDeferredValue(filter);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showRejectedTab, setShowRejectedTab] = useState(initialTab === 'rejected');
   
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [socioToPrint, setSocioToPrint] = useState<Socio | null>(null);
@@ -175,14 +178,23 @@ export default function ElencoClient() {
   const [membersData, setMembersData] = useState<Socio[]>([]);
   const [requestsData, setRequestsData] = useState<Socio[]>([]);
   const [error, setError] = useState<string | null>(null);
-  
-  const [membersLimit, setMembersLimit] = useState(100);
-  const [hasMoreMembers, setHasMoreMembers] = useState(true);
 
   const [isSecurityDialogOpen, setIsSecurityDialogOpen] = useState(false);
   const [securityPasswordInput, setSecurityPasswordInput] = useState("");
   const [pendingAction, setPendingAction] = useState<'export' | 'cleanup' | null>(null);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  // State for non-blocking approval notifications
+  const [activeApprovals, setActiveApprovals] = useState<{id: string, socio: Socio}[]>([]);
+
+  const handleNewApproval = useCallback((socio: Socio) => {
+    setActiveApprovals(prev => [...prev, { id: crypto.randomUUID(), socio }]);
+  }, []);
+
+  const closeApproval = (id: string) => {
+    setActiveApprovals(prev => prev.filter(a => a.id !== id));
+  };
 
   const seenRequestIds = useRef<Set<string>>(new Set());
   const isInitialLoad = useRef(true);
@@ -208,14 +220,12 @@ export default function ElencoClient() {
         membersBaseQuery = query(
             collection(firestore, "members"),
             where("lastName", ">=", searchStr),
-            where("lastName", "<=", searchStr + "\uf8ff"),
-            limit(100)
+            where("lastName", "<=", searchStr + "\uf8ff")
         );
     } else {
         membersBaseQuery = query(
             collection(firestore, "members"),
-            orderBy("lastName"),
-            limit(membersLimit)
+            orderBy("lastName")
         );
     }
     
@@ -237,8 +247,6 @@ export default function ElencoClient() {
             return Array.from(newMap.values());
         });
         
-        const isSearchActive = deferredFilter.length >= 2;
-        setHasMoreMembers(!isSearchActive && snapshot.docs.length >= membersLimit);
         setIsDataLoading(false);
       },
       (err: any) => {
@@ -249,7 +257,7 @@ export default function ElencoClient() {
     );
 
     const unsubscribeRequests = onSnapshot(
-      requestsRef,
+      query(requestsRef, orderBy("requestDate", "desc")),
       (snapshot) => {
         setRequestsData(prev => {
             const newMap = new Map(prev.map(r => [r.id, r]));
@@ -283,11 +291,8 @@ export default function ElencoClient() {
       unsubscribeMembers();
       unsubscribeRequests();
     };
-  }, [firestore, areServicesAvailable, toast, membersLimit]);
+  }, [firestore, areServicesAvailable, toast]);
 
-  const handleLoadMore = () => {
-    setMembersLimit(prev => prev + 100);
-  };
 
 
   const { paginatedData, totalPages, counts, oldRequests } = useMemo(() => {
@@ -306,11 +311,13 @@ export default function ElencoClient() {
 
     const filteredActive = filteredMembersSet.filter((s) => getStatus(s, true) === "active");
     const filteredExpired = filteredMembersSet.filter((s) => getStatus(s, true) === "expired");
+    const filteredRejected = filteredMembersSet.filter((s) => getStatus(s, true) === "rejected");
     const filteredRequests = filteredRequestsSet.filter((req) => getStatus(req, false) === "pending");
 
     const counts = {
         active: filteredActive.length,
         expired: filteredExpired.length,
+        rejected: filteredRejected.length,
         requests: filteredRequests.length,
     };
 
@@ -321,6 +328,8 @@ export default function ElencoClient() {
         dataForTab = filteredActive;
     } else if (activeTab === 'expired') {
         dataForTab = filteredExpired;
+    } else if (activeTab === 'rejected') {
+        dataForTab = filteredRejected;
     } else { // requests
         dataForTab = filteredRequests;
     }
@@ -343,6 +352,14 @@ export default function ElencoClient() {
     setCurrentPage(1);
   }, [activeTab, filter, router, searchParams]);
 
+  const toggleRejectedTab = () => {
+    const newVal = !showRejectedTab;
+    setShowRejectedTab(newVal);
+    if (!newVal && activeTab === 'rejected') {
+        setActiveTab('active');
+    }
+  };
+
   const handleEditSocio = (socio: Socio) => setEditingSocio(socio);
 
   const handleSheetOpenChange = (isOpen: boolean) => {
@@ -350,8 +367,8 @@ export default function ElencoClient() {
   };
 
   const handleTabChange = (tab: string) => {
-    if (tab === 'active' || tab === 'expired' || tab === 'requests') {
-        setActiveTab(tab as 'active' | 'expired' | 'requests');
+    if (tab === 'active' || tab === 'expired' || tab === 'requests' || tab === 'rejected') {
+        setActiveTab(tab as 'active' | 'expired' | 'requests' | 'rejected');
         if (tab === 'requests') {
             setSortConfig({ key: 'contextualDate', direction: 'descending' });
         } else {
@@ -362,8 +379,11 @@ export default function ElencoClient() {
   };
 
   const handleSocioUpdate = useCallback(
-    (switchToTab?: "active" | "expired" | "requests") => {
-      if (switchToTab) setActiveTab(switchToTab);
+    (switchToTab?: "active" | "expired" | "requests" | "rejected") => {
+      setEditingSocio(null);
+      if (switchToTab) {
+          setActiveTab(switchToTab);
+      }
     },
     []
   );
@@ -373,8 +393,9 @@ export default function ElencoClient() {
     setShowPrintDialog(true);
   };
 
-  const executePrint = () => {
-    if (!socioToPrint) return;
+  const executePrint = (socio?: Socio) => {
+    const targetSocio = socio || socioToPrint;
+    if (!targetSocio) return;
 
     const printWindow = window.open("", "_blank", "height=800,width=800");
     if (!printWindow) {
@@ -407,7 +428,7 @@ export default function ElencoClient() {
       if (!el) return;
 
       const root = createRoot(el);
-      root.render(<SocioCard socio={socioToPrint} />);
+      root.render(<SocioCard socio={targetSocio} />);
 
       setTimeout(() => {
         printWindow.focus();
@@ -422,8 +443,10 @@ export default function ElencoClient() {
       printWindow.addEventListener("load", mount, { once: true });
     }
 
-    setShowPrintDialog(false);
-    setSocioToPrint(null);
+    if (!socio) {
+        setShowPrintDialog(false);
+        setSocioToPrint(null);
+    }
   };
 
   const handlePageChange = (page: number) => {
@@ -433,6 +456,45 @@ export default function ElencoClient() {
     }
   };
   
+  const handleFullExport = async () => {
+    if (!firestore) return;
+    
+    setIsExporting(true);
+    try {
+      toast({
+        title: "Preparazione Export",
+        description: "Recupero di tutti i soci dal database... Potrebbe volerci un momento.",
+      });
+
+      const membersQuery = query(collection(firestore, "members"), orderBy("lastName"));
+      const requestsQuery = query(collection(firestore, "membership_requests"), orderBy("requestDate", "desc"));
+
+      const [membersSnap, requestsSnap] = await Promise.all([
+        getDocs(membersQuery),
+        getDocs(requestsQuery)
+      ]);
+
+      const allMembers = membersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
+      const allRequests = requestsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Socio));
+
+      await exportToExcel(allMembers, allRequests);
+      
+      toast({
+        title: "Export Completato",
+        description: `Esportati ${allMembers.length} soci e ${allRequests.length} richieste.`,
+      });
+    } catch (e: any) {
+      console.error("Errore durante l'export completo:", e);
+      toast({
+        title: "Errore Export",
+        description: "Non è stato possibile recuperare tutti i dati: " + e.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const initiateAction = (action: 'export' | 'cleanup') => {
     setPendingAction(action);
     setSecurityPasswordInput("");
@@ -493,171 +555,309 @@ export default function ElencoClient() {
     );
   }
 
-  try {
-    return (
-      <div className="flex-grow container mx-auto px-4 py-8">
-        <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
-          <div className="flex items-center gap-4">
-            <Users className="w-8 h-8 md:w-10 md:h-10 text-primary" />
-            <h1 className="font-headline text-3xl md:text-5xl text-primary">Elenco Soci</h1>
-          </div>
-  
-          <div className="flex items-center gap-2 flex-wrap">
-              <Button variant="outline" size="sm" onClick={() => {
-                try {
-                  exportToExcel(membersData, requestsData);
-                } catch (e: any) {
-                  alert("Errore durante l'export: " + e.message);
-                }
-              }} disabled={isDataLoading}>
-                  <FileDown className="mr-2 h-4 w-4" />
-                  Esporta
-              </Button>
-              <Button asChild size="sm" className="bg-primary hover:bg-primary/90">
-                  <Link href="/?from=admin#apply">
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Nuova Iscrizione
-                  </Link>
-              </Button>
-          </div>
+  return (
+    <div className="flex-grow container mx-auto px-4 py-8">
+      <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
+        <div className="flex items-center gap-4">
+          <Users className="w-8 h-8 md:w-10 md:h-10 text-primary" />
+          <h1 className="font-headline text-3xl md:text-5xl text-primary">Elenco Soci</h1>
         </div>
-  
-        <div className="bg-background rounded-lg border border-border shadow-lg p-2 sm:p-4">
-          {isDataLoading ? (
-            <div className="flex flex-col justify-center items-center h-64 gap-4">
-              <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="text-muted-foreground">Caricamento dati...</p>
+
+        <div className="flex items-center gap-2 flex-wrap">
+            <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleFullExport} 
+                disabled={isDataLoading || isExporting}
+            >
+                {isExporting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                    <FileDown className="mr-2 h-4 w-4" />
+                )}
+                {isExporting ? "Esportazione..." : "Esporta"}
+            </Button>
+            <Button asChild size="sm" className="bg-primary hover:bg-primary/90">
+                <Link href="/?from=admin#apply">
+                <UserPlus className="mr-2 h-4 w-4" />
+                Nuova Iscrizione
+                </Link>
+            </Button>
+        </div>
+      </div>
+
+      <div className="bg-background rounded-lg border border-border shadow-lg p-2 sm:p-4">
+        {isDataLoading ? (
+          <div className="flex flex-col justify-center items-center h-64 gap-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="text-muted-foreground">Caricamento dati...</p>
+          </div>
+        ) : error ? (
+           <div className="flex flex-col justify-center items-center h-64 text-center gap-4">
+            <AlertTriangle className="h-12 w-12 text-destructive" />
+            <div>
+                <p className="text-destructive font-semibold text-lg mb-2">Si è verificato un errore</p>
+                <p className="text-muted-foreground max-w-md">{error}</p>
             </div>
-          ) : error ? (
-             <div className="flex flex-col justify-center items-center h-64 text-center gap-4">
-              <AlertTriangle className="h-12 w-12 text-destructive" />
-              <div>
-                  <p className="text-destructive font-semibold text-lg mb-2">Si è verificato un errore</p>
-                  <p className="text-muted-foreground max-w-md">{error}</p>
-              </div>
-              <Button onClick={() => window.location.reload()} variant="outline">
-                  <RefreshCw className="mr-2 h-4 w-4"/>
-                  Ricarica Pagina
-              </Button>
-            </div>
-          ) : (
-            <>
-              <Tabs value={activeTab} onValueChange={handleTabChange}>
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4">
-                  <TabsList className="self-start">
-                    <TabsTrigger value="active" className="text-xs px-2 sm:text-sm">ATTIVI ({counts.active})</TabsTrigger>
-                    <TabsTrigger value="expired" className="text-xs px-2 sm:text-sm">SOSPESI ({counts.expired})</TabsTrigger>
-                    <TabsTrigger value="requests" className="text-xs px-2 sm:text-sm">RICHIESTE ({counts.requests})</TabsTrigger>
-                  </TabsList>
-                  
-                  <div className="relative w-full sm:max-w-xs">
-                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Filtra..."
-                      value={filter}
-                      onChange={(event) => setFilter(event.target.value)}
-                      className="pl-10 pr-10"
-                      autoComplete="off"
-                    />
-                    {filter && (
-                      <button onClick={() => setFilter("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><X className="h-4 w-4" /></button>
-                    )}
-                  </div>
-                </div>
-  
-                <TabsContent value="active">
-                  <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="active" />
-                </TabsContent>
-  
-                <TabsContent value="expired">
-                  <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="expired" />
-                </TabsContent>
-  
-                <TabsContent value="requests" className="space-y-4">
-                  {oldRequests.length > 0 && (
-                      <Alert className="bg-orange-500/10 border-orange-500/30">
-                          <Info className="h-4 w-4 text-orange-500" />
-                          <AlertTitle>Richieste vecchie</AlertTitle>
-                          <AlertDescription className="flex justify-between items-center">
-                              <span>Ci sono {oldRequests.length} richieste più vecchie di 60 giorni.</span>
-                              <Button variant="outline" size="sm" onClick={() => initiateAction('cleanup')} disabled={isCleaningUp}>Pulisci ora</Button>
-                          </AlertDescription>
-                      </Alert>
-                  )}
-                  <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="requests" />
-                </TabsContent>
-              </Tabs>
-              
-              {activeTab !== 'requests' && hasMoreMembers && (
-                <div className="flex justify-center py-4 border-t border-dashed mt-4">
-                  <Button 
-                    variant="outline" 
-                    onClick={handleLoadMore}
-                    className="gap-2 border-primary/20 hover:bg-primary/10"
+            <Button onClick={() => window.location.reload()} variant="outline">
+                <RefreshCw className="mr-2 h-4 w-4"/>
+                Ricarica Pagina
+            </Button>
+          </div>
+        ) : (
+          <>
+            <Tabs value={activeTab} onValueChange={handleTabChange}>
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4">
+                <TabsList className="self-start h-auto p-1 bg-muted/20 gap-2 flex-wrap">
+                  <TabsTrigger 
+                    value="active" 
+                    className="rounded-full px-4 py-1.5 border border-emerald-200 text-emerald-600 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:border-emerald-600 transition-all font-medium"
                   >
-                    <RefreshCw className="h-4 w-4" />
-                    Carica altri 100 soci...
+                    ATTIVI ({counts.active})
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="expired" 
+                    className="rounded-full px-4 py-1.5 border border-amber-200 text-amber-600 data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]:border-amber-600 transition-all font-medium"
+                  >
+                    SOSPESI ({counts.expired})
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="requests" 
+                    className="rounded-full px-4 py-1.5 border border-blue-200 text-blue-600 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:border-blue-600 transition-all font-medium"
+                  >
+                    RICHIESTE ({counts.requests})
+                  </TabsTrigger>
+                  {showRejectedTab && (
+                    <TabsTrigger 
+                      value="rejected" 
+                      className="rounded-full px-4 py-1.5 border border-rose-200 text-rose-600 data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:border-rose-600 transition-all font-medium"
+                    >
+                      RESPINTI ({counts.rejected})
+                    </TabsTrigger>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className={cn(
+                        "h-8 w-8 ml-auto rounded-full border-rose-200 text-rose-600 hover:bg-rose-50",
+                        showRejectedTab ? "bg-rose-600 text-white border-rose-600 hover:bg-rose-700" : ""
+                    )}
+                    onClick={toggleRejectedTab}
+                    title={showRejectedTab ? "Nascondi Respinti" : "Mostra Respinti"}
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </Button>
+                </TabsList>
+                
+                <div className="relative w-full sm:max-w-xs">
+                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Filtra..."
+                    value={filter}
+                    onChange={(event) => setFilter(event.target.value)}
+                    className="pl-10 pr-10"
+                    autoComplete="off"
+                  />
+                  {filter && (
+                    <button onClick={() => setFilter("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><X className="h-4 w-4" /></button>
+                  )}
                 </div>
-              )}
-  
-              {totalPages > 1 && <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />}
+              </div>
+
+              <TabsContent value="active">
+                <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="active" onNewApproval={handleNewApproval} />
+              </TabsContent>
+
+              <TabsContent value="expired">
+                <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="expired" onNewApproval={handleNewApproval} />
+              </TabsContent>
+
+              <TabsContent value="rejected">
+                <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="rejected" onNewApproval={handleNewApproval} />
+              </TabsContent>
+
+              <TabsContent value="requests" className="space-y-4">
+                {oldRequests.length > 0 && (
+                    <Alert className="bg-orange-500/10 border-orange-500/30">
+                        <Info className="h-4 w-4 text-orange-500" />
+                        <AlertTitle>Richieste vecchie</AlertTitle>
+                        <AlertDescription className="flex justify-between items-center">
+                            <span>Ci sono {oldRequests.length} richieste più vecchie di 60 giorni.</span>
+                            <Button variant="outline" size="sm" onClick={() => initiateAction('cleanup')} disabled={isCleaningUp}>Pulisci ora</Button>
+                        </AlertDescription>
+                    </Alert>
+                )}
+                <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="requests" onNewApproval={handleNewApproval} />
+              </TabsContent>
+            </Tabs>
+            
+
+            {totalPages > 1 && <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />}
+          </>
+        )}
+      </div>
+
+      <Sheet open={!!editingSocio} onOpenChange={handleSheetOpenChange}>
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+          {editingSocio && (
+            <>
+              <SheetHeader>
+                <SheetTitle>Modifica: {getFullName(editingSocio)}</SheetTitle>
+              </SheetHeader>
+              <EditSocioForm 
+                socio={editingSocio} 
+                onClose={handleSocioUpdate} 
+                isFromMembersCollection={activeTab !== 'requests'} 
+                onNewApproval={handleNewApproval}
+              />
             </>
           )}
-        </div>
-  
-        <Sheet open={!!editingSocio} onOpenChange={handleSheetOpenChange}>
-          <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-            {editingSocio && (
-              <>
-                <SheetHeader>
-                  <SheetTitle>Modifica: {getFullName(editingSocio)}</SheetTitle>
-                </SheetHeader>
-                <EditSocioForm socio={editingSocio} onClose={handleSocioUpdate} />
-              </>
-            )}
-          </SheetContent>
-        </Sheet>
-  
-        <AlertDialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader><AlertDialogTitle>Stampa Scheda</AlertDialogTitle></AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Annulla</AlertDialogCancel>
-              <AlertDialogAction onClick={executePrint}>Stampa</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-  
-        <Dialog open={isSecurityDialogOpen} onOpenChange={setIsSecurityDialogOpen}>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Verifica Password</DialogTitle></DialogHeader>
-            <div className="py-4 space-y-4">
-              {/* Hidden inputs to capture browser autofill and prevent it from affecting the main search */}
-              <div className="sr-only" aria-hidden="true" style={{ display: 'none' }}>
-                <input type="text" name="username" tabIndex={-1} autoComplete="username" />
-                <input type="password" name="password" tabIndex={-1} autoComplete="current-password" />
-              </div>
-              
-              <Label htmlFor="security-password">Inserisci password di sicurezza</Label>
-              <Input 
-                id="security-password"
-                type="password" 
-                value={securityPasswordInput} 
-                onChange={(e) => setSecurityPasswordInput(e.target.value)}
-                autoComplete="new-password"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') verifySecurityPassword();
-                }}
-                autoFocus
-              />
+        </SheetContent>
+      </Sheet>
+
+      <AlertDialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Stampa Scheda</AlertDialogTitle></AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={executePrint}>Stampa</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={isSecurityDialogOpen} onOpenChange={setIsSecurityDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Verifica Password</DialogTitle></DialogHeader>
+          <div className="py-4 space-y-4">
+            {/* Hidden inputs to capture browser autofill and prevent it from affecting the main search */}
+            <div className="sr-only" aria-hidden="true" style={{ display: 'none' }}>
+              <input type="text" name="username" tabIndex={-1} autoComplete="username" />
+              <input type="password" name="password" tabIndex={-1} autoComplete="current-password" />
             </div>
-            <DialogFooter><Button onClick={verifySecurityPassword}>Conferma</Button></DialogFooter>
-          </DialogContent>
-        </Dialog>
+            
+            <Label htmlFor="security-password">Inserisci password di sicurezza</Label>
+            <Input 
+              id="security-password"
+              type="password" 
+              value={securityPasswordInput} 
+              onChange={(e) => setSecurityPasswordInput(e.target.value)}
+              autoComplete="new-password"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') verifySecurityPassword();
+              }}
+              autoFocus
+            />
+          </div>
+          <DialogFooter><Button onClick={verifySecurityPassword}>Conferma</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Floating Approval Popups Container */}
+      <div className="fixed inset-0 pointer-events-none z-[9999]">
+          {activeApprovals.map((approval, index) => (
+              <ApprovalPopup 
+                key={approval.id} 
+                socio={approval.socio} 
+                onClose={() => closeApproval(approval.id)} 
+                onPrint={() => executePrint(approval.socio)}
+                index={index}
+              />
+          ))}
       </div>
+    </div>
+  );
+}
+
+// Draggable Approval Popup Component
+function ApprovalPopup({ socio, onClose, onPrint, index }: { socio: Socio, onClose: () => void, onPrint: () => void, index: number }) {
+    const [position, setPosition] = useState({ x: 20 + (index * 20), y: 100 + (index * 20) });
+    const [dragging, setDragging] = useState(false);
+    const [rel, setRel] = useState({ x: 0, y: 0 }); // relative mouse position within the header
+
+    const onMouseDown = (e: React.MouseEvent) => {
+        if (e.button !== 0) return;
+        setDragging(true);
+        setRel({
+            x: e.pageX - position.x,
+            y: e.pageY - position.y
+        });
+        e.stopPropagation();
+    };
+
+    useEffect(() => {
+        const onMouseMove = (e: MouseEvent) => {
+            if (!dragging) return;
+            setPosition({
+                x: e.pageX - rel.x,
+                y: e.pageY - rel.y
+            });
+            e.stopPropagation();
+            e.preventDefault();
+        };
+
+        const onMouseUp = () => {
+            setDragging(false);
+        };
+
+        if (dragging) {
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        }
+
+        return () => {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        };
+    }, [dragging, rel]);
+
+    return (
+        <div 
+            style={{ 
+                left: `${position.x}px`, 
+                top: `${position.y}px`,
+                position: 'fixed'
+            }}
+            className="pointer-events-auto bg-card border-2 border-primary shadow-2xl rounded-xl w-80 overflow-hidden animate-in fade-in zoom-in duration-300 select-none"
+        >
+            {/* Header / Drag Handle */}
+            <div 
+                onMouseDown={onMouseDown}
+                className="bg-primary p-3 flex items-center justify-between cursor-move"
+            >
+                <div className="flex items-center gap-2 text-primary-foreground font-bold uppercase text-xs tracking-widest">
+                    <UserCheck className="h-4 w-4" /> Nuovo Socio Approvato
+                </div>
+                <button onClick={onClose} className="text-primary-foreground/80 hover:text-white transition-colors">
+                    <X className="h-4 w-4" />
+                </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 space-y-4">
+                <div className="space-y-1">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Nome e Cognome</p>
+                    <p className="text-xl font-headline text-primary uppercase leading-tight">{getFullName(socio)}</p>
+                </div>
+
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-1">
+                    <p className="text-[10px] uppercase font-bold text-primary/70 tracking-widest">Numero di Tessera</p>
+                    <p className="text-2xl font-mono font-bold text-primary tracking-tighter">{socio.tessera || 'N/A'}</p>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                    <Button variant="default" className="flex-1 gap-2" size="sm" onClick={onPrint}>
+                        <Printer className="h-4 w-4" /> Stampa
+                    </Button>
+                    <Button variant="outline" className="flex-1" size="sm" onClick={onClose}>
+                        Chiudi
+                    </Button>
+                </div>
+            </div>
+            
+            {/* Subtle info text */}
+            <div className="bg-muted/30 px-5 py-2 text-[9px] text-muted-foreground border-t italic">
+                Sposta questo riquadro per continuare a lavorare.
+            </div>
+        </div>
     );
-  } catch (e: any) {
-    return <div className="p-8 text-destructive">Errore di rendering: {e.message}</div>;
-  }
 }

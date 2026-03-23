@@ -51,7 +51,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
 import { useFirestore, deleteDocumentNonBlocking } from "@/firebase";
-import { doc, writeBatch, getDoc } from "firebase/firestore";
+import { doc, writeBatch, getDoc, deleteDoc } from "firebase/firestore";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 const DetailItem = memo(({ icon, label, value, className }: { icon?: React.ReactNode, label: string, value?: string | number | null | React.ReactNode, className?: string }) => {
@@ -76,13 +76,15 @@ const SocioTableRow = memo(({
   allMembers,
   onSocioUpdate,
   activeTab,
+  onNewApproval,
 }: { 
   socio: Socio; 
   onEdit: (socio: Socio) => void;
   onPrint: (socio: Socio) => void;
   allMembers: Socio[];
-  onSocioUpdate: (tab?: 'active' | 'expired' | 'requests') => void;
-  activeTab: 'active' | 'expired' | 'requests';
+  onSocioUpdate: (tab?: 'active' | 'expired' | 'requests' | 'rejected') => void;
+  activeTab: 'active' | 'expired' | 'requests' | 'rejected';
+  onNewApproval?: (socio: Socio) => void;
 }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -104,11 +106,16 @@ const SocioTableRow = memo(({
   const [renewFeePaid, setRenewFeePaid] = useState(false);
   const [renewedSocioData, setRenewedSocioData] = useState<Socio | null>(null);
 
-  const [socioToDelete, setSocioToDelete] = useState<Socio | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [socioToReject, setSocioToReject] = useState<Socio | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [isRejecting, setIsRejecting] = useState(false);
 
   const [showWhatsAppDialog, setShowWhatsAppDialog] = useState(false);
   const [config, setConfig] = useState<any>(null);
+
+  const [showDeleteConfirm1, setShowDeleteConfirm1] = useState(false);
+  const [showDeleteConfirm2, setShowDeleteConfirm2] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [mounted, setMounted] = useState(false);
 
@@ -154,6 +161,55 @@ const SocioTableRow = memo(({
         setShowApproveDialog(true);
     }
   };
+
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  const handleRestore = async () => {
+    if (!firestore || isRestoring) return;
+    setIsRestoring(true);
+
+    try {
+        const batch = writeBatch(firestore);
+        const dateStr = new Date().toLocaleString('it-IT');
+        const oldNotes = socio.notes || '';
+        
+        const historyEntry = `--- STORICO RIPRISTINO (TORNA IN RICHIESTA) ${dateStr} ---\nSocio ripristinato dall'elenco respinti e riportato in RICHIESTE.\n------------------------`;
+        const newNotes = `${historyEntry}\n\n${oldNotes}`.trim();
+
+        const memberDocRef = doc(firestore, "members", socio.id);
+        const requestDocRef = doc(firestore, "membership_requests", socio.id);
+        
+        // Rimuoviamo dati di tesseramento per farlo tornare "richiesta" pura come richiesto
+        const { status, tessera, joinDate, renewalDate, expirationDate, membershipYear, ...restOfSocio } = socio;
+        
+        const restoredRequestData = {
+            ...restOfSocio,
+            status: 'pending',
+            notes: newNotes,
+            requestDate: socio.requestDate || new Date().toISOString()
+        };
+
+        batch.set(requestDocRef, restoredRequestData);
+        batch.delete(memberDocRef);
+
+        await batch.commit();
+
+        toast({
+            title: "Socio Ripristinato",
+            description: `${getFullName(socio)} è stato spostato nelle richieste.`,
+        });
+        
+        onSocioUpdate('requests');
+    } catch (error: any) {
+        toast({
+            title: "Errore",
+            description: `Impossibile ripristinare il socio: ${error.message}`,
+            variant: "destructive"
+        });
+    } finally {
+        setIsRestoring(false);
+    }
+  };
   
   const handleRenewDialogChange = (isOpen: boolean) => {
      if (!isOpen) {
@@ -166,33 +222,109 @@ const SocioTableRow = memo(({
     }
   };
   
-  const handleDelete = () => {
-    if (!firestore || !socioToDelete) return;
+  const handleReject = async () => {
+    if (!firestore || !socioToReject || !rejectionReason.trim()) return;
+    setIsRejecting(true);
+
+    try {
+        const batch = writeBatch(firestore);
+        const dateStr = new Date().toLocaleString('it-IT');
+        const oldStatus = getStatus(socioToReject, activeTab !== 'requests');
+        const oldNotes = socioToReject.notes || '';
+        const oldTessera = socioToReject.tessera || 'N/A';
+        
+        const historyEntry = `--- STORICO ELIMINAZIONE (RESPINTO) ${dateStr} ---\nMotivo: ${rejectionReason}\nStato precedente: ${oldStatus}\nTessera precedente: ${oldTessera}\n------------------------`;
+        const newNotes = `${historyEntry}\n\n${oldNotes}`.trim();
+
+        const collectionName = (activeTab === 'active' || activeTab === 'expired' || activeTab === 'rejected') ? 'members' : 'membership_requests';
+        
+        if (collectionName === 'membership_requests') {
+            const memberDocRef = doc(firestore, "members", socioToReject.id);
+            const requestDocRef = doc(firestore, "membership_requests", socioToReject.id);
+            
+            const rejectedSocioData: Socio = {
+                ...socioToReject,
+                status: 'rejected',
+                notes: newNotes
+            };
+            
+            batch.set(memberDocRef, rejectedSocioData);
+            batch.delete(requestDocRef);
+        } else {
+            const memberDocRef = doc(firestore, "members", socioToReject.id);
+            batch.update(memberDocRef, {
+                status: 'rejected',
+                notes: newNotes
+            });
+        }
+
+        await batch.commit();
+
+        toast({
+            title: "Socio Respinto",
+            description: `${getFullName(socioToReject)} è stato spostato nella lista dei respinti.`,
+        });
+        
+        setSocioToReject(null);
+        setRejectionReason("");
+        onSocioUpdate('rejected');
+    } catch (error: any) {
+        toast({
+            title: "Errore",
+            description: `Impossibile completare l'operazione: ${error.message}`,
+            variant: "destructive"
+        });
+    } finally {
+        setIsRejecting(false);
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!firestore || isDeleting) return;
     setIsDeleting(true);
-
-    const collectionName = (activeTab === 'active' || activeTab === 'expired') ? 'members' : 'membership_requests';
-    const docRef = doc(firestore, collectionName, socioToDelete.id);
-    
-    deleteDocumentNonBlocking(docRef);
-
-    toast({
-        title: "Socio Eliminato",
-        description: `${getFullName(socioToDelete)} è stato rimosso dall'elenco.`,
-    });
-    
-    setSocioToDelete(null);
-    setIsDeleting(false);
-    onSocioUpdate();
+    try {
+      // Usiamo 'members' perché i respinti sono salvati lì (con status: rejected)
+      await deleteDoc(doc(firestore, "members", socio.id));
+      toast({
+        title: "Eliminazione Definitiva",
+        description: `${getFullName(socio)} è stato rimosso correttamente dal sistema.`,
+      });
+      onSocioUpdate('rejected');
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: `Impossibile eliminare il socio: ${error.message}`,
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm2(false);
+    }
   };
 
   const getNextMemberNumberForYear = useCallback((year: number) => {
+      // Troviamo tutti i numeri di tessera utilizzati per l'anno specificato,
+      // escludendo i soci "Respinti" per permettere il riutilizzo del loro numero (se presente)
       const yearMemberNumbers = allMembers
-        .filter(m => m.membershipYear === String(year) && m.tessera)
+        .filter(m => m.membershipYear === String(year) && m.tessera && m.status !== 'rejected')
         .map(m => parseInt(String(m.tessera!).split('-').pop() || '0', 10))
-        .filter(n => !isNaN(n));
+        .filter(n => !isNaN(n) && n > 0);
       
-      const maxNumber = yearMemberNumbers.length > 0 ? Math.max(...yearMemberNumbers) : 0;
-      return maxNumber + 1;
+      // Ordiniamo i numeri in modo crescente per individuare eventuali "bucchi"
+      yearMemberNumbers.sort((a, b) => a - b);
+      
+      // Cerchiamo il primo numero disponibile partendo da 1
+      let nextNum = 1;
+      for (const num of yearMemberNumbers) {
+          if (num === nextNum) {
+              nextNum++;
+          } else if (num > nextNum) {
+              // Abbiamo trovato un buco (es: abbiamo 1, 2, 4, 5... il numero mancante è 3)
+              break;
+          }
+      }
+      
+      return nextNum;
   }, [allMembers]);
 
   useEffect(() => {
@@ -256,7 +388,11 @@ const SocioTableRow = memo(({
             title: "Socio Approvato!",
             description: `${getFullName(socio)} è ora un membro attivo. N. tessera: ${membershipCardNumber}`,
         });
-        onPrint(newMemberData);
+        if (onNewApproval) {
+            onNewApproval(newMemberData);
+        } else {
+            onPrint(newMemberData);
+        }
         handleApproveDialogChange(false);
         onSocioUpdate('active');
     }).catch((error) => {
@@ -423,9 +559,10 @@ const handleRenew = () => {
                         "capitalize",
                         status === 'active' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 
                         status === 'expired' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' : 
+                        status === 'rejected' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
                         'bg-orange-500/20 text-orange-400 border-orange-500/30'
                       )}>
-                        {status === 'active' ? 'Attivo' : status === 'expired' ? 'Scaduto' : 'Richiesta'}
+                        {status === 'active' ? 'Attivo' : status === 'expired' ? 'Scaduto' : status === 'rejected' ? 'Respinto' : 'Richiesta'}
                       </Badge>
                     </div>
                   </DialogHeader>
@@ -727,6 +864,22 @@ const handleRenew = () => {
                         </DialogContent>
                     </Dialog>
                 )}
+                {activeTab === 'rejected' && (
+                    <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-emerald-500 hover:text-emerald-500 hover:bg-emerald-500/10 h-8"
+                        onClick={handleRestore}
+                        disabled={isRestoring}
+                    >
+                        {isRestoring ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <UserCheck className="h-4 w-4 sm:mr-2" />
+                        )}
+                        <span className="hidden sm:inline">Ripristina</span>
+                    </Button>
+                )}
                  <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -740,7 +893,16 @@ const handleRenew = () => {
                         <DropdownMenuItem onClick={() => onEdit(socio)}>
                             <Pencil className="mr-2 h-4 w-4" /> Modifica
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setSocioToDelete(socio)} className="text-destructive">
+                        <DropdownMenuItem 
+                            onClick={() => {
+                                if (activeTab === 'rejected') {
+                                    setShowDeleteConfirm1(true);
+                                } else {
+                                    setSocioToReject(socio);
+                                }
+                            }} 
+                            className="text-destructive"
+                        >
                             <Trash2 className="mr-2 h-4 w-4" /> Elimina
                         </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -748,6 +910,36 @@ const handleRenew = () => {
             </div>
         </TableCell>
       </TableRow>
+
+      <Dialog open={!!socioToReject} onOpenChange={(open) => !open && setSocioToReject(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rifiutare socio?</DialogTitle>
+            <DialogDescription>
+              Stai per spostare <strong className="text-foreground">{socioToReject ? getFullName(socioToReject) : ""}</strong> nella lista dei respinti. 
+              Questa azione non lo eliminerà definitivamente, ma non risulterà più tra i soci attivi.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="rejection-reason">Motivo del rifiuto (obbligatorio)</Label>
+              <Input 
+                id="rejection-reason" 
+                placeholder="Scrivi qui il motivo..." 
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setSocioToReject(null)}>Annulla</Button>
+            <Button variant="destructive" onClick={handleReject} disabled={isRejecting || !rejectionReason.trim()}>
+              {isRejecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Conferma Rifiuto
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showWhatsAppDialog} onOpenChange={setShowWhatsAppDialog}>
         <DialogContent className="sm:max-w-md">
@@ -791,28 +983,72 @@ const handleRenew = () => {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!socioToDelete} onOpenChange={(open) => !open && setSocioToDelete(null)}>
-        <AlertDialogContent>
+      {/* Dialog di Eliminazione Definitiva - STEP 1 */}
+      <Dialog open={showDeleteConfirm1} onOpenChange={setShowDeleteConfirm1}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" /> Attenzione! Eliminazione Definitiva
+            </DialogTitle>
+            <DialogDescription className="text-base pt-2">
+              Stai per eliminare **definitivamente** il socio <strong className="text-foreground">{getFullName(socio)}</strong> dal sistema.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="bg-destructive/10 p-4 rounded-md border border-destructive/20 my-2">
+            <p className="text-sm font-medium">Questa operazione comporterà:</p>
+            <ul className="list-disc list-inside text-xs mt-2 space-y-1">
+              <li>Cancellazione irreversibile di tutti i dati anagrafici.</li>
+              <li>Rimozione dello storico di tesseramento per questo utente.</li>
+              <li>Impossibilità di ripristinare il socio in futuro.</li>
+            </ul>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setShowDeleteConfirm1(false)}>Annulla</Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                setShowDeleteConfirm1(false);
+                setTimeout(() => setShowDeleteConfirm2(true), 300); // Piccolo delay per stacco visivo
+              }}
+            >
+              Ho capito, procedi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AlertDialog di Eliminazione Definitiva - STEP 2 (CONFERMA FINALE) */}
+      <AlertDialog open={showDeleteConfirm2} onOpenChange={setShowDeleteConfirm2}>
+        <AlertDialogContent className="border-2 border-destructive">
           <AlertDialogHeader>
-            <AlertDialogTitle>Sei assolutamente sicuro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Questa azione non può essere annullata. Questo eliminerà permanentemente il socio <strong className="text-foreground">{socioToDelete ? getFullName(socioToDelete) : ""}</strong> e rimuoverà i suoi dati dai nostri server.
+            <AlertDialogTitle className="text-destructive text-xl flex items-center gap-2">
+                <ShieldCheck className="h-6 w-6" /> ULTIMA CONFERMA
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-foreground font-semibold">
+                Sei VERAMENTE sicuro di voler cancellare {getFullName(socio)} per sempre?
             </AlertDialogDescription>
+            <p className="text-xs text-muted-foreground italic">
+                Questa è l'ultima possibilità per tornare indietro.
+            </p>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Annulla</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>No, ripensandoci annulla</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={() => handleDelete()}
-              className={buttonVariants({ variant: "destructive" })}
+              onClick={(e) => {
+                e.preventDefault();
+                handlePermanentDelete();
+              }}
               disabled={isDeleting}
+              className={buttonVariants({ variant: "destructive", className: "bg-destructive hover:bg-destructive/90 text-white font-bold" })}
             >
-              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-              {isDeleting ? "Eliminazione..." : "Conferma Eliminazione"}
+              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "SÌ, ELIMINA DEFINITIVAMENTE ORA"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      </>
+
+      {/* Vecchio flow di eliminazione rimosso */}
+    </>
   );
 });
 
@@ -830,8 +1066,9 @@ interface SociTableProps {
   allMembers: Socio[];
   sortConfig: SortConfig;
   setSortConfig: Dispatch<SetStateAction<SortConfig>>;
-  onSocioUpdate: (tab?: 'active' | 'expired' | 'requests') => void;
-  activeTab: 'active' | 'expired' | 'requests';
+  onSocioUpdate: (tab?: 'active' | 'expired' | 'requests' | 'rejected') => void;
+  activeTab: 'active' | 'expired' | 'requests' | 'rejected';
+  onNewApproval?: (socio: Socio) => void;
 }
 
 const SortableHeader = ({
@@ -877,11 +1114,12 @@ export const SociTable = ({
   sortConfig, 
   setSortConfig, 
   activeTab,
+  onNewApproval,
 }: SociTableProps) => {
 
   const dateHeaderLabel = useMemo(() => {
     if (activeTab === 'active') return 'Rinnovo/Amm.';
-    if (activeTab === 'expired') return 'Ammissione';
+    if (activeTab === 'expired' || activeTab === 'rejected') return 'Ammissione';
     if (activeTab === 'requests') return 'Richiesta';
     return 'Data';
   }, [activeTab]);
@@ -915,6 +1153,7 @@ export const SociTable = ({
                   allMembers={allMembers}
                   onSocioUpdate={onSocioUpdate}
                   activeTab={activeTab}
+                  onNewApproval={onNewApproval}
                 />
               ))
             ) : (

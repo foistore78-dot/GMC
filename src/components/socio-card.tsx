@@ -68,6 +68,7 @@ const Checkbox = ({ checked }: { checked: boolean }) => (
 const cleanOneLine = (s: string) => s.replace(/\s+/g, " ").trim();
 
 export function SocioCard({ socio }: SocioCardProps) {
+  if (!socio) return null;
   const isMinor = isMinorCheck(socio.birthDate);
   const relevantDateLabel = socio.renewalDate ? "DATA RINNOVO" : "DATA AMMISSIONE";
   const relevantDateValue = socio.renewalDate || socio.joinDate;

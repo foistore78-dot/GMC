@@ -63,16 +63,20 @@ export const isOlderThanDays = (dateInput: any, days: number): boolean => {
 };
 
 export const getFullName = (socio: any) => {
+    if (!socio) return '';
     const fn = socio.firstName || socio.nome || socio.Nome || '';
     const ln = socio.lastName || socio.cognome || socio.Cognome || '';
     return `${ln} ${fn}`.trim();
 };
 
 export const getStatus = (socio: any, isFromMembersCollection: boolean = true): 'active' | 'pending' | 'rejected' | 'expired' => {
+    if (!socio) return 'pending';
+    if (socio.status === 'rejected') return 'rejected';
+    
     if (isFromMembersCollection) {
         return isSocioExpired(socio.expirationDate, socio.membershipYear) ? 'expired' : 'active';
     }
-    if (socio.status === 'rejected') return 'rejected';
+    
     if (socio.status === 'active' || socio.tessera) {
         return isSocioExpired(socio.expirationDate, socio.membershipYear) ? 'expired' : 'active';
     }

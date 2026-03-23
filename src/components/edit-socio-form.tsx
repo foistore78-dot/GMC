@@ -22,7 +22,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Trash2 } from "lucide-react";
 import { useFirestore, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from "@/firebase";
-import { Socio, QUALIFICHE } from "@/lib/soci-data";
+import type { Socio } from "@/lib/soci-data";
+import { QUALIFICHE } from "@/lib/soci-data";
 import { Textarea } from "./ui/textarea";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { 
@@ -36,7 +37,8 @@ import {
   AlertDialogTitle, 
   AlertDialogTrigger 
 } from "@/components/ui/alert-dialog";
-import { normalizeSocioData, getFullName, formatDate, getStatus as getSocioStatus, isMinorCheck } from "@/lib/utils";
+import { normalizeSocioData, getFullName, formatDate, getStatus as getSocioStatus, isMinorCheck, toTitleCase, parseDate } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const formSchema = z
   .object({
@@ -64,7 +66,7 @@ const formSchema = z
     guardianFirstName: z.string().optional(),
     guardianLastName: z.string().optional(),
     guardianBirthDate: z.string().optional(),
-    status: z.enum(["active", "pending", "rejected"]),
+    status: z.enum(["active", "pending", "rejected", "expired"]),
   })
   .refine(
     (data) => {
@@ -81,10 +83,12 @@ const formSchema = z
 
 type EditSocioFormProps = {
   socio: Socio;
-  onClose: (updatedTab?: 'active' | 'requests' | 'expired') => void;
+  onClose: (updatedTab?: 'active' | 'requests' | 'expired' | 'rejected') => void;
+  isFromMembersCollection?: boolean;
+  onNewApproval?: (socio: Socio) => void;
 };
 
-export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
+export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, onNewApproval }: EditSocioFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -92,15 +96,15 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
 
   const getDefaultValues = useCallback((s: Socio) => {
     const isMinor = isMinorCheck(s.birthDate);
-    const initialStatus = getSocioStatus(s);
-    const formStatus = initialStatus === 'expired' ? 'active' : initialStatus;
+    const initialStatus = getSocioStatus(s, isFromMembersCollection);
+    const formStatus = initialStatus;
     
     // Robust mapping with fallbacks for alternative field names
     return {
       firstName: s.firstName || (s as any).nome || (s as any).Nome || "",
       lastName: s.lastName || (s as any).cognome || (s as any).Cognome || "",
       gender: (s.gender as "male" | "female") || "male",
-      status: formStatus as "active" | "pending" | "rejected",
+      status: formStatus as "active" | "pending" | "rejected" | "expired",
       birthDate: s.birthDate ? formatDate(s.birthDate, "yyyy-MM-dd") : "",
       birthPlace: s.birthPlace || (s as any).luogoNascita || "",
       fiscalCode: s.fiscalCode || (s as any).codiceFiscale || "",
@@ -135,6 +139,37 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
   const currentStatus = form.watch("status");
   const phoneValue = form.watch("phone");
 
+  // Helpers per i selettori di data separati
+  const years = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 100 }, (_, i) => String(currentYear - i));
+  }, []);
+
+  const months = useMemo(() => {
+    return Array.from({ length: 12 }, (_, i) => ({
+        value: String(i + 1).padStart(2, '0'),
+        label: new Intl.DateTimeFormat('it-IT', { month: 'long' }).format(new Date(2021, i))
+    }));
+  }, []);
+
+  const days = useMemo(() => {
+     return Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
+  }, []);
+
+  const handleDateChange = (type: 'day' | 'month' | 'year', value: string, currentVal: any, onChange: (val: string) => void) => {
+    const date = parseDate(currentVal) || new Date(2000, 0, 1);
+    let y = date.getFullYear();
+    let m = date.getMonth();
+    let d = date.getDate();
+
+    if (type === 'year') y = parseInt(value, 10);
+    if (type === 'month') m = parseInt(value, 10) - 1;
+    if (type === 'day') d = parseInt(value, 10);
+
+    const newDateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    onChange(newDateStr);
+  };
+
   const isPhoneEntered = useMemo(() => {
     return phoneValue && phoneValue.trim().length > 4;
   }, [phoneValue]);
@@ -156,21 +191,31 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     if (!firestore) return;
     setIsSubmitting(true);
 
-    const originalStatus = getSocioStatus(socio);
+    const originalStatus = getSocioStatus(socio, isFromMembersCollection);
     const newStatus = values.status;
     const normalizedValues = normalizeSocioData(values);
     const { status, ...dataToSave } = normalizedValues;
 
     const batch = writeBatch(firestore);
-    let finalTab: 'active' | 'requests' | 'expired' | undefined;
+    let finalTab: 'active' | 'requests' | 'expired' | 'rejected' | undefined;
 
     if (newStatus === 'rejected') {
         if (socio.id) {
-            batch.delete(doc(firestore, 'membership_requests', socio.id));
-            batch.delete(doc(firestore, 'members', socio.id));
+            const dateStr = new Date().toLocaleString('it-IT');
+            const oldStatus = getSocioStatus(socio);
+            const historyEntry = `--- STORICO ELIMINAZIONE (RESPINTO DA MODIFICA) ${dateStr} ---\nMotivo: Stato cambiato manualmente in Rifiutato\nStato precedente: ${oldStatus}\n------------------------`;
+            const newNotes = `${historyEntry}\n\n${socio.notes || ''}`.trim();
+
+            const memberDocRef = doc(firestore, 'members', socio.id);
+            const requestDocRef = doc(firestore, 'membership_requests', socio.id);
+            
+            // Move to members as rejected
+            batch.set(memberDocRef, { ...socio, ...dataToSave, status: 'rejected', notes: newNotes }, { merge: true });
+            // Remove from requests if it was there
+            batch.delete(requestDocRef);
         }
-        finalTab = 'requests';
-    } else if (originalStatus !== newStatus && !(originalStatus === 'expired' && newStatus === 'active')) {
+        finalTab = 'rejected';
+    } else if (originalStatus !== newStatus && !(originalStatus === 'expired' && newStatus === 'active') && !(originalStatus === 'active' && newStatus === 'expired')) {
         if (newStatus === 'active') {
             const oldDocRef = doc(firestore, 'membership_requests', socio.id);
             const newDocRef = doc(firestore, 'members', socio.id);
@@ -205,7 +250,8 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             finalTab = 'requests';
         }
     } else {
-        const collectionName = (newStatus === 'active' || originalStatus === 'expired') ? 'members' : 'membership_requests';
+        // Se lo stato è active o expired, usiamo la collezione members
+        const collectionName = (newStatus === 'active' || newStatus === 'expired') ? 'members' : 'membership_requests';
         const docRef = doc(firestore, collectionName, socio.id);
         const expirationYear = values.membershipYear ? parseInt(values.membershipYear, 10) : new Date().getFullYear();
         const finalData: any = {
@@ -221,7 +267,8 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             finalTab = 'requests';
         } else {
           finalData.tessera = values.tessera;
-          finalTab = getSocioStatus({ ...socio, ...finalData }) === 'expired' ? 'expired' : 'active';
+          finalData.status = newStatus; // Esplicitamente impostiamo lo stato scelto nel form
+          finalTab = newStatus === 'expired' ? 'expired' : 'active';
         }
         batch.set(docRef, finalData, { merge: true });
     }
@@ -231,6 +278,13 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
             title: newStatus === 'rejected' ? "Richiesta Rifiutata" : "Socio aggiornato!",
             description: `I dati di ${getFullName(normalizedValues)} sono stati salvati correttamente.`,
         });
+        
+        // If it was a pending request and now it's active, it's an approval!
+        if (originalStatus === 'pending' && newStatus === 'active' && onNewApproval) {
+            // Use the data that was just saved
+            onNewApproval({ ...socio, ...dataToSave, status: 'active', id: socio.id } as Socio);
+        }
+
         setIsSubmitting(false);
         onClose(finalTab);
     }).catch(async (error) => {
@@ -243,19 +297,53 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
     });
   };
   
-  const handleDelete = () => {
+  const handleDelete = async () => {
       if (!firestore) return;
+      
+      const reason = window.prompt("Inserisci il motivo della rimozione (obbligatorio):");
+      if (!reason || !reason.trim()) {
+          toast({
+              title: "Operazione annullata",
+              description: "Il motivo della rimozione è obbligatorio.",
+              variant: "destructive"
+          });
+          return;
+      }
+
       setIsDeleting(true);
-      const originalStatus = getSocioStatus(socio);
-      const collectionName = (originalStatus === 'active' || originalStatus === 'expired') ? 'members' : 'membership_requests';
-      const docRef = doc(firestore, collectionName, socio.id);
-      deleteDocumentNonBlocking(docRef);
-      toast({
-          title: "Socio Eliminato",
-          description: `${getFullName(socio)} è stato rimosso definitivamente.`,
-      });
-      setIsDeleting(false);
-      onClose();
+      
+      try {
+          const batch = writeBatch(firestore);
+          const dateStr = new Date().toLocaleString('it-IT');
+          const originalStatus = getSocioStatus(socio, isFromMembersCollection);
+          
+          const historyEntry = `--- STORICO ELIMINAZIONE (RESPINTO DA MODIFICA - ELIMINA) ${dateStr} ---\nMotivo: ${reason}\nStato precedente: ${originalStatus}\n------------------------`;
+          const newNotes = `${historyEntry}\n\n${socio.notes || ''}`.trim();
+
+          const memberDocRef = doc(firestore, 'members', socio.id);
+          const requestDocRef = doc(firestore, 'membership_requests', socio.id);
+          
+          // Move to members as rejected
+          batch.set(memberDocRef, { ...socio, status: 'rejected', notes: newNotes }, { merge: true });
+          // Remove from requests if it was there
+          batch.delete(requestDocRef);
+
+          await batch.commit();
+
+          toast({
+              title: "Socio Respinto",
+              description: `${getFullName(socio)} è stato spostato nella lista dei respinti.`,
+          });
+          onClose('rejected');
+      } catch (error: any) {
+          toast({
+              title: "Errore",
+              description: `Impossibile completare l'operazione: ${error.message}`,
+              variant: "destructive"
+          });
+      } finally {
+          setIsDeleting(false);
+      }
   };
 
   return (
@@ -314,17 +402,55 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
               )}
             />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-               <FormField
-                control={form.control}
-                name="birthDate"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Data di Nascita</FormLabel>
-                    <FormControl><Input type="date" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                 control={form.control}
+                 name="birthDate"
+                 render={({ field }) => (
+                   <FormItem className="flex flex-col">
+                     <FormLabel>Data di Nascita</FormLabel>
+                     <FormControl>
+                        <div className="flex gap-2">
+                            <Select 
+                                onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
+                                value={field.value ? String(parseDate(field.value)?.getDate()).padStart(2, '0') : undefined}
+                            >
+                                <SelectTrigger className="flex-1">
+                                    <SelectValue placeholder="GG" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {days.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+
+                            <Select 
+                                onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
+                                value={field.value ? String(parseDate(field.value)!.getMonth() + 1).padStart(2, '0') : undefined}
+                            >
+                                <SelectTrigger className="flex-[2]">
+                                    <SelectValue placeholder="Mese" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {months.map(m => <SelectItem key={m.value} value={m.value}>{toTitleCase(m.label)}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+
+                            <Select 
+                                onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
+                                value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
+                            >
+                                <SelectTrigger className="flex-[1.5]">
+                                    <SelectValue placeholder="Anno" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                     </FormControl>
+                     <FormMessage />
+                   </FormItem>
+                 )}
+               />
               <FormField
                 control={form.control}
                 name="birthPlace"
@@ -382,7 +508,45 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Data di Nascita Tutore</FormLabel>
-                      <FormControl><Input type="date" {...field} value={field.value || ''}/></FormControl>
+                      <FormControl>
+                        <div className="flex gap-2">
+                            <Select 
+                                onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
+                                value={field.value ? String(parseDate(field.value)?.getDate()).padStart(2, '0') : undefined}
+                            >
+                                <SelectTrigger className="flex-1">
+                                    <SelectValue placeholder="GG" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {days.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+
+                            <Select 
+                                onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
+                                value={field.value ? String(parseDate(field.value)!.getMonth() + 1).padStart(2, '0') : undefined}
+                            >
+                                <SelectTrigger className="flex-[2]">
+                                    <SelectValue placeholder="Mese" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {months.map(m => <SelectItem key={m.value} value={m.value}>{toTitleCase(m.label)}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+
+                            <Select 
+                                onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
+                                value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
+                            >
+                                <SelectTrigger className="flex-[1.5]">
+                                    <SelectValue placeholder="Anno" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -507,12 +671,16 @@ export function EditSocioForm({ socio, onClose }: EditSocioFormProps) {
                         <FormLabel className="font-normal">Attivo</FormLabel>
                       </FormItem>
                       <FormItem className="flex items-center space-x-2">
-                        <FormControl><RadioGroupItem value="pending" /></FormControl>
+                        <FormControl><RadioGroupItem value="expired" /></FormControl>
                         <FormLabel className="font-normal">Sospeso</FormLabel>
                       </FormItem>
                       <FormItem className="flex items-center space-x-2">
+                        <FormControl><RadioGroupItem value="pending" /></FormControl>
+                        <FormLabel className="font-normal">In Richiesta</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-2">
                         <FormControl><RadioGroupItem value="rejected" /></FormControl>
-                        <FormLabel className="font-normal">Rifiutato</FormLabel>
+                        <FormLabel className="font-normal">Respinto</FormLabel>
                       </FormItem>
                     </RadioGroup>
                   </FormControl>
