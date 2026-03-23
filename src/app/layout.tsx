@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from "@/firebase";
 import "./globals.css";
 import { LanguageProvider } from "@/components/language-provider";
+import { PWAInstall } from "@/components/pwa-install";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
   title: "Garage Music Club | Area Soci Online",
   description: "Area gestione e iscrizioni per l'Associazione Culturale Garage Music Club di Gradisca d'Isonzo. Unisciti alla nostra comunità di musicisti e partecipa alle nostre attività.",
   icons: {
-    icon: "https://i.imgur.com/Pp0tSQj.png",
+    icon: "/logo.png",
   },
 };
 
@@ -34,6 +35,7 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased min-h-screen bg-background flex flex-col">
+        <PWAInstall />
         <LanguageProvider>
           <FirebaseClientProvider>
             {children}

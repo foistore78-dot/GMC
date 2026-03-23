@@ -311,7 +311,12 @@ export default function ElencoClient() {
 
   const handleTabChange = (tab: string) => {
     if (tab === 'active' || tab === 'expired' || tab === 'requests') {
-        setActiveTab(tab);
+        setActiveTab(tab as 'active' | 'expired' | 'requests');
+        if (tab === 'requests') {
+            setSortConfig({ key: 'contextualDate', direction: 'descending' });
+        } else {
+            setSortConfig({ key: 'tessera', direction: 'descending' });
+        }
     }
     setCurrentPage(1);
   };
