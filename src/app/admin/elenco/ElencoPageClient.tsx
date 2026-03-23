@@ -23,6 +23,8 @@ export default function ElencoPageClient() {
         setIsCheckingAdmin(false);
         return;
     }
+    
+    setIsCheckingAdmin(true);
 
     const adminEmail = "garage.music.club2024@gmail.com";
     const emailMatch = user.email?.toLowerCase() === adminEmail.toLowerCase();

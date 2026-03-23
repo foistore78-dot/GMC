@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useState, useDeferredValue, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -777,7 +777,7 @@ export default function ElencoClient() {
 
 // Draggable Approval Popup Component
 function ApprovalPopup({ socio, onClose, onPrint, index }: { socio: Socio, onClose: () => void, onPrint: () => void, index: number }) {
-    const [position, setPosition] = useState({ x: 20 + (index * 20), y: 100 + (index * 20) });
+    const [position, setPosition] = useState({ x: 20, y: 100 + (index * 60) });
     const [dragging, setDragging] = useState(false);
     const [rel, setRel] = useState({ x: 0, y: 0 }); // relative mouse position within the header
     const [isMinimized, setIsMinimized] = useState(false);
@@ -831,7 +831,9 @@ function ApprovalPopup({ socio, onClose, onPrint, index }: { socio: Socio, onClo
                 >
                     <UserCheck className="h-4 w-4" />
                 </div>
-                <span className="text-xs font-bold px-1 truncate max-w-[120px]">{socio.lastName}</span>
+                <span className="text-xs font-bold px-1 truncate max-w-[150px]">
+                    {getFullName(socio)} <span className="text-primary ml-1 opacity-80">#{socio.tessera ? socio.tessera.split('-').pop() : '?'}</span>
+                </span>
                 <button onClick={() => setIsMinimized(false)} className="text-muted-foreground hover:text-primary transition-colors p-1" title="Espandi">
                     <Maximize2 className="h-4 w-4" />
                 </button>

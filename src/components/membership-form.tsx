@@ -388,12 +388,12 @@ export function MembershipForm() {
                         <FormItem>
                           <FormLabel>{t('steps.birth.date')}</FormLabel>
                           <FormControl>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 items-center">
                                 <Select 
                                     onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
                                     value={field.value ? field.value.split('-')[2] : undefined}
                                 >
-                                    <SelectTrigger className="flex-1">
+                                    <SelectTrigger className="w-[70px]">
                                         <SelectValue placeholder="GG" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -405,7 +405,7 @@ export function MembershipForm() {
                                     onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
                                     value={field.value ? field.value.split('-')[1] : undefined}
                                 >
-                                    <SelectTrigger className="flex-[2]">
+                                    <SelectTrigger className="flex-grow min-w-[110px]">
                                         <SelectValue placeholder="Mese" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -417,7 +417,7 @@ export function MembershipForm() {
                                     onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
                                     value={field.value ? field.value.split('-')[0] : undefined}
                                 >
-                                    <SelectTrigger className="flex-[1.5]">
+                                    <SelectTrigger className="w-[90px]">
                                         <SelectValue placeholder="Anno" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -494,12 +494,12 @@ export function MembershipForm() {
                                 <FormItem>
                                     <FormLabel>{t('steps.guardian.birthDate')}</FormLabel>
                                     <FormControl>
-                                        <div className="flex gap-2">
+                                        <div className="flex gap-2 items-center">
                                             <Select 
                                                 onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
                                                 value={field.value ? field.value.split('-')[2] : undefined}
                                             >
-                                                <SelectTrigger className="flex-1">
+                                                <SelectTrigger className="w-[70px]">
                                                     <SelectValue placeholder="GG" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -511,7 +511,7 @@ export function MembershipForm() {
                                                 onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
                                                 value={field.value ? field.value.split('-')[1] : undefined}
                                             >
-                                                <SelectTrigger className="flex-[2]">
+                                                <SelectTrigger className="flex-grow min-w-[110px]">
                                                     <SelectValue placeholder="Mese" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -523,7 +523,7 @@ export function MembershipForm() {
                                                 onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
                                                 value={field.value ? field.value.split('-')[0] : undefined}
                                             >
-                                                <SelectTrigger className="flex-[1.5]">
+                                                <SelectTrigger className="w-[90px]">
                                                     <SelectValue placeholder="Anno" />
                                                 </SelectTrigger>
                                                 <SelectContent>

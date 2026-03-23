@@ -58,7 +58,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
       await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
       toast({
         title: "Accesso Effettuato",
-        description: "Benvenuto nel pannello di controllo.",
+        description: "Benvenuto nel pannello di controllo. Caricamento in corso...",
       });
     } catch (e: any) {
       console.error("Login Error:", e.code, e.message);
@@ -69,8 +69,7 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
       } else {
         setError(`Errore: ${e.message}`);
       }
-    } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 

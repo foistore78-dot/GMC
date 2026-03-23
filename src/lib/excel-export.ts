@@ -121,7 +121,7 @@ export const exportToExcel = async (members: Socio[], requests: Socio[]) => {
       XLSX.utils.book_append_sheet(workbook, worksheetExpired, 'Sospesi');
     }
 
-    const pendingRequests = [...requests].sort(sortByRequestDate);
+    const pendingRequests = requests.filter(r => getStatus(r, false) === 'pending').sort(sortByRequestDate);
     const requestsData = formatForExcel(pendingRequests, false);
     if (requestsData.length > 0) {
       const worksheetRequests = XLSX.utils.json_to_sheet(requestsData);

@@ -409,12 +409,12 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                    <FormItem className="flex flex-col">
                      <FormLabel>Data di Nascita</FormLabel>
                      <FormControl>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 items-center">
                             <Select 
                                 onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
                                 value={field.value ? String(parseDate(field.value)?.getDate()).padStart(2, '0') : undefined}
                             >
-                                <SelectTrigger className="flex-1">
+                                <SelectTrigger className="w-[70px]">
                                     <SelectValue placeholder="GG" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -426,7 +426,7 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                                 onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
                                 value={field.value ? String(parseDate(field.value)!.getMonth() + 1).padStart(2, '0') : undefined}
                             >
-                                <SelectTrigger className="flex-[2]">
+                                <SelectTrigger className="flex-grow min-w-[110px]">
                                     <SelectValue placeholder="Mese" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -438,7 +438,7 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                                 onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
                                 value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
                             >
-                                <SelectTrigger className="flex-[1.5]">
+                                <SelectTrigger className="w-[90px]">
                                     <SelectValue placeholder="Anno" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -509,12 +509,12 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                     <FormItem className="flex flex-col">
                       <FormLabel>Data di Nascita Tutore</FormLabel>
                       <FormControl>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 items-center">
                             <Select 
                                 onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
                                 value={field.value ? String(parseDate(field.value)?.getDate()).padStart(2, '0') : undefined}
                             >
-                                <SelectTrigger className="flex-1">
+                                <SelectTrigger className="w-[70px]">
                                     <SelectValue placeholder="GG" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -526,7 +526,7 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                                 onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
                                 value={field.value ? String(parseDate(field.value)!.getMonth() + 1).padStart(2, '0') : undefined}
                             >
-                                <SelectTrigger className="flex-[2]">
+                                <SelectTrigger className="flex-grow min-w-[110px]">
                                     <SelectValue placeholder="Mese" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -538,7 +538,7 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
                                 onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
                                 value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
                             >
-                                <SelectTrigger className="flex-[1.5]">
+                                <SelectTrigger className="w-[90px]">
                                     <SelectValue placeholder="Anno" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -689,184 +689,187 @@ export function EditSocioForm({ socio, onClose, isFromMembersCollection = true, 
               )}
             />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-               <FormField
-                control={form.control}
-                name="membershipYear"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Anno Associativo</FormLabel>
-                    <FormControl><Input {...field} value={field.value || ''}/></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               {currentStatus === "active" && (
-                 <FormField
-                  control={form.control}
-                  name="tessera"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Numero Tessera</FormLabel>
-                      <FormControl><Input {...field} value={field.value || ''}/></FormControl>
-                      <FormDescription>Es. GMC-2024-1</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-               )}
-              <FormField
-                control={form.control}
-                name="requestDate"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Data Richiesta</FormLabel>
-                    <FormControl>
-                      <div className="flex gap-2">
-                          <Select 
-                              onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
-                              value={field.value ? String(parseDate(field.value)?.getDate()).padStart(2, '0') : undefined}
-                          >
-                              <SelectTrigger className="flex-1">
-                                  <SelectValue placeholder="GG" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                  {days.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                              </SelectContent>
-                          </Select>
+                <div className="grid grid-cols-2 gap-4 col-span-1">
+                   <FormField
+                    control={form.control}
+                    name="membershipYear"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Anno Ass.</FormLabel>
+                        <FormControl><Input {...field} value={field.value || ''}/></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                   {currentStatus === "active" && (
+                    <FormField
+                      control={form.control}
+                      name="tessera"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>N. Tessera</FormLabel>
+                          <FormControl><Input {...field} value={field.value || ''}/></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                   )}
+                </div>
 
-                          <Select 
-                              onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
-                              value={field.value ? String(parseDate(field.value)!.getMonth() + 1).padStart(2, '0') : undefined}
-                          >
-                              <SelectTrigger className="flex-[2]">
-                                  <SelectValue placeholder="Mese" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                  {months.map(m => <SelectItem key={m.value} value={m.value}>{toTitleCase(m.label)}</SelectItem>)}
-                              </SelectContent>
-                          </Select>
-
-                          <Select 
-                              onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
-                              value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
-                          >
-                              <SelectTrigger className="flex-[1.5]">
-                                  <SelectValue placeholder="Anno" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                  {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                              </SelectContent>
-                          </Select>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               {currentStatus === "active" && (
-                <>
                 <FormField
-                  control={form.control}
-                  name="joinDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Data Ammissione</FormLabel>
-                      <FormControl>
-                        <div className="flex gap-2">
-                            <Select 
-                                onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
-                                value={field.value ? String(parseDate(field.value)?.getDate()).padStart(2, '0') : undefined}
-                            >
-                                <SelectTrigger className="flex-1">
-                                    <SelectValue placeholder="GG" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {days.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                    control={form.control}
+                    name="requestDate"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Data Richiesta</FormLabel>
+                        <FormControl>
+                          <div className="flex gap-2 items-center">
+                              <Select 
+                                  onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
+                                  value={field.value ? String(parseDate(field.value)?.getDate()).padStart(2, '0') : undefined}
+                              >
+                                  <SelectTrigger className="w-[70px]">
+                                      <SelectValue placeholder="GG" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                      {days.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                                  </SelectContent>
+                              </Select>
 
-                            <Select 
-                                onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
-                                value={field.value ? String(parseDate(field.value)!.getMonth() + 1).padStart(2, '0') : undefined}
-                            >
-                                <SelectTrigger className="flex-[2]">
-                                    <SelectValue placeholder="Mese" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {months.map(m => <SelectItem key={m.value} value={m.value}>{toTitleCase(m.label)}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                              <Select 
+                                  onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
+                                  value={field.value ? String(parseDate(field.value)!.getMonth() + 1).padStart(2, '0') : undefined}
+                              >
+                                  <SelectTrigger className="flex-grow min-w-[110px]">
+                                      <SelectValue placeholder="Mese" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                      {months.map(m => <SelectItem key={m.value} value={m.value}>{toTitleCase(m.label)}</SelectItem>)}
+                                  </SelectContent>
+                              </Select>
 
-                            <Select 
-                                onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
-                                value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
-                            >
-                                <SelectTrigger className="flex-[1.5]">
-                                    <SelectValue placeholder="Anno" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="renewalDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Data Rinnovo</FormLabel>
-                      <FormControl>
-                        <div className="flex gap-2">
-                            <Select 
-                                onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
-                                value={field.value ? String(parseDate(field.value)?.getDate()).padStart(2, '0') : undefined}
-                            >
-                                <SelectTrigger className="flex-1">
-                                    <SelectValue placeholder="GG" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {days.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                              <Select 
+                                  onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
+                                  value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
+                              >
+                                  <SelectTrigger className="w-[90px]">
+                                      <SelectValue placeholder="Anno" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                      {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                                  </SelectContent>
+                              </Select>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+            </div>         {currentStatus === "active" && (
+                <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                    <FormField
+                      control={form.control}
+                      name="joinDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Data Ammissione</FormLabel>
+                          <FormControl>
+                            <div className="flex gap-2 items-center">
+                                <Select 
+                                    onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
+                                    value={field.value ? String(parseDate(field.value)?.getDate()).padStart(2, '0') : undefined}
+                                >
+                                    <SelectTrigger className="w-[70px]">
+                                        <SelectValue placeholder="GG" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {days.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
 
-                            <Select 
-                                onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
-                                value={field.value ? String(parseDate(field.value)!.getMonth() + 1).padStart(2, '0') : undefined}
-                            >
-                                <SelectTrigger className="flex-[2]">
-                                    <SelectValue placeholder="Mese" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {months.map(m => <SelectItem key={m.value} value={m.value}>{toTitleCase(m.label)}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                                <Select 
+                                    onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
+                                    value={field.value ? String(parseDate(field.value)!.getMonth() + 1).padStart(2, '0') : undefined}
+                                >
+                                    <SelectTrigger className="flex-grow min-w-[110px]">
+                                        <SelectValue placeholder="Mese" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {months.map(m => <SelectItem key={m.value} value={m.value}>{toTitleCase(m.label)}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
 
-                            <Select 
-                                onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
-                                value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
-                            >
-                                <SelectTrigger className="flex-[1.5]">
-                                    <SelectValue placeholder="Anno" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                                <Select 
+                                    onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
+                                    value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
+                                >
+                                    <SelectTrigger className="w-[90px]">
+                                        <SelectValue placeholder="Anno" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                     <FormField
+                      control={form.control}
+                      name="renewalDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Data Rinnovo</FormLabel>
+                          <FormControl>
+                            <div className="flex gap-2 items-center">
+                                <Select 
+                                    onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
+                                    value={field.value ? String(parseDate(field.value)?.getDate()).padStart(2, '0') : undefined}
+                                >
+                                    <SelectTrigger className="w-[70px]">
+                                        <SelectValue placeholder="GG" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {days.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select 
+                                    onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
+                                    value={field.value ? String(parseDate(field.value)!.getMonth() + 1).padStart(2, '0') : undefined}
+                                >
+                                    <SelectTrigger className="flex-grow min-w-[110px]">
+                                        <SelectValue placeholder="Mese" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {months.map(m => <SelectItem key={m.value} value={m.value}>{toTitleCase(m.label)}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select 
+                                    onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
+                                    value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
+                                >
+                                    <SelectTrigger className="w-[90px]">
+                                        <SelectValue placeholder="Anno" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                </div>
                 </>
               )}
 
-            </div>
             <FormField
               control={form.control}
               name="qualifica"
