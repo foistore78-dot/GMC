@@ -16,8 +16,15 @@ export const metadata: Metadata = {
   description: "Area gestione e iscrizioni per l'Associazione Culturale Garage Music Club di Gradisca d'Isonzo. Unisciti alla nostra comunità di musicisti e partecipa alle nostre attività.",
   icons: {
     icon: "/logo.png",
+    apple: "/logo.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Garage Music Club",
   },
 };
+
 
 export default function RootLayout({
   children,
