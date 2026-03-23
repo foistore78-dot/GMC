@@ -1,11 +1,11 @@
-"use client";
+ "use client";
 
 import { useCallback, useEffect, useMemo, useState, useDeferredValue, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
 import { collection, onSnapshot, doc, writeBatch, query, limit, orderBy, startAfter, QueryDocumentSnapshot, where, getDocs } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, X, Trash2, Info, Bell, UserCheck, Printer } from "lucide-react";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, X, Trash2, Info, Bell, UserCheck, Printer, Minimize2, Maximize2 } from "lucide-react";
 
 import { SociTable, type SortConfig } from "@/components/soci-table";
 import { EditSocioForm } from "@/components/edit-socio-form";
@@ -780,6 +780,7 @@ function ApprovalPopup({ socio, onClose, onPrint, index }: { socio: Socio, onClo
     const [position, setPosition] = useState({ x: 20 + (index * 20), y: 100 + (index * 20) });
     const [dragging, setDragging] = useState(false);
     const [rel, setRel] = useState({ x: 0, y: 0 }); // relative mouse position within the header
+    const [isMinimized, setIsMinimized] = useState(false);
 
     const onMouseDown = (e: React.MouseEvent) => {
         if (e.button !== 0) return;
@@ -817,6 +818,30 @@ function ApprovalPopup({ socio, onClose, onPrint, index }: { socio: Socio, onClo
         };
     }, [dragging, rel]);
 
+    if (isMinimized) {
+        return (
+             <div 
+                style={{ left: `${position.x}px`, top: `${position.y}px`, position: 'fixed' }}
+                className="pointer-events-auto flex items-center gap-2 bg-card border-2 border-primary shadow-xl rounded-full p-1 pr-3 animate-in fade-in zoom-in duration-300 select-none"
+             >
+                <div 
+                    onMouseDown={onMouseDown} 
+                    className="bg-primary text-primary-foreground rounded-full p-2 cursor-move hover:bg-primary/90 transition-colors"
+                    title="Trascina"
+                >
+                    <UserCheck className="h-4 w-4" />
+                </div>
+                <span className="text-xs font-bold px-1 truncate max-w-[120px]">{socio.lastName}</span>
+                <button onClick={() => setIsMinimized(false)} className="text-muted-foreground hover:text-primary transition-colors p-1" title="Espandi">
+                    <Maximize2 className="h-4 w-4" />
+                </button>
+                <button onClick={onClose} className="text-muted-foreground hover:text-destructive transition-colors p-1" title="Chiudi">
+                    <X className="h-4 w-4" />
+                </button>
+             </div>
+        );
+    }
+
     return (
         <div 
             style={{ 
@@ -834,9 +859,14 @@ function ApprovalPopup({ socio, onClose, onPrint, index }: { socio: Socio, onClo
                 <div className="flex items-center gap-2 text-primary-foreground font-bold uppercase text-xs tracking-widest">
                     <UserCheck className="h-4 w-4" /> Nuovo Socio Approvato
                 </div>
-                <button onClick={onClose} className="text-primary-foreground/80 hover:text-white transition-colors">
-                    <X className="h-4 w-4" />
-                </button>
+                <div className="flex gap-1">
+                    <button onClick={() => setIsMinimized(true)} className="text-primary-foreground/80 hover:text-white transition-colors p-1">
+                        <Minimize2 className="h-4 w-4" />
+                    </button>
+                    <button onClick={onClose} className="text-primary-foreground/80 hover:text-white transition-colors p-1">
+                        <X className="h-4 w-4" />
+                    </button>
+                </div>
             </div>
 
             {/* Content */}
@@ -863,7 +893,7 @@ function ApprovalPopup({ socio, onClose, onPrint, index }: { socio: Socio, onClo
             
             {/* Subtle info text */}
             <div className="bg-muted/30 px-5 py-2 text-[9px] text-muted-foreground border-t italic">
-                Sposta questo riquadro per continuare a lavorare.
+                Sposta o riduci a icona per continuare a lavorare.
             </div>
         </div>
     );

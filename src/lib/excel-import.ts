@@ -166,14 +166,9 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
                         createdCount++;
                     }
 
-                    const year = socioData.membershipYear || new Date().getFullYear().toString();
-                    const tesseraNumber = socioData.tessera || (await getDocs(query(collection(firestore, 'members'), where('membershipYear', '==', year)))).size + 1;
-                    const fullTessera = `GMC-${year}-${String(tesseraNumber).split('-').pop()}`;
-
                     const dataToSet: any = {
                         ...existingData,
                         ...socioData,
-                        tessera: fullTessera,
                         id: docRef.id,
                         status: 'active', // Stored as active in DB
                     };
