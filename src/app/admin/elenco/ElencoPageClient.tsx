@@ -75,8 +75,8 @@ export default function ElencoPageClient() {
             <div className="flex flex-col items-center gap-4 text-center">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
               <div>
-                <p className="font-semibold text-lg">Verifica in corso...</p>
-                <p className="text-muted-foreground">Controlle permessi amministratore.</p>
+                <p className="font-bold text-2xl font-headline tracking-widest text-primary uppercase animate-pulse">Riconoscimento Sistema</p>
+                <p className="text-muted-foreground mt-2">Identificazione amministratore GMC in corso...</p>
               </div>
             </div>
           </div>

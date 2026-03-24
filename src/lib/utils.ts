@@ -174,6 +174,9 @@ export const normalizeSocioData = (data: any) => {
   if (!normalized.membershipYear && (normalized.anno || normalized.annoAssociativo)) {
       normalized.membershipYear = String(normalized.anno || normalized.annoAssociativo);
   }
+  if (!normalized.tessera) {
+      normalized.tessera = normalized.Tessera || normalized.numeroTessera || normalized.NumeroTessera || normalized.card_number || '';
+  }
 
   // Miscellaneous
   if (!normalized.qualifica && normalized.qualifiche) {

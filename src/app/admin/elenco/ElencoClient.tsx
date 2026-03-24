@@ -8,7 +8,7 @@ import { collection, onSnapshot, doc, writeBatch, query, limit, orderBy, startAf
 import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, X, Trash2, Info, Bell, UserCheck, Printer, Minimize2, Maximize2 } from "lucide-react";
 
 import { SociTable, type SortConfig } from "@/components/soci-table";
-import { EditSocioForm } from "@/components/edit-socio-form";
+import EditSocioForm from "@/components/edit-socio-form";
 import { SocioCard } from "@/components/socio-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,7 +39,7 @@ import { useFirestore, errorEmitter, FirestorePermissionError, useFirebase } fro
 import { useToast } from "@/hooks/use-toast";
 import { exportToExcel } from "@/lib/excel-export";
 import { Label } from "@/components/ui/label";
-import { getStatus, getFullName, parseDate, isOlderThanDays, toTitleCase, cn } from "@/lib/utils";
+import { getStatus, getFullName, parseDate, isOlderThanDays, toTitleCase, cn, normalizeSocioData } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 50;
 const SECURITY_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_SECURITY_PASSWORD || "1978";
@@ -241,7 +241,7 @@ export default function ElencoClient() {
             const newMap = new Map(prev.map(m => [m.id, m]));
             snapshot.docChanges().forEach(change => {
                 if (change.type === "added" || change.type === "modified") {
-                    newMap.set(change.doc.id, { id: change.doc.id, ...change.doc.data() } as Socio);
+                    newMap.set(change.doc.id, normalizeSocioData({ id: change.doc.id, ...change.doc.data() }) as Socio);
                 } else if (change.type === "removed") {
                     newMap.delete(change.doc.id);
                 }
@@ -264,17 +264,15 @@ export default function ElencoClient() {
         setRequestsData(prev => {
             const newMap = new Map(prev.map(r => [r.id, r]));
             snapshot.docChanges().forEach(change => {
-                if (change.type === "added") {
+                if (change.type === "added" || change.type === "modified") {
                     const newSocio = change.doc.data() as Socio;
-                    if (!isInitialLoad.current && !seenRequestIds.current.has(change.doc.id)) {
+                    if (change.type === "added" && !isInitialLoad.current && !seenRequestIds.current.has(change.doc.id)) {
                         toast({
                           title: "Nuova Richiesta!",
                           description: `${getFullName(newSocio)} ha appena inviato una domanda di adesione.`,
                         });
                     }
-                    newMap.set(change.doc.id, { id: change.doc.id, ...change.doc.data() } as Socio);
-                } else if (change.type === "modified") {
-                    newMap.set(change.doc.id, { id: change.doc.id, ...change.doc.data() } as Socio);
+                    newMap.set(change.doc.id, normalizeSocioData({ id: change.doc.id, ...change.doc.data() }) as Socio);
                 } else if (change.type === "removed") {
                     newMap.delete(change.doc.id);
                 }
@@ -705,19 +703,14 @@ export default function ElencoClient() {
       </div>
 
       <Sheet open={!!editingSocio} onOpenChange={handleSheetOpenChange}>
-        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-2xl p-0">
           {editingSocio && (
-            <>
-              <SheetHeader>
-                <SheetTitle>Modifica: {getFullName(editingSocio)}</SheetTitle>
-              </SheetHeader>
-              <EditSocioForm 
+            <EditSocioForm 
                 socio={editingSocio} 
                 onClose={handleSocioUpdate} 
                 isFromMembersCollection={activeTab !== 'requests'} 
                 onNewApproval={handleNewApproval}
               />
-            </>
           )}
         </SheetContent>
       </Sheet>
