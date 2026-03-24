@@ -91,3 +91,13 @@ body {
       @apply bg-secondary border-secondary-foreground/20;
   }
 }
+
+@keyframes progress-indeterminate {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(-10%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-progress-indeterminate {
+  animation: progress-indeterminate 1.8s infinite ease-in-out;
+}

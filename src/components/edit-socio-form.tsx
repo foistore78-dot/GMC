@@ -20,7 +20,8 @@ import {
 } from "lucide-react";
 import { doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { Socio, QUALIFICHE } from "@/lib/soci-data";
+import { QUALIFICHE } from "@/lib/soci-data";
+import type { Socio } from "@/lib/soci-data";
 import { 
   parseDate, 
   formatDate, 

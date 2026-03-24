@@ -33,6 +33,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 
 import type { Socio } from "@/lib/soci-data";
 import { useFirestore, errorEmitter, FirestorePermissionError, useFirebase } from "@/firebase";
@@ -379,10 +380,12 @@ export default function ElencoClient() {
   };
 
   const handleSocioUpdate = useCallback(
-    (switchToTab?: "active" | "expired" | "requests" | "rejected") => {
+    (arg?: "active" | "expired" | "requests" | "rejected" | Socio) => {
       setEditingSocio(null);
-      if (switchToTab) {
-          setActiveTab(switchToTab);
+      // Solo se l'argomento è una stringa (un tab), cambiamo tab.
+      // Se è un oggetto socio (dal salvataggio), non facciamo nulla al tab attivo.
+      if (typeof arg === "string") {
+          setActiveTab(arg);
       }
     },
     []
@@ -593,9 +596,16 @@ export default function ElencoClient() {
 
       <div className="bg-background rounded-lg border border-border shadow-lg p-2 sm:p-4">
         {isDataLoading ? (
-          <div className="flex flex-col justify-center items-center h-64 gap-4">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="text-muted-foreground">Caricamento dati...</p>
+          <div className="flex flex-col justify-center items-center h-64 gap-6 px-10">
+            <div className="w-full max-w-sm space-y-4">
+              <div className="flex justify-between items-center text-sm font-medium text-primary animate-pulse">
+                <span>Caricamento dati in corso...</span>
+                <span>Attendere</span>
+              </div>
+              <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
+                <div className="h-full w-full bg-primary animate-progress-indeterminate" />
+              </div>
+            </div>
           </div>
         ) : error ? (
            <div className="flex flex-col justify-center items-center h-64 text-center gap-4">

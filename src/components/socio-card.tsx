@@ -94,12 +94,14 @@ export function SocioCard({ socio }: SocioCardProps) {
         @media print {
           @page {
             size: A4;
-            margin: 12mm;
+            margin: 0;
           }
           html,
           body {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            margin: 0;
+            padding: 0;
           }
           * {
             box-sizing: border-box;
