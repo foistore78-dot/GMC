@@ -882,33 +882,89 @@ const handleRenew = () => {
                         <span className="hidden sm:inline">Ripristina</span>
                     </Button>
                 )}
-                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 pointer-events-auto">
-                            <MoreVertical className="h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onPrint(socio)}>
-                            <Printer className="mr-2 h-4 w-4" /> Stampa
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onEdit(socio)}>
-                            <Pencil className="mr-2 h-4 w-4" /> Modifica
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                            onClick={() => {
-                                if (activeTab === 'rejected') {
-                                    setShowDeleteConfirm1(true);
-                                } else {
-                                    setSocioToReject(socio);
-                                }
-                            }} 
-                            className="text-destructive"
-                        >
-                            <Trash2 className="mr-2 h-4 w-4" /> Elimina
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                  <div className="hidden md:flex items-center justify-end gap-1">
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
+                                    onClick={(e) => { e.stopPropagation(); onPrint(socio); }}
+                                >
+                                    <Printer className="h-4 w-4" />
+                                    <span className="sr-only">Stampa</span>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Stampa Scheda</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
+                                    onClick={(e) => { e.stopPropagation(); onEdit(socio); }}
+                                >
+                                    <Pencil className="h-4 w-4" />
+                                    <span className="sr-only">Modifica</span>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Modifica Socio</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={(e) => { 
+                                        e.stopPropagation();
+                                        if (activeTab === 'rejected') {
+                                            setShowDeleteConfirm1(true);
+                                        } else {
+                                            setSocioToReject(socio);
+                                        }
+                                    }}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                    <span className="sr-only">Elimina</span>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{activeTab === 'rejected' ? 'Elimina Definitivamente' : 'Sposta in Respinti'}</TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                 </div>
+                 <div className="md:hidden">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+                                <MoreVertical className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onPrint(socio); }}>
+                                <Printer className="mr-2 h-4 w-4" /> Stampa
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(socio); }}>
+                                <Pencil className="mr-2 h-4 w-4" /> Modifica
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (activeTab === 'rejected') {
+                                        setShowDeleteConfirm1(true);
+                                    } else {
+                                        setSocioToReject(socio);
+                                    }
+                                }} 
+                                className="text-destructive"
+                            >
+                                <Trash2 className="mr-2 h-4 w-4" /> Elimina
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                 </div>
             </div>
         </TableCell>
       </TableRow>
