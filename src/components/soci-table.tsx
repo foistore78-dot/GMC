@@ -551,21 +551,21 @@ const handleRenew = () => {
                     <Info className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
                   </button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto" closeText="CHIUDI">
                   <DialogHeader className="pb-4">
-                    <div className="flex items-center justify-between gap-4">
-                      <DialogTitle className="text-2xl font-headline tracking-wide text-primary">
+                    <div className="flex items-center gap-4">
+                      <DialogTitle className="text-2xl font-headline tracking-wide text-primary flex items-center gap-3">
                         {getFullName(socio)}
+                        <Badge className={cn(
+                          "uppercase text-[10px] py-0 h-6 px-3 flex items-center border-[1.5px] font-bold tracking-widest",
+                          status === 'active' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 
+                          status === 'expired' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' : 
+                          status === 'rejected' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                          'bg-orange-500/20 text-orange-400 border-orange-500/30'
+                        )}>
+                          {status === 'active' ? 'ATTIVO' : status === 'expired' ? 'SCADUTO' : status === 'rejected' ? 'RESPINTO' : 'RICHIESTA'}
+                        </Badge>
                       </DialogTitle>
-                      <Badge className={cn(
-                        "capitalize",
-                        status === 'active' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 
-                        status === 'expired' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' : 
-                        status === 'rejected' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
-                        'bg-orange-500/20 text-orange-400 border-orange-500/30'
-                      )}>
-                        {status === 'active' ? 'Attivo' : status === 'expired' ? 'Scaduto' : status === 'rejected' ? 'Respinto' : 'Richiesta'}
-                      </Badge>
                     </div>
                   </DialogHeader>
 

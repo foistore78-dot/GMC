@@ -47,6 +47,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -194,22 +195,28 @@ export default function EditSocioForm({ socio, onClose, isFromMembersCollection 
       <div className="bg-secondary/30 p-6 border-b">
         <div className="flex justify-between items-start">
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <h2 className="text-2xl font-bold font-headline uppercase text-primary">
                 {form.watch("lastName")} {form.watch("firstName")}
               </h2>
-              <Badge variant={socio.status === 'active' ? 'default' : 'secondary'} className="uppercase">
-                {socio.status || (isFromMembersCollection ? 'Attivo' : 'In Attesa')}
+              <Badge variant={socio.status === 'active' ? 'default' : 'secondary'} className="uppercase px-3 py-1 text-[10px] font-bold tracking-widest border-2">
+                {socio.status === 'active' ? 'ATTIVO' : 
+                 socio.status === 'expired' ? 'SCADUTO' : 
+                 socio.status === 'rejected' ? 'RESPINTO' : 
+                 (isFromMembersCollection ? 'ATTIVO' : 'IN ATTESA')}
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground font-mono">
-              ID Socio: <span className="font-bold">{socio.id}</span>
-              {socio.tessera && <span className="ml-4">| Tessera: <span className="font-bold">#{socio.tessera}</span></span>}
-            </p>
+            <div className="flex items-center gap-4 mt-2">
+              {socio.tessera && (
+                <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-lg border border-primary/30">
+                  <CreditCard className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-bold font-mono tracking-tight text-foreground">
+                    Tessera: <span className="text-primary text-base ml-1">{socio.tessera}</span>
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => onClose()} className="h-8 w-8 rounded-full">
-            <X className="h-4 w-4" />
-          </Button>
         </div>
       </div>
 
@@ -294,19 +301,32 @@ export default function EditSocioForm({ socio, onClose, isFromMembersCollection 
                       control={form.control}
                       name="gender"
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="space-y-3">
                           <FormLabel>Genere</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger className="bg-muted/50">
-                                <SelectValue placeholder="Seleziona..." />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="male">Maschio</SelectItem>
-                              <SelectItem value="female">Femmina</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              value={field.value}
+                              className="flex gap-6 pt-2"
+                            >
+                              <FormItem className="flex items-center space-x-2 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="male" className="h-5 w-5 border-primary text-primary" />
+                                </FormControl>
+                                <FormLabel className="font-bold cursor-pointer text-base">
+                                  M
+                                </FormLabel>
+                              </FormItem>
+                              <FormItem className="flex items-center space-x-2 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="female" className="h-5 w-5 border-primary text-primary" />
+                                </FormControl>
+                                <FormLabel className="font-bold cursor-pointer text-base">
+                                  F
+                                </FormLabel>
+                              </FormItem>
+                            </RadioGroup>
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}

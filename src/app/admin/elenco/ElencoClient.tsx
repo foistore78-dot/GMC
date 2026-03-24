@@ -703,7 +703,7 @@ export default function ElencoClient() {
       </div>
 
       <Sheet open={!!editingSocio} onOpenChange={handleSheetOpenChange}>
-        <SheetContent className="w-full sm:max-w-2xl p-0">
+        <SheetContent className="w-full sm:max-w-2xl p-0" closeText="CHIUDI">
           {editingSocio && (
             <EditSocioForm 
                 socio={editingSocio} 
