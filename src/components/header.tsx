@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { GarageMusicClubLogo } from "./icons/garage-music-club-logo";
 import { Button } from "./ui/button";
 import { Sheet, SheetTrigger, SheetContent, SheetTitle } from "./ui/sheet";
-import { Menu, Home, List, LogOut, Settings, UserCircle } from "lucide-react";
+import { Menu, Home, List, LogOut, Settings, UserCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
@@ -15,8 +15,15 @@ interface HeaderProps {
 
 export function Header({ onLogout }: HeaderProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
   const isAdminPage = pathname.startsWith('/admin');
+
+  const handleAdminClick = () => {
+    setIsNavigating(true);
+    router.push('/admin/elenco');
+  };
 
   const NavLink = ({ href, children, icon: Icon }: { href: string; children: React.ReactNode, icon?: any }) => (
     <Button asChild variant="ghost" className={cn(
@@ -41,8 +48,18 @@ export function Header({ onLogout }: HeaderProps) {
         </Link>
         <nav className="hidden md:flex items-center gap-2">
             {!isAdminPage && (
-              <Button asChild variant="ghost" className="hover:bg-primary/10 hover:text-primary gap-2">
-                <Link href="/admin/elenco"><UserCircle className="w-4 h-4" /> Area Riservata</Link>
+              <Button 
+                variant="ghost" 
+                className="hover:bg-primary/10 hover:text-primary gap-2"
+                onClick={handleAdminClick}
+                disabled={isNavigating}
+              >
+                {isNavigating ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <UserCircle className="w-4 h-4" />
+                )}
+                {isNavigating ? 'Caricamento...' : 'Area Riservata'}
               </Button>
             )}
             {isAdminPage && (
@@ -78,7 +95,19 @@ export function Header({ onLogout }: HeaderProps) {
                  </div>
                  <div className="flex flex-col gap-2 p-4 flex-grow">
                     <NavLink href="/" icon={Home}>Home</NavLink>
-                    <NavLink href="/admin/elenco" icon={List}>Elenco Soci</NavLink>
+                    <Button 
+                      variant="ghost" 
+                      className="justify-start text-base w-full hover:bg-primary/10 hover:text-primary"
+                      onClick={handleAdminClick}
+                      disabled={isNavigating}
+                    >
+                      {isNavigating ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <List className="mr-2 h-4 w-4" />
+                      )}
+                      {isNavigating ? 'Caricamento Area Riservata...' : 'Area Riservata'}
+                    </Button>
                     {isAdminPage && (
                       <>
                         <NavLink href="/admin/settings" icon={Settings}>Opzioni</NavLink>

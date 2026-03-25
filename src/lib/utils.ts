@@ -177,10 +177,22 @@ export const normalizeSocioData = (data: any) => {
   if (!normalized.tessera) {
       normalized.tessera = normalized.Tessera || normalized.numeroTessera || normalized.NumeroTessera || normalized.card_number || '';
   }
+  // Garantisce che tessera sia una stringa
+  normalized.tessera = String(normalized.tessera || '');
 
   // Miscellaneous
   if (!normalized.qualifica && normalized.qualifiche) {
       normalized.qualifica = normalized.qualifiche;
+  }
+  // Garantisce che qualifica sia un array (anche se in Firestore è salvato come stringa o nullo)
+  if (normalized.qualifica) {
+    if (typeof normalized.qualifica === 'string') {
+      normalized.qualifica = normalized.qualifica.split(',').map((s: string) => s.trim()).filter(Boolean);
+    } else if (!Array.isArray(normalized.qualifica)) {
+      normalized.qualifica = [];
+    }
+  } else {
+    normalized.qualifica = [];
   }
   if (!normalized.guardianBirthDate && normalized.dataNascitaTutore) {
       normalized.guardianBirthDate = normalized.dataNascitaTutore;

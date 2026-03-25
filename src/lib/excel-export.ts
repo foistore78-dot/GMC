@@ -1,146 +1,165 @@
-import type { Socio } from './soci-data';
-import { getStatus, formatDate, normalizeSocioData } from '@/lib/utils';
+import * as XLSX from 'xlsx';
+import { type Socio } from './soci-data';
+import { formatDate, normalizeSocioData, getStatus } from '@/lib/utils';
 
 const statusTranslations: Record<string, string> = {
   active: 'Attivo',
+  suspended: 'Sospeso',
+  expired: 'Scaduto',
   pending: 'In Attesa',
-  rejected: 'Rifiutato',
-  expired: 'Scaduto'
+  rejected: 'Rifiutato'
 };
 
-const sortByTessera = (a: Socio, b: Socio) => {
-  if (!a.tessera && !b.tessera) return 0;
-  if (!a.tessera) return 1;
-  if (!b.tessera) return -1;
-  
-  const partsA = a.tessera.split('-');
-  const partsB = b.tessera.split('-');
-  
-  const yearA = parseInt(partsA[1], 10) || 0;
-  const yearB = parseInt(partsB[1], 10) || 0;
-  
-  if (yearA !== yearB) return yearB - yearA;
-  
-  const numA = parseInt(partsA[2], 10) || 0;
-  const numB = parseInt(partsB[2], 10) || 0;
-  
-  return numA - numB;
-};
+/**
+ * Funzione di utilità per estrarre solo il numero dalla tessera
+ * Se il formato è 2024/005, ritorna 5.
+ */
+function extractTesseraNumber(tessera: string | undefined): number {
+  if (!tessera) return 999999;
+  // Cerchiamo l'ultimo blocco di cifre in caso ci siano separatori (es. 2024/005 -> 005)
+  const parts = String(tessera).split(/[\/\-\. ]/);
+  const lastPart = parts[parts.length - 1].replace(/\D/g, '');
+  const num = parseInt(lastPart, 10);
+  return isNaN(num) ? 999999 : num;
+}
 
-const sortByRequestDate = (a: Socio, b: Socio) => {
-  const dateA = a.requestDate ? new Date(a.requestDate).getTime() : 0;
-  const dateB = b.requestDate ? new Date(b.requestDate).getTime() : 0;
-  return dateB - dateA;
-};
-
-const formatForExcel = (data: Socio[], isFromMembersCollection: boolean) => {
-  return data.map((rawSocio) => {
-    const socio = normalizeSocioData(rawSocio);
-    const status = getStatus(socio, isFromMembersCollection);
-    const isNew = isFromMembersCollection && status === 'active' && !socio.renewalDate;
-    const tesseraNumberStr = socio.tessera ? socio.tessera.split('-').pop() || '' : '';
-    const tesseraNumber = tesseraNumberStr ? parseInt(tesseraNumberStr, 10) : undefined;
-
-    return {
-      'TIPO': isFromMembersCollection ? (status === 'active' ? (isNew ? 'NUOVO SOCIO' : 'RINNOVO') : 'SOSPESO') : 'RICHIESTA', 
-      'Stato': statusTranslations[status] || status,
-      'N. Tessera': isNaN(tesseraNumber!) ? '' : tesseraNumber,
-      'Anno Associativo': socio.membershipYear || '',
-      'Cognome': socio.lastName,
-      'Nome': socio.firstName,
-      'Genere': socio.gender === 'male' ? 'Maschio' : 'Femmina',
-      'Data di Nascita': formatDate(socio.birthDate),
-      'Luogo di Nascita': socio.birthPlace,
-      'Codice Fiscale': socio.fiscalCode || '',
-      'Indirizzo': socio.address,
-      'Città': socio.city,
-      'Provincia': socio.province,
-      'CAP': socio.postalCode,
-      'Email': socio.email || '',
-      'Telefono': socio.phone || '',
-      'Consenso WhatsApp': socio.whatsappConsent ? 'SI' : 'NO',
-      'Consenso Privacy': socio.privacyConsent ? 'SI' : 'NO',
-      'Data Richiesta': formatDate(socio.requestDate),
-      'Data Ammissione': formatDate(socio.joinDate),
-      'Data Rinnovo': formatDate(socio.renewalDate),
-      'Data Scadenza': formatDate(socio.expirationDate),
-      'Quota Versata (€)': socio.membershipFee || 0,
-      'Qualifiche': socio.qualifica?.join(', ') || '',
-      'Note': socio.notes || '',
-      'Nome Tutore': socio.guardianFirstName || '',
-      'Cognome Tutore': socio.guardianLastName || '',
-      'Data Nascita Tutore': formatDate(socio.guardianBirthDate)
-    };
-  });
-};
-
-export const exportToExcel = async (members: Socio[], requests: Socio[]) => {
+/**
+ * Formatta un singolo socio/richiesta per una riga Excel secondo il rigido ordine richiesto
+ */
+function formatSocioRow(item: any) {
   try {
-    console.log("ExportToExcel: Inizio caricamento libreria XLSX...");
-    const XLSX = await import('xlsx');
-    console.log("ExportToExcel: Libreria caricata.", !!XLSX.utils);
-
-    if (!members || !requests || (members.length === 0 && requests.length === 0)) {
-      if (typeof window !== 'undefined') alert("Attenzione: non ci sono dati da esportare nelle liste attuali.");
-      return;
+    const s = normalizeSocioData(item as Socio);
+    // Usiamo la logica ufficiale getStatus per la coerenza con la UI
+    const status = getStatus(s, item._isMember !== false);
+    
+    // Logica TIPO elaborata: NUOVO, RINNOVO, RIFIUTATO, SCADUTO, RICHIESTA
+    let tipo = 'NUOVO';
+    if (status === 'rejected') {
+      tipo = 'RIFIUTATO';
+    } else if (status === 'expired') {
+      tipo = 'SCADUTO';
+    } else if (status === 'pending') {
+      tipo = 'RICHIESTA';
+    } else if (s.renewalDate && s.renewalDate !== s.joinDate) {
+      tipo = 'RINNOVO';
     }
-
-    const workbook = XLSX.utils.book_new();
-
-    const fitToColumn = (data: any[]) => {
-      if (data.length === 0) return [];
-      const widths: { wch: number }[] = [];
-      const firstItem = data[0];
-      const header = Object.keys(firstItem);
-      
-      for (const key of header) {
-        let maxLen = key.length;
-        for (const item of data) {
-          const val = item[key];
-          const len = val ? String(val).length : 0;
-          if (len > maxLen) maxLen = len;
-        }
-        widths.push({ wch: maxLen + 2 });
-      }
-      return widths;
+    
+    // Formattazione Date (usando quella di utils o locale)
+    const fmtDate = (date: any) => {
+      if (!date) return '';
+      return formatDate(date, 'dd/MM/yyyy');
     };
 
-    const activeMembers = members.filter(m => getStatus(m, true) === 'active').sort(sortByTessera);
-    const activeData = formatForExcel(activeMembers, true);
-    if (activeData.length > 0) {
-      const worksheetActive = XLSX.utils.json_to_sheet(activeData);
-      worksheetActive['!cols'] = fitToColumn(activeData);
-      XLSX.utils.book_append_sheet(workbook, worksheetActive, 'Soci Attivi');
-    }
+    // Costruiamo l'oggetto con le chiavi nell'ordine richiesto
+    const row: any = {};
+    row['TIPO'] = tipo;
+    row['N. TESSERA'] = extractTesseraNumber(s.tessera) === 999999 ? (s.tessera || '') : extractTesseraNumber(s.tessera);
+    row['ANNO ASSOCIATIVO'] = s.membershipYear || '';
+    row['NOME'] = s.firstName || '';
+    row['COGNOME'] = s.lastName || '';
+    row['SESSO'] = s.gender === 'female' ? 'F' : (s.gender === 'male' ? 'M' : '');
+    row['DATA DI NASCITA'] = fmtDate(s.birthDate);
+    row['LUOGO DI NASCITA'] = s.birthPlace || '';
+    row['CODICE FISCALE'] = s.fiscalCode || '';
+    row['EMAIL'] = s.email || '';
+    row['TELEFONO'] = s.phone || '';
+    row['CONSENSO WHATSAPP'] = s.whatsappConsent ? 'SÌ' : 'NO';
+    row['INDIRIZZO'] = s.address || '';
+    row['CITTÀ'] = s.city || '';
+    row['PROV.'] = s.province || '';
+    row['CAP'] = s.postalCode || '';
+    row['QUALIFICHE'] = Array.isArray(s.qualifica) ? s.qualifica.join(', ') : (s.qualifica || '');
+    
+    // Dati Tutore
+    const tutoreNome = [s.guardianFirstName, s.guardianLastName].filter(Boolean).join(' ');
+    row['TUTORE'] = tutoreNome;
+    row['DATA NASCITA TUTORE'] = fmtDate(s.guardianBirthDate);
+    
+    row['DATA RICHIESTA'] = fmtDate(s.requestDate);
+    row['DATA ISCRIZIONE'] = fmtDate(s.joinDate);
+    row['ULTIMO RINNOVO'] = fmtDate(s.renewalDate);
+    row['SCADENZA'] = fmtDate(s.expirationDate);
+    row['STATO'] = statusTranslations[status] || status || '';
+    row['NOTE'] = s.notes || '';
 
-    const expiredMembers = members.filter(m => getStatus(m, true) === 'expired').sort(sortByTessera);
-    const expiredData = formatForExcel(expiredMembers, true);
-    if (expiredData.length > 0) {
-      const worksheetExpired = XLSX.utils.json_to_sheet(expiredData);
-      worksheetExpired['!cols'] = fitToColumn(expiredData);
-      XLSX.utils.book_append_sheet(workbook, worksheetExpired, 'Sospesi');
-    }
+    // Aggiungiamo un campo nascosto per il filtraggio successivo dei fogli
+    row._finalStatus = status;
 
-    const pendingRequests = requests.filter(r => getStatus(r, false) === 'pending').sort(sortByRequestDate);
-    const requestsData = formatForExcel(pendingRequests, false);
-    if (requestsData.length > 0) {
-      const worksheetRequests = XLSX.utils.json_to_sheet(requestsData);
-      worksheetRequests['!cols'] = fitToColumn(requestsData);
-      XLSX.utils.book_append_sheet(workbook, worksheetRequests, 'Richieste');
-    }
+    return row;
+  } catch (e) {
+    console.error("Errore formattazione riga:", e, item);
+    return { 'ERRORE': 'Dati non validi', 'ID': item.id, _finalStatus: 'error' };
+  }
+}
 
-    if (workbook.SheetNames.length === 0) {
-      if (typeof window !== 'undefined') alert("Nessun dato corrispondente ai criteri di esportazione.");
-      return;
-    }
+export async function exportToExcel(soci: Socio[], richieste: any[]) {
+  try {
+    console.log("ExportToExcel: Avvio generazione multi-foglio...");
 
+    // 1. Unifichiamo e processiamo tutti i dati (Membri + Richieste) per non perdere nessuno
+    const allData = [
+      ...soci.map(s => ({ ...s, _isMember: true })),
+      ...richieste.map(r => ({ ...r, _isMember: false }))
+    ];
+
+    const allRowsWithStatus = allData.map(formatSocioRow);
+
+    // 2. Distribuzione nei 4 fogli basata sullo STATO calcolato da getStatus
+    const attiviRows = allRowsWithStatus.filter(r => r._finalStatus === 'active');
+    const sospesiRows = allRowsWithStatus.filter(r => r._finalStatus === 'expired');
+    const richiesteRows = allRowsWithStatus.filter(r => r._finalStatus === 'pending');
+    const eliminatiRows = allRowsWithStatus.filter(r => r._finalStatus === 'rejected');
+
+    // Funzione di ordinamento per tessera
+    const sortFn = (a: any, b: any) => {
+      const numA = typeof a['N. TESSERA'] === 'number' ? a['N. TESSERA'] : 999999;
+      const numB = typeof b['N. TESSERA'] === 'number' ? b['N. TESSERA'] : 999999;
+      return numA - numB;
+    };
+
+    const finalAttivi = attiviRows.sort(sortFn);
+    const finalSospesi = sospesiRows.sort(sortFn);
+    const finalRichieste = richiesteRows.sort(sortFn);
+    const finalEliminati = eliminatiRows.sort(sortFn);
+
+    // Rimuoviamo il campo di servizio prima di creare il foglio
+    const cleanRows = (rows: any[]) => rows.map(({ _finalStatus, ...rest }) => rest);
+
+    // 3. Creazione Workbook e Fogli
+    const workbook = XLSX.utils.book_new();
+    
+    const addSheet = (rows: any[], name: string) => {
+      const cleaned = cleanRows(rows);
+      let ws;
+      if (cleaned.length === 0) {
+        // Headers fissi per fogli vuoti
+        const headers = ["TIPO", "N. TESSERA", "ANNO ASSOCIATIVO", "NOME", "COGNOME", "SESSO", "DATA DI NASCITA", "LUOGO DI NASCITA", "CODICE FISCALE", "EMAIL", "TELEFONO", "CONSENSO WHATSAPP", "INDIRIZZO", "CITTÀ", "PROV.", "CAP", "QUALIFICHE", "TUTORE", "DATA NASCITA TUTORE", "DATA RICHIESTA", "DATA ISCRIZIONE", "ULTIMO RINNOVO", "SCADENZA", "STATO", "NOTE"];
+        ws = XLSX.utils.aoa_to_sheet([headers]);
+      } else {
+        ws = XLSX.utils.json_to_sheet(cleaned);
+      }
+      
+      const wscols = Array.from({ length: 25 }).map(() => ({ wch: 18 }));
+      ws['!cols'] = wscols;
+      XLSX.utils.book_append_sheet(workbook, ws, name);
+    };
+
+    addSheet(finalAttivi, "SOCI ATTIVI");
+    addSheet(finalSospesi, "SOCI SOSPESI");
+    addSheet(finalRichieste, "RICHIESTE");
+    addSheet(finalEliminati, "SOCI ELIMINATI");
+
+    // 4. Generazione File e Download
     const today = formatDate(new Date(), 'dd.MM.yyyy');
-    const fileName = `ELENCO SOCI GMC ${today}.xlsx`;
+    const fileName = `ANAGRAFICA SOCI GMC ${today}.xlsx`;
     
     XLSX.writeFile(workbook, fileName);
-    console.log("Esportazione completata.");
+    console.log("Export completato con successo:", fileName);
+
   } catch (error: any) {
-    console.error("Errore exportToExcel:", error);
-    if (typeof window !== 'undefined') alert("Errore durante l'esportazione: " + error.message);
+    console.error("Errore critico exportToExcel:", error);
+    if (typeof window !== 'undefined') {
+      alert("Errore durante l'esportazione: " + (error.message || "Errore sconosciuto"));
+    }
   }
-};
+}
