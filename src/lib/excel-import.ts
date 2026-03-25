@@ -39,39 +39,48 @@ const parseExcelDate = (excelDate: string | number | undefined): string | undefi
 type PartialSocioWithStatus = Partial<Socio> & { statusForImport: 'active' | 'pending' | 'expired' };
 
 const excelRowToSocio = (row: any): PartialSocioWithStatus => {
-    const statusText = row['Stato'] || 'Sospeso';
+    // Helper per recuperare i valori in modo case-insensitive
+    const getVal = (key: string) => {
+        if (row[key] !== undefined) return row[key];
+        const lowerKey = key.toLowerCase();
+        const foundKey = Object.keys(row).find(k => k.toLowerCase() === lowerKey);
+        return foundKey ? row[foundKey] : undefined;
+    };
+
+    const statusText = getVal('Stato') || 'Sospeso';
     let statusForImport: 'active' | 'pending' | 'expired' = 'pending';
-    if (statusText.toLowerCase() === 'attivo') statusForImport = 'active';
-    if (statusText.toLowerCase() === 'scaduto') statusForImport = 'expired';
-    if (statusText.toLowerCase() === 'sospeso') statusForImport = 'pending';
+    const sLower = String(statusText).toLowerCase();
+    if (sLower === 'attivo') statusForImport = 'active';
+    if (sLower === 'scaduto') statusForImport = 'expired';
+    if (sLower === 'sospeso') statusForImport = 'pending';
 
     const socio: Partial<Socio> = {
-        tessera: row['N. Tessera'] ? String(row['N. Tessera']) : undefined,
-        lastName: row['Cognome'],
-        firstName: row['Nome'],
-        gender: (row['Genere'] || '').toLowerCase() === 'maschio' ? 'male' : 'female',
-        birthDate: parseExcelDate(row['Data di Nascita']),
-        birthPlace: row['Luogo di Nascita'],
-        fiscalCode: row['Codice Fiscale'] || undefined,
-        address: row['Indirizzo'],
-        city: row['Città'],
-        province: row['Provincia'],
-        postalCode: String(row['CAP'] || ''),
-        email: row['Email'] || undefined,
-        phone: row['Telefono'] ? String(row['Telefono']) : undefined,
-        whatsappConsent: (row['Consenso WhatsApp'] || '').toUpperCase() === 'SI',
-        privacyConsent: (row['Consenso Privacy'] || '').toUpperCase() === 'SI',
-        membershipYear: row['Anno Associativo'] ? String(row['Anno Associativo']) : undefined,
-        requestDate: parseExcelDate(row['Data Richiesta']),
-        joinDate: parseExcelDate(row['Data Ammissione']),
-        renewalDate: parseExcelDate(row['Data Rinnovo']),
-        expirationDate: parseExcelDate(row['Data Scadenza']),
-        membershipFee: typeof row['Quota Versata (€)'] === 'number' ? row['Quota Versata (€)'] : 0,
-        qualifica: row['Qualifiche'] ? row['Qualifiche'].split(',').map((q: string) => q.trim().toUpperCase()) : [],
-        notes: row['Note'] || undefined,
-        guardianFirstName: row['Nome Tutore'] || undefined,
-        guardianLastName: row['Cognome Tutore'] || undefined,
-        guardianBirthDate: parseExcelDate(row['Data Nascita Tutore']),
+        tessera: getVal('N. Tessera') ? String(getVal('N. Tessera')) : undefined,
+        lastName: getVal('Cognome'),
+        firstName: getVal('Nome'),
+        gender: (String(getVal('Genere') || getVal('Sesso') || '')).toLowerCase().startsWith('f') ? 'female' : 'male',
+        birthDate: parseExcelDate(getVal('Data di Nascita')),
+        birthPlace: getVal('Luogo di Nascita'),
+        fiscalCode: getVal('Codice Fiscale') || undefined,
+        address: getVal('Indirizzo'),
+        city: getVal('Città'),
+        province: getVal('Provincia'),
+        postalCode: String(getVal('CAP') || ''),
+        email: getVal('Email') || undefined,
+        phone: getVal('Telefono') ? String(getVal('Telefono')) : undefined,
+        whatsappConsent: String(getVal('Consenso WhatsApp') || '').toUpperCase() === 'SI' || String(getVal('Consenso WhatsApp') || '').toUpperCase() === 'SÌ',
+        privacyConsent: String(getVal('Consenso Privacy') || '').toUpperCase() === 'SI' || String(getVal('Consenso Privacy') || '').toUpperCase() === 'SÌ',
+        membershipYear: getVal('Anno Associativo') ? String(getVal('Anno Associativo')) : undefined,
+        requestDate: parseExcelDate(getVal('Data Richiesta')),
+        joinDate: parseExcelDate(getVal('Data Ammissione') || getVal('Data Iscrizione')),
+        renewalDate: parseExcelDate(getVal('Data Rinnovo') || getVal('Ultimo Rinnovo')),
+        expirationDate: parseExcelDate(getVal('Data Scadenza') || getVal('Scadenza')),
+        membershipFee: typeof getVal('Quota Versata (€)') === 'number' ? getVal('Quota Versata (€)') : 0,
+        qualifica: getVal('Qualifiche') ? String(getVal('Qualifiche')).split(',').map((q: string) => q.trim().toUpperCase()) : [],
+        notes: getVal('Note'),
+        guardianFirstName: getVal('Nome Tutore') || getVal('Tutore')?.split(' ')[0] || undefined,
+        guardianLastName: getVal('Cognome Tutore') || getVal('Tutore')?.split(' ').slice(1).join(' ') || undefined,
+        guardianBirthDate: parseExcelDate(getVal('Data Nascita Tutore')),
     };
     
     Object.keys(socio).forEach(key => (socio as any)[key] === undefined && delete (socio as any)[key]);
