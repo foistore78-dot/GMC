@@ -1,5 +1,4 @@
 import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
 import { type Socio } from './soci-data';
 import { formatDate, normalizeSocioData, getStatus } from '@/lib/utils';
 
@@ -11,9 +10,10 @@ const statusTranslations: Record<string, string> = {
   rejected: 'Rifiutato'
 };
 
-function cleanString(val: any): any {
-  if (typeof val !== 'string') return val;
-  // Rimozione aggressiva di caratteri non stampabili
+function cleanString(val: any): string {
+  if (val === null || val === undefined) return '';
+  if (typeof val !== 'string') return String(val);
+  // Rimozione aggressiva di caratteri non stampabili che potrebbero corrompere l'Excel
   return val.replace(/[\x00-\x1F\x7F-\x9F]/g, "").trim();
 }
 
@@ -36,60 +36,51 @@ function formatSocioRow(item: any) {
       return formatDate(date, 'dd/MM/yyyy');
     };
 
+    const tesseraNum = extractTesseraNumber(s.tessera);
     const row: any = {};
-    row['Stato'] = statusTranslations[status] || status || '';
-    row['N. Tessera'] = s.tessera || '';
+    row['Anno Associativo'] = cleanString(s.membershipYear);
+    row['TIPO'] = (status === 'pending') ? 'RICHIESTA' : (status === 'rejected' ? 'RIFIUTATO' : (s.renewalDate && s.renewalDate !== s.joinDate ? 'RINNOVO' : 'NUOVO'));
+    row['N. Tessera'] = tesseraNum === 999999 ? '' : tesseraNum;
     row['Cognome'] = cleanString(s.lastName);
     row['Nome'] = cleanString(s.firstName);
     row['Genere'] = s.gender === 'female' ? 'Femmina' : 'Maschio';
     row['Data di Nascita'] = fmtDate(s.birthDate);
     row['Luogo di Nascita'] = cleanString(s.birthPlace);
-    row['Codice Fiscale'] = cleanString(s.fiscalCode);
+    row['Codice Fiscale'] = cleanString(s.fiscalCode).toUpperCase();
     row['Indirizzo'] = cleanString(s.address);
     row['Città'] = cleanString(s.city);
-    row['Provincia'] = cleanString(s.province);
-    row['CAP'] = s.postalCode || '';
-    row['Email'] = cleanString(s.email);
-    row['Telefono'] = s.phone || '';
+    row['Provincia'] = cleanString(s.province).toUpperCase();
+    row['CAP'] = cleanString(s.postalCode);
+    row['Email'] = cleanString(s.email).toLowerCase();
+    row['Telefono'] = cleanString(s.phone);
     row['Consenso WhatsApp'] = s.whatsappConsent ? 'SI' : 'NO';
     row['Consenso Privacy'] = s.privacyConsent ? 'SI' : 'NO';
-    row['Anno Associativo'] = s.membershipYear || '';
     row['Data Richiesta'] = fmtDate(s.requestDate);
     row['Data Ammissione'] = fmtDate(s.joinDate);
     row['Data Rinnovo'] = fmtDate(s.renewalDate);
     row['Data Scadenza'] = fmtDate(s.expirationDate);
-    row['Quota Versata (€)'] = 0;
+    row['Quota Versata (€)'] = s.membershipFee || 0;
     row['Qualifiche'] = Array.isArray(s.qualifica) ? s.qualifica.join(', ') : (s.qualifica || '');
     row['Note'] = cleanString(s.notes);
     row['Nome Tutore'] = cleanString(s.guardianFirstName);
     row['Cognome Tutore'] = cleanString(s.guardianLastName);
     row['Data Nascita Tutore'] = fmtDate(s.guardianBirthDate);
-    row['TIPO'] = (status === 'pending') ? 'RICHIESTA' : (status === 'rejected' ? 'RIFIUTATO' : (s.renewalDate && s.renewalDate !== s.joinDate ? 'RINNOVO' : 'NUOVO'));
     
+    // Campi tecnici nascosti per ordinamento e filtraggio
     row._finalStatus = status;
     row._tesseraNum = extractTesseraNumber(s.tessera);
 
     return row;
   } catch (e) {
-    return { 'Stato': 'Errore', 'Cognome': 'DATI CORROTTI', _finalStatus: 'error' };
+    return { 'Cognome': 'DATI CORROTTI', _finalStatus: 'error', _tesseraNum: 999999 };
   }
 }
 
-function s2ab(s: string) {
-  const buf = new ArrayBuffer(s.length);
-  const view = new Uint8Array(buf);
-  for (let i = 0; i !== s.length; ++i) view[i] = s.charCodeAt(i) & 0xFF;
-  return buf;
-}
-
 export async function exportToExcel(soci: Socio[], richieste: any[]) {
-  console.log("--- DEBUG EXPORT START ---");
-  console.log("Libreria XLSX presente:", !!XLSX);
-  console.log("Membri:", soci?.length, "Richieste:", richieste?.length);
+  console.log("--- EXPORT FULL RESTORE START ---");
   
   try {
-    if (!XLSX) throw new Error("Libreria XLSX non caricata correttamente");
-    if (!soci) throw new Error("Dati soci mancanti");
+    if (!XLSX) throw new Error("Libreria XLSX non caricata.");
 
     const allData = [
       ...soci.map(s => ({ ...s, _isMember: true })),
@@ -97,59 +88,70 @@ export async function exportToExcel(soci: Socio[], richieste: any[]) {
     ];
 
     const allRowsWithStatus = allData.map(formatSocioRow);
-    const attiviRows = allRowsWithStatus.filter(r => r._finalStatus === 'active');
-    const sospesiRows = allRowsWithStatus.filter(r => r._finalStatus === 'expired');
-    const richiesteRows = allRowsWithStatus.filter(r => r._finalStatus === 'pending');
-    const eliminatiRows = allRowsWithStatus.filter(r => r._finalStatus === 'rejected');
-
-    console.log("Righe processate:", { 
-      attivi: attiviRows.length, 
-      sospesi: sospesiRows.length, 
-      richieste: richiesteRows.length, 
-      eliminati: eliminatiRows.length 
-    });
-
     const sortFn = (a: any, b: any) => (a._tesseraNum || 999999) - (b._tesseraNum || 999999);
+    
+    const attiviRows = allRowsWithStatus.filter(r => r._finalStatus === 'active').sort(sortFn);
+    const sospesiRows = allRowsWithStatus.filter(r => r._finalStatus === 'expired').sort(sortFn);
+    const richiesteRows = allRowsWithStatus.filter(r => r._finalStatus === 'pending').sort(sortFn);
+    const eliminatiRows = allRowsWithStatus.filter(r => r._finalStatus === 'rejected').sort(sortFn);
+
     const workbook = XLSX.utils.book_new();
     
-    [
-      { data: attiviRows.sort(sortFn), name: "SOCI ATTIVI" },
-      { data: sospesiRows.sort(sortFn), name: "SOCI SOSPESI" },
-      { data: richiesteRows.sort(sortFn), name: "RICHIESTE" },
-      { data: eliminatiRows.sort(sortFn), name: "SOCI ELIMINATI" }
-    ].forEach(sheet => {
+    // Ordine fogli: ATTIVI, SOSPESI, RICHIESTE, RESPINTI, e infine TUTTI
+    const allSorted = [...allRowsWithStatus].sort(sortFn);
+    const sheetConfigs = [
+      { data: attiviRows, name: "ATTIVI" },
+      { data: sospesiRows, name: "SOSPESI" },
+      { data: richiesteRows, name: "RICHIESTE" },
+      { data: eliminatiRows, name: "RESPINTI" },
+      { data: allSorted, name: "TUTTI" }
+    ];
+
+    sheetConfigs.forEach(sheet => {
       const cleanedData = sheet.data.map(({ _finalStatus, _tesseraNum, ...rest }) => rest);
       let ws;
       if (cleanedData.length === 0) {
-        const headers = ["Stato", "N. Tessera", "Cognome", "Nome", "Genere", "Data di Nascita", "Luogo di Nascita", "Codice Fiscale", "Indirizzo", "Città", "Provincia", "CAP", "Email", "Telefono", "Consenso WhatsApp", "Consenso Privacy", "Anno Associativo", "Data Richiesta", "Data Ammissione", "Data Rinnovo", "Data Scadenza", "Quota Versata (€)", "Qualifiche", "Note", "Nome Tutore", "Cognome Tutore", "Data Nascita Tutore", "TIPO"];
+        const headers = ["Anno Associativo", "TIPO", "N. Tessera", "Cognome", "Nome", "Genere", "Data di Nascita", "Luogo di Nascita", "Codice Fiscale", "Indirizzo", "Città", "Provincia", "CAP", "Email", "Telefono", "Consenso WhatsApp", "Consenso Privacy", "Data Richiesta", "Data Ammissione", "Data Rinnovo", "Data Scadenza", "Quota Versata (€)", "Qualifiche", "Note", "Nome Tutore", "Cognome Tutore", "Data Nascita Tutore"];
         ws = XLSX.utils.aoa_to_sheet([headers]);
       } else {
         ws = XLSX.utils.json_to_sheet(cleanedData);
       }
+      
+      // Imposta larghezza automatica colonne (base 15)
       ws['!cols'] = Object.keys(cleanedData[0] || {}).map(() => ({ wch: 15 }));
       XLSX.utils.book_append_sheet(workbook, ws, sheet.name);
     });
 
+    // 2. Generazione e Trigger Download (Chrome-Friendly)
     const now = new Date();
-    const fileName = `EXPORT_GMC_${now.getFullYear()}${now.getMonth()+1}${now.getDate()}.xlsx`;
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const fileName = `Elenco soci GMC - ${day}-${month}-${year}.xlsx`;
 
-    console.log("Scrittura workbook (binary)...");
-    const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'binary' });
-    
-    console.log("Creazione Blob...");
-    const blob = new Blob([s2ab(wbout)], { type: 'application/octet-stream' });
-    
-    console.log("Download file:", fileName, "Size:", blob.size);
-    
-    if (blob.size < 100) {
-        throw new Error("Il file generato è troppo piccolo, possibile errore interno");
+    // Utilizzo XLSX.writeFile che è il metodo più testato per Chrome
+    // Se fallisce in "anteprima", usiamo un fallback esplicito
+    try {
+      XLSX.writeFile(workbook, fileName);
+    } catch (writeErr) {
+      console.warn("XLSX.writeFile fallito, provo trigger manuale...", writeErr);
+      const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 1000);
     }
-
-    saveAs(blob, fileName);
     
-    console.log("--- DEBUG EXPORT SUCCESS ---");
+    console.log("--- EXPORT SUCCESS ---");
   } catch (error: any) {
     console.error("ERRORE EXPORT:", error);
-    alert("ERRORE CRITICO EXPORT: " + error.message + "\nControlla la console (F12) per i dettagli.");
+    alert("ERRORE DURANTE L'EXPORT: " + error.message);
   }
 }

@@ -2,7 +2,6 @@ import * as XLSX from 'xlsx';
 import type { Socio } from './soci-data';
 import { collection, writeBatch, doc, getDocs, query, where } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
-
 import { normalizeSocioData } from './utils';
 
 const parseExcelDate = (excelDate: string | number | undefined): string | undefined => {
@@ -17,29 +16,21 @@ const parseExcelDate = (excelDate: string | number | undefined): string | undefi
             const day = parseInt(parts[0], 10);
             const month = parseInt(parts[1], 10);
             const year = parseInt(parts[2], 10);
-            if (year > 1000 && month <= 12 && day <= 31) { // Basic DD/MM/YYYY check
+            if (year > 1000 && month <= 12 && day <= 31) {
                  date = new Date(Date.UTC(year, month - 1, day));
-            } else if (day > 1000 && month <= 12 && year <= 31) { // Basic YYYY/MM/DD check
+            } else if (day > 1000 && month <= 12 && year <= 31) {
                  date = new Date(Date.UTC(day, month - 1, year));
             }
         }
-        
-        if (!date) {
-             date = new Date(excelDate);
-        }
-
-        if (!isNaN(date.getTime())) {
-            return date.toISOString();
-        }
+        if (!date) date = new Date(excelDate);
+        if (!isNaN(date.getTime())) return date.toISOString();
     }
     return undefined;
 };
 
-
-type PartialSocioWithStatus = Partial<Socio> & { statusForImport: 'active' | 'pending' | 'expired' };
+type PartialSocioWithStatus = Partial<Socio> & { statusForImport: 'active' | 'pending' | 'expired' | 'rejected' };
 
 const excelRowToSocio = (row: any): PartialSocioWithStatus => {
-    // Helper per recuperare i valori in modo case-insensitive
     const getVal = (key: string) => {
         if (row[key] !== undefined) return row[key];
         const lowerKey = key.toLowerCase();
@@ -47,12 +38,32 @@ const excelRowToSocio = (row: any): PartialSocioWithStatus => {
         return foundKey ? row[foundKey] : undefined;
     };
 
-    const statusText = getVal('Stato') || 'Sospeso';
-    let statusForImport: 'active' | 'pending' | 'expired' = 'pending';
-    const sLower = String(statusText).toLowerCase();
-    if (sLower === 'attivo') statusForImport = 'active';
-    if (sLower === 'scaduto') statusForImport = 'expired';
-    if (sLower === 'sospeso') statusForImport = 'pending';
+    const statusText = getVal('Stato');
+    const tipoText = getVal('TIPO');
+    const expirationDateStr = parseExcelDate(getVal('Data Scadenza') || getVal('Scadenza'));
+    
+    let statusForImport: 'active' | 'pending' | 'expired' | 'rejected' = 'pending';
+
+    if (statusText) {
+        const sLower = String(statusText).toLowerCase();
+        if (sLower === 'attivo') statusForImport = 'active';
+        else if (sLower === 'scaduto') statusForImport = 'expired';
+        else if (sLower === 'respinto' || sLower === 'rifiutato') statusForImport = 'rejected';
+        else statusForImport = 'pending';
+    } else if (tipoText) {
+        const tUpper = String(tipoText).toUpperCase();
+        if (tUpper === 'RICHIESTA') statusForImport = 'pending';
+        else if (tUpper === 'RIFIUTATO' || tUpper === 'RESPINTO') statusForImport = 'rejected';
+        else {
+            if (expirationDateStr) {
+                const expDate = new Date(expirationDateStr);
+                const now = new Date();
+                statusForImport = expDate > now ? 'active' : 'expired';
+            } else {
+                statusForImport = 'active';
+            }
+        }
+    }
 
     const socio: Partial<Socio> = {
         tessera: getVal('N. Tessera') ? String(getVal('N. Tessera')) : undefined,
@@ -74,7 +85,7 @@ const excelRowToSocio = (row: any): PartialSocioWithStatus => {
         requestDate: parseExcelDate(getVal('Data Richiesta')),
         joinDate: parseExcelDate(getVal('Data Ammissione') || getVal('Data Iscrizione')),
         renewalDate: parseExcelDate(getVal('Data Rinnovo') || getVal('Ultimo Rinnovo')),
-        expirationDate: parseExcelDate(getVal('Data Scadenza') || getVal('Scadenza')),
+        expirationDate: expirationDateStr,
         membershipFee: typeof getVal('Quota Versata (€)') === 'number' ? getVal('Quota Versata (€)') : 0,
         qualifica: getVal('Qualifiche') ? String(getVal('Qualifiche')).split(',').map((q: string) => q.trim().toUpperCase()) : [],
         notes: getVal('Note'),
@@ -84,11 +95,7 @@ const excelRowToSocio = (row: any): PartialSocioWithStatus => {
     };
     
     Object.keys(socio).forEach(key => (socio as any)[key] === undefined && delete (socio as any)[key]);
-
-    // Normalizziamo i dati importati
-    const normalizedSocio = normalizeSocioData(socio);
-
-    return { ...normalizedSocio, statusForImport };
+    return { ...normalizeSocioData(socio), statusForImport };
 };
 
 export interface ImportResult {
@@ -106,13 +113,15 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
 
-        const sheetName = workbook.SheetNames[0];
+        // Priorità al foglio "TUTTI" o "ELENCO" o il primo disponibile
+        let sheetName = workbook.SheetNames.find(n => n.toUpperCase() === 'TUTTI' || n.toUpperCase() === 'ELENCO_COMPLETO');
+        if (!sheetName) sheetName = workbook.SheetNames[0];
+
         if (!sheetName) {
             throw new Error('Il file Excel non contiene fogli di lavoro.');
         }
 
         const worksheet = workbook.Sheets[sheetName];
-        
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
         
         const membersCollection = collection(firestore, 'members');
@@ -139,7 +148,6 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
             existingRequestsMap.set(key, {id: doc.id, data: req});
         });
 
-
         const batch = writeBatch(firestore);
         let createdCount = 0;
         const updatedTessere: string[] = [];
@@ -151,11 +159,11 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
 
                 if (!socioData.lastName || !socioData.firstName) {
                   errorCount++;
-                  console.warn("Riga saltata perché mancano nome o cognome:", row);
                   continue;
                 }
                 
                 const isMember = statusForImport === 'active' || statusForImport === 'expired';
+                const isRejected = statusForImport === 'rejected';
                 
                 let docRef;
                 let existingData: Partial<Socio> = {};
@@ -179,12 +187,12 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
                         ...existingData,
                         ...socioData,
                         id: docRef.id,
-                        status: 'active', // Stored as active in DB
+                        status: statusForImport, 
                     };
                     delete dataToSet.statusForImport;
                     batch.set(docRef, dataToSet, { merge: true });
 
-                } else { // 'pending'
+                } else { // 'pending' or 'rejected'
                     const requestKey = `${socioData.firstName}-${socioData.lastName}-${socioData.birthDate}`;
                     if (existingRequestsMap.has(requestKey)) {
                         const existing = existingRequestsMap.get(requestKey)!;
@@ -198,7 +206,7 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
                         ...existingData,
                         ...socioData,
                         id: docRef.id,
-                        status: 'pending',
+                        status: isRejected ? 'rejected' : 'pending',
                     };
                     delete dataToSet.statusForImport;
                     delete dataToSet.membershipStatus;
@@ -206,7 +214,6 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
                 }
 
             } catch (singleError) {
-                console.error("Errore durante l'elaborazione di una riga:", row, singleError);
                 errorCount++;
             }
         }
@@ -215,13 +222,11 @@ export const importFromExcel = async (file: File, firestore: Firestore): Promise
         resolve({ createdCount, updatedTessere, errorCount });
 
       } catch (error) {
-        console.error("Errore durante l'elaborazione del file Excel", error);
         reject(error);
       }
     };
 
     reader.onerror = (error) => {
-      console.error("Errore di lettura del file:", error);
       reject(error);
     };
 
