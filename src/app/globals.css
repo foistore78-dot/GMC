@@ -101,3 +101,38 @@ body {
 .animate-progress-indeterminate {
   animation: progress-indeterminate 1.8s infinite ease-in-out;
 }
+
+@media print {
+  .print\:hidden {
+    display: none !important;
+  }
+  
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .container {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+
+  /* Reset colors for printing */
+  .text-primary {
+    color: black !important;
+  }
+  
+  .text-muted-foreground {
+    color: #444 !important;
+  }
+
+  .bg-secondary {
+    background: transparent !important;
+  }
+}
