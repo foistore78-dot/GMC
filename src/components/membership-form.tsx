@@ -30,6 +30,8 @@ import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useLanguage } from "./language-provider";
 import { normalizeSocioData, parseDate, toTitleCase } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { STATUTO_TEXT } from "@/lib/statuto";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function MembershipForm() {
   const { t, language } = useLanguage();
@@ -66,7 +68,7 @@ export function MembershipForm() {
     province: z.string().length(2, { message: t('validation.provinceLength') }),
     postalCode: z.string().length(5, { message: t('validation.postalCodeLength') }),
     whatsappConsent: z.boolean().default(false),
-    privacyConsent: z.boolean().refine((val) => val === true, { message: t('validation.privacyConsentRequired') }),
+    legalConsent: z.boolean().refine((val) => val === true, { message: t('validation.legalConsentRequired') }),
     guardianFirstName: z.string().optional(),
     guardianLastName: z.string().optional(),
     guardianBirthDate: z.string().optional(),
@@ -91,7 +93,7 @@ export function MembershipForm() {
     { id: 4, fields: ["fiscalCode"] as const, title: t('steps.fiscalCode.title') },
     { id: 5, fields: ["address", "city", "province", "postalCode"] as const, title: t('steps.address.title') },
     { id: 6, fields: ["email", "phone", "whatsappConsent"] as const, title: t('steps.contact.title') },
-    { id: 7, fields: ["privacyConsent"] as const, title: t('steps.privacy.title') },
+    { id: 7, fields: ["legalConsent"] as const, title: t('steps.privacy.title') },
   ], [t]);
 
   const guardianStep = useMemo(() => ({
@@ -117,7 +119,7 @@ export function MembershipForm() {
       province: "",
       postalCode: "",
       whatsappConsent: false,
-      privacyConsent: false,
+      legalConsent: false,
       guardianFirstName: "",
       guardianLastName: "",
       guardianBirthDate: "",
@@ -188,6 +190,8 @@ export function MembershipForm() {
 
       const membershipRequestData = {
         ...cleanedValues,
+        privacyConsent: values.legalConsent,
+        statuteConsent: values.legalConsent,
         requestDate: serverTimestamp(),
         status: 'pending',
       };
@@ -673,27 +677,43 @@ export function MembershipForm() {
                 )}
                 
                 {steps[currentStep].id === 7 && (
-                  <FormField
-                    control={form.control}
-                    name="privacyConsent"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm bg-background">
-                        <FormControl>
-                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>{t('steps.privacy.label')}</FormLabel>
-                          <FormDescription>
-                            {t('steps.privacy.description.start')}{" "}
-                            <Link href="/privacy" className="text-primary underline" target="_blank">
-                               {t('steps.privacy.description.link')}
-                            </Link>.
-                          </FormDescription>
-                          <FormMessage />
-                        </div>
-                      </FormItem>
-                    )}
-                  />
+                  <div className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="legalConsent"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-6 shadow-md bg-background border-primary/20 hover:border-primary/40 transition-colors">
+                          <FormControl>
+                            <Checkbox 
+                                checked={field.value} 
+                                onCheckedChange={field.onChange}
+                                className="h-5 w-5 border-primary/50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                            />
+                          </FormControl>
+                          <div className="space-y-2 leading-none">
+                            <FormLabel className="text-base font-medium text-foreground cursor-pointer">
+                                {t('steps.privacy.label').split('[').map((part, i) => {
+                                    if (part.includes(']')) {
+                                        const [linkText, rest] = part.split(']');
+                                        const href = linkText.toLowerCase().includes('statuto') ? '/statuto' : '/privacy';
+                                        return (
+                                            <span key={i}>
+                                                <Link href={href} className="text-primary underline font-bold hover:text-primary/80" target="_blank">
+                                                    {linkText}
+                                                </Link>
+                                                {rest}
+                                            </span>
+                                        );
+                                    }
+                                    return part;
+                                })}
+                            </FormLabel>
+                            <FormMessage />
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 )}
             </div>
 

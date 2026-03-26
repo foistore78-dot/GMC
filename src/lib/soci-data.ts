@@ -19,6 +19,7 @@ export type Socio = {
   status?: 'pending' | 'active' | 'rejected' | 'expired';
   whatsappConsent: boolean;
   privacyConsent: boolean;
+  statuteConsent: boolean;
   guardianFirstName?: string;
   guardianLastName?: string;
   guardianBirthDate?: string;

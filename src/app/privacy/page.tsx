@@ -1,12 +1,32 @@
+"use client";
+
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 export default function PrivacyPage() {
+  const router = useRouter();
+
   return (
     <div className="flex flex-col min-h-screen bg-secondary">
       <Header />
       <main className="flex-grow container mx-auto px-4 py-12 md:py-16">
-        <div className="max-w-4xl mx-auto bg-background p-8 md:p-12 rounded-lg border border-border shadow-lg">
+        <div className="max-w-4xl mx-auto bg-background p-8 md:p-12 rounded-lg border border-border shadow-lg relative">
+          <Button 
+            variant="ghost" 
+            className="absolute right-4 top-4 hover:bg-primary/10 text-primary font-bold transition-colors border border-primary/20"
+            onClick={() => {
+              if (window.history.length > 1) {
+                router.back();
+              } else {
+                window.close();
+              }
+            }}
+          >
+            CHIUDI
+          </Button>
+
           <h1 className="font-headline text-3xl md:text-4xl text-primary mb-6">
             Informativa sul Trattamento dei Dati Personali
           </h1>
@@ -195,6 +215,21 @@ export default function PrivacyPage() {
                 garage.music.club2024@gmail.com.
               </p>
             </section>
+          </div>
+
+          <div className="mt-12 pt-8 border-t border-border text-center flex flex-col items-center gap-6">
+            <Button 
+              onClick={() => {
+                if (window.history.length > 1) {
+                  router.back();
+                } else {
+                  window.close();
+                }
+              }} 
+              className="w-full sm:w-auto px-10 font-bold"
+            >
+                Chiudi e Torna Indietro
+            </Button>
           </div>
         </div>
       </main>

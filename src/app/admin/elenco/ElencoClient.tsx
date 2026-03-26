@@ -568,7 +568,14 @@ export default function ElencoClient() {
       <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
         <div className="flex items-center gap-4">
           <Users className="w-8 h-8 md:w-10 md:h-10 text-primary" />
-          <h1 className="font-headline text-3xl md:text-5xl text-primary">Elenco Soci</h1>
+          <h1 className="font-headline text-2xl sm:text-3xl md:text-5xl text-primary uppercase leading-tight">
+            Elenco {
+              activeTab === 'active' ? 'Soci Attivi' : 
+              activeTab === 'expired' ? 'Soci Sospesi' : 
+              activeTab === 'requests' ? 'Richieste In Attesa' : 
+              'Soci Respinti'
+            }
+          </h1>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">

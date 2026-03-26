@@ -26,8 +26,11 @@ export function Footer() {
           <p>Tel: +39 389 7995206</p>
           <p>C.F. 91050330314</p>
         </div>
-        <div className="mt-4 text-sm">
-            <Link href="/privacy" className="hover:text-primary transition-colors">
+        <div className="mt-4 text-sm flex flex-col sm:flex-row justify-center items-center gap-2 sm:gap-6">
+            <Link href="/statuto" className="hover:text-primary transition-colors underline decoration-primary/30">
+                Statuto dell'Associazione
+            </Link>
+            <Link href="/privacy" className="hover:text-primary transition-colors underline decoration-primary/30">
                 Informativa sulla Privacy
             </Link>
         </div>
