@@ -740,7 +740,7 @@ const handleRenew = () => {
                                             const parts = e.target.value.split('-');
                                             setApproveMemberNumber(parts[parts.length - 1] || '');
                                         }}
-                                        className="w-40"
+                                        className="w-full max-w-[160px]"
                                     />
                                     </div>
                                 </div>
@@ -769,7 +769,7 @@ const handleRenew = () => {
                                         type="number"
                                         value={approveMembershipFee}
                                         onChange={(e) => setApproveMembershipFee(Number(e.target.value))}
-                                        className="w-28"
+                                        className="w-full max-w-[112px]"
                                     />
                                         <div className="flex items-center space-x-2">
                                         <Checkbox id="fee-paid-approve" checked={approveFeePaid} onCheckedChange={(checked) => setApproveFeePaid(!!checked)} />
@@ -806,7 +806,7 @@ const handleRenew = () => {
                             <div className="grid gap-6 py-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
                                     <Label htmlFor="renewal-year" className="sm:text-right">Anno</Label>
-                                    <Input id="renewal-year" value={renewalYear} onChange={(e) => setRenewalYear(e.target.value)} className="w-28 col-span-3" />
+                                    <Input id="renewal-year" value={renewalYear} onChange={(e) => setRenewalYear(e.target.value)} className="w-full max-w-[112px] col-span-3" />
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
                                     <Label htmlFor="renew-tessera" className="sm:text-right">N. Tessera</Label>
@@ -818,7 +818,7 @@ const handleRenew = () => {
                                                 const parts = e.target.value.split('-');
                                                 setRenewMemberNumber(parts[parts.length - 1] || '');
                                             }}
-                                            className="w-40"
+                                            className="w-full max-w-[160px]"
                                         />
                                     </div>
                                 </div>

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,9 +42,40 @@ import { useToast } from "@/hooks/use-toast";
 import { exportToExcel } from "@/lib/excel-export";
 import { Label } from "@/components/ui/label";
 import { getStatus, getFullName, parseDate, isOlderThanDays, toTitleCase, cn, normalizeSocioData } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { QUALIFICHE } from "@/lib/soci-data";
 
 const ITEMS_PER_PAGE = 50;
 const SECURITY_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_SECURITY_PASSWORD || "1978";
+
+// Helper to play a notification beep and vibrate device
+const playNotificationFeedback = () => {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5 note
+    
+    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.05);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.3);
+    
+    // Physical vibration if supported (mobile)
+    if (navigator.vibrate) {
+      navigator.vibrate([100, 50, 100]);
+    }
+  } catch (e) {
+    console.warn("Feedback not supported or blocked", e);
+  }
+};
 
 
 const filterAndSortData = (
@@ -129,7 +161,7 @@ const PaginationControls = ({
   totalPages: number;
   onPageChange: (page: number) => void;
 }) => (
-  <div className="flex items-center justify-center gap-4 mt-8">
+  <div className="flex items-center justify-center gap-4 mt-8 pb-4">
     <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>
       <ChevronLeft className="mr-2 h-4 w-4" />
       Indietro
@@ -146,6 +178,17 @@ const PaginationControls = ({
       Avanti
       <ArrowRight className="ml-2 h-4 w-4" />
     </Button>
+  </div>
+);
+
+const TableSkeleton = () => (
+  <div className="space-y-3 w-full animate-pulse">
+    <div className="h-10 w-full bg-muted rounded-md" />
+    <div className="space-y-2">
+      {[...Array(5)].map((_, i) => (
+        <div key={i} className="h-16 w-full bg-muted/50 rounded-md" />
+      ))}
+    </div>
   </div>
 );
 
@@ -193,11 +236,134 @@ export default function ElencoClient() {
 
   const handleNewApproval = useCallback((socio: Socio) => {
     setActiveApprovals(prev => [...prev, { id: crypto.randomUUID(), socio }]);
+    playNotificationFeedback();
   }, []);
 
   const closeApproval = (id: string) => {
     setActiveApprovals(prev => prev.filter(a => a.id !== id));
   };
+  
+  // State for non-blocking request notifications
+  const [activeRequests, setActiveRequests] = useState<{id: string, socio: Socio}[]>([]);
+  
+  const handleNewRequestPopup = useCallback((socio: Socio) => {
+    setActiveRequests(prev => [...prev, { id: crypto.randomUUID(), socio }]);
+    playNotificationFeedback();
+  }, []);
+  
+  const closeRequestPopup = (id: string) => {
+    setActiveRequests(prev => prev.filter(r => r.id !== id));
+  };
+
+  // Approval Dialog States for Popups
+  const [approvingSocio, setApprovingSocio] = useState<Socio | null>(null);
+  const [isApproving, setIsApproving] = useState(false);
+  const [approveMemberNumber, setApproveMemberNumber] = useState("");
+  const [approveMembershipFee, setApproveMembershipFee] = useState(10);
+  const [approveQualifiche, setApproveQualifiche] = useState<string[]>([]);
+  const [approveFeePaid, setApproveFeePaid] = useState(false);
+  const [requestPopupIdToClose, setRequestPopupIdToClose] = useState<string | null>(null);
+
+  const getNextMemberNumberForYear = useCallback((year: number) => {
+    const yearMemberNumbers = membersData
+      .filter(m => m.membershipYear === String(year) && m.tessera && m.status !== 'rejected')
+      .map(m => parseInt(String(m.tessera!).split('-').pop() || '0', 10))
+      .filter(n => !isNaN(n) && n > 0);
+    
+    yearMemberNumbers.sort((a, b) => a - b);
+    
+    let nextNum = 1;
+    for (const num of yearMemberNumbers) {
+        if (num === nextNum) {
+            nextNum++;
+        } else if (num > nextNum) {
+            break;
+        }
+    }
+    return nextNum;
+  }, [membersData]);
+
+  useEffect(() => {
+    if (approvingSocio) {
+      const currentYear = new Date().getFullYear();
+      const nextNumber = getNextMemberNumberForYear(currentYear);
+      
+      setApproveMemberNumber(String(nextNumber));
+      setApproveMembershipFee(isOlderThanDays(approvingSocio.birthDate, 18 * 365) ? 10 : 0);
+      setApproveQualifiche(approvingSocio.qualifica || []);
+      setApproveFeePaid(false);
+    }
+  }, [approvingSocio, getNextMemberNumberForYear]);
+
+  const handleApproveFromPopup = async () => {
+    if (!firestore || !approvingSocio || isApproving || !approveFeePaid) return;
+
+    setIsApproving(true);
+    try {
+      const currentYear = new Date().getFullYear();
+      const membershipCardNumber = `GMC-${currentYear}-${approveMemberNumber}`;
+      const batch = writeBatch(firestore);
+
+      const requestDocRef = doc(firestore, "membership_requests", approvingSocio.id);
+      const memberDocRef = doc(firestore, "members", approvingSocio.id);
+
+      const { status, ...restOfSocio } = approvingSocio;
+      
+      const newMemberData: Socio = {
+          ...restOfSocio,
+          id: approvingSocio.id,
+          joinDate: new Date().toISOString(),
+          status: 'active' as const,
+          expirationDate: new Date(currentYear, 11, 31).toISOString(),
+          membershipYear: String(currentYear),
+          tessera: membershipCardNumber,
+          membershipFee: approveMembershipFee,
+          qualifica: approveQualifiche,
+          requestDate: approvingSocio.requestDate || new Date().toISOString(),
+          notes: approvingSocio.notes || '', 
+      };
+
+      batch.set(memberDocRef, newMemberData, { merge: true });
+      batch.delete(requestDocRef);
+
+      await batch.commit();
+      
+      toast({
+          title: "Socio Approvato!",
+          description: `${getFullName(approvingSocio)} è ora un membro attivo. N. tessera: ${membershipCardNumber}`,
+      });
+
+      // Se c'è un popup da chiudere (perché veniamo da lì)
+      if (requestPopupIdToClose) {
+        closeRequestPopup(requestPopupIdToClose);
+        setRequestPopupIdToClose(null);
+      }
+
+      setApprovingSocio(null);
+      handleSocioUpdate('active');
+    } catch (error: any) {
+      toast({
+          title: "Errore di Approvazione",
+          description: `Impossibile approvare ${getFullName(approvingSocio)}. Dettagli: ${error.message}`,
+          variant: "destructive",
+      });
+    }
+  };
+
+  const handleQualificaChange = (qualifica: string, checked: boolean) => {
+    setApproveQualifiche(prev => 
+      checked ? [...prev, qualifica] : prev.filter(q => q !== qualifica)
+    );
+  };
+
+  const potentialDuplicate = useMemo(() => {
+    if (!approvingSocio) return null;
+    return membersData.find(m => 
+      m.firstName.toLowerCase().trim() === approvingSocio.firstName.toLowerCase().trim() &&
+      m.lastName.toLowerCase().trim() === approvingSocio.lastName.toLowerCase().trim() &&
+      m.birthDate === approvingSocio.birthDate
+    );
+  }, [membersData, approvingSocio]);
 
   const seenRequestIds = useRef<Set<string>>(new Set());
   const isInitialLoad = useRef(true);
@@ -272,6 +438,7 @@ export default function ElencoClient() {
                           title: "Nuova Richiesta!",
                           description: `${getFullName(newSocio)} ha appena inviato una domanda di adesione.`,
                         });
+                        handleNewRequestPopup(newSocio);
                     }
                     newMap.set(change.doc.id, normalizeSocioData({ id: change.doc.id, ...change.doc.data() }) as Socio);
                 } else if (change.type === "removed") {
@@ -322,7 +489,7 @@ export default function ElencoClient() {
         requests: filteredRequests.length,
     };
 
-    const oldRequests = filteredRequests.filter(req => isOlderThanDays(req.requestDate, 60));
+    const oldRequests = filteredRequests.filter(req => isOlderThanDays(req.requestDate, 30));
 
     let dataForTab: Socio[];
     if (activeTab === 'active') {
@@ -602,19 +769,7 @@ export default function ElencoClient() {
       </div>
 
       <div className="bg-background rounded-lg border border-border shadow-lg p-2 sm:p-4">
-        {isDataLoading ? (
-          <div className="flex flex-col justify-center items-center h-64 gap-6 px-10">
-            <div className="w-full max-w-sm space-y-4">
-              <div className="flex justify-between items-center text-sm font-medium text-primary animate-pulse">
-                <span>Caricamento dati in corso...</span>
-                <span>Attendere</span>
-              </div>
-              <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
-                <div className="h-full w-full bg-primary animate-progress-indeterminate" />
-              </div>
-            </div>
-          </div>
-        ) : error ? (
+        {error ? (
            <div className="flex flex-col justify-center items-center h-64 text-center gap-4">
             <AlertTriangle className="h-12 w-12 text-destructive" />
             <div>
@@ -627,95 +782,114 @@ export default function ElencoClient() {
             </Button>
           </div>
         ) : (
-          <>
-            <Tabs value={activeTab} onValueChange={handleTabChange}>
-              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4">
-                <TabsList className="self-start h-auto p-1 bg-muted/20 gap-2 flex-wrap">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
+              {/* Ordered Tabs Container */}
+              <div className="w-full sm:w-auto">
+                <TabsList className="flex flex-wrap h-auto p-1 bg-muted/20 gap-1 sm:gap-2 w-full sm:w-auto">
                   <TabsTrigger 
                     value="active" 
-                    className="rounded-full px-4 py-1.5 border border-emerald-200 text-emerald-600 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:border-emerald-600 transition-all font-medium"
+                    className="flex-1 min-w-[130px] rounded-md px-2 sm:px-4 py-2 border border-emerald-200 text-emerald-600 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:border-emerald-600 transition-all font-medium text-[10px] sm:text-xs"
                   >
                     ATTIVI ({counts.active})
                   </TabsTrigger>
                   <TabsTrigger 
                     value="expired" 
-                    className="rounded-full px-4 py-1.5 border border-amber-200 text-amber-600 data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]:border-amber-600 transition-all font-medium"
+                    className="flex-1 min-w-[130px] rounded-md px-2 sm:px-4 py-2 border border-amber-200 text-amber-600 data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]:border-amber-600 transition-all font-medium text-[10px] sm:text-xs"
                   >
                     SOSPESI ({counts.expired})
                   </TabsTrigger>
                   <TabsTrigger 
                     value="requests" 
-                    className="rounded-full px-4 py-1.5 border border-blue-200 text-blue-600 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:border-blue-600 transition-all font-medium"
+                    className="flex-1 min-w-[130px] rounded-md px-2 sm:px-4 py-2 border border-blue-200 text-blue-600 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:border-blue-600 transition-all font-medium text-[10px] sm:text-xs"
                   >
                     RICHIESTE ({counts.requests})
                   </TabsTrigger>
-                  {showRejectedTab && (
+                  {showRejectedTab ? (
                     <TabsTrigger 
                       value="rejected" 
-                      className="rounded-full px-4 py-1.5 border border-rose-200 text-rose-600 data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:border-rose-600 transition-all font-medium"
+                      className="flex-1 min-w-[130px] rounded-md px-2 sm:px-4 py-2 border border-rose-200 text-rose-600 data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:border-rose-600 transition-all font-medium text-[10px] sm:text-xs"
                     >
                       RESPINTI ({counts.rejected})
                     </TabsTrigger>
+                  ) : (
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9 sm:w-9 rounded-md border-rose-100 text-rose-400 hover:bg-rose-50 ml-1 sm:ml-0"
+                        onClick={toggleRejectedTab}
+                        title="Mostra Respinti"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
                   )}
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className={cn(
-                        "h-8 w-8 ml-auto rounded-full border-rose-200 text-rose-600 hover:bg-rose-50",
-                        showRejectedTab ? "bg-rose-600 text-white border-rose-600 hover:bg-rose-700" : ""
-                    )}
-                    onClick={toggleRejectedTab}
-                    title={showRejectedTab ? "Nascondi Respinti" : "Mostra Respinti"}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {showRejectedTab && (
+                     <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9 sm:w-9 rounded-md bg-rose-600 text-white border-rose-600 hover:bg-rose-700 ml-1 sm:ml-0"
+                        onClick={toggleRejectedTab}
+                        title="Nascondi Respinti"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </TabsList>
-                
-                <div className="relative w-full sm:max-w-xs">
-                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Filtra..."
-                    value={filter}
-                    onChange={(event) => setFilter(event.target.value)}
-                    className="pl-10 pr-10"
-                    autoComplete="off"
-                  />
-                  {filter && (
-                    <button onClick={() => setFilter("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><X className="h-4 w-4" /></button>
-                  )}
-                </div>
               </div>
+              
+              <div className="relative w-full sm:max-w-xs">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Filtra..."
+                  value={filter}
+                  onChange={(event) => setFilter(event.target.value)}
+                  className="pl-10 pr-10 focus-visible:ring-primary h-10"
+                  autoComplete="off"
+                />
+                {filter && (
+                  <button onClick={() => setFilter("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 transition-colors">
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
 
-              <TabsContent value="active">
+            <div className="relative min-h-[400px]">
+              {isDataLoading && (
+                <div className="absolute inset-0 bg-background/50 z-10 flex flex-col items-center justify-start pt-12">
+                   <TableSkeleton />
+                </div>
+              )}
+
+              <TabsContent value="active" className="mt-0 focus-visible:outline-none">
                 <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="active" onNewApproval={handleNewApproval} />
               </TabsContent>
 
-              <TabsContent value="expired">
+              <TabsContent value="expired" className="mt-0 focus-visible:outline-none">
                 <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="expired" onNewApproval={handleNewApproval} />
               </TabsContent>
 
-              <TabsContent value="rejected">
+              <TabsContent value="rejected" className="mt-0 focus-visible:outline-none">
                 <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="rejected" onNewApproval={handleNewApproval} />
               </TabsContent>
 
-              <TabsContent value="requests" className="space-y-4">
-                {oldRequests.length > 0 && (
+              <TabsContent value="requests" className="mt-0 space-y-4 focus-visible:outline-none">
+                {oldRequests.length > 0 && !isDataLoading && (
                     <Alert className="bg-orange-500/10 border-orange-500/30">
                         <Info className="h-4 w-4 text-orange-500" />
                         <AlertTitle>Richieste vecchie</AlertTitle>
                         <AlertDescription className="flex justify-between items-center">
-                            <span>Ci sono {oldRequests.length} richieste più vecchie di 60 giorni.</span>
+                            <span>Ci sono {oldRequests.length} richieste più vecchie di 30 giorni.</span>
                             <Button variant="outline" size="sm" onClick={() => initiateAction('cleanup')} disabled={isCleaningUp}>Pulisci ora</Button>
                         </AlertDescription>
                     </Alert>
                 )}
                 <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="requests" onNewApproval={handleNewApproval} />
               </TabsContent>
-            </Tabs>
-            
+            </div>
 
-            {totalPages > 1 && <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />}
-          </>
+            {totalPages > 1 && !isDataLoading && <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />}
+          </Tabs>
         )}
       </div>
 
@@ -731,6 +905,82 @@ export default function ElencoClient() {
           )}
         </SheetContent>
       </Sheet>
+
+      <Dialog open={!!approvingSocio} onOpenChange={(open) => !open && setApprovingSocio(null)}>
+        <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+                <DialogTitle>Approva Socio e Completa Iscrizione</DialogTitle>
+                <DialogDescription>
+                    Stai per approvare <strong className="text-foreground">{approvingSocio ? getFullName(approvingSocio) : ''}</strong> come membro attivo dal pop-up.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-6 py-4">
+                {potentialDuplicate && (
+                  <Alert variant="destructive" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/30">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Possibile Duplicato!</AlertTitle>
+                    <AlertDescription>
+                      Un socio con lo stesso nome, cognome e data di nascita è già presente (Tessera: {potentialDuplicate.tessera || 'N/A'}).
+                    </AlertDescription>
+                  </Alert>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+                    <Label htmlFor="membership-number-popup" className="sm:text-right">N. Tessera</Label>
+                    <div className="col-span-3">
+                    <Input
+                        id="membership-number-popup"
+                        value={`GMC-${new Date().getFullYear()}-${approveMemberNumber}`}
+                        onChange={(e) => {
+                            const parts = e.target.value.split('-');
+                            setApproveMemberNumber(parts[parts.length - 1] || '');
+                        }}
+                        className="w-40"
+                    />
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-2 sm:gap-4">
+                    <Label className="sm:text-right pt-2">Qualifiche</Label>
+                    <div className="col-span-3 space-y-2">
+                        {QUALIFICHE.map((q) => (
+                            <div key={q} className="flex items-center space-x-2">
+                                <Checkbox 
+                                    id={`qualifica-${q}-approve-popup`} 
+                                    checked={approveQualifiche.includes(q)}
+                                    onCheckedChange={(checked) => handleQualificaChange(q, !!checked)}
+                                />
+                                <label htmlFor={`qualifica-${q}-approve-popup`} className="text-sm font-medium leading-none cursor-pointer">
+                                    {q}
+                                </label>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+                    <Label htmlFor="membership-fee-popup" className="sm:text-right">Quota (€)</Label>
+                    <div className="col-span-3 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <Input
+                        id="membership-fee-popup"
+                        type="number"
+                        value={approveMembershipFee}
+                        onChange={(e) => setApproveMembershipFee(Number(e.target.value))}
+                        className="w-28"
+                    />
+                        <div className="flex items-center space-x-2">
+                        <Checkbox id="fee-paid-approve-popup" checked={approveFeePaid} onCheckedChange={(checked) => setApproveFeePaid(!!checked)} />
+                        <Label htmlFor="fee-paid-approve-popup" className="text-sm font-medium cursor-pointer">Quota Versata</Label>
+                    </div>
+                    </div>
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="ghost" onClick={() => setApprovingSocio(null)}>Annulla</Button>
+                <Button onClick={handleApproveFromPopup} disabled={isApproving || !approveFeePaid}>
+                    {isApproving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Conferma e Salva
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
         <AlertDialogContent>
@@ -778,6 +1028,18 @@ export default function ElencoClient() {
                 onClose={() => closeApproval(approval.id)} 
                 onPrint={() => executePrint(approval.socio)}
                 index={index}
+              />
+          ))}
+          {activeRequests.map((request, index) => (
+              <RequestPopup 
+                key={request.id} 
+                socio={request.socio} 
+                onClose={() => closeRequestPopup(request.id)} 
+                onApprove={() => {
+                  setApprovingSocio(request.socio);
+                  setRequestPopupIdToClose(request.id);
+                }}
+                index={activeApprovals.length + index}
               />
           ))}
       </div>
@@ -861,7 +1123,7 @@ function ApprovalPopup({ socio, onClose, onPrint, index }: { socio: Socio, onClo
                 top: `${position.y}px`,
                 position: 'fixed'
             }}
-            className="pointer-events-auto bg-card border-2 border-primary shadow-2xl rounded-xl w-80 overflow-hidden animate-in fade-in zoom-in duration-300 select-none"
+            className="pointer-events-auto bg-card border-2 border-primary shadow-2xl rounded-xl w-80 overflow-hidden animate-in fade-in zoom-in animate-shake duration-300 select-none"
         >
             {/* Header / Drag Handle */}
             <div 
@@ -909,4 +1171,135 @@ function ApprovalPopup({ socio, onClose, onPrint, index }: { socio: Socio, onClo
             </div>
         </div>
     );
+}
+// Draggable Request Popup Component (Blue themed)
+function RequestPopup({ socio, onClose, onApprove, index }: { socio: Socio, onClose: () => void, onApprove: () => void, index: number }) {
+    const [position, setPosition] = useState({ x: 20, y: 100 + (index * 60) });
+    const [dragging, setDragging] = useState(false);
+    const [rel, setRel] = useState({ x: 0, y: 0 }); 
+    const [isMinimized, setIsMinimized] = useState(false);
+
+    const onMouseDown = (e: React.MouseEvent) => {
+        if (e.button !== 0) return;
+        setDragging(true);
+        setRel({
+            x: e.pageX - position.x,
+            y: e.pageY - position.y
+        });
+        e.stopPropagation();
+    };
+
+    useEffect(() => {
+        const onMouseMove = (e: MouseEvent) => {
+            if (!dragging) return;
+            setPosition({
+                x: e.pageX - rel.x,
+                y: e.pageY - rel.y
+            });
+            e.stopPropagation();
+            e.preventDefault();
+        };
+
+        const onMouseUp = () => {
+            setDragging(false);
+        };
+
+        if (dragging) {
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        }
+
+        return () => {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        };
+    }, [dragging, rel]);
+
+    const displayDate = socio.birthDate ? formatDate(socio.birthDate) : 'N/A';
+    const displayPlace = socio.birthPlace || 'N/A';
+
+    if (isMinimized) {
+        return (
+             <div 
+                style={{ left: `${position.x}px`, top: `${position.y}px`, position: 'fixed' }}
+                className="pointer-events-auto flex items-center gap-2 bg-card border-2 border-blue-600 shadow-xl rounded-full p-1 pr-3 animate-in fade-in zoom-in duration-300 select-none animate-shake"
+             >
+                <div 
+                    onMouseDown={onMouseDown} 
+                    className="bg-blue-600 text-white rounded-full p-2 cursor-move hover:bg-blue-700 transition-colors"
+                    title="Trascina"
+                >
+                    <Bell className="h-4 w-4" />
+                </div>
+                <span className="text-xs font-bold px-1 truncate max-w-[150px]">
+                    Richiesta di {getFullName(socio)}
+                </span>
+                <button onClick={() => setIsMinimized(false)} className="text-muted-foreground hover:text-blue-600 transition-colors p-1" title="Espandi">
+                    <Maximize2 className="h-4 w-4" />
+                </button>
+                <button onClick={onClose} className="text-muted-foreground hover:text-destructive transition-colors p-1" title="Chiudi">
+                    <X className="h-4 w-4" />
+                </button>
+             </div>
+        );
+    }
+
+    return (
+        <div 
+            style={{ 
+                left: `${position.x}px`, 
+                top: `${position.y}px`,
+                position: 'fixed'
+            }}
+            className="pointer-events-auto bg-card border-2 border-blue-600 shadow-2xl rounded-xl w-80 overflow-hidden animate-in fade-in zoom-in animate-shake duration-300 select-none"
+        >
+            <div 
+                onMouseDown={onMouseDown}
+                className="bg-blue-600 p-3 flex items-center justify-between cursor-move"
+            >
+                <div className="flex items-center gap-2 text-white font-bold uppercase text-xs tracking-widest">
+                    <Bell className="h-4 w-4" /> Nuova Domanda Adesione
+                </div>
+                <div className="flex gap-1">
+                    <button onClick={() => setIsMinimized(true)} className="text-white/80 hover:text-white transition-colors p-1">
+                        <Minimize2 className="h-4 w-4" />
+                    </button>
+                    <button onClick={onClose} className="text-white/80 hover:text-white transition-colors p-1">
+                        <X className="h-4 w-4" />
+                    </button>
+                </div>
+            </div>
+
+            <div className="p-5 space-y-4">
+                <div className="space-y-1">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Richiesta di</p>
+                    <p className="text-xl font-headline text-blue-600 uppercase leading-tight">{getFullName(socio)}</p>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 space-y-1">
+                    <p className="text-[10px] uppercase font-bold text-blue-600/70 tracking-widest">Nato il / a</p>
+                    <p className="text-sm font-medium text-blue-900">{displayDate} a {displayPlace}</p>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                    <Button variant="default" className="flex-1 bg-blue-600 hover:bg-blue-700 font-bold" size="sm" onClick={onApprove}>
+                        APPROVA
+                    </Button>
+                    <Button variant="outline" className="flex-1 border-blue-200 text-blue-600 hover:bg-blue-50" size="sm" onClick={onClose}>
+                        IGNORA PER ORA
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function formatDate(date: any) {
+    if (!date) return 'N/A';
+    try {
+        const d = parseDate(date);
+        return d.toLocaleDateString('it-IT');
+    } catch (e) {
+        return 'N/A';
+    }
 }
