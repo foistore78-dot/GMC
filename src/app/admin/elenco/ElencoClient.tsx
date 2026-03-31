@@ -1314,6 +1314,7 @@ function formatDate(date: any) {
     if (!date) return 'N/A';
     try {
         const d = parseDate(date);
+        if (!d) return 'N/A';
         return d.toLocaleDateString('it-IT');
     } catch (e) {
         return 'N/A';

@@ -257,7 +257,7 @@ const SocioTableRow = memo(({
             delete rejectedSocioData.renewalDate;
             delete rejectedSocioData.expirationDate;
             delete rejectedSocioData.membershipYear;
-            delete rejectedSocioData.qualifiche;
+            delete (rejectedSocioData as any).qualifica;
             
             batch.set(memberDocRef, rejectedSocioData);
             batch.delete(requestDocRef);
@@ -271,7 +271,7 @@ const SocioTableRow = memo(({
                 renewalDate: deleteField(),
                 expirationDate: deleteField(),
                 membershipYear: deleteField(),
-                qualifiche: deleteField(),
+                qualifica: deleteField(),
             });
         }
 

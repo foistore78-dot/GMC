@@ -163,7 +163,7 @@ export default function EditSocioForm({ socio, onClose, isFromMembersCollection 
         Object.entries(updateData).filter(([_, v]) => v !== undefined)
       );
 
-      await updateDoc(docRef, safeUpdateData);
+      await updateDoc(docRef, safeUpdateData as any);
       
       toast({
         title: "Socio Aggiornato",
