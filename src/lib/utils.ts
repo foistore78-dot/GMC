@@ -77,9 +77,9 @@ export const getStatus = (socio: any, isFromMembersCollection: boolean = true): 
         return isSocioExpired(socio.expirationDate, socio.membershipYear) ? 'expired' : 'active';
     }
     
-    if (socio.status === 'active' || socio.tessera) {
-        return isSocioExpired(socio.expirationDate, socio.membershipYear) ? 'expired' : 'active';
-    }
+    // If not from members collection, it's a request, so it MUST be pending.
+    // We ignore if someone typed a tessera by mistake in the edit form, 
+    // otherwise it becomes a ghost in the UI and wrongly exports as active.
     return 'pending';
 };
 

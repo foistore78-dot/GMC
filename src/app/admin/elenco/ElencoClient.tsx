@@ -220,7 +220,10 @@ export default function ElencoClient() {
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [socioToPrint, setSocioToPrint] = useState<Socio | null>(null);
 
-  const [isDataLoading, setIsDataLoading] = useState(true);
+  const [isMembersLoading, setIsMembersLoading] = useState(true);
+  const [isRequestsLoading, setIsRequestsLoading] = useState(true);
+  const isDataLoading = isMembersLoading || isRequestsLoading;
+  
   const [membersData, setMembersData] = useState<Socio[]>([]);
   const [requestsData, setRequestsData] = useState<Socio[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -309,7 +312,7 @@ export default function ElencoClient() {
 
       const { status, ...restOfSocio } = approvingSocio;
       
-      const newMemberData: Socio = {
+      const newMemberData: any = {
           ...restOfSocio,
           id: approvingSocio.id,
           joinDate: new Date().toISOString(),
@@ -323,7 +326,12 @@ export default function ElencoClient() {
           notes: approvingSocio.notes || '', 
       };
 
-      batch.set(memberDocRef, newMemberData, { merge: true });
+      // Remove undefined values to prevent Firebase errors
+      const safeMemberData = Object.fromEntries(
+        Object.entries(newMemberData).filter(([_, v]) => v !== undefined)
+      );
+
+      batch.set(memberDocRef, safeMemberData, { merge: true });
       batch.delete(requestDocRef);
 
       await batch.commit();
@@ -340,6 +348,7 @@ export default function ElencoClient() {
       }
 
       setApprovingSocio(null);
+      handleNewApproval(newMemberData);
       handleSocioUpdate('active');
     } catch (error: any) {
       toast({
@@ -347,6 +356,8 @@ export default function ElencoClient() {
           description: `Impossibile approvare ${getFullName(approvingSocio)}. Dettagli: ${error.message}`,
           variant: "destructive",
       });
+    } finally {
+      setIsApproving(false);
     }
   };
 
@@ -374,11 +385,13 @@ export default function ElencoClient() {
 
     if (!firestore) {
         setError("Servizio database non disponibile dopo l'inizializzazione.");
-        setIsDataLoading(false);
+        setIsMembersLoading(false);
+        setIsRequestsLoading(false);
         return;
     }
 
-    setIsDataLoading(true);
+    setIsMembersLoading(true);
+    setIsRequestsLoading(true);
     setError(null);
 
     // Costruiamo la query in base al filtro
@@ -416,12 +429,12 @@ export default function ElencoClient() {
             return Array.from(newMap.values());
         });
         
-        setIsDataLoading(false);
+        setIsMembersLoading(false);
       },
       (err: any) => {
         console.error("Errore listener membri:", err);
         setError(`Errore: ${err.message || "Permessi non validi o sessione scaduta."}`);
-        setIsDataLoading(false);
+        setIsMembersLoading(false);
       }
     );
 
@@ -449,9 +462,12 @@ export default function ElencoClient() {
             seenRequestIds.current = new Set(Array.from(newMap.keys()));
             return Array.from(newMap.values());
         });
+        
+        setIsRequestsLoading(false);
       },
       (err) => {
         console.error("Errore listener richieste:", err);
+        setIsRequestsLoading(false);
       }
     );
 

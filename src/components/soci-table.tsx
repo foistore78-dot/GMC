@@ -53,7 +53,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
 import { useFirestore, deleteDocumentNonBlocking } from "@/firebase";
-import { doc, writeBatch, getDoc, deleteDoc } from "firebase/firestore";
+import { doc, writeBatch, getDoc, deleteDoc, deleteField } from "firebase/firestore";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 const DetailItem = memo(({ icon, label, value, className }: { icon?: React.ReactNode, label: string, value?: string | number | null | React.ReactNode, className?: string }) => {
@@ -233,9 +233,11 @@ const SocioTableRow = memo(({
         const dateStr = new Date().toLocaleString('it-IT');
         const oldStatus = getStatus(socioToReject, activeTab !== 'requests');
         const oldNotes = socioToReject.notes || '';
-        const oldTessera = socioToReject.tessera || 'N/A';
+        const oldTessera = socioToReject.tessera || 'Nessuna';
+        const oldJoinDate = socioToReject.joinDate ? new Date(socioToReject.joinDate).toLocaleDateString('it-IT') : 'Nessuna';
+        const oldRenewal = socioToReject.renewalDate ? new Date(socioToReject.renewalDate).toLocaleDateString('it-IT') : 'Nessuno';
         
-        const historyEntry = `--- STORICO ELIMINAZIONE (RESPINTO) ${dateStr} ---\nMotivo: ${rejectionReason}\nStato precedente: ${oldStatus}\nTessera precedente: ${oldTessera}\n------------------------`;
+        const historyEntry = `--- STORICO ELIMINAZIONE (RESPINTO) ${dateStr} ---\nMotivo: ${rejectionReason}\nStato precedente: ${oldStatus}\nTessera precedente: ${oldTessera}\nData Ammissione precedente: ${oldJoinDate}\nUltimo Rinnovo: ${oldRenewal}\n------------------------`;
         const newNotes = `${historyEntry}\n\n${oldNotes}`.trim();
 
         const collectionName = (activeTab === 'active' || activeTab === 'expired' || activeTab === 'rejected') ? 'members' : 'membership_requests';
@@ -249,6 +251,13 @@ const SocioTableRow = memo(({
                 status: 'rejected',
                 notes: newNotes
             };
+
+            delete rejectedSocioData.tessera;
+            delete rejectedSocioData.joinDate;
+            delete rejectedSocioData.renewalDate;
+            delete rejectedSocioData.expirationDate;
+            delete rejectedSocioData.membershipYear;
+            delete rejectedSocioData.qualifiche;
             
             batch.set(memberDocRef, rejectedSocioData);
             batch.delete(requestDocRef);
@@ -256,7 +265,13 @@ const SocioTableRow = memo(({
             const memberDocRef = doc(firestore, "members", socioToReject.id);
             batch.update(memberDocRef, {
                 status: 'rejected',
-                notes: newNotes
+                notes: newNotes,
+                tessera: deleteField(),
+                joinDate: deleteField(),
+                renewalDate: deleteField(),
+                expirationDate: deleteField(),
+                membershipYear: deleteField(),
+                qualifiche: deleteField(),
             });
         }
 
@@ -354,57 +369,64 @@ const SocioTableRow = memo(({
     }
   }, [showRenewDialog, getNextMemberNumberForYear, socioIsMinor, socio.qualifica]);
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
     if (!firestore || isApproving || !approveFeePaid) return;
 
     setIsApproving(true);
-    const currentYear = new Date().getFullYear();
-    const membershipCardNumber = `GMC-${currentYear}-${approveMemberNumber}`;
+    try {
+        const currentYear = new Date().getFullYear();
+        const membershipCardNumber = `GMC-${currentYear}-${approveMemberNumber}`;
 
-    const batch = writeBatch(firestore);
+        const batch = writeBatch(firestore);
 
-    const requestDocRef = doc(firestore, "membership_requests", socio.id);
-    const memberDocRef = doc(firestore, "members", socio.id);
+        const requestDocRef = doc(firestore, "membership_requests", socio.id);
+        const memberDocRef = doc(firestore, "members", socio.id);
 
-    const { status, ...restOfSocio } = socio;
-    
-    const newMemberData: Socio = {
-        ...restOfSocio,
-        id: socio.id,
-        joinDate: new Date().toISOString(),
-        status: 'active' as const,
-        expirationDate: new Date(currentYear, 11, 31).toISOString(),
-        membershipYear: String(currentYear),
-        tessera: membershipCardNumber,
-        membershipFee: approveMembershipFee,
-        qualifica: approveQualifiche,
-        requestDate: socio.requestDate || new Date().toISOString(),
-        notes: socio.notes || '', 
-    };
+        const { status, ...restOfSocio } = socio;
+        
+        const newMemberData: any = {
+            ...restOfSocio,
+            id: socio.id,
+            joinDate: new Date().toISOString(),
+            status: 'active' as const,
+            expirationDate: new Date(currentYear, 11, 31).toISOString(),
+            membershipYear: String(currentYear),
+            tessera: membershipCardNumber,
+            membershipFee: approveMembershipFee,
+            qualifica: approveQualifiche,
+            requestDate: socio.requestDate || new Date().toISOString(),
+            notes: socio.notes || '', 
+        };
 
-    batch.set(memberDocRef, newMemberData, { merge: true });
-    batch.delete(requestDocRef);
+        const safeMemberData = Object.fromEntries(
+            Object.entries(newMemberData).filter(([_, v]) => v !== undefined)
+        );
 
-    batch.commit().then(() => {
+        batch.set(memberDocRef, safeMemberData, { merge: true });
+        batch.delete(requestDocRef);
+
+        await batch.commit();
+
         toast({
             title: "Socio Approvato!",
             description: `${getFullName(socio)} è ora un membro attivo. N. tessera: ${membershipCardNumber}`,
         });
         if (onNewApproval) {
-            onNewApproval(newMemberData);
+            onNewApproval(safeMemberData as Socio);
         } else {
-            onPrint(newMemberData);
+            onPrint(safeMemberData as Socio);
         }
         handleApproveDialogChange(false);
         onSocioUpdate('active');
-    }).catch((error) => {
+    } catch (error: any) {
         toast({
             title: "Errore di Approvazione",
-            description: `Impossibile approvare ${getFullName(socio)}. Dettagli: ${(error as Error).message}`,
+            description: `Impossibile approvare ${getFullName(socio)}. Dettagli: ${error.message}`,
             variant: "destructive",
         });
+    } finally {
         setIsApproving(false);
-    });
+    }
   };
   
 const handleRenew = () => {

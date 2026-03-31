@@ -145,12 +145,25 @@ export default function EditSocioForm({ socio, onClose, isFromMembersCollection 
       const collectionName = isFromMembersCollection ? "members" : "membership_requests";
       const docRef = doc(firestore, collectionName, socio.id);
       
-      const updateData = {
+      const updateData: any = {
         ...values,
         updatedAt: serverTimestamp(),
       };
+      
+      // Preserve original date object/timestamp to avoid breaking queries
+      // Only attach if it exists, otherwise fallback or remove to avoid undefined errors
+      if (socio.requestDate !== undefined) {
+        updateData.requestDate = socio.requestDate;
+      } else if (values.requestDate === undefined) {
+        delete updateData.requestDate;
+      }
 
-      await updateDoc(docRef, updateData);
+      // Final safety check: remove any undefined values before sending to Firestore
+      const safeUpdateData = Object.fromEntries(
+        Object.entries(updateData).filter(([_, v]) => v !== undefined)
+      );
+
+      await updateDoc(docRef, safeUpdateData);
       
       toast({
         title: "Socio Aggiornato",
@@ -232,7 +245,7 @@ export default function EditSocioForm({ socio, onClose, isFromMembersCollection 
                 <TabsTrigger value="membership" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10 sm:h-full px-2 gap-1 sm:gap-2 font-medium whitespace-nowrap text-xs sm:text-sm">
                   <CreditCard className="h-4 w-4 shrink-0" /> Tesseramento
                 </TabsTrigger>
-                <TabsTrigger value="admin" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10 sm:h-full px-2 gap-1 sm:gap-2 font-medium whitespace-nowrap text-xs sm:text-sm flex-1 sm:flex-none justify-center sm:justify-start">
+                <TabsTrigger value="admin" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10 sm:h-full px-2 gap-1 sm:gap-2 font-medium whitespace-nowrap text-xs sm:text-sm">
                   <Settings className="h-4 w-4 shrink-0" /> Amministrazione
                 </TabsTrigger>
               </TabsList>
