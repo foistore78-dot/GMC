@@ -856,21 +856,21 @@ export default function ElencoClient() {
 
             <div className="relative min-h-[400px]">
               {isDataLoading && (
-                <div className="absolute inset-0 bg-background/50 z-10 flex flex-col items-center justify-start pt-12">
+                <div className="absolute inset-0 bg-background z-10 flex flex-col items-center justify-start pt-12">
                    <TableSkeleton />
                 </div>
               )}
 
               <TabsContent value="active" className="mt-0 focus-visible:outline-none">
-                <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="active" onNewApproval={handleNewApproval} />
+                <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="active" onNewApproval={handleNewApproval} isLoading={isDataLoading} />
               </TabsContent>
 
               <TabsContent value="expired" className="mt-0 focus-visible:outline-none">
-                <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="expired" onNewApproval={handleNewApproval} />
+                <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="expired" onNewApproval={handleNewApproval} isLoading={isDataLoading} />
               </TabsContent>
 
               <TabsContent value="rejected" className="mt-0 focus-visible:outline-none">
-                <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="rejected" onNewApproval={handleNewApproval} />
+                <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="rejected" onNewApproval={handleNewApproval} isLoading={isDataLoading} />
               </TabsContent>
 
               <TabsContent value="requests" className="mt-0 space-y-4 focus-visible:outline-none">
@@ -884,7 +884,7 @@ export default function ElencoClient() {
                         </AlertDescription>
                     </Alert>
                 )}
-                <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="requests" onNewApproval={handleNewApproval} />
+                <SociTable soci={paginatedData} onEdit={handleEditSocio} onPrint={handlePrintCard} allMembers={membersData} onSocioUpdate={handleSocioUpdate} sortConfig={sortConfig} setSortConfig={setSortConfig} activeTab="requests" onNewApproval={handleNewApproval} isLoading={isDataLoading} />
               </TabsContent>
             </div>
 
@@ -907,7 +907,7 @@ export default function ElencoClient() {
       </Sheet>
 
       <Dialog open={!!approvingSocio} onOpenChange={(open) => !open && setApprovingSocio(null)}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
             <DialogHeader>
                 <DialogTitle>Approva Socio e Completa Iscrizione</DialogTitle>
                 <DialogDescription>
@@ -993,7 +993,7 @@ export default function ElencoClient() {
       </AlertDialog>
 
       <Dialog open={isSecurityDialogOpen} onOpenChange={setIsSecurityDialogOpen}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader><DialogTitle>Verifica Password</DialogTitle></DialogHeader>
           <div className="py-4 space-y-4">
             {/* Hidden inputs to capture browser autofill and prevent it from affecting the main search */}

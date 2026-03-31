@@ -551,7 +551,7 @@ const handleRenew = () => {
                     <Info className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
                   </button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto" closeText="CHIUDI">
+                <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto" closeText="CHIUDI" aria-describedby={undefined}>
                   <DialogHeader className="pb-4">
                     <div className="flex items-center gap-4">
                       <DialogTitle className="text-2xl font-headline tracking-wide text-primary flex items-center gap-3">
@@ -685,7 +685,8 @@ const handleRenew = () => {
                      <DialogTrigger asChild>
                        <Badge onClick={(e) => { e.stopPropagation(); }} variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10">Minore</Badge>
                      </DialogTrigger>
-                     <DialogContent>
+                     <DialogContent aria-describedby={undefined}>
+                       <DialogTitle className="sr-only">Modifica o visualizza dati socio</DialogTitle>
                        <DialogHeader>
                          <DialogTitle className="flex items-center gap-2"><ShieldCheck/> Dettagli Tutore</DialogTitle>
                        </DialogHeader>
@@ -713,7 +714,7 @@ const handleRenew = () => {
                             <span className="hidden sm:inline">Approva</span>
                         </Button>
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-lg">
+                        <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
                             <DialogHeader>
                                 <DialogTitle>Approva Socio e Completa Iscrizione</DialogTitle>
                                 <DialogDescription>
@@ -796,7 +797,7 @@ const handleRenew = () => {
                                 <span className="hidden sm:inline">Rinnova</span>
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-lg">
+                        <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
                             <DialogHeader>
                                 <DialogTitle>Rinnova Tesseramento</DialogTitle>
                                 <DialogDescription>
@@ -970,7 +971,7 @@ const handleRenew = () => {
       </TableRow>
 
       <Dialog open={!!socioToReject} onOpenChange={(open) => !open && setSocioToReject(null)}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Rifiutare socio?</DialogTitle>
             <DialogDescription>
@@ -1000,7 +1001,7 @@ const handleRenew = () => {
       </Dialog>
 
       <Dialog open={showWhatsAppDialog} onOpenChange={setShowWhatsAppDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MessageCircle className="text-green-500" /> Seleziona Gruppo WhatsApp
@@ -1043,7 +1044,7 @@ const handleRenew = () => {
 
       {/* Dialog di Eliminazione Definitiva - STEP 1 */}
       <Dialog open={showDeleteConfirm1} onOpenChange={setShowDeleteConfirm1}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
               <AlertTriangle className="h-5 w-5" /> Attenzione! Eliminazione Definitiva
@@ -1127,6 +1128,7 @@ interface SociTableProps {
   onSocioUpdate: (tab?: 'active' | 'expired' | 'requests' | 'rejected') => void;
   activeTab: 'active' | 'expired' | 'requests' | 'rejected';
   onNewApproval?: (socio: Socio) => void;
+  isLoading?: boolean;
 }
 
 const SortableHeader = ({
@@ -1173,6 +1175,7 @@ export const SociTable = ({
   setSortConfig, 
   activeTab,
   onNewApproval,
+  isLoading,
 }: SociTableProps) => {
 
   const dateHeaderLabel = useMemo(() => {
@@ -1214,6 +1217,12 @@ export const SociTable = ({
                   onNewApproval={onNewApproval}
                 />
               ))
+            ) : isLoading ? (
+              <TableRow>
+                <TableCell colSpan={activeTab === 'requests' ? 4 : 6} className="h-24 text-center text-muted-foreground/50">
+                  Caricamento in corso...
+                </TableCell>
+              </TableRow>
             ) : (
               <TableRow>
                 <TableCell colSpan={activeTab === 'requests' ? 4 : 6} className="h-24 text-center text-muted-foreground">

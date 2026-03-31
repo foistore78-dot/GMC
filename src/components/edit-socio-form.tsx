@@ -224,16 +224,16 @@ export default function EditSocioForm({ socio, onClose, isFromMembersCollection 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex-grow flex flex-col overflow-hidden">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col overflow-hidden">
-            <div className="px-6 border-b bg-card">
-              <TabsList className="w-full justify-start bg-transparent h-12 gap-6 rounded-none p-0">
-                <TabsTrigger value="personal" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-2 gap-2 font-medium">
-                  <User className="h-4 w-4" /> Anagrafica
+            <div className="px-2 sm:px-6 border-b bg-card">
+              <TabsList className="w-full justify-start bg-transparent h-auto sm:h-12 gap-2 sm:gap-6 rounded-none p-0 overflow-x-auto flex-nowrap custom-scrollbar pb-1 sm:pb-0">
+                <TabsTrigger value="personal" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10 sm:h-full px-2 gap-1 sm:gap-2 font-medium whitespace-nowrap text-xs sm:text-sm">
+                  <User className="h-4 w-4 shrink-0" /> Anagrafica
                 </TabsTrigger>
-                <TabsTrigger value="membership" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-2 gap-2 font-medium">
-                  <CreditCard className="h-4 w-4" /> Tesseramento
+                <TabsTrigger value="membership" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10 sm:h-full px-2 gap-1 sm:gap-2 font-medium whitespace-nowrap text-xs sm:text-sm">
+                  <CreditCard className="h-4 w-4 shrink-0" /> Tesseramento
                 </TabsTrigger>
-                <TabsTrigger value="admin" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-2 gap-2 font-medium">
-                  <Settings className="h-4 w-4" /> Amministrazione
+                <TabsTrigger value="admin" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10 sm:h-full px-2 gap-1 sm:gap-2 font-medium whitespace-nowrap text-xs sm:text-sm flex-1 sm:flex-none justify-center sm:justify-start">
+                  <Settings className="h-4 w-4 shrink-0" /> Amministrazione
                 </TabsTrigger>
               </TabsList>
             </div>
