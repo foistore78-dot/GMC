@@ -8,6 +8,7 @@ import { collection, onSnapshot, doc, writeBatch, query, limit, orderBy, startAf
 import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, X, Trash2, Info, Bell, UserCheck, Printer, Minimize2, Maximize2, MessageCircle } from "lucide-react";
 
 import { SociTable, type SortConfig } from "@/components/soci-table";
+import { LoadingScreen } from "@/components/loading-screen";
 import EditSocioForm from "@/components/edit-socio-form";
 import { SocioCard } from "@/components/socio-card";
 import { Button } from "@/components/ui/button";
@@ -755,10 +756,11 @@ export default function ElencoClient() {
 
   if (!areServicesAvailable) {
     return (
-      <div className="flex flex-col justify-center items-center h-[60vh] gap-4">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="text-muted-foreground">Inizializzazione servizi database...</p>
-      </div>
+      <LoadingScreen 
+        fullScreen={false} 
+        message="INIZIALIZZAZIONE" 
+        submessage="Connessione ai servizi cloud GMC..." 
+      />
     );
   }
 
@@ -961,8 +963,8 @@ export default function ElencoClient() {
 
             <div className="relative min-h-[400px]">
               {isDataLoading && (
-                <div className="absolute inset-0 bg-background z-10 flex flex-col items-center justify-start pt-12">
-                   <TableSkeleton />
+                <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
+                   <LoadingScreen fullScreen={false} />
                 </div>
               )}
 

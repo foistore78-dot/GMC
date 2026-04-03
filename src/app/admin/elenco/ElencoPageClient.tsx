@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AuthGuard from "./AuthGuard";
 import { Header } from "@/components/header";
-import { Loader2 } from "lucide-react";
+import { LoadingScreen } from "@/components/loading-screen";
 import ElencoClient from "./ElencoClient";
 import { useFirebase } from "@/firebase";
 import { signOut } from "firebase/auth";
@@ -70,15 +70,11 @@ export default function ElencoPageClient() {
       <Header onLogout={isAdmin ? handleLogout : undefined} />
       <main className="flex-grow flex flex-col">
         {isUserLoading || isCheckingAdmin ? (
-          <div className="flex-grow flex items-center justify-center">
-            <div className="flex flex-col items-center gap-4 text-center">
-              <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <div>
-                <p className="font-bold text-2xl font-headline tracking-widest text-primary uppercase animate-pulse">Riconoscimento Sistema</p>
-                <p className="text-muted-foreground mt-2">Identificazione amministratore GMC in corso...</p>
-              </div>
-            </div>
-          </div>
+          <LoadingScreen 
+            fullScreen={false} 
+            message="RICONOSCIMENTO SISTEMA" 
+            submessage="Identificazione amministratore GMC in corso..." 
+          />
         ) : (
           <AuthGuard isAdmin={isAdmin}>
             <ElencoClient />

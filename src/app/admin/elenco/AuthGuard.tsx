@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Lock, LogIn, Loader2, AlertCircle, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { useFirebase } from '@/firebase';
+import { LoadingScreen } from "@/components/loading-screen";
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -93,12 +94,13 @@ export default function AuthGuard({ children, isAdmin }: AuthGuardProps) {
         </CardHeader>
         <CardContent>
           {!areServicesAvailable ? (
-            <div className="space-y-6 py-4">
-              <div className="flex flex-col items-center justify-center gap-4 text-muted-foreground animate-pulse">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                <p className="text-sm font-medium">Collegamento al progetto in corso...</p>
-                <p className="text-[10px] opacity-50">{firebaseConfig.projectId}</p>
-              </div>
+            <div className="py-4">
+              <LoadingScreen 
+                fullScreen={false} 
+                message="CONNESSIONE" 
+                submessage="Collegamento al progetto GMC..." 
+                className="min-h-[200px]"
+              />
               {showRetry && (
                 <div className="space-y-4">
                   <Alert variant="destructive" className="py-2 px-3 text-xs">
