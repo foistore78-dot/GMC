@@ -15,7 +15,6 @@ export const viewport: Viewport = {
 
 import SettingsPageClient from './SettingsPageClient';
 import { Header } from "@/components/header";
-import { Footer } from "@/components/footer";
 
 export default function SettingsPage() {
   return (
@@ -26,7 +25,6 @@ export default function SettingsPage() {
           <main className="flex-grow flex items-center justify-center">
             <Loader2 className="h-16 w-16 animate-spin text-primary" />
           </main>
-          <Footer />
         </div>
       }
     >

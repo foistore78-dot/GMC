@@ -52,7 +52,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
-import { useFirestore, deleteDocumentNonBlocking } from "@/firebase";
+import { useFirestore, deleteDocumentNonBlocking, logAdminActivity } from "@/firebase";
 import { doc, writeBatch, getDoc, deleteDoc, deleteField } from "firebase/firestore";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
@@ -133,13 +133,13 @@ const SocioTableRow = memo(({
   const isNewMember = activeTab === 'active' && !socio.renewalDate && !!socio.joinDate;
 
   const potentialDuplicate = useMemo(() => {
-    if (activeTab !== 'requests') return null;
+    if (activeTab !== 'requests' || isApproving) return null;
     return allMembers.find(m => 
       m.firstName.toLowerCase().trim() === socio.firstName.toLowerCase().trim() &&
       m.lastName.toLowerCase().trim() === socio.lastName.toLowerCase().trim() &&
       m.birthDate === socio.birthDate
     );
-  }, [allMembers, socio.firstName, socio.lastName, socio.birthDate, activeTab]);
+  }, [allMembers, socio.firstName, socio.lastName, socio.birthDate, activeTab, isApproving]);
 
   const resetApproveDialog = useCallback(() => {
     setShowApproveDialog(false);
@@ -195,6 +195,8 @@ const SocioTableRow = memo(({
         batch.delete(memberDocRef);
 
         await batch.commit();
+
+        logAdminActivity(firestore, 'restore', `${getFullName(socio)} è stato ripristinato ed è tornato in RICHIESTE.`);
 
         toast({
             title: "Socio Ripristinato",
@@ -277,6 +279,8 @@ const SocioTableRow = memo(({
 
         await batch.commit();
 
+        logAdminActivity(firestore, 'reject', `${getFullName(socioToReject)} è stato respinto. Motivo: ${rejectionReason}`);
+
         toast({
             title: "Socio Respinto",
             description: `${getFullName(socioToReject)} è stato spostato nella lista dei respinti.`,
@@ -302,6 +306,9 @@ const SocioTableRow = memo(({
     try {
       // Usiamo 'members' perché i respinti sono salvati lì (con status: rejected)
       await deleteDoc(doc(firestore, "members", socio.id));
+      
+      logAdminActivity(firestore, 'delete', `${getFullName(socio)} è stato eliminato definitivamente dal sistema.`);
+
       toast({
         title: "Eliminazione Definitiva",
         description: `${getFullName(socio)} è stato rimosso correttamente dal sistema.`,
@@ -407,6 +414,8 @@ const SocioTableRow = memo(({
 
         await batch.commit();
 
+        logAdminActivity(firestore, 'approve', `Approvata la richiesta di ${getFullName(socio)}. Assegnata tessera ${membershipCardNumber}`);
+
         toast({
             title: "Socio Approvato!",
             description: `${getFullName(socio)} è ora un membro attivo. N. tessera: ${membershipCardNumber}`,
@@ -457,6 +466,9 @@ const handleRenew = () => {
     
     batch.commit().then(() => {
         const newlyRenewedSocio = { ...socio, ...updatedData };
+        
+        logAdminActivity(firestore, 'renew', `Rinnovato tesseramento per ${getFullName(socio)}. Nuovo numero tessera ${newTessera} (Anno ${renewalYear})`);
+
         toast({
             title: 'Rinnovo Effettuato!',
             description: `Il tesseramento di ${getFullName(socio)} è stato rinnovato. Nuova tessera: ${newTessera}.`,
@@ -754,8 +766,8 @@ const handleRenew = () => {
                                   </Alert>
                                 )}
                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="membership-number" className="sm:text-right">N. Tessera</Label>
-                                    <div className="col-span-3">
+                                    <Label htmlFor="membership-number" className="sm:text-right font-bold text-xs uppercase tracking-wider text-muted-foreground">N. Tessera</Label>
+                                    <div className="col-span-1 sm:col-span-3">
                                     <Input
                                         id="membership-number"
                                         value={`GMC-${new Date().getFullYear()}-${approveMemberNumber}`}
@@ -763,21 +775,21 @@ const handleRenew = () => {
                                             const parts = e.target.value.split('-');
                                             setApproveMemberNumber(parts[parts.length - 1] || '');
                                         }}
-                                        className="w-full max-w-[160px]"
+                                        className="w-full sm:max-w-[160px] bg-muted/30"
                                     />
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-2 sm:gap-4">
-                                    <Label className="sm:text-right pt-2">Qualifiche</Label>
-                                    <div className="col-span-3 space-y-2">
+                                    <Label className="sm:text-right pt-2 font-bold text-xs uppercase tracking-wider text-muted-foreground">Qualifiche</Label>
+                                    <div className="col-span-1 sm:col-span-3 grid grid-cols-2 gap-2">
                                         {QUALIFICHE.map((q) => (
-                                            <div key={q} className="flex items-center space-x-2">
+                                            <div key={q} className="flex items-center space-x-2 bg-muted/20 p-2 rounded-md hover:bg-muted/40 transition-colors">
                                                 <Checkbox 
                                                     id={`qualifica-${q}-approve`} 
                                                     checked={approveQualifiche.includes(q)}
                                                     onCheckedChange={(checked) => handleQualificaChange(q, !!checked, setApproveQualifiche)}
                                                 />
-                                                <label htmlFor={`qualifica-${q}-approve`} className="text-sm font-medium leading-none">
+                                                <label htmlFor={`qualifica-${q}-approve`} className="text-xs font-medium leading-none cursor-pointer">
                                                     {q}
                                                 </label>
                                             </div>
@@ -785,19 +797,19 @@ const handleRenew = () => {
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="membership-fee" className="sm:text-right">Quota (€)</Label>
-                                    <div className="col-span-3 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                                    <Input
-                                        id="membership-fee"
-                                        type="number"
-                                        value={approveMembershipFee}
-                                        onChange={(e) => setApproveMembershipFee(Number(e.target.value))}
-                                        className="w-full max-w-[112px]"
-                                    />
-                                        <div className="flex items-center space-x-2">
-                                        <Checkbox id="fee-paid-approve" checked={approveFeePaid} onCheckedChange={(checked) => setApproveFeePaid(!!checked)} />
-                                        <Label htmlFor="fee-paid-approve" className="text-sm font-medium">Quota Versata</Label>
-                                    </div>
+                                    <Label htmlFor="membership-fee" className="sm:text-right font-bold text-xs uppercase tracking-wider text-muted-foreground">Quota (€)</Label>
+                                    <div className="col-span-1 sm:col-span-3 flex flex-wrap items-center gap-4">
+                                      <Input
+                                          id="membership-fee"
+                                          type="number"
+                                          value={approveMembershipFee}
+                                          onChange={(e) => setApproveMembershipFee(Number(e.target.value))}
+                                          className="w-24 bg-muted/30"
+                                      />
+                                      <div className="flex items-center space-x-2 bg-primary/10 px-3 py-2 rounded-lg border border-primary/20">
+                                          <Checkbox id="fee-paid-approve" checked={approveFeePaid} onCheckedChange={(checked) => setApproveFeePaid(!!checked)} />
+                                          <Label htmlFor="fee-paid-approve" className="text-xs font-bold text-primary cursor-pointer uppercase tracking-tight">Quota Versata</Label>
+                                      </div>
                                     </div>
                                 </div>
                             </div>

@@ -3,7 +3,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import type { FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import type { Auth } from 'firebase/auth';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getFirestore, enableIndexedDbPersistence, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 
 import { firebaseConfig } from './config';
@@ -34,6 +34,21 @@ export function initializeFirebase() {
   } catch (e) {
     console.error("Firebase Initialization Error:", e);
     return { firebaseApp: null, auth: null, firestore: null };
+  }
+}
+
+export async function logAdminActivity(firestore: Firestore | null, type: string, message: string, details?: any) {
+  if (!firestore) return;
+  try {
+    const logsCollection = collection(firestore, 'admin_logs');
+    await addDoc(logsCollection, {
+      type,
+      message,
+      details: details || {},
+      timestamp: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error("Error logging activity:", error);
   }
 }
 

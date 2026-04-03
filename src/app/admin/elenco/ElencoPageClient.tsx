@@ -4,7 +4,6 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AuthGuard from "./AuthGuard";
 import { Header } from "@/components/header";
-import { Footer } from "@/components/footer";
 import { Loader2 } from "lucide-react";
 import ElencoClient from "./ElencoClient";
 import { useFirebase } from "@/firebase";
@@ -86,7 +85,6 @@ export default function ElencoPageClient() {
           </AuthGuard>
         )}
       </main>
-      <Footer />
     </div>
   );
 }

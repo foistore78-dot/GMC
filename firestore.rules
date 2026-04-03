@@ -8,6 +8,7 @@ service cloud.firestore {
      */
     function isAdmin() {
       return request.auth != null && (
+        request.auth.token.email == "garage.music.club2024@gmail.com" ||
         exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
       );
     }
@@ -25,6 +26,18 @@ service cloud.firestore {
     match /members/{memberId} {
       // Solo gli admin possono leggere, creare o modificare i dati dei soci
       allow read, write: if isAdmin();
+    }
+
+    // Regole per i soci eliminati (archivio)
+    match /deleted_members/{memberId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Regole per il Log delle Attivita (Timeline)
+    match /admin_logs/{logId} {
+      allow create: if true; 
+      allow read: if isAdmin();
+      allow update, delete: if false;
     }
 
     // Regole per i ruoli admin

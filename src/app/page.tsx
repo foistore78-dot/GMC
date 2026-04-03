@@ -52,13 +52,13 @@ export default function Home() {
           )}
           <div className="absolute inset-0 bg-black/60" />
           <div className="relative z-10 px-4 flex flex-col items-center">
-            <h1 className="font-headline text-5xl md:text-7xl lg:text-8xl mb-4 tracking-wider uppercase" style={{ textShadow: '0 0 10px hsl(var(--primary)), 0 0 20px hsl(var(--primary))' }}>
-              Garage Music Club
+            <h1 className="font-headline text-5xl md:text-7xl lg:text-9xl mb-4 tracking-tighter uppercase relative" style={{ textShadow: '0 0 20px hsla(var(--primary), 0.5), 0 0 40px hsla(var(--primary), 0.3)' }}>
+              Garage <span className="text-primary italic">Music</span> Club
             </h1>
             <p className="text-lg md:text-xl max-w-2xl mb-8 font-light">
               {t('hero.subtitle')}
             </p>
-            <Button asChild size="lg" className="font-bold text-lg px-10 py-6">
+            <Button asChild size="lg" className="font-black text-xl px-12 py-8 rounded-full shadow-[0_0_30px_rgba(var(--primary),0.3)] hover:scale-105 transition-all">
               <Link href="#apply">{t('hero.cta')}</Link>
             </Button>
           </div>
@@ -98,8 +98,9 @@ export default function Home() {
             <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
               {t('join.subtitle')}
             </p>
-            <div className="max-w-2xl mx-auto">
-              <Card className="bg-secondary border-primary/20">
+            <div className="max-w-3xl mx-auto relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-primary/30 to-accent/30 rounded-3xl blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
+              <Card className="relative bg-black/40 backdrop-blur-2xl border-white/10 shadow-2xl rounded-3xl overflow-hidden">
                 <CardContent className="p-6 md:p-8">
                   <Suspense fallback={<div className="flex items-center justify-center p-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>}>
                     <MembershipForm />

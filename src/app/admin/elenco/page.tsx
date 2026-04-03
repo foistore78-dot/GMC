@@ -15,7 +15,6 @@ export const viewport: Viewport = {
 
 import ElencoPageClient from './ElencoPageClient';
 import { Header } from "@/components/header";
-import { Footer } from "@/components/footer";
 
 export default function ElencoPage() {
   return (
@@ -34,7 +33,6 @@ export default function ElencoPage() {
               <p className="font-headline tracking-widest text-xl text-primary uppercase animate-pulse">Accesso Area Riservata</p>
             </div>
           </main>
-          <Footer />
         </div>
       }
     >

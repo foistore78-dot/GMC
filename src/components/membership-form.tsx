@@ -19,10 +19,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, ArrowLeft, PartyPopper, Info, Home, List } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, PartyPopper, Info, Home, List, User } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
-import { useFirestore, addDocumentNonBlocking } from "@/firebase";
-import { collection, serverTimestamp } from "firebase/firestore";
+import { useFirestore, addDocumentNonBlocking, logAdminActivity } from "@/firebase";
+import { doc, getDoc, collection, serverTimestamp } from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Link from "next/link";
@@ -32,6 +32,9 @@ import { normalizeSocioData, parseDate, toTitleCase } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { STATUTO_TEXT } from "@/lib/statuto";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "./ui/badge";
+import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
+import { Separator } from "./ui/separator";
 
 export function MembershipForm() {
   const { t, language } = useLanguage();
@@ -87,19 +90,20 @@ export function MembershipForm() {
   type FormValues = z.infer<typeof formSchema>;
 
   const baseSteps = useMemo(() => [
-    { id: 1, fields: ["gender"] as const, title: t('steps.gender.title') },
-    { id: 2, fields: ["firstName", "lastName"] as const, title: t('steps.name.title') },
-    { id: 3, fields: ["birthDate", "birthPlace"] as const, title: t('steps.birth.title') },
-    { id: 4, fields: ["fiscalCode"] as const, title: t('steps.fiscalCode.title') },
-    { id: 5, fields: ["address", "city", "province", "postalCode"] as const, title: t('steps.address.title') },
-    { id: 6, fields: ["email", "phone", "whatsappConsent"] as const, title: t('steps.contact.title') },
-    { id: 7, fields: ["legalConsent"] as const, title: t('steps.privacy.title') },
+    { id: 1, fields: ["gender"] as const, title: t('steps.gender.title'), icon: <User className="w-5 h-5" /> },
+    { id: 2, fields: ["firstName", "lastName"] as const, title: t('steps.name.title'), icon: <Info className="w-5 h-5" /> },
+    { id: 3, fields: ["birthDate", "birthPlace"] as const, title: t('steps.birth.title'), icon: <PartyPopper className="w-5 h-5" /> },
+    { id: 4, fields: ["fiscalCode"] as const, title: t('steps.fiscalCode.title'), icon: <List className="w-5 h-5" /> },
+    { id: 5, fields: ["address", "city", "province", "postalCode"] as const, title: t('steps.address.title'), icon: <Home className="w-5 h-5" /> },
+    { id: 6, fields: ["email", "phone", "whatsappConsent"] as const, title: t('steps.contact.title'), icon: <Info className="w-5 h-5" /> },
+    { id: 7, fields: ["legalConsent"] as const, title: t('steps.privacy.title'), icon: <Info className="w-5 h-5" /> },
   ], [t]);
 
   const guardianStep = useMemo(() => ({
     id: 8,
     fields: ["guardianFirstName", "guardianLastName", "guardianBirthDate"] as const,
     title: t('steps.guardian.title'),
+    icon: <User className="w-5 h-5 text-amber-500" />,
   }), [t]);
 
 
@@ -201,6 +205,8 @@ export function MembershipForm() {
       // CRITICAL: We don't await the mutation for maximum UI responsiveness
       addDocumentNonBlocking(requestsCollection, membershipRequestData);
 
+      logAdminActivity(firestore, 'new_request', `Arrivata nuova richiesta da parte di ${values.firstName} ${values.lastName}`);
+
       setIsSubmitted(true);
     } catch (error) {
       toast({
@@ -264,29 +270,44 @@ export function MembershipForm() {
 
   if (isSubmitted) {
     return (
-        <div className="text-center p-8 bg-background rounded-lg shadow-lg">
-            <PartyPopper className="w-16 h-16 mx-auto text-primary animate-bounce"/>
-            <h2 className="text-2xl font-headline mt-4 text-primary">{t('submission.success.title')}</h2>
-            <p className="mt-2 text-muted-foreground">{t('submission.success.description')}</p>
-            <Alert className="mt-6 text-left bg-secondary border-primary/20">
-              <Info className="h-4 w-4 text-primary" />
-              <AlertTitle className="font-semibold text-primary">{t('submission.success.nextSteps.title')}</AlertTitle>
-              <AlertDescription 
-                className="text-foreground/90" 
-                dangerouslySetInnerHTML={{ __html: t('submission.success.nextSteps.description') }} 
-              />
-            </Alert>
-            <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
-                <Button onClick={resetForm} variant="outline">
-                    {t('submission.success.newApplication')}
-                </Button>
-                <Button asChild>
-                   {cameFromAdmin ? (
-                      <Link href="/admin/elenco"><List className="mr-2 h-4 w-4" /> Torna all'elenco</Link>
-                    ) : (
-                      <Link href="/"><Home className="mr-2 h-4 w-4" /> {t('submission.success.goHome')}</Link>
-                   )}
-                </Button>
+        <div className="text-center p-8 bg-background/20 backdrop-blur-md rounded-2xl border border-primary/20 shadow-xl overflow-hidden relative group">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-accent to-primary animate-progress-indeterminate"></div>
+            <div className="p-10">
+                <PartyPopper className="w-20 h-20 mx-auto text-primary animate-bounce mb-6"/>
+                <h2 className="text-3xl font-black uppercase tracking-tighter text-white mb-2">{t('submission.success.title')}</h2>
+                <div className="flex justify-center mb-6">
+                    <Badge variant="outline" className="text-primary border-primary/30 py-1 px-4 font-bold tracking-widest text-[10px] uppercase">Registrazione Inoltrata</Badge>
+                </div>
+                <p className="mt-2 text-muted-foreground max-w-md mx-auto leading-relaxed">{t('submission.success.description')}</p>
+                
+                <Separator className="my-8 opacity-10" />
+
+                <Alert className="text-left bg-primary/5 border-primary/20 rounded-xl">
+                    <Info className="h-5 w-5 text-primary mt-1" />
+                    <div>
+                        <AlertTitle className="font-black text-xs uppercase tracking-[0.2em] text-primary mb-2">{t('submission.success.nextSteps.title')}</AlertTitle>
+                        <AlertDescription 
+                            className="text-sm font-medium leading-relaxed" 
+                            dangerouslySetInnerHTML={{ __html: t('submission.success.nextSteps.description') }} 
+                        />
+                    </div>
+                </Alert>
+                
+                <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+                    <Button onClick={resetForm} variant="outline" className="border-primary/20 hover:bg-primary/10 rounded-full px-8 py-6 h-auto font-bold uppercase text-xs">
+                        {t('submission.success.newApplication')}
+                    </Button>
+                    <Button asChild className="rounded-full px-8 py-6 h-auto font-black uppercase text-xs tracking-wider shadow-[0_4px_15px_rgba(var(--primary),0.3)]">
+                    {cameFromAdmin ? (
+                        <Link href="/admin/elenco"><List className="mr-2 h-4 w-4" /> Torna all'elenco</Link>
+                        ) : (
+                        <Link href="/"><Home className="mr-2 h-4 w-4" /> {t('submission.success.goHome')}</Link>
+                    )}
+                    </Button>
+                </div>
+            </div>
+            <div className="absolute -right-20 -bottom-20 opacity-[0.03] text-primary group-hover:scale-110 transition-transform duration-1000 rotate-12">
+                <PartyPopper size={300}/>
             </div>
         </div>
     )
@@ -305,10 +326,25 @@ export function MembershipForm() {
         </Alert>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(processForm)} className="space-y-8">
-            <Progress value={progress} className="w-full" />
+            <div className="relative pt-2">
+                <Progress value={progress} className="h-1.5 w-full bg-primary/10 overflow-hidden rounded-full" />
+                <div className="absolute -top-1 left-0 flex justify-between w-full opacity-0 pointer-events-none">
+                    {/* Visual markers for progress */}
+                </div>
+            </div>
             
-            <div key={currentStep} className="animate-in fade-in slide-in-from-right-4 duration-300">
-                <h2 className="text-xl font-semibold mb-6 text-foreground">{steps[currentStep].title}</h2>
+            <div key={currentStep} className="animate-in fade-in slide-in-from-right-4 duration-500 pt-2">
+                <div className="flex items-center gap-3 mb-8">
+                    <div className="p-2.5 bg-primary/10 rounded-xl text-primary border border-primary/20 shadow-[0_0_15px_rgba(var(--primary),0.1)]">
+                        {(steps[currentStep] as any).icon}
+                    </div>
+                    <div>
+                        <Badge variant="outline" className="text-[9px] uppercase tracking-widest font-black text-muted-foreground/50 border-none p-0 mb-0.5">
+                            Step {currentStep + 1} di {steps.length}
+                        </Badge>
+                        <h2 className="text-2xl font-black uppercase tracking-tighter text-white">{steps[currentStep].title}</h2>
+                    </div>
+                </div>
 
                 {steps[currentStep].id === 1 && (
                    <FormField
@@ -406,26 +442,26 @@ export function MembershipForm() {
                                 </Select>
 
                                 <Select 
-                                    onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
-                                    value={field.value ? field.value.split('-')[0] : undefined}
-                                >
-                                     <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Anno" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-
-                                <Select 
                                     onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
                                     value={field.value ? field.value.split('-')[1] : undefined}
                                 >
-                                    <SelectTrigger className="w-full col-span-2 sm:col-span-1">
+                                    <SelectTrigger className="w-full">
                                         <SelectValue placeholder="Mese" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {months.map(m => <SelectItem key={m.value} value={m.value}>{toTitleCase(m.label)}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select 
+                                    onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
+                                    value={field.value ? field.value.split('-')[0] : undefined}
+                                >
+                                     <SelectTrigger className="w-full col-span-2 sm:col-span-1">
+                                        <SelectValue placeholder="Anno" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -512,26 +548,26 @@ export function MembershipForm() {
                                  </Select>
 
                                  <Select 
-                                     onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
-                                     value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
-                                 >
-                                     <SelectTrigger className="w-full pointer-events-auto">
-                                         <SelectValue placeholder="Anno" />
-                                     </SelectTrigger>
-                                     <SelectContent>
-                                         {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                                     </SelectContent>
-                                 </Select>
-
-                                 <Select 
                                      onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
                                      value={field.value ? String((parseDate(field.value)?.getMonth() ?? 0) + 1).padStart(2, '0') : undefined}
                                  >
-                                     <SelectTrigger className="w-full col-span-2 sm:col-span-1 pointer-events-auto">
+                                     <SelectTrigger className="w-full pointer-events-auto">
                                          <SelectValue placeholder="Mese" />
                                      </SelectTrigger>
                                      <SelectContent>
                                          {months.map(m => <SelectItem key={m.value} value={m.value}>{toTitleCase(m.label)}</SelectItem>)}
+                                     </SelectContent>
+                                 </Select>
+
+                                 <Select 
+                                     onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
+                                     value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
+                                 >
+                                     <SelectTrigger className="w-full col-span-2 sm:col-span-1 pointer-events-auto">
+                                         <SelectValue placeholder="Anno" />
+                                     </SelectTrigger>
+                                     <SelectContent>
+                                         {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
                                      </SelectContent>
                                  </Select>
                                         </div>

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
 import { collection, onSnapshot, doc, writeBatch, query, limit, orderBy, startAfter, QueryDocumentSnapshot, where, getDocs } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, X, Trash2, Info, Bell, UserCheck, Printer, Minimize2, Maximize2 } from "lucide-react";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, X, Trash2, Info, Bell, UserCheck, Printer, Minimize2, Maximize2, MessageCircle } from "lucide-react";
 
 import { SociTable, type SortConfig } from "@/components/soci-table";
 import EditSocioForm from "@/components/edit-socio-form";
@@ -35,15 +35,20 @@ import {
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 import type { Socio } from "@/lib/soci-data";
-import { useFirestore, errorEmitter, FirestorePermissionError, useFirebase } from "@/firebase";
+import { normalizeSocioData, getFullName, parseDate, getStatus, toTitleCase, isOlderThanDays } from "@/lib/utils";
+import { useFirestore, errorEmitter, FirestorePermissionError, useFirebase, useMemoFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { exportToExcel } from "@/lib/excel-export";
 import { Label } from "@/components/ui/label";
-import { getStatus, getFullName, parseDate, isOlderThanDays, toTitleCase, cn, normalizeSocioData } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { QUALIFICHE } from "@/lib/soci-data";
+import { formatDistanceToNow } from "date-fns";
+import { it } from "date-fns/locale";
+import { useCollection } from "@/firebase";
 
 const ITEMS_PER_PAGE = 50;
 const SECURITY_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_SECURITY_PASSWORD || "1978";
@@ -368,16 +373,27 @@ export default function ElencoClient() {
   };
 
   const potentialDuplicate = useMemo(() => {
-    if (!approvingSocio) return null;
+    if (!approvingSocio || isApproving) return null;
     return membersData.find(m => 
       m.firstName.toLowerCase().trim() === approvingSocio.firstName.toLowerCase().trim() &&
       m.lastName.toLowerCase().trim() === approvingSocio.lastName.toLowerCase().trim() &&
       m.birthDate === approvingSocio.birthDate
     );
-  }, [membersData, approvingSocio]);
+    }, [membersData, approvingSocio, isApproving]);
+    
+    /* 
+    const logsQuery = useMemoFirebase(() => 
+        firestore ? query(collection(firestore, "admin_logs"), orderBy("timestamp", "desc"), limit(15)) : null,
+    [firestore]);
 
-  const seenRequestIds = useRef<Set<string>>(new Set());
-  const isInitialLoad = useRef(true);
+    const { data: rawLogs, isLoading: loadingLogs, error: errorLogs } = useCollection(logsQuery);
+    */
+    const rawLogs = [];
+    const loadingLogs = false;
+    const errorLogs = null;
+
+    const seenRequestIds = useRef<Set<string>>(new Set());
+    const isInitialLoad = useRef(true);
 
   useEffect(() => {
     // Se i servizi sono ancora in caricamento, non facciamo nulla
@@ -445,7 +461,7 @@ export default function ElencoClient() {
             const newMap = new Map(prev.map(r => [r.id, r]));
             snapshot.docChanges().forEach(change => {
                 if (change.type === "added" || change.type === "modified") {
-                    const newSocio = change.doc.data() as Socio;
+                    const newSocio = normalizeSocioData({ id: change.doc.id, ...change.doc.data() }) as Socio;
                     if (change.type === "added" && !isInitialLoad.current && !seenRequestIds.current.has(change.doc.id)) {
                         toast({
                           title: "Nuova Richiesta!",
@@ -453,7 +469,7 @@ export default function ElencoClient() {
                         });
                         handleNewRequestPopup(newSocio);
                     }
-                    newMap.set(change.doc.id, normalizeSocioData({ id: change.doc.id, ...change.doc.data() }) as Socio);
+                    newMap.set(change.doc.id, newSocio);
                 } else if (change.type === "removed") {
                     newMap.delete(change.doc.id);
                 }
@@ -498,7 +514,7 @@ export default function ElencoClient() {
     const filteredRejected = filteredMembersSet.filter((s) => getStatus(s, true) === "rejected");
     const filteredRequests = filteredRequestsSet.filter((req) => getStatus(req, false) === "pending");
 
-    const counts = {
+    const calculatedCounts = {
         active: filteredActive.length,
         expired: filteredExpired.length,
         rejected: filteredRejected.length,
@@ -523,7 +539,7 @@ export default function ElencoClient() {
     const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE);
     const paginatedData = sortedData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-    return { paginatedData, totalPages, counts, oldRequests };
+    return { paginatedData, totalPages, counts: calculatedCounts, oldRequests };
 }, [membersData, requestsData, deferredFilter, activeTab, sortConfig, currentPage]);
 
   useEffect(() => {
@@ -783,6 +799,79 @@ export default function ElencoClient() {
             </Button>
         </div>
       </div>
+      
+      {/* Activity Feed (Timeline) - Temporaneamente disattivato per permessi Firestore 
+      <div className="mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
+        <Card className="bg-black/20 backdrop-blur-md border-primary/20 shadow-xl overflow-hidden rounded-2xl">
+            <CardHeader className="p-4 border-b border-white/5 flex flex-row items-center justify-between bg-primary/5">
+                <div className="flex items-center gap-2">
+                    <div className="p-2 bg-primary/20 rounded-lg">
+                        <RefreshCw className="h-4 w-4 text-primary animate-spin-slow" />
+                    </div>
+                    <CardTitle className="text-sm font-black uppercase tracking-widest text-primary">Ultimi Movimenti</CardTitle>
+                </div>
+                <Badge variant="outline" className="text-[9px] border-primary/30 text-primary/70 font-bold tracking-widest uppercase">Live Feed</Badge>
+            </CardHeader>
+            <CardContent className="p-0">
+                <div className="max-h-[180px] overflow-y-auto scrollbar-thin scrollbar-thumb-primary/20 hover:scrollbar-thumb-primary/40 transition-colors">
+                    {errorLogs ? (
+                        <div className="p-8 text-center text-rose-300/50 italic text-xs flex flex-col gap-2 items-center">
+                            <AlertTriangle className="h-5 w-5 mb-1" />
+                            <span>Errore permessi Firestore.</span>
+                            <span className="text-[10px] opacity-60 not-italic">Assicurati di aver pubblicato le nuove regole di sicurezza.</span>
+                        </div>
+                    ) : loadingLogs ? (
+                        <div className="flex items-center justify-center p-8 gap-3 text-muted-foreground italic text-sm">
+                            <Loader2 className="h-4 w-4 animate-spin" /> Caricamento attività...
+                        </div>
+                    ) : rawLogs && rawLogs.length > 0 ? (
+                        <div className="divide-y divide-white/5">
+                            {rawLogs.map((log: any, idx: number) => {
+                                const logDate = log.timestamp?.toDate ? log.timestamp.toDate() : new Date();
+                                const relativeTime = formatDistanceToNow(logDate, { addSuffix: true, locale: it });
+                                
+                                // Map icons to log types
+                                const getIcon = (type: string) => {
+                                    switch(type) {
+                                        case 'new_request': return <Bell className="h-3 w-3 text-blue-400" />;
+                                        case 'approve': return <UserCheck className="h-3 w-3 text-emerald-400" />;
+                                        case 'renew': return <RefreshCw className="h-3 w-3 text-indigo-400" />;
+                                        case 'reject': return <X className="h-3 w-3 text-rose-400" />;
+                                        case 'delete': return <Trash2 className="h-3 w-3 text-rose-600" />;
+                                        case 'restore': return <ArrowRight className="h-3 w-3 text-amber-400" />;
+                                        default: return <Info className="h-3 w-3 text-muted-foreground" />;
+                                    }
+                                };
+
+                                return (
+                                    <div key={log.id || idx} className="p-3 sm:px-6 hover:bg-white/5 transition-colors flex items-center gap-4 group">
+                                        <div className="shrink-0 p-2 bg-background/50 rounded-full border border-white/5 group-hover:scale-110 transition-transform shadow-sm">
+                                            {getIcon(log.type)}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs sm:text-sm font-medium text-foreground tracking-tight line-clamp-1">{log.message}</p>
+                                            <p className="text-[10px] text-muted-foreground/60 uppercase font-bold tracking-tighter mt-0.5">{relativeTime}</p>
+                                        </div>
+                                        <div className="hidden sm:block shrink-0">
+                                            <Badge variant="ghost" className="text-[9px] opacity-20 group-hover:opacity-100 transition-opacity uppercase font-black">{log.type}</Badge>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="p-12 text-center text-muted-foreground italic text-sm">
+                            Nessuna attività registrata di recente.
+                        </div>
+                    )}
+                </div>
+            </CardContent>
+            <div className="p-2 bg-primary/5 border-t border-white/5 text-[9px] text-center text-muted-foreground/40 font-bold uppercase tracking-widest">
+                Sistema di Monitoraggio Live GMC
+            </div>
+        </Card>
+      </div>
+      */}
 
       <div className="bg-background rounded-lg border border-border shadow-lg p-2 sm:p-4">
         {error ? (
@@ -805,26 +894,26 @@ export default function ElencoClient() {
                 <TabsList className="flex flex-wrap h-auto p-1 bg-muted/20 gap-1 sm:gap-2 w-full sm:w-auto">
                   <TabsTrigger 
                     value="active" 
-                    className="flex-1 min-w-[130px] rounded-md px-2 sm:px-4 py-2 border border-emerald-200 text-emerald-600 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:border-emerald-600 transition-all font-medium text-[10px] sm:text-xs"
+                    className="flex-1 min-w-[100px] rounded-md px-2 sm:px-6 py-2.5 border border-transparent data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:border-emerald-600 transition-all font-bold text-[10px] sm:text-xs uppercase tracking-tighter"
                   >
                     ATTIVI ({counts.active})
                   </TabsTrigger>
                   <TabsTrigger 
                     value="expired" 
-                    className="flex-1 min-w-[130px] rounded-md px-2 sm:px-4 py-2 border border-amber-200 text-amber-600 data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]:border-amber-600 transition-all font-medium text-[10px] sm:text-xs"
+                    className="flex-1 min-w-[100px] rounded-md px-2 sm:px-6 py-2.5 border border-transparent data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]:border-amber-600 transition-all font-bold text-[10px] sm:text-xs uppercase tracking-tighter"
                   >
                     SOSPESI ({counts.expired})
                   </TabsTrigger>
                   <TabsTrigger 
                     value="requests" 
-                    className="flex-1 min-w-[130px] rounded-md px-2 sm:px-4 py-2 border border-blue-200 text-blue-600 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:border-blue-600 transition-all font-medium text-[10px] sm:text-xs"
+                    className="flex-1 min-w-[100px] rounded-md px-2 sm:px-6 py-2.5 border border-transparent data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:border-blue-600 transition-all font-bold text-[10px] sm:text-xs uppercase tracking-tighter"
                   >
                     RICHIESTE ({counts.requests})
                   </TabsTrigger>
                   {showRejectedTab ? (
                     <TabsTrigger 
                       value="rejected" 
-                      className="flex-1 min-w-[130px] rounded-md px-2 sm:px-4 py-2 border border-rose-200 text-rose-600 data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:border-rose-600 transition-all font-medium text-[10px] sm:text-xs"
+                      className="flex-1 min-w-[100px] rounded-md px-2 sm:px-6 py-2.5 border border-transparent data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:border-rose-600 transition-all font-bold text-[10px] sm:text-xs uppercase tracking-tighter"
                     >
                       RESPINTI ({counts.rejected})
                     </TabsTrigger>
@@ -1139,15 +1228,15 @@ function ApprovalPopup({ socio, onClose, onPrint, index }: { socio: Socio, onClo
                 top: `${position.y}px`,
                 position: 'fixed'
             }}
-            className="pointer-events-auto bg-card border-2 border-primary shadow-2xl rounded-xl w-80 overflow-hidden animate-in fade-in zoom-in animate-shake duration-300 select-none"
+            className="pointer-events-auto bg-card/90 backdrop-blur-xl border border-primary/30 shadow-[0_20px_50px_rgba(0,0,0,0.3)] rounded-2xl w-80 overflow-hidden animate-in fade-in zoom-in animate-shake duration-500 select-none"
         >
             {/* Header / Drag Handle */}
             <div 
                 onMouseDown={onMouseDown}
-                className="bg-primary p-3 flex items-center justify-between cursor-move"
+                className="bg-primary/90 backdrop-blur-sm p-4 flex items-center justify-between cursor-move"
             >
-                <div className="flex items-center gap-2 text-primary-foreground font-bold uppercase text-xs tracking-widest">
-                    <UserCheck className="h-4 w-4" /> Nuovo Socio Approvato
+                <div className="flex items-center gap-2 text-primary-foreground font-black uppercase text-[10px] tracking-[0.2em]">
+                    <UserCheck className="h-4 w-4" /> Socio Approvato
                 </div>
                 <div className="flex gap-1">
                     <button onClick={() => setIsMinimized(true)} className="text-primary-foreground/80 hover:text-white transition-colors p-1">
@@ -1267,14 +1356,14 @@ function RequestPopup({ socio, onClose, onApprove, index }: { socio: Socio, onCl
                 top: `${position.y}px`,
                 position: 'fixed'
             }}
-            className="pointer-events-auto bg-card border-2 border-blue-600 shadow-2xl rounded-xl w-80 overflow-hidden animate-in fade-in zoom-in animate-shake duration-300 select-none"
+            className="pointer-events-auto bg-card/90 backdrop-blur-xl border border-blue-500/30 shadow-[0_20px_50px_rgba(0,0,0,0.3)] rounded-2xl w-80 overflow-hidden animate-in fade-in zoom-in animate-shake duration-500 select-none"
         >
             <div 
                 onMouseDown={onMouseDown}
-                className="bg-blue-600 p-3 flex items-center justify-between cursor-move"
+                className="bg-blue-600/90 backdrop-blur-sm p-4 flex items-center justify-between cursor-move"
             >
-                <div className="flex items-center gap-2 text-white font-bold uppercase text-xs tracking-widest">
-                    <Bell className="h-4 w-4" /> Nuova Domanda Adesione
+                <div className="flex items-center gap-2 text-white font-black uppercase text-[10px] tracking-[0.2em]">
+                    <Bell className="h-4 w-4" /> Nuova Richiesta
                 </div>
                 <div className="flex gap-1">
                     <button onClick={() => setIsMinimized(true)} className="text-white/80 hover:text-white transition-colors p-1">
