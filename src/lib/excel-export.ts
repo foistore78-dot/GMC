@@ -77,8 +77,6 @@ function formatSocioRow(item: any) {
 }
 
 export async function exportToExcel(soci: Socio[], richieste: any[]) {
-  console.log("--- EXPORT FULL RESTORE START ---");
-  
   try {
     if (!XLSX) throw new Error("Libreria XLSX non caricata.");
 
@@ -149,7 +147,7 @@ export async function exportToExcel(soci: Socio[], richieste: any[]) {
       }, 1000);
     }
     
-    console.log("--- EXPORT SUCCESS ---");
+    
   } catch (error: any) {
     console.error("ERRORE EXPORT:", error);
     alert("ERRORE DURANTE L'EXPORT: " + error.message);

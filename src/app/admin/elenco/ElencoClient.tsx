@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useState, useDeferredValue, useRef } f
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
-import { collection, onSnapshot, doc, writeBatch, query, limit, orderBy, startAfter, QueryDocumentSnapshot, where, getDocs } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, X, Trash2, Info, Bell, UserCheck, Printer, Minimize2, Maximize2, MessageCircle } from "lucide-react";
+import { collection, onSnapshot, doc, writeBatch, query, limit, orderBy, startAfter, QueryDocumentSnapshot, where, getDocs, serverTimestamp, deleteField, getDoc } from "firebase/firestore";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, X, Trash2, Info, Bell, UserCheck, Printer, Minimize2, Maximize2, MessageCircle, Award, Euro } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import { SociTable, type SortConfig } from "@/components/soci-table";
 import { LoadingScreen } from "@/components/loading-screen";
@@ -40,7 +41,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 import type { Socio } from "@/lib/soci-data";
-import { normalizeSocioData, getFullName, parseDate, getStatus, toTitleCase, isOlderThanDays } from "@/lib/utils";
+import { normalizeSocioData, getFullName, parseDate, getStatus, toTitleCase, isOlderThanDays, getNextMemberNumberForYear } from "@/lib/utils";
 import { useFirestore, errorEmitter, FirestorePermissionError, useFirebase, useMemoFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { exportToExcel } from "@/lib/excel-export";
@@ -136,13 +137,26 @@ const filterAndSortData = (
       if (['renewalDate', 'joinDate', 'requestDate', 'birthDate', 'contextualDate', 'expirationDate'].includes(key)) {
         const dA = parseDate(aVal);
         const dB = parseDate(bVal);
-        // Se la data manca (es: serverTimestamp ancora pendente), 
-        // la trattiamo come "nuovissima" per farla apparire in cima
-        const dateA = dA ? dA.getTime() : Date.now() + 100000;
-        const dateB = dB ? dB.getTime() : Date.now() + 100000;
-        if (dateA < dateB) return asc ? -1 : 1;
-        if (dateA > dateB) return asc ? 1 : -1;
-        return 0;
+        
+        // Logica di fallback robusta: se manca la data, ipotizziamo "ora attuale" (per i nuovi inserimenti)
+        const timeA = dA ? dA.getTime() : Date.now();
+        const timeB = dB ? dB.getTime() : Date.now();
+        
+        if (timeA !== timeB) {
+            // Se stiamo cercando "le più recenti" (discendente), timeB - timeA mette il più grande (più recente) in alto
+            return asc ? timeA - timeB : timeB - timeA;
+        }
+
+        // Tie-breaker: submittedAt (stringa ISO) - garantisce coerenza tra client e server
+        const subA = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+        const subB = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+        
+        if (subA !== subB) {
+            return asc ? subA - subB : subB - subA;
+        }
+
+        // Ultima spiaggia: stabilità per nome
+        return getFullName(a).localeCompare(getFullName(b), 'it-IT');
       }
 
       aVal = String(aVal ?? '');
@@ -273,36 +287,19 @@ export default function ElencoClient() {
   const [approveFeePaid, setApproveFeePaid] = useState(false);
   const [requestPopupIdToClose, setRequestPopupIdToClose] = useState<string | null>(null);
 
-  const getNextMemberNumberForYear = useCallback((year: number) => {
-    const yearMemberNumbers = membersData
-      .filter(m => m.membershipYear === String(year) && m.tessera && m.status !== 'rejected')
-      .map(m => parseInt(String(m.tessera!).split('-').pop() || '0', 10))
-      .filter(n => !isNaN(n) && n > 0);
-    
-    yearMemberNumbers.sort((a, b) => a - b);
-    
-    let nextNum = 1;
-    for (const num of yearMemberNumbers) {
-        if (num === nextNum) {
-            nextNum++;
-        } else if (num > nextNum) {
-            break;
-        }
-    }
-    return nextNum;
-  }, [membersData]);
+
 
   useEffect(() => {
     if (approvingSocio) {
       const currentYear = new Date().getFullYear();
-      const nextNumber = getNextMemberNumberForYear(currentYear);
+      const nextNumber = getNextMemberNumberForYear(membersData, currentYear);
       
       setApproveMemberNumber(String(nextNumber));
       setApproveMembershipFee(isOlderThanDays(approvingSocio.birthDate, 18 * 365) ? 10 : 0);
       setApproveQualifiche(approvingSocio.qualifica || []);
       setApproveFeePaid(false);
     }
-  }, [approvingSocio, getNextMemberNumberForYear]);
+  }, [approvingSocio, membersData]);
 
   const handleApproveFromPopup = async () => {
     if (!firestore || !approvingSocio || isApproving || !approveFeePaid) return;
@@ -582,10 +579,20 @@ export default function ElencoClient() {
   const handleSocioUpdate = useCallback(
     (arg?: "active" | "expired" | "requests" | "rejected" | Socio) => {
       setEditingSocio(null);
-      // Solo se l'argomento è una stringa (un tab), cambiamo tab.
-      // Se è un oggetto socio (dal salvataggio), non facciamo nulla al tab attivo.
+      if (!arg) return;
+
+      // Se l'argomento è una stringa (un tab), cambiamo tab e forziamo il reset dell'ordinamento
       if (typeof arg === "string") {
-          setActiveTab(arg);
+          setActiveTab(arg as 'active' | 'expired' | 'requests' | 'rejected');
+          
+          // RESET FORZATO: Assicura che l'ordinamento sia quello di default per il tab
+          // Questo risolve il problema del "secondo test" dove l'ordine poteva rimanere sporco
+          if (arg === 'requests') {
+              setSortConfig({ key: 'contextualDate', direction: 'descending' });
+          } else {
+              setSortConfig({ key: 'tessera', direction: 'descending' });
+          }
+          setCurrentPage(1);
       }
     },
     []
@@ -734,9 +741,26 @@ export default function ElencoClient() {
     setIsCleaningUp(true);
     try {
         const batch = writeBatch(firestore);
+        const today = new Date().toLocaleDateString('it-IT');
+        
         oldRequests.forEach(req => {
-            const docRef = doc(firestore, "membership_requests", req.id);
-            batch.delete(docRef);
+            const memberDocRef = doc(firestore, "members", req.id); // Spostiamo nei respinti (che sono in 'members')
+            const requestDocRef = doc(firestore, "membership_requests", req.id);
+            
+            const oldRequestDate = req.requestDate ? new Date(req.requestDate).toLocaleDateString('it-IT') : 'N/A';
+            const note = `--- ELIMINAZIONE AUTOMATICA ${today} ---\nRichiesta eliminata perché superata di 30 giorni.\nVecchia data di richiesta: ${oldRequestDate}.\n------------------------\n\n${req.notes || ''}`.trim();
+
+            const { status, ...restOfReq } = req;
+            batch.set(memberDocRef, {
+                ...restOfReq,
+                status: 'rejected',
+                notes: note,
+                membershipFee: 0,
+                requestDate: null, // Puliamo come richiesto
+                joinDate: null,
+                tessera: null
+            });
+            batch.delete(requestDocRef);
         });
         
         await batch.commit();
@@ -896,26 +920,26 @@ export default function ElencoClient() {
                 <TabsList className="flex flex-wrap h-auto p-1 bg-muted/20 gap-1 sm:gap-2 w-full sm:w-auto">
                   <TabsTrigger 
                     value="active" 
-                    className="flex-1 min-w-[100px] rounded-md px-2 sm:px-6 py-2.5 border border-transparent data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:border-emerald-600 transition-all font-bold text-[10px] sm:text-xs uppercase tracking-tighter"
+                    className="flex-1 min-w-[100px] rounded-md px-2 sm:px-6 py-2.5 border border-emerald-500/40 text-emerald-600 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:border-emerald-600 transition-all font-bold text-[10px] sm:text-xs uppercase tracking-tighter"
                   >
                     ATTIVI ({counts.active})
                   </TabsTrigger>
                   <TabsTrigger 
                     value="expired" 
-                    className="flex-1 min-w-[100px] rounded-md px-2 sm:px-6 py-2.5 border border-transparent data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]:border-amber-600 transition-all font-bold text-[10px] sm:text-xs uppercase tracking-tighter"
+                    className="flex-1 min-w-[100px] rounded-md px-2 sm:px-6 py-2.5 border border-amber-500/40 text-amber-500 data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]:border-amber-600 transition-all font-bold text-[10px] sm:text-xs uppercase tracking-tighter"
                   >
                     SOSPESI ({counts.expired})
                   </TabsTrigger>
                   <TabsTrigger 
                     value="requests" 
-                    className="flex-1 min-w-[100px] rounded-md px-2 sm:px-6 py-2.5 border border-transparent data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:border-blue-600 transition-all font-bold text-[10px] sm:text-xs uppercase tracking-tighter"
+                    className="flex-1 min-w-[100px] rounded-md px-2 sm:px-6 py-2.5 border border-blue-500/40 text-blue-500 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:border-blue-600 transition-all font-bold text-[10px] sm:text-xs uppercase tracking-tighter"
                   >
                     RICHIESTE ({counts.requests})
                   </TabsTrigger>
                   {showRejectedTab ? (
                     <TabsTrigger 
                       value="rejected" 
-                      className="flex-1 min-w-[100px] rounded-md px-2 sm:px-6 py-2.5 border border-transparent data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:border-rose-600 transition-all font-bold text-[10px] sm:text-xs uppercase tracking-tighter"
+                      className="flex-1 min-w-[100px] rounded-md px-2 sm:px-6 py-2.5 border border-rose-500/40 text-rose-500 data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:border-rose-600 transition-all font-bold text-[10px] sm:text-xs uppercase tracking-tighter"
                     >
                       RESPINTI ({counts.rejected})
                     </TabsTrigger>
@@ -923,7 +947,7 @@ export default function ElencoClient() {
                     <Button
                         variant="outline"
                         size="icon"
-                        className="h-9 w-9 sm:w-9 rounded-md border-rose-100 text-rose-400 hover:bg-rose-50 ml-1 sm:ml-0"
+                        className="h-9 w-9 sm:w-9 rounded-md border-rose-400/50 text-rose-400 hover:bg-rose-50 ml-1 sm:ml-0"
                         onClick={toggleRejectedTab}
                         title="Mostra Respinti"
                     >
@@ -1005,6 +1029,7 @@ export default function ElencoClient() {
           {editingSocio && (
             <EditSocioForm 
                 socio={editingSocio} 
+                allMembers={membersData} // Pass all members for uniqueness validation
                 onClose={handleSocioUpdate} 
                 isFromMembersCollection={activeTab !== 'requests'} 
                 onNewApproval={handleNewApproval}
@@ -1016,74 +1041,103 @@ export default function ElencoClient() {
       <Dialog open={!!approvingSocio} onOpenChange={(open) => !open && setApprovingSocio(null)}>
         <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
             <DialogHeader>
-                <DialogTitle>Approva Socio e Completa Iscrizione</DialogTitle>
-                <DialogDescription>
-                    Stai per approvare <strong className="text-foreground">{approvingSocio ? getFullName(approvingSocio) : ''}</strong> come membro attivo dal pop-up.
-                </DialogDescription>
+                <DialogTitle className="sr-only">Approva Socio Rapido</DialogTitle>
             </DialogHeader>
-            <div className="grid gap-6 py-4">
+            <div className="flex flex-col gap-4 py-4 min-w-0 overflow-hidden">
+                {/* Premium Identity Card - Fixed Width Overshoot */}
+                {approvingSocio && (
+                    <div className="w-full bg-primary/5 border border-primary/20 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500 overflow-hidden">
+                        <div className="text-center sm:text-left space-y-1 flex-1 min-w-0 overflow-hidden">
+                            <p className="text-[10px] uppercase font-black tracking-[0.3em] text-primary/60 truncate">Approvazione Socio</p>
+                            <h3 className="text-2xl sm:text-3xl font-headline font-black text-foreground uppercase leading-tight tracking-tight drop-shadow-sm truncate">
+                                {getFullName(approvingSocio)}
+                            </h3>
+                        </div>
+                        <div className="flex flex-col items-center sm:items-end gap-1 shrink-0">
+                            <div className="bg-primary text-primary-foreground px-4 py-2 rounded-xl font-mono text-3xl font-black shadow-lg ring-4 ring-primary/10">
+                                {approveMemberNumber}
+                            </div>
+                            <p className="text-[10px] font-bold text-primary/70 uppercase tracking-[0.4em] pr-2">{new Date().getFullYear()}</p>
+                        </div>
+                    </div>
+                )}
+
                 {potentialDuplicate && (
-                  <Alert variant="destructive" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/30">
+                  <Alert variant="destructive" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/30 py-2">
                     <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Possibile Duplicato!</AlertTitle>
-                    <AlertDescription>
-                      Un socio con lo stesso nome, cognome e data di nascita è già presente (Tessera: {potentialDuplicate.tessera || 'N/A'}).
+                    <AlertTitle className="text-xs">Possibile Duplicato!</AlertTitle>
+                    <AlertDescription className="text-[10px] leading-tight">
+                      Un socio già presente: {potentialDuplicate.tessera || 'N/A'}.
                     </AlertDescription>
                   </Alert>
                 )}
-                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
-                    <Label htmlFor="membership-number-popup" className="sm:text-right">N. Tessera</Label>
-                    <div className="col-span-3">
-                    <Input
-                        id="membership-number-popup"
-                        value={`GMC-${new Date().getFullYear()}-${approveMemberNumber}`}
-                        onChange={(e) => {
-                            const parts = e.target.value.split('-');
-                            setApproveMemberNumber(parts[parts.length - 1] || '');
-                        }}
-                        className="w-40"
-                    />
-                    </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-2 sm:gap-4">
-                    <Label className="sm:text-right pt-2">Qualifiche</Label>
-                    <div className="col-span-3 space-y-2">
+
+                {/* Qualifiche Section - Fixed Margins */}
+                <div className="w-full space-y-4 bg-muted/20 p-4 rounded-xl border border-border/50 overflow-hidden">
+                    <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground/80 flex items-center gap-2 px-1">
+                        <Award className="h-3 w-3" /> Qualifiche del Socio
+                    </Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {QUALIFICHE.map((q) => (
-                            <div key={q} className="flex items-center space-x-2">
+                            <div key={q} className="flex items-center space-x-2 bg-background border border-border/50 p-3 rounded-lg hover:border-primary/30 hover:bg-primary/5 transition-all group cursor-pointer overflow-hidden">
                                 <Checkbox 
-                                    id={`qualifica-${q}-approve-popup`} 
+                                    id={`qualifica-${q}-popup`} 
                                     checked={approveQualifiche.includes(q)}
-                                    onCheckedChange={(checked) => handleQualificaChange(q, !!checked)}
+                                    onCheckedChange={(checked) => handleQualificaChange(q, !!checked, setApproveQualifiche)}
+                                    className="data-[state=checked]:bg-primary w-4 h-4 shrink-0"
                                 />
-                                <label htmlFor={`qualifica-${q}-approve-popup`} className="text-sm font-medium leading-none cursor-pointer">
+                                <label htmlFor={`qualifica-${q}-popup`} className="text-[10px] font-bold uppercase leading-none cursor-pointer group-hover:text-primary transition-colors truncate">
                                     {q}
                                 </label>
                             </div>
                         ))}
                     </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
-                    <Label htmlFor="membership-fee-popup" className="sm:text-right">Quota (€)</Label>
-                    <div className="col-span-3 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    <Input
-                        id="membership-fee-popup"
-                        type="number"
-                        value={approveMembershipFee}
-                        onChange={(e) => setApproveMembershipFee(Number(e.target.value))}
-                        className="w-28"
-                    />
-                        <div className="flex items-center space-x-2">
-                        <Checkbox id="fee-paid-approve-popup" checked={approveFeePaid} onCheckedChange={(checked) => setApproveFeePaid(!!checked)} />
-                        <Label htmlFor="fee-paid-approve-popup" className="text-sm font-medium cursor-pointer">Quota Versata</Label>
-                    </div>
+
+                {/* Quota Section - Fixed Margins */}
+                <div className="w-full space-y-4 bg-primary/5 p-4 rounded-xl border border-primary/10 overflow-hidden">
+                    <Label className="font-black text-[10px] uppercase tracking-widest text-primary/70 flex items-center gap-2 px-1">
+                        <Euro className="h-3 w-3" /> Quota Associativa
+                    </Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-stretch">
+                        <div className="relative group min-w-0">
+                            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-muted-foreground/50 font-bold text-sm">€</div>
+                            <Input
+                                id="approve-fee-popup"
+                                type="number"
+                                value={approveMembershipFee}
+                                onChange={(e) => setApproveMembershipFee(Number(e.target.value))}
+                                className="w-full bg-background border-primary/20 h-12 pl-8 text-lg font-bold rounded-xl focus:bg-background transition-colors"
+                            />
+                        </div>
+                        
+                        <div 
+                            className={cn(
+                                "flex items-center space-x-2 px-3 h-12 rounded-xl border transition-all cursor-pointer select-none overflow-hidden",
+                                approveFeePaid 
+                                    ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.05)]" 
+                                    : "bg-muted border-border text-muted-foreground opacity-60"
+                            )}
+                            onClick={() => setApproveFeePaid(!approveFeePaid)}
+                        >
+                            <Checkbox 
+                                id="fee-paid-popup" 
+                                checked={approveFeePaid} 
+                                onCheckedChange={(checked) => setApproveFeePaid(!!checked)} 
+                                className="data-[state=checked]:bg-emerald-600 border-2 w-4 h-4 shrink-0"
+                            />
+                            <Label htmlFor="fee-paid-popup" className="text-[9px] font-black cursor-pointer uppercase tracking-tight flex-grow leading-tight truncate">
+                                {approveFeePaid ? 'PAGAMENTO RICEVUTO' : 'IN ATTESA DI PAGAMENTO'}
+                            </Label>
+                        </div>
                     </div>
                 </div>
             </div>
-            <DialogFooter>
-                <Button variant="ghost" onClick={() => setApprovingSocio(null)}>Annulla</Button>
-                <Button onClick={handleApproveFromPopup} disabled={isApproving || !approveFeePaid}>
+            <DialogFooter className="flex flex-row gap-2 pt-2 px-1">
+                <Button variant="ghost" onClick={() => setApprovingSocio(null)} className="flex-1 font-bold uppercase text-[10px] tracking-widest h-11 border border-border/50">Annulla</Button>
+                <Button onClick={handleApproveFromPopup} disabled={isApproving || !approveFeePaid} className="flex-1 px-4 font-bold uppercase text-[10px] tracking-widest h-11 shadow-md">
                     {isApproving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Conferma e Salva
+                    CONFERMA E SALVA
                 </Button>
             </DialogFooter>
         </DialogContent>

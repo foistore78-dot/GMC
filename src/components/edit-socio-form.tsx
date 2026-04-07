@@ -26,7 +26,8 @@ import {
   parseDate, 
   formatDate, 
   getFullName, 
-  toTitleCase 
+  toTitleCase,
+  cn
 } from "@/lib/utils";
 
 import {
@@ -104,12 +105,13 @@ const formSchema = z.object({
 
 interface EditSocioFormProps {
   socio: Socio;
+  allMembers?: Socio[]; // Added to check for duplicates
   onClose: (updatedSocio?: Socio) => void;
   isFromMembersCollection?: boolean;
   onNewApproval?: (socio: Socio) => void;
 }
 
-export default function EditSocioForm({ socio, onClose, isFromMembersCollection = true, onNewApproval }: EditSocioFormProps) {
+export default function EditSocioForm({ socio, allMembers = [], onClose, isFromMembersCollection = true, onNewApproval }: EditSocioFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -131,10 +133,34 @@ export default function EditSocioForm({ socio, onClose, isFromMembersCollection 
       province: socio.province?.toUpperCase() || "",
       whatsappConsent: socio.whatsappConsent || false,
       privacyConsent: socio.privacyConsent ?? true,
+      // Only the numeric part for editing, will be combined on save
+      tessera: (socio.tessera && socio.tessera.includes('-')) 
+        ? socio.tessera.split('-').pop() 
+        : (socio.tessera || ""),
     },
   });
 
   const isMinor = form.watch("isMinor");
+  const currentTesseraNumber = form.watch("tessera");
+  const currentYear = form.watch("membershipYear");
+
+  // Construct the full string for comparison and saving
+  const fullTesseraString = React.useMemo(() => {
+    if (!currentTesseraNumber || currentTesseraNumber === '-') return "";
+    return `GMC-${currentYear}-${currentTesseraNumber}`;
+  }, [currentTesseraNumber, currentYear]);
+
+  // Duplicate Check Logic
+  const isDuplicateTessera = React.useMemo(() => {
+    if (!fullTesseraString) return false;
+    
+    // Check if any OTHER member has the same tessera (full string)
+    return allMembers.some(m => 
+      m.id !== socio.id && 
+      m.status !== 'rejected' && 
+      m.tessera?.trim().toLowerCase() === fullTesseraString.trim().toLowerCase()
+    );
+  }, [fullTesseraString, allMembers, socio.id]);
 
   // Helper arrays for date selects
 
@@ -147,6 +173,7 @@ export default function EditSocioForm({ socio, onClose, isFromMembersCollection 
       
       const updateData: any = {
         ...values,
+        tessera: fullTesseraString, // Store as full format GMC-YYYY-NUMBER
         updatedAt: serverTimestamp(),
       };
       
@@ -504,17 +531,41 @@ export default function EditSocioForm({ socio, onClose, isFromMembersCollection 
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="tessera"
-                    render={({ field }) => (
-                      <FormItem className="md:col-span-2">
-                        <FormLabel>Numero Tessera</FormLabel>
-                        <FormControl><Input {...field} className="bg-muted/50"/></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={form.control}
+                      name="tessera"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                          <FormLabel className={isDuplicateTessera ? "text-destructive" : ""}>
+                            Numero Tessera {isDuplicateTessera && "(DUPLICATO RILEVATO!)"}
+                          </FormLabel>
+                          <FormControl>
+                            <div className="flex items-center">
+                              <div className="bg-muted border border-r-0 rounded-l-md px-3 h-10 flex items-center text-[11px] font-black tracking-widest text-muted-foreground whitespace-nowrap bg-secondary/10">
+                                GMC - {currentYear} -
+                              </div>
+                              <Input 
+                                {...field} 
+                                placeholder="Numero"
+                                className={cn(
+                                  "rounded-l-none bg-muted/50 font-mono font-bold text-primary",
+                                  isDuplicateTessera && "border-destructive text-destructive focus-visible:ring-destructive"
+                                )} 
+                              />
+                            </div>
+                          </FormControl>
+                          <FormDescription className="text-[10px] italic">
+                            Verrà salvato come: <span className="font-mono font-bold text-foreground/70">{fullTesseraString || "-"}</span>
+                          </FormDescription>
+                          {isDuplicateTessera && (
+                            <p className="text-[11px] font-bold text-destructive uppercase animate-pulse">
+                              Questo numero tessera è già assegnato a un altro socio attivo. Inserisci un numero univoco.
+                            </p>
+                          )}
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
@@ -689,7 +740,7 @@ export default function EditSocioForm({ socio, onClose, isFromMembersCollection 
 
           <div className="bg-card border-t p-6 flex justify-between items-center bg-secondary/10">
             <Button variant="ghost" type="button" onClick={() => onClose()} disabled={isSubmitting || isDeleting}>Annulla</Button>
-            <Button type="submit" disabled={isSubmitting || isDeleting} className="gap-2 px-8 min-w-[150px]">
+            <Button type="submit" disabled={isSubmitting || isDeleting || isDuplicateTessera} className="gap-2 px-8 min-w-[150px]">
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {isSubmitting ? "Salvataggio..." : "Salva Modifiche"}
             </Button>

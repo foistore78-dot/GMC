@@ -47,7 +47,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, Award, CheckCircle, Loader2, ArrowUpDown, FileLock2, Printer, MessageCircle, Cake, Trash2, MoreVertical, MapPin, UserCheck, Info, AlertTriangle, Users } from "lucide-react";
-import { cn, getFullName, getStatus, formatDate, formatCurrency, isMinorCheck as isMinor } from "@/lib/utils";
+import { cn, getFullName, getStatus, formatDate, formatCurrency, isMinorCheck as isMinor, getNextMemberNumberForYear } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -172,23 +172,24 @@ const SocioTableRow = memo(({
 
     try {
         const batch = writeBatch(firestore);
-        const dateStr = new Date().toLocaleString('it-IT');
+        const todayStr = new Date().toLocaleDateString('it-IT');
         const oldNotes = socio.notes || '';
         
-        const historyEntry = `--- STORICO RIPRISTINO (TORNA IN RICHIESTA) ${dateStr} ---\nSocio ripristinato dall'elenco respinti e riportato in RICHIESTE.\n------------------------`;
+        const historyEntry = `--- STORICO RIPRISTINO (TORNA IN RICHIESTA) ${todayStr} ---\nSocio ripristinato dall'elenco respinti e riportato in RICHIESTE.\n------------------------`;
         const newNotes = `${historyEntry}\n\n${oldNotes}`.trim();
 
         const memberDocRef = doc(firestore, "members", socio.id);
         const requestDocRef = doc(firestore, "membership_requests", socio.id);
         
-        // Rimuoviamo dati di tesseramento per farlo tornare "richiesta" pura come richiesto
-        const { status, tessera, joinDate, renewalDate, expirationDate, membershipYear, ...restOfSocio } = socio;
+        // Rimuoviamo dati di tesseramento e riportiamo allo stato di richiesta
+        const { status, tessera, joinDate, renewalDate, expirationDate, membershipYear, membershipFee, ...restOfSocio } = socio;
         
         const restoredRequestData = {
             ...restOfSocio,
-            status: 'pending',
+            status: 'pending' as const,
             notes: newNotes,
-            requestDate: socio.requestDate || new Date().toISOString()
+            requestDate: new Date().toISOString(),
+            submittedAt: new Date().toISOString()
         };
 
         batch.set(requestDocRef, restoredRequestData);
@@ -232,49 +233,50 @@ const SocioTableRow = memo(({
 
     try {
         const batch = writeBatch(firestore);
-        const dateStr = new Date().toLocaleString('it-IT');
+        const todayStr = new Date().toLocaleDateString('it-IT');
         const oldStatus = getStatus(socioToReject, activeTab !== 'requests');
         const oldNotes = socioToReject.notes || '';
-        const oldTessera = socioToReject.tessera || 'Nessuna';
-        const oldJoinDate = socioToReject.joinDate ? new Date(socioToReject.joinDate).toLocaleDateString('it-IT') : 'Nessuna';
-        const oldRenewal = socioToReject.renewalDate ? new Date(socioToReject.renewalDate).toLocaleDateString('it-IT') : 'Nessuno';
         
-        const historyEntry = `--- STORICO ELIMINAZIONE (RESPINTO) ${dateStr} ---\nMotivo: ${rejectionReason}\nStato precedente: ${oldStatus}\nTessera precedente: ${oldTessera}\nData Ammissione precedente: ${oldJoinDate}\nUltimo Rinnovo: ${oldRenewal}\n------------------------`;
+        // Raccolta dati vecchi per le note
+        const oldTessera = socioToReject.tessera || 'Nessuna';
+        const oldRequestDate = socioToReject.requestDate ? new Date(socioToReject.requestDate).toLocaleDateString('it-IT') : 'N/A';
+        const oldJoinDate = socioToReject.joinDate ? new Date(socioToReject.joinDate).toLocaleDateString('it-IT') : 'N/A';
+        
+        let historyEntry = "";
+        if (oldStatus === 'active' || oldStatus === 'expired') {
+            historyEntry = `--- STORICO ELIMINAZIONE (RESPINTO) ${todayStr} ---\nMotivo: ${rejectionReason}\nSocio eliminato in data ${todayStr} con n. tessera ${oldTessera}. Richiesta approvata in data ${oldJoinDate}.\n------------------------`;
+        } else {
+            historyEntry = `--- STORICO ELIMINAZIONE (RESPINTO) ${todayStr} ---\nMotivo: ${rejectionReason}\nVecchia data di richiesta: ${oldRequestDate}.\n------------------------`;
+        }
+        
         const newNotes = `${historyEntry}\n\n${oldNotes}`.trim();
 
-        const collectionName = (activeTab === 'active' || activeTab === 'expired' || activeTab === 'rejected') ? 'members' : 'membership_requests';
+        const memberDocRef = doc(firestore, "members", socioToReject.id);
+        const requestDocRef = doc(firestore, "membership_requests", socioToReject.id);
         
-        if (collectionName === 'membership_requests') {
-            const memberDocRef = doc(firestore, "members", socioToReject.id);
-            const requestDocRef = doc(firestore, "membership_requests", socioToReject.id);
-            
-            const rejectedSocioData: Socio = {
-                ...socioToReject,
-                status: 'rejected',
-                notes: newNotes
-            };
+        // Pulizia totale dei dati di tesseramento come richiesto
+        const { status, tessera, joinDate, renewalDate, expirationDate, membershipYear, membershipFee, requestDate, ...restOfSocio } = socioToReject;
+        
+        const rejectedSocioData: any = {
+            ...restOfSocio,
+            status: 'rejected' as const,
+            notes: newNotes,
+            membershipFee: 0, // Torna a zero
+            // I campi data/tessera vengono esplicitamente omessi o messi a null
+            tessera: null,
+            joinDate: null,
+            renewalDate: null,
+            expirationDate: null,
+            membershipYear: null,
+            requestDate: null,
+            qualifica: [] // Puliamo anche le qualifiche
+        };
 
-            delete rejectedSocioData.tessera;
-            delete rejectedSocioData.joinDate;
-            delete rejectedSocioData.renewalDate;
-            delete rejectedSocioData.expirationDate;
-            delete rejectedSocioData.membershipYear;
-            delete (rejectedSocioData as any).qualifica;
-            
-            batch.set(memberDocRef, rejectedSocioData);
+        batch.set(memberDocRef, rejectedSocioData);
+        
+        // Se era una richiesta, la eliminiamo dalla collezione requests
+        if (activeTab === 'requests') {
             batch.delete(requestDocRef);
-        } else {
-            const memberDocRef = doc(firestore, "members", socioToReject.id);
-            batch.update(memberDocRef, {
-                status: 'rejected',
-                notes: newNotes,
-                tessera: deleteField(),
-                joinDate: deleteField(),
-                renewalDate: deleteField(),
-                expirationDate: deleteField(),
-                membershipYear: deleteField(),
-                qualifica: deleteField(),
-            });
         }
 
         await batch.commit();
@@ -282,8 +284,8 @@ const SocioTableRow = memo(({
         logAdminActivity(firestore, 'reject', `${getFullName(socioToReject)} è stato respinto. Motivo: ${rejectionReason}`);
 
         toast({
-            title: "Socio Respinto",
-            description: `${getFullName(socioToReject)} è stato spostato nella lista dei respinti.`,
+            title: "Operazione Completata",
+            description: `${getFullName(socioToReject)} è stato spostato nella lista dei respinti e i suoi dati sono stati puliti.`,
         });
         
         setSocioToReject(null);
@@ -326,47 +328,24 @@ const SocioTableRow = memo(({
     }
   };
 
-  const getNextMemberNumberForYear = useCallback((year: number) => {
-      // Troviamo tutti i numeri di tessera utilizzati per l'anno specificato,
-      // escludendo i soci "Respinti" per permettere il riutilizzo del loro numero (se presente)
-      const yearMemberNumbers = allMembers
-        .filter(m => m.membershipYear === String(year) && m.tessera && m.status !== 'rejected')
-        .map(m => parseInt(String(m.tessera!).split('-').pop() || '0', 10))
-        .filter(n => !isNaN(n) && n > 0);
-      
-      // Ordiniamo i numeri in modo crescente per individuare eventuali "bucchi"
-      yearMemberNumbers.sort((a, b) => a - b);
-      
-      // Cerchiamo il primo numero disponibile partendo da 1
-      let nextNum = 1;
-      for (const num of yearMemberNumbers) {
-          if (num === nextNum) {
-              nextNum++;
-          } else if (num > nextNum) {
-              // Abbiamo trovato un buco (es: abbiamo 1, 2, 4, 5... il numero mancante è 3)
-              break;
-          }
-      }
-      
-      return nextNum;
-  }, [allMembers]);
+
 
   useEffect(() => {
     if (showApproveDialog) {
       const currentYear = new Date().getFullYear();
-      const nextNumber = getNextMemberNumberForYear(currentYear);
+      const nextNumber = getNextMemberNumberForYear(allMembers, currentYear);
       
       setApproveMemberNumber(String(nextNumber));
       setApproveMembershipFee(socioIsMinor ? 0 : 10);
       setApproveQualifiche(socio.qualifica || []);
       setApproveFeePaid(false);
     }
-  }, [showApproveDialog, getNextMemberNumberForYear, socioIsMinor, socio.qualifica]);
+  }, [showApproveDialog, allMembers, socioIsMinor, socio.qualifica]);
 
    useEffect(() => {
     if (showRenewDialog) {
       const currentYear = new Date().getFullYear();
-      const nextNumber = getNextMemberNumberForYear(currentYear);
+      const nextNumber = getNextMemberNumberForYear(allMembers, currentYear);
 
       setRenewalYear(String(currentYear));
       setRenewMemberNumber(String(nextNumber));
@@ -374,7 +353,7 @@ const SocioTableRow = memo(({
       setRenewalFee(socioIsMinor ? 0 : 10);
       setRenewFeePaid(false);
     }
-  }, [showRenewDialog, getNextMemberNumberForYear, socioIsMinor, socio.qualifica]);
+  }, [showRenewDialog, allMembers, socioIsMinor, socio.qualifica]);
 
   const handleApprove = async () => {
     if (!firestore || isApproving || !approveFeePaid) return;
@@ -745,74 +724,101 @@ const handleRenew = () => {
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
                             <DialogHeader>
-                                <DialogTitle>Approva Socio e Completa Iscrizione</DialogTitle>
-                                <DialogDescription>
-                                    Stai per approvare <strong className="text-foreground">{getFullName(socio)}</strong> come membro attivo.
-                                </DialogDescription>
+                                <DialogTitle className="sr-only">Approva Socio</DialogTitle>
                             </DialogHeader>
-                            <div className="grid gap-6 py-4">
+                            <div className="flex flex-col gap-4 py-4 min-w-0 overflow-hidden">
+                                {/* Premium Identity Card - Fixed Width Overshoot */}
+                                <div className="w-full bg-primary/5 border border-primary/20 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500 overflow-hidden">
+                                    <div className="text-center sm:text-left space-y-1 flex-1 min-w-0 overflow-hidden">
+                                        <p className="text-[10px] uppercase font-black tracking-[0.3em] text-primary/60 truncate">Approvazione Socio</p>
+                                        <h3 className="text-2xl sm:text-3xl font-headline font-black text-foreground uppercase leading-tight tracking-tight drop-shadow-sm truncate">
+                                            {getFullName(socio)}
+                                        </h3>
+                                    </div>
+                                    <div className="flex flex-col items-center sm:items-end gap-1 shrink-0">
+                                        <div className="bg-primary text-primary-foreground px-4 py-2 rounded-xl font-mono text-3xl font-black shadow-lg ring-4 ring-primary/10">
+                                            {approveMemberNumber}
+                                        </div>
+                                        <p className="text-[10px] font-bold text-primary/70 uppercase tracking-[0.4em] pr-2">{new Date().getFullYear()}</p>
+                                    </div>
+                                </div>
+
                                 {potentialDuplicate && (
-                                  <Alert variant="destructive" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/30">
+                                  <Alert variant="destructive" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/30 py-2">
                                     <AlertTriangle className="h-4 w-4" />
-                                    <AlertTitle>Possibile Duplicato!</AlertTitle>
-                                    <AlertDescription>
-                                      Un socio con lo stesso nome, cognome e data di nascita è già presente (Tessera: {potentialDuplicate.tessera || 'N/A'}).
+                                    <AlertTitle className="text-xs">Possibile Duplicato!</AlertTitle>
+                                    <AlertDescription className="text-[10px] leading-tight">
+                                      Un socio già presente: {potentialDuplicate.tessera || 'N/A'}.
                                     </AlertDescription>
                                   </Alert>
                                 )}
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="membership-number" className="sm:text-right font-bold text-xs uppercase tracking-wider text-muted-foreground">N. Tessera</Label>
-                                    <div className="col-span-1 sm:col-span-3">
-                                    <Input
-                                        id="membership-number"
-                                        value={`GMC-${new Date().getFullYear()}-${approveMemberNumber}`}
-                                        onChange={(e) => {
-                                            const parts = e.target.value.split('-');
-                                            setApproveMemberNumber(parts[parts.length - 1] || '');
-                                        }}
-                                        className="w-full sm:max-w-[160px] bg-muted/30"
-                                    />
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-2 sm:gap-4">
-                                    <Label className="sm:text-right pt-2 font-bold text-xs uppercase tracking-wider text-muted-foreground">Qualifiche</Label>
-                                    <div className="col-span-1 sm:col-span-3 grid grid-cols-2 gap-2">
+
+                                {/* Qualifiche Section - Fixed Margins */}
+                                <div className="w-full space-y-4 bg-muted/20 p-4 rounded-xl border border-border/50 overflow-hidden">
+                                    <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground/80 flex items-center gap-2 px-1">
+                                        <Award className="h-3 w-3" /> Qualifiche del Socio
+                                    </Label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                         {QUALIFICHE.map((q) => (
-                                            <div key={q} className="flex items-center space-x-2 bg-muted/20 p-2 rounded-md hover:bg-muted/40 transition-colors">
+                                            <div key={q} className="flex items-center space-x-2 bg-background border border-border/50 p-3 rounded-lg hover:border-primary/30 hover:bg-primary/5 transition-all group cursor-pointer overflow-hidden">
                                                 <Checkbox 
                                                     id={`qualifica-${q}-approve`} 
                                                     checked={approveQualifiche.includes(q)}
                                                     onCheckedChange={(checked) => handleQualificaChange(q, !!checked, setApproveQualifiche)}
+                                                    className="data-[state=checked]:bg-primary w-4 h-4 shrink-0"
                                                 />
-                                                <label htmlFor={`qualifica-${q}-approve`} className="text-xs font-medium leading-none cursor-pointer">
+                                                <label htmlFor={`qualifica-${q}-approve`} className="text-[10px] font-bold uppercase leading-none cursor-pointer group-hover:text-primary transition-colors truncate">
                                                     {q}
                                                 </label>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="membership-fee" className="sm:text-right font-bold text-xs uppercase tracking-wider text-muted-foreground">Quota (€)</Label>
-                                    <div className="col-span-1 sm:col-span-3 flex flex-wrap items-center gap-4">
-                                      <Input
-                                          id="membership-fee"
-                                          type="number"
-                                          value={approveMembershipFee}
-                                          onChange={(e) => setApproveMembershipFee(Number(e.target.value))}
-                                          className="w-24 bg-muted/30"
-                                      />
-                                      <div className="flex items-center space-x-2 bg-primary/10 px-3 py-2 rounded-lg border border-primary/20">
-                                          <Checkbox id="fee-paid-approve" checked={approveFeePaid} onCheckedChange={(checked) => setApproveFeePaid(!!checked)} />
-                                          <Label htmlFor="fee-paid-approve" className="text-xs font-bold text-primary cursor-pointer uppercase tracking-tight">Quota Versata</Label>
-                                      </div>
+
+                                {/* Quota Section - Fixed Margins */}
+                                <div className="w-full space-y-4 bg-primary/5 p-4 rounded-xl border border-primary/10 overflow-hidden">
+                                    <Label className="font-black text-[10px] uppercase tracking-widest text-primary/70 flex items-center gap-2 px-1">
+                                        <Euro className="h-3 w-3" /> Quota Associativa
+                                    </Label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-stretch">
+                                        <div className="relative group min-w-0">
+                                            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-muted-foreground/50 font-bold text-sm">€</div>
+                                            <Input
+                                                id="membership-fee"
+                                                type="number"
+                                                value={approveMembershipFee}
+                                                onChange={(e) => setApproveMembershipFee(Number(e.target.value))}
+                                                className="w-full bg-background border-primary/20 h-12 pl-8 text-lg font-bold rounded-xl focus:bg-background transition-colors"
+                                            />
+                                        </div>
+                                        
+                                        <div 
+                                            className={cn(
+                                                "flex items-center space-x-2 px-3 h-12 rounded-xl border transition-all cursor-pointer select-none overflow-hidden",
+                                                approveFeePaid 
+                                                    ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.05)]" 
+                                                    : "bg-muted border-border text-muted-foreground opacity-60"
+                                            )}
+                                            onClick={() => setApproveFeePaid(!approveFeePaid)}
+                                        >
+                                            <Checkbox 
+                                                id="fee-paid-approve" 
+                                                checked={approveFeePaid} 
+                                                onCheckedChange={(checked) => setApproveFeePaid(!!checked)} 
+                                                className="data-[state=checked]:bg-emerald-600 border-2 w-4 h-4 shrink-0"
+                                            />
+                                            <Label htmlFor="fee-paid-approve" className="text-[9px] font-black cursor-pointer uppercase tracking-tight flex-grow leading-tight truncate">
+                                                {approveFeePaid ? 'PAGAMENTO RICEVUTO' : 'IN ATTESA DI PAGAMENTO'}
+                                            </Label>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <DialogFooter>
-                                <Button variant="ghost" onClick={() => handleApproveDialogChange(false)}>Annulla</Button>
-                                <Button onClick={handleApprove} disabled={isApproving || !approveFeePaid}>
+                            <DialogFooter className="flex flex-row gap-2 pt-2 px-1">
+                                <Button variant="ghost" onClick={() => handleApproveDialogChange(false)} className="flex-1 font-bold uppercase text-[10px] tracking-widest h-11 border border-border/50">Annulla</Button>
+                                <Button onClick={handleApprove} disabled={isApproving || !approveFeePaid} className="flex-1 px-4 font-bold uppercase text-[10px] tracking-widest h-11 shadow-md">
                                     {isApproving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Conferma e Stampa
+                                    CONFERMA E SALVA
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
@@ -828,69 +834,91 @@ const handleRenew = () => {
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
                             <DialogHeader>
-                                <DialogTitle>Rinnova Tesseramento</DialogTitle>
-                                <DialogDescription>
-                                    Stai rinnovando il tesseramento per <strong className="text-foreground">{getFullName(socio)}</strong>.
-                                </DialogDescription>
+                                <DialogTitle className="sr-only">Rinnova Tesseramento</DialogTitle>
                             </DialogHeader>
-                            <div className="grid gap-6 py-4">
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="renewal-year" className="sm:text-right">Anno</Label>
-                                    <Input id="renewal-year" value={renewalYear} onChange={(e) => setRenewalYear(e.target.value)} className="w-full max-w-[112px] col-span-3" />
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="renew-tessera" className="sm:text-right">N. Tessera</Label>
-                                    <div className="col-span-3">
-                                        <Input
-                                            id="renew-tessera"
-                                            value={`GMC-${renewalYear}-${renewMemberNumber}`}
-                                            onChange={(e) => {
-                                                const parts = e.target.value.split('-');
-                                                setRenewMemberNumber(parts[parts.length - 1] || '');
-                                            }}
-                                            className="w-full max-w-[160px]"
-                                        />
+                            <div className="flex flex-col gap-4 py-4 min-w-0 overflow-hidden">
+                                {/* Premium Identity Card - Fixed Width Overshoot */}
+                                <div className="w-full bg-orange-500/5 border border-orange-500/20 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500 overflow-hidden">
+                                    <div className="text-center sm:text-left space-y-1 flex-1 min-w-0 overflow-hidden">
+                                        <p className="text-[10px] uppercase font-black tracking-[0.3em] text-orange-600/60 truncate">Rinnovo Tesseramento</p>
+                                        <h3 className="text-2xl sm:text-3xl font-headline font-black text-foreground uppercase leading-tight tracking-tight drop-shadow-sm truncate">
+                                            {getFullName(socio)}
+                                        </h3>
+                                    </div>
+                                    <div className="flex flex-col items-center sm:items-end gap-1 shrink-0">
+                                        <div className="bg-orange-500 text-white px-4 py-2 rounded-xl font-mono text-3xl font-black shadow-lg ring-4 ring-orange-500/10">
+                                            {renewMemberNumber}
+                                        </div>
+                                        <p className="text-[10px] font-bold text-orange-600/70 uppercase tracking-[0.4em] pr-2">{new Date().getFullYear()}</p>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-2 sm:gap-4">
-                                    <Label className="sm:text-right pt-2">Qualifiche</Label>
-                                    <div className="col-span-3 space-y-2">
+
+                                {/* Qualifiche Section - Fixed Margins */}
+                                <div className="w-full space-y-4 bg-muted/20 p-4 rounded-xl border border-border/50 overflow-hidden">
+                                    <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground/80 flex items-center gap-2 px-1">
+                                        <Award className="h-3 w-3" /> Qualifiche per il Rinnovo
+                                    </Label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                         {QUALIFICHE.map((q) => (
-                                            <div key={q} className="flex items-center space-x-2">
+                                            <div key={q} className="flex items-center space-x-2 bg-background border border-border/50 p-3 rounded-lg hover:border-orange-500/30 hover:bg-orange-500/5 transition-all group cursor-pointer overflow-hidden">
                                                 <Checkbox 
                                                     id={`qualifica-${q}-renew`} 
                                                     checked={renewQualifiche.includes(q)}
                                                     onCheckedChange={(checked) => handleQualificaChange(q, !!checked, setRenewQualifiche)}
+                                                    className="data-[state=checked]:bg-orange-500 border-border w-4 h-4 shrink-0"
                                                 />
-                                                <label htmlFor={`qualifica-${q}-renew`} className="text-sm font-medium leading-none">
+                                                <label htmlFor={`qualifica-${q}-renew`} className="text-[10px] font-bold uppercase leading-none cursor-pointer group-hover:text-orange-600 transition-colors truncate">
                                                     {q}
                                                 </label>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="renewal-fee" className="sm:text-right">Quota (€)</Label>
-                                    <div className="col-span-3 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                                        <Input
-                                            id="renewal-fee"
-                                            type="number"
-                                            value={renewalFee}
-                                            onChange={(e) => setRenewalFee(Number(e.target.value))}
-                                            className="w-28"
-                                        />
-                                        <div className="flex items-center space-x-2">
-                                            <Checkbox id="fee-paid-renew" checked={renewFeePaid} onCheckedChange={(checked) => setRenewFeePaid(!!checked)} />
-                                            <Label htmlFor="fee-paid-renew" className="text-sm font-medium">Quota Versata</Label>
+
+                                {/* Quota Section - Fixed Margins */}
+                                <div className="w-full space-y-4 bg-orange-500/5 p-4 rounded-xl border border-orange-500/10 overflow-hidden">
+                                    <Label className="font-black text-[10px] uppercase tracking-widest text-orange-600/70 flex items-center gap-2 px-1">
+                                        <Euro className="h-3 w-3" /> Quota Rinnovo
+                                    </Label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-stretch">
+                                        <div className="relative group min-w-0">
+                                            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-muted-foreground/50 font-bold text-sm">€</div>
+                                            <Input
+                                                id="renewal-fee"
+                                                type="number"
+                                                value={renewalFee}
+                                                onChange={(e) => setRenewalFee(Number(e.target.value))}
+                                                className="w-full bg-background border-orange-200 h-12 pl-8 text-lg font-bold rounded-xl focus:visible:ring-orange-500 focus:bg-background transition-colors"
+                                            />
+                                        </div>
+                                        
+                                        <div 
+                                            className={cn(
+                                                "flex items-center space-x-2 px-3 h-12 rounded-xl border transition-all cursor-pointer select-none overflow-hidden",
+                                                renewFeePaid 
+                                                    ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.05)]" 
+                                                    : "bg-muted border-border text-muted-foreground opacity-60"
+                                            )}
+                                            onClick={() => setRenewFeePaid(!renewFeePaid)}
+                                        >
+                                            <Checkbox 
+                                                id="renew-fee-paid" 
+                                                checked={renewFeePaid} 
+                                                onCheckedChange={(checked) => setRenewFeePaid(!!checked)} 
+                                                className="data-[state=checked]:bg-emerald-600 border-2 w-4 h-4 shrink-0"
+                                            />
+                                            <Label htmlFor="renew-fee-paid" className="text-[9px] font-black cursor-pointer uppercase tracking-tight flex-grow leading-tight truncate">
+                                                {renewFeePaid ? 'PAGAMENTO RICEVUTO' : 'IN ATTESA DI PAGAMENTO'}
+                                            </Label>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <DialogFooter>
-                                <Button variant="ghost" onClick={() => handleRenewDialogChange(false)}>Annulla</Button>
-                                <Button onClick={handleRenew} disabled={isRenewing || !renewFeePaid}>
+                            <DialogFooter className="flex flex-row gap-2 pt-2 px-1">
+                                <Button variant="ghost" onClick={() => handleRenewDialogChange(false)} className="flex-1 font-bold uppercase text-[10px] tracking-widest h-11 border border-border/50">Annulla</Button>
+                                <Button onClick={handleRenew} disabled={isRenewing || !renewFeePaid} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 uppercase text-[10px] tracking-widest h-11 shadow-md">
                                     {isRenewing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Conferma Rinnovo e Stampa
+                                    CONFERMA RINNOVO
                                 </Button>
                             </DialogFooter>
                         </DialogContent>

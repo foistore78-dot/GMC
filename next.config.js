@@ -12,6 +12,9 @@ const nextConfig = {
         '*.cloudworkstations.dev',
         '*.cluster-64pjnskmlbaxowh5lzq6i7v4ra.cloudworkstations.dev',
         '*.firebase-studio.com',
+        '*.hosted.app',
+        'studio-9577324505-15044.web.app',
+        'studio-9577324505-15044.firebaseapp.com',
         'localhost:9002'
       ],
     },

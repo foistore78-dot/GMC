@@ -197,6 +197,7 @@ export function MembershipForm() {
         privacyConsent: values.legalConsent,
         statuteConsent: values.legalConsent,
         requestDate: serverTimestamp(),
+        submittedAt: new Date().toISOString(),
         status: 'pending',
       };
       

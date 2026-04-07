@@ -214,3 +214,28 @@ export const normalizeSocioData = (data: any) => {
 
   return normalized;
 };
+
+export const getNextMemberNumberForYear = (allMembers: any[], year: number): number => {
+    // Troviamo tutti i numeri di tessera utilizzati per l'anno specificato,
+    // escludendo i soci "Respinti" per permettere il riutilizzo del loro numero (se presente)
+    const yearMemberNumbers = allMembers
+        .filter(m => m.membershipYear === String(year) && m.tessera && m.status !== 'rejected')
+        .map(m => parseInt(String(m.tessera!).split('-').pop() || '0', 10))
+        .filter(n => !isNaN(n) && n > 0);
+    
+    // Ordiniamo i numeri in modo crescente per individuare eventuali "buchi"
+    yearMemberNumbers.sort((a, b) => a - b);
+    
+    // Cerchiamo il primo numero disponibile partendo da 1
+    let nextNum = 1;
+    for (const num of yearMemberNumbers) {
+        if (num === nextNum) {
+            nextNum++;
+        } else if (num > nextNum) {
+            // Abbiamo trovato un buco (es: abbiamo 1, 2, 4, 5... il numero mancante è 3)
+            break;
+        }
+    }
+    
+    return nextNum;
+};
