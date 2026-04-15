@@ -1083,7 +1083,7 @@ export default function ElencoClient() {
                                 <Checkbox 
                                     id={`qualifica-${q}-popup`} 
                                     checked={approveQualifiche.includes(q)}
-                                    onCheckedChange={(checked) => handleQualificaChange(q, !!checked, setApproveQualifiche)}
+                                    onCheckedChange={(checked) => handleQualificaChange(q, !!checked)}
                                     className="data-[state=checked]:bg-primary w-4 h-4 shrink-0"
                                 />
                                 <label htmlFor={`qualifica-${q}-popup`} className="text-[10px] font-bold uppercase leading-none cursor-pointer group-hover:text-primary transition-colors truncate">

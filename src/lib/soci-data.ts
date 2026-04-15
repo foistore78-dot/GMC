@@ -29,6 +29,7 @@ export type Socio = {
   membershipFee?: number;
   qualifica?: string[];
   tessera?: string;
+  submittedAt?: string;
 };
 
 export const QUALIFICHE = ["FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;
