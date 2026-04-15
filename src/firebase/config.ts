@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
@@ -18,10 +18,19 @@ if (!firebaseConfig.apiKey) {
   console.warn("Firebase API Key is missing. Check your .env file.");
 }
 
-const app = initializeApp(firebaseConfig);
+const configToUse = firebaseConfig.apiKey ? firebaseConfig : {
+  apiKey: "dummy-api-key-for-build-step",
+  authDomain: "dummy.firebaseapp.com",
+  projectId: "dummy-project",
+  storageBucket: "dummy.appspot.com",
+  messagingSenderId: "00000000000",
+  appId: "1:000000000000:web:0000000000000000000000"
+};
+
+const app = getApps().length > 0 ? getApp() : initializeApp(configToUse);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 const functions = getFunctions(app);
 
-export { auth, db, storage, functions };
+export { app, auth, db, storage, functions };
