@@ -15,19 +15,10 @@ export const firebaseConfig = {
 
 // Basic check to ensure environment variables are loaded
 if (!firebaseConfig.apiKey) {
-  console.warn("Firebase API Key is missing. Check your .env file.");
+  console.warn("Firebase API Key is missing. Check your .env file or apphosting.yaml.");
 }
 
-const configToUse = firebaseConfig.apiKey ? firebaseConfig : {
-  apiKey: "dummy-api-key-for-build-step",
-  authDomain: "dummy.firebaseapp.com",
-  projectId: "dummy-project",
-  storageBucket: "dummy.appspot.com",
-  messagingSenderId: "00000000000",
-  appId: "1:000000000000:web:0000000000000000000000"
-};
-
-const app = getApps().length > 0 ? getApp() : initializeApp(configToUse);
+const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
