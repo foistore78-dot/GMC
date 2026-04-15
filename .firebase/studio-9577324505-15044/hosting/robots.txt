@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+Sitemap: https://studio--studio-9577324505-15044.us-central1.hosted.app/sitemap.xml
