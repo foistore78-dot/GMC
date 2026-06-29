@@ -96,7 +96,7 @@ export function SocioCard({ socio }: SocioCardProps) {
         @media print {
           @page {
             size: A4 portrait;
-            margin: 4mm;
+            margin: 0;
           }
           html,
           body {
@@ -104,13 +104,14 @@ export function SocioCard({ socio }: SocioCardProps) {
             print-color-adjust: exact !important;
             margin: 0 !important;
             padding: 0 !important;
+            height: 100vh !important;
+            overflow: hidden !important;
           }
           .socio-card-container {
-            padding: 0.3cm !important;
+            padding: 0.2cm !important;
             max-width: 100% !important;
             margin: 0 auto !important;
-            transform: scale(0.95);
-            transform-origin: top center;
+            box-sizing: border-box !important;
           }
           * {
             box-sizing: border-box;

@@ -114,13 +114,13 @@ body {
 
 @media print {
   @page {
-    size: auto;
-    margin: 5mm;
+    size: A4 portrait;
+    margin: 0;
   }
 
   html, body {
-    height: auto !important;
-    min-height: 0 !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
     overflow: hidden !important;
     background: white !important;
     color: black !important;
@@ -138,7 +138,9 @@ body {
     float: none !important;
     width: 100% !important;
     max-width: 100% !important;
-    height: auto !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    overflow: hidden !important;
     margin: 0 auto !important;
     padding: 0 !important;
     background: white !important;
