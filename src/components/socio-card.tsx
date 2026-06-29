@@ -81,6 +81,7 @@ export function SocioCard({ socio }: SocioCardProps) {
 
   return (
     <div
+      className="socio-card-container"
       style={{
         background: "white",
         color: "black",
@@ -88,39 +89,46 @@ export function SocioCard({ socio }: SocioCardProps) {
         maxWidth: "18cm",
         margin: "0 auto",
         fontFamily: "Roboto, Arial, Helvetica, sans-serif",
-        padding: "1cm",
+        padding: "0.6cm",
       }}
     >
       <style jsx global>{`
         @media print {
           @page {
-            size: A4;
-            margin: 0;
+            size: A4 portrait;
+            margin: 4mm;
           }
           html,
           body {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
-            margin: 0;
-            padding: 0;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .socio-card-container {
+            padding: 0.3cm !important;
+            max-width: 100% !important;
+            margin: 0 auto !important;
+            transform: scale(0.95);
+            transform-origin: top center;
           }
           * {
             box-sizing: border-box;
           }
           table,
           div.no-break {
-            page-break-inside: avoid;
-            break-inside: avoid;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
           tr,
           td,
           th {
-            page-break-inside: avoid;
+            page-break-inside: avoid !important;
           }
           h1,
           h2,
           h3 {
-            page-break-after: avoid;
+            page-break-after: avoid !important;
           }
         }
         div,
@@ -260,24 +268,24 @@ export function SocioCard({ socio }: SocioCardProps) {
       </div>
 
       {sig.method === 'SMS_OTP' ? (
-        <div className="no-break" style={{ padding: '10px 14px', border: '1px solid #10b981', backgroundColor: '#ecfdf5', borderRadius: '6px', marginTop: '15px', marginBottom: '15px' }}>
+        <div className="no-break" style={{ padding: '8px 12px', border: '1px solid #10b981', backgroundColor: '#ecfdf5', borderRadius: '6px', marginTop: '8px', marginBottom: '8px' }}>
           <div style={{ fontWeight: 'bold', color: '#047857', fontSize: '11px' }}>✓ FIRMA DIGITALE VERIFICATA TRAMITE SMS OTP</div>
-          <div style={{ fontSize: '10px', color: '#065f46', marginTop: '4px', lineHeight: '1.4' }}>
+          <div style={{ fontSize: '10px', color: '#065f46', marginTop: '3px', lineHeight: '1.3' }}>
             Data e Ora Firma: <b>{formatDate(sig.signedAt, 'dd/MM/yyyy')} {sig.signedAt ? new Date(sig.signedAt).toLocaleTimeString('it-IT') : ''}</b> | Cellulare Verificato: <b>{sig.signerPhone || socio.phone || 'N/D'}</b><br/>
             ID Probandio Verifica: <b>{sig.verificationId || 'OTP-VERIFIED'}</b>
           </div>
         </div>
       ) : sig.method === 'ADMIN_DIRECT' ? (
-        <div className="no-break" style={{ padding: '10px 14px', border: '1px solid #3b82f6', backgroundColor: '#eff6ff', borderRadius: '6px', marginTop: '15px', marginBottom: '15px' }}>
+        <div className="no-break" style={{ padding: '8px 12px', border: '1px solid #3b82f6', backgroundColor: '#eff6ff', borderRadius: '6px', marginTop: '8px', marginBottom: '8px' }}>
           <div style={{ fontWeight: 'bold', color: '#1d4ed8', fontSize: '11px' }}>👤 REGISTRAZIONE DIRETTA DA PANNELLO AMMINISTRATIVO</div>
-          <div style={{ fontSize: '10px', color: '#1e40af', marginTop: '4px' }}>
+          <div style={{ fontSize: '10px', color: '#1e40af', marginTop: '3px' }}>
             Ammissione registrata dall'amministratore dell'associazione.
           </div>
         </div>
       ) : (
-        <div className="no-break" style={{ padding: '10px 14px', border: '1px solid #9ca3af', backgroundColor: '#f9fafb', borderRadius: '6px', marginTop: '15px', marginBottom: '15px' }}>
+        <div className="no-break" style={{ padding: '8px 12px', border: '1px solid #9ca3af', backgroundColor: '#f9fafb', borderRadius: '6px', marginTop: '8px', marginBottom: '8px' }}>
           <div style={{ fontWeight: 'bold', color: '#374151', fontSize: '11px' }}>📄 FIRMA SU MODULO CARTACEO ARCHIVIATO IN SEDE</div>
-          <div style={{ fontSize: '10px', color: '#4b5563', marginTop: '4px' }}>
+          <div style={{ fontSize: '10px', color: '#4b5563', marginTop: '3px' }}>
             Accettazione Statuto e Privacy acquisita su documento analogico/cartaceo originale in sede.
           </div>
         </div>
