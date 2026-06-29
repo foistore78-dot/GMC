@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Header } from "@/components/header";
 import AuthGuard from "../elenco/AuthGuard";
 import { useFirebase } from "@/firebase";
-import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, doc, getDoc } from "firebase/firestore";
 import type { Socio } from "@/lib/soci-data";
 import { getFullName, formatDate, parseDate, getSignatureMetadata, normalizeSocioData } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -21,9 +21,30 @@ const MONTH_NAMES = [
 ];
 
 export default function DashboardClient() {
-  const { firestore, areServicesAvailable } = useFirebase();
+  const { firestore, auth, user, isUserLoading, areServicesAvailable } = useFirebase();
   const [members, setMembers] = useState<Socio[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const checkAdminStatus = useCallback(async () => {
+    if (!user) {
+      setIsAdmin(false);
+      return;
+    }
+    if (firestore) {
+      try {
+        const adminRef = doc(firestore, "roles_admin", user.uid);
+        const adminSnap = await getDoc(adminRef);
+        setIsAdmin(adminSnap.exists());
+      } catch (e) {
+        setIsAdmin(false);
+      }
+    }
+  }, [user, firestore]);
+
+  useEffect(() => {
+    if (!isUserLoading) checkAdminStatus();
+  }, [user, isUserLoading, checkAdminStatus]);
 
   // Date selections
   const currentDate = new Date();
@@ -152,7 +173,7 @@ export default function DashboardClient() {
   }, [selectedDay, monthStats]);
 
   return (
-    <AuthGuard>
+    <AuthGuard isAdmin={isAdmin}>
       <div className="min-h-screen bg-background text-foreground flex flex-col">
         <Header />
 
