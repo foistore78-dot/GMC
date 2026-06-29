@@ -269,13 +269,20 @@ export function SocioCard({ socio }: SocioCardProps) {
       </div>
 
       {sig.method === 'SMS_OTP' ? (
-        <div className="no-break" style={{ padding: '8px 12px', border: '1px solid #10b981', backgroundColor: '#ecfdf5', borderRadius: '6px', marginTop: '8px', marginBottom: '8px' }}>
-          <div style={{ fontWeight: 'bold', color: '#047857', fontSize: '11px' }}>✓ FIRMA DIGITALE VERIFICATA TRAMITE SMS OTP</div>
-          <div style={{ fontSize: '10px', color: '#065f46', marginTop: '3px', lineHeight: '1.3' }}>
-            Data e Ora Firma: <b>{formatDate(sig.signedAt, 'dd/MM/yyyy')} {sig.signedAt ? new Date(sig.signedAt).toLocaleTimeString('it-IT') : ''}</b> | Cellulare Verificato: <b>{sig.signerPhone || socio.phone || 'N/D'}</b><br/>
-            ID Probandio Verifica: <b>{sig.verificationId || 'OTP-VERIFIED'}</b>
+        <>
+          <div className="no-break" style={{ padding: '8px 12px', border: '1px solid #10b981', backgroundColor: '#ecfdf5', borderRadius: '6px', marginTop: '8px', marginBottom: '8px' }}>
+            <div style={{ fontWeight: 'bold', color: '#047857', fontSize: '11px' }}>✓ FIRMA DIGITALE VERIFICATA TRAMITE SMS OTP</div>
+            <div style={{ fontSize: '10px', color: '#065f46', marginTop: '3px', lineHeight: '1.3' }}>
+              Data e Ora Firma: <b>{formatDate(sig.signedAt, 'dd/MM/yyyy')} {sig.signedAt ? new Date(sig.signedAt).toLocaleTimeString('it-IT') : ''}</b> | Cellulare Verificato: <b>{sig.signerPhone || socio.phone || 'N/D'}</b><br/>
+              ID Probandio Verifica: <b>{sig.verificationId || 'OTP-VERIFIED'}</b>
+            </div>
           </div>
-        </div>
+          {(socio.notes?.toLowerCase().includes('modulo cartaceo') || sig.notes?.toLowerCase().includes('modulo cartaceo')) && (
+            <div className="no-break" style={{ padding: '6px 12px', border: '1px solid #6b7280', backgroundColor: '#f9fafb', borderRadius: '6px', marginBottom: '8px' }}>
+              <div style={{ fontWeight: 'bold', color: '#374151', fontSize: '10.5px' }}>📄 MODULO CARTACEO ORIGINALE FIRMATO E PRESENTE IN SEDE</div>
+            </div>
+          )}
+        </>
       ) : sig.method === 'ADMIN_DIRECT' ? (
         <div className="no-break" style={{ padding: '8px 12px', border: '1px solid #3b82f6', backgroundColor: '#eff6ff', borderRadius: '6px', marginTop: '8px', marginBottom: '8px' }}>
           <div style={{ fontWeight: 'bold', color: '#1d4ed8', fontSize: '11px' }}>👤 REGISTRAZIONE DIRETTA DA PANNELLO AMMINISTRATIVO</div>

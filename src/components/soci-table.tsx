@@ -719,9 +719,16 @@ const handleRenew = () => {
                               label="Firma Digitale / Modulo" 
                               value={
                                 sig.method === 'SMS_OTP' ? (
-                                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 font-bold gap-1 mt-0.5">
-                                    <ShieldCheck className="w-3 h-3" /> SMS OTP VERIFICATO ({sig.signerPhone || socio.phone})
-                                  </Badge>
+                                  <div className="flex flex-wrap gap-1.5 mt-0.5">
+                                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 font-bold gap-1">
+                                      <ShieldCheck className="w-3 h-3" /> SMS OTP VERIFICATO ({sig.signerPhone || socio.phone})
+                                    </Badge>
+                                    {(socio.notes?.toLowerCase().includes('modulo cartaceo') || sig.notes?.toLowerCase().includes('modulo cartaceo')) && (
+                                      <Badge variant="outline" className="bg-slate-500/10 text-slate-400 border-slate-500/30 font-bold gap-1">
+                                        📄 MODULO CARTACEO IN SEDE
+                                      </Badge>
+                                    )}
+                                  </div>
                                 ) : sig.method === 'ADMIN_DIRECT' ? (
                                   <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/30 font-bold gap-1 mt-0.5">
                                     👤 REGISTRAZIONE ADMIN
