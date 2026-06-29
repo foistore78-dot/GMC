@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import AuthGuard from "../elenco/AuthGuard";
+import { LoadingScreen } from "@/components/loading-screen";
 import { useFirebase } from "@/firebase";
+import { signOut } from "firebase/auth";
 import { collection, onSnapshot, query, orderBy, doc, getDoc } from "firebase/firestore";
 import type { Socio } from "@/lib/soci-data";
 import { getFullName, formatDate, parseDate, getSignatureMetadata, getStatus, normalizeSocioData } from "@/lib/utils";
@@ -22,11 +25,13 @@ const MONTH_NAMES = [
 ];
 
 export default function DashboardClient() {
+  const router = useRouter();
   const { firestore, auth, user, isUserLoading, areServicesAvailable } = useFirebase();
   const [rawMembers, setRawMembers] = useState<Socio[]>([]);
   const [rawRequests, setRawRequests] = useState<Socio[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
 
   // View Mode: 'approvals' (Soci Effettivi) vs 'requests' (Domande Inoltrate)
   const [dashboardMode, setDashboardMode] = useState<'approvals' | 'requests'>('approvals');
@@ -34,8 +39,21 @@ export default function DashboardClient() {
   const checkAdminStatus = useCallback(async () => {
     if (!user) {
       setIsAdmin(false);
+      setIsCheckingAdmin(false);
       return;
     }
+    
+    setIsCheckingAdmin(true);
+
+    const adminEmail = "garage.music.club2024@gmail.com";
+    const emailMatch = user.email?.toLowerCase() === adminEmail.toLowerCase();
+    
+    if (emailMatch) {
+      setIsAdmin(true);
+      setIsCheckingAdmin(false);
+      return;
+    }
+
     if (firestore) {
       try {
         const adminRef = doc(firestore, "roles_admin", user.uid);
@@ -44,12 +62,24 @@ export default function DashboardClient() {
       } catch (e) {
         setIsAdmin(false);
       }
+    } else {
+      setIsAdmin(false);
     }
+    setIsCheckingAdmin(false);
   }, [user, firestore]);
 
   useEffect(() => {
     if (!isUserLoading) checkAdminStatus();
   }, [user, isUserLoading, checkAdminStatus]);
+
+  const handleLogout = useCallback(() => {
+    if (auth) {
+      signOut(auth).then(() => {
+        router.push('/');
+      });
+      setIsAdmin(false);
+    }
+  }, [auth, router]);
 
   // Date selections
   const currentDate = new Date();
@@ -208,11 +238,18 @@ export default function DashboardClient() {
   }, [selectedDay, monthStats]);
 
   return (
-    <AuthGuard isAdmin={isAdmin}>
-      <div className="min-h-screen bg-background text-foreground flex flex-col">
-        <Header />
-
-        <main className="flex-1 container mx-auto p-4 sm:p-6 space-y-6 max-w-7xl">
+    <div className="flex flex-col min-h-screen bg-background text-foreground">
+      <Header onLogout={isAdmin ? handleLogout : undefined} />
+      <main className="flex-grow flex flex-col">
+        {isUserLoading || isCheckingAdmin ? (
+          <LoadingScreen 
+            fullScreen={false} 
+            message="RICONOSCIMENTO SISTEMA" 
+            submessage="Identificazione amministratore GMC in corso..." 
+          />
+        ) : (
+          <AuthGuard isAdmin={isAdmin}>
+            <div className="flex-1 container mx-auto p-4 sm:p-6 space-y-6 max-w-7xl">
           {/* Header Bar */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4">
             <div>
@@ -514,9 +551,10 @@ export default function DashboardClient() {
                 </CardContent>
               </Card>
             </>
-          )}
-        </main>
-      </div>
-    </AuthGuard>
+            </div>
+          </AuthGuard>
+        )}
+      </main>
+    </div>
   );
 }
