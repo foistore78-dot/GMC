@@ -459,9 +459,21 @@ export default function ElencoClient() {
     setSocioToPrint(targetSocio);
     setShowPrintDialog(false);
 
-    // Avvia la stampa nativa universale (funziona sia su Desktop che su Mobile Safari / Chrome)
+    const originalTitle = document.title;
+    const cleanLastName = (targetSocio.lastName || "").trim();
+    const cleanFirstName = (targetSocio.firstName || "").trim();
+    const tesseraStr = targetSocio.tessera ? ` N. ${targetSocio.tessera}` : "";
+    const pdfTitle = `${cleanLastName} ${cleanFirstName}${tesseraStr}`.trim() || "Scheda Socio";
+
+    document.title = pdfTitle;
+
+    // Avvia la stampa nativa universale
     setTimeout(() => {
       window.print();
+      // Ripristina il titolo originale della pagina dopo la stampa
+      setTimeout(() => {
+        document.title = originalTitle;
+      }, 1000);
     }, 150);
   };
 
