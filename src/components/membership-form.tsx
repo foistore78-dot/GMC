@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, ArrowLeft, PartyPopper, Info, Home, List, User, Smartphone, KeyRound, ShieldCheck, RotateCcw } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, PartyPopper, Info, Home, List, User, Smartphone, KeyRound, ShieldCheck, RotateCcw, AlertTriangle } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { useFirestore, useAuth, addDocumentNonBlocking, logAdminActivity } from "@/firebase";
 import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from "firebase/auth";
@@ -53,6 +53,7 @@ export function MembershipForm() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [reportedProblem, setReportedProblem] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const firestore = useFirestore();
   const auth = useAuth();
@@ -330,6 +331,28 @@ export function MembershipForm() {
     }
   };
 
+  const handleProblemSignal = async () => {
+    if (!pendingFormValues) return;
+    setIsSubmitting(true);
+    try {
+      await executeFinalSubmission(pendingFormValues, {
+        method: 'MANUAL_PAPER',
+        signedAt: new Date().toISOString(),
+        notes: 'Inviato tramite segnalazione problema dal modulo online (Firma da acquisire in sede/cassa)'
+      });
+      setShowOtpModal(false);
+      setReportedProblem(true);
+    } catch (error) {
+      toast({
+        title: t('submission.error.title'),
+        description: t('submission.error.description'),
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   type FieldName = keyof FormValues;
 
   const nextStep = async () => {
@@ -366,6 +389,7 @@ export function MembershipForm() {
     setCurrentStep(0);
     setIsMinor(false);
     setIsSubmitted(false);
+    setReportedProblem(false);
     if(cameFromAdmin) {
         router.push('/admin/elenco');
     }
@@ -380,6 +404,32 @@ export function MembershipForm() {
 
 
   if (isSubmitted) {
+    if (reportedProblem) {
+      return (
+        <div className="text-center p-6 sm:p-10 bg-background/30 backdrop-blur-md rounded-2xl border border-amber-500/30 shadow-xl overflow-hidden relative">
+          <div className="p-4 sm:p-6">
+            <AlertTriangle className="w-16 h-16 sm:w-20 sm:h-20 mx-auto text-amber-500 animate-pulse mb-4 sm:mb-6" />
+            <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter text-white mb-2">
+              PROBLEMA SEGNALATO
+            </h2>
+            <div className="flex justify-center mb-6">
+              <Badge variant="outline" className="text-amber-500 border-amber-500/40 bg-amber-500/10 py-1 px-4 font-bold tracking-widest text-[10px] uppercase">
+                Segnalazione Acquisita
+              </Badge>
+            </div>
+            <div className="text-left bg-amber-500/10 border border-amber-500/30 rounded-xl p-5 mb-8">
+              <p className="text-sm sm:text-base font-bold text-amber-200 text-center leading-relaxed">
+                Il problema è stato segnalato. Si prega di rivolgersi al personale di controllo all'ingresso per completare l'ammissione ed accedere.
+              </p>
+            </div>
+            <Button onClick={resetForm} variant="outline" className="border-amber-500/30 hover:bg-amber-500/10 rounded-full px-8 py-5 h-auto font-bold uppercase text-xs">
+              Torna alla Home
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     return (
         <div className="text-center p-4 sm:p-8 bg-background/20 backdrop-blur-md rounded-2xl border border-primary/20 shadow-xl overflow-hidden relative group">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-accent to-primary animate-progress-indeterminate"></div>
@@ -974,6 +1024,17 @@ export function MembershipForm() {
                 Conferma e Firma Digitalmente
               </Button>
             </DialogFooter>
+
+            <div className="pt-2 text-center border-t border-border/40 mt-1">
+              <button 
+                type="button" 
+                onClick={handleProblemSignal} 
+                disabled={isSubmitting}
+                className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors underline font-normal focus:outline-none"
+              >
+                Se hai problemi con la richiesta clicca qui
+              </button>
+            </div>
           </DialogContent>
         </Dialog>
     </>
