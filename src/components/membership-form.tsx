@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, ArrowLeft, PartyPopper, Info, Home, List, User, Smartphone, KeyRound, ShieldCheck } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, PartyPopper, Info, Home, List, User, Smartphone, KeyRound, ShieldCheck, RotateCcw } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { useFirestore, useAuth, addDocumentNonBlocking, logAdminActivity } from "@/firebase";
 import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from "firebase/auth";
@@ -938,9 +938,22 @@ export function MembershipForm() {
                     className="text-center text-lg font-mono tracking-widest"
                     autoFocus
                   />
-                  <p className="text-[11px] text-muted-foreground text-center">
-                    Inserisci il codice a 6 cifre ricevuto per completare la firma.
-                  </p>
+                  <div className="flex justify-between items-center pt-1 gap-2">
+                    <p className="text-[11px] text-muted-foreground">
+                      Inserisci il codice a 6 cifre per completare la firma.
+                    </p>
+                    <Button 
+                      type="button" 
+                      variant="link" 
+                      size="sm" 
+                      onClick={handleSendOtp} 
+                      disabled={isSendingOtp}
+                      className="text-xs h-auto p-0 text-primary hover:underline flex items-center gap-1 shrink-0 font-semibold"
+                    >
+                      {isSendingOtp ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+                      Rinvia SMS
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
