@@ -277,7 +277,7 @@ export function SocioCard({ socio }: SocioCardProps) {
               ID Probandio Verifica: <b>{sig.verificationId || 'OTP-VERIFIED'}</b>
             </div>
           </div>
-          {(socio.notes?.toLowerCase().includes('modulo cartaceo') || sig.notes?.toLowerCase().includes('modulo cartaceo')) && (
+          {(socio.notes?.toLowerCase().includes('cartaceo') || sig.notes?.toLowerCase().includes('cartaceo')) && (
             <div className="no-break" style={{ padding: '6px 12px', border: '1px solid #6b7280', backgroundColor: '#f9fafb', borderRadius: '6px', marginBottom: '8px' }}>
               <div style={{ fontWeight: 'bold', color: '#374151', fontSize: '10.5px' }}>📄 MODULO CARTACEO ORIGINALE FIRMATO E PRESENTE IN SEDE</div>
             </div>

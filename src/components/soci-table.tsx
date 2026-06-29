@@ -723,7 +723,7 @@ const handleRenew = () => {
                                     <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 font-bold gap-1">
                                       <ShieldCheck className="w-3 h-3" /> SMS OTP VERIFICATO ({sig.signerPhone || socio.phone})
                                     </Badge>
-                                    {(socio.notes?.toLowerCase().includes('modulo cartaceo') || sig.notes?.toLowerCase().includes('modulo cartaceo')) && (
+                                    {(socio.notes?.toLowerCase().includes('cartaceo') || sig.notes?.toLowerCase().includes('cartaceo')) && (
                                       <Badge variant="outline" className="bg-slate-500/10 text-slate-400 border-slate-500/30 font-bold gap-1">
                                         📄 MODULO CARTACEO IN SEDE
                                       </Badge>
