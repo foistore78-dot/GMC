@@ -381,34 +381,34 @@ export function MembershipForm() {
 
   if (isSubmitted) {
     return (
-        <div className="text-center p-8 bg-background/20 backdrop-blur-md rounded-2xl border border-primary/20 shadow-xl overflow-hidden relative group">
+        <div className="text-center p-4 sm:p-8 bg-background/20 backdrop-blur-md rounded-2xl border border-primary/20 shadow-xl overflow-hidden relative group">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-accent to-primary animate-progress-indeterminate"></div>
-            <div className="p-10">
-                <PartyPopper className="w-20 h-20 mx-auto text-primary animate-bounce mb-6"/>
-                <h2 className="text-3xl font-black uppercase tracking-tighter text-white mb-2">{t('submission.success.title')}</h2>
+            <div className="p-4 sm:p-8">
+                <PartyPopper className="w-16 h-16 sm:w-20 sm:h-20 mx-auto text-primary animate-bounce mb-4 sm:mb-6"/>
+                <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter text-white mb-2">{t('submission.success.title')}</h2>
                 <div className="flex justify-center mb-6">
                     <Badge variant="outline" className="text-primary border-primary/30 py-1 px-4 font-bold tracking-widest text-[10px] uppercase">Registrazione Inoltrata</Badge>
                 </div>
-                <p className="mt-2 text-muted-foreground max-w-md mx-auto leading-relaxed">{t('submission.success.description')}</p>
+                <p className="mt-2 text-muted-foreground max-w-md mx-auto leading-relaxed text-sm sm:text-base">{t('submission.success.description')}</p>
                 
-                <Separator className="my-8 opacity-10" />
+                <Separator className="my-6 opacity-10" />
 
-                <Alert className="text-left bg-primary/5 border-primary/20 rounded-xl">
-                    <Info className="h-5 w-5 text-primary mt-1" />
-                    <div>
-                        <AlertTitle className="font-black text-xs uppercase tracking-[0.2em] text-primary mb-2">{t('submission.success.nextSteps.title')}</AlertTitle>
-                        <AlertDescription 
-                            className="text-sm font-medium leading-relaxed" 
+                <div className="text-left bg-primary/5 border border-primary/20 rounded-xl p-4 sm:p-5 flex items-start gap-3">
+                    <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                        <h5 className="font-black text-xs uppercase tracking-[0.15em] text-primary mb-1.5">{t('submission.success.nextSteps.title')}</h5>
+                        <div 
+                            className="text-xs sm:text-sm font-medium leading-relaxed text-foreground/90 space-y-1" 
                             dangerouslySetInnerHTML={{ __html: t('submission.success.nextSteps.description') }} 
                         />
                     </div>
-                </Alert>
+                </div>
                 
-                <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-                    <Button onClick={resetForm} variant="outline" className="border-primary/20 hover:bg-primary/10 rounded-full px-8 py-6 h-auto font-bold uppercase text-xs">
+                <div className="mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
+                    <Button onClick={resetForm} variant="outline" className="border-primary/20 hover:bg-primary/10 rounded-full px-6 sm:px-8 py-5 sm:py-6 h-auto font-bold uppercase text-xs">
                         {t('submission.success.newApplication')}
                     </Button>
-                    <Button asChild className="rounded-full px-8 py-6 h-auto font-black uppercase text-xs tracking-wider shadow-[0_4px_15px_rgba(var(--primary),0.3)]">
+                    <Button asChild className="rounded-full px-6 sm:px-8 py-5 sm:py-6 h-auto font-black uppercase text-xs tracking-wider shadow-[0_4px_15px_rgba(var(--primary),0.3)]">
                     {cameFromAdmin ? (
                         <Link href="/admin/elenco"><List className="mr-2 h-4 w-4" /> Torna all'elenco</Link>
                         ) : (
@@ -417,7 +417,7 @@ export function MembershipForm() {
                     </Button>
                 </div>
             </div>
-            <div className="absolute -right-20 -bottom-20 opacity-[0.03] text-primary group-hover:scale-110 transition-transform duration-1000 rotate-12">
+            <div className="absolute -right-20 -bottom-20 opacity-[0.03] text-primary group-hover:scale-110 transition-transform duration-1000 rotate-12 pointer-events-none">
                 <PartyPopper size={300}/>
             </div>
         </div>
