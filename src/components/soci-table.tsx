@@ -46,7 +46,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, Award, CheckCircle, Loader2, ArrowUpDown, FileLock2, Printer, MessageCircle, Cake, Trash2, MoreVertical, MapPin, UserCheck, Info, AlertTriangle, Users, Smartphone, KeyRound } from "lucide-react";
+import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, Award, CheckCircle, Loader2, ArrowUpDown, FileLock2, Printer, MessageCircle, Cake, Trash2, MoreVertical, MapPin, UserCheck, Info, AlertTriangle, Users, Smartphone, KeyRound, RotateCcw } from "lucide-react";
 import { cn, getFullName, getStatus, formatDate, formatCurrency, isMinorCheck as isMinor, getNextMemberNumberForYear, getSignatureMetadata } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
