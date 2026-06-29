@@ -66,6 +66,7 @@ export function MembershipForm() {
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [pendingFormValues, setPendingFormValues] = useState<any>(null);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [editablePhone, setEditablePhone] = useState("");
 
   useEffect(() => {
     setMounted(true);
@@ -243,6 +244,7 @@ export function MembershipForm() {
       }
     } else {
       setPendingFormValues(values);
+      setEditablePhone(values.phone || "");
       setShowOtpModal(true);
     }
   }
@@ -894,22 +896,39 @@ export function MembershipForm() {
             </DialogHeader>
 
             <div className="space-y-4 py-3">
-              <div className="p-3 bg-secondary rounded-lg flex items-center justify-between">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                  <Smartphone className="w-3.5 h-3.5" /> Numero di cellulare
+                </label>
                 <div className="flex items-center gap-2">
-                  <Smartphone className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm font-semibold">{pendingFormValues?.phone || "Numero non specificato"}</span>
+                  <Input
+                    value={editablePhone}
+                    onChange={(e) => setEditablePhone(e.target.value)}
+                    disabled={otpSent}
+                    placeholder="+39 340 1234567"
+                    className="font-semibold"
+                  />
+                  {!otpSent ? (
+                    <Button size="sm" onClick={() => { setPendingFormValues((v: any) => ({ ...v, phone: editablePhone })); handleSendOtp(); }} disabled={isSendingOtp || !editablePhone}>
+                      {isSendingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Invia OTP"}
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={() => { setOtpSent(false); setOtpCode(""); setConfirmationResult(null); }} disabled={isSubmitting}>
+                      Cambia
+                    </Button>
+                  )}
                 </div>
-                {!otpSent && (
-                  <Button size="sm" onClick={handleSendOtp} disabled={isSendingOtp}>
-                    {isSendingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Invia SMS OTP"}
-                  </Button>
+                {otpSent && (
+                  <p className="text-[11px] text-amber-500">
+                    ⚠️ Numero errato? Clicca su <b>Cambia</b> per modificarlo e reinviare l'SMS.
+                  </p>
                 )}
               </div>
 
               {otpSent && (
                 <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                    <KeyRound className="w-3.5 h-3.5" /> Inserisci il codice OTP a 6 cifre
+                    <KeyRound className="w-3.5 h-3.5" /> Codice OTP ricevuto via SMS
                   </label>
                   <Input 
                     placeholder="123456" 
@@ -917,9 +936,10 @@ export function MembershipForm() {
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value)}
                     className="text-center text-lg font-mono tracking-widest"
+                    autoFocus
                   />
                   <p className="text-[11px] text-muted-foreground text-center">
-                    SMS inviato al tuo numero di cellulare. Inserisci il codice a 6 cifre per completare la firma.
+                    Inserisci il codice a 6 cifre ricevuto per completare la firma.
                   </p>
                 </div>
               )}
