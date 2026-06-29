@@ -454,63 +454,15 @@ export default function ElencoClient() {
 
   const executePrint = (socio?: Socio) => {
     const targetSocio = socio || socioToPrint;
-
-
     if (!targetSocio) return;
 
-    const printWindow = window.open("", "_blank", "height=800,width=800");
-    if (!printWindow) {
-      alert("Attiva i pop-up per questo sito per stampare la scheda.");
-      return;
-    }
+    setSocioToPrint(targetSocio);
+    setShowPrintDialog(false);
 
-    printWindow.document.open();
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Stampa Scheda Socio</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto:wght@400;500;700&display=swap');
-            @media print {
-              body { margin: 0; -webkit-print-color-adjust: exact; color-adjust: exact; }
-            }
-            body { font-family: 'Roboto', sans-serif; }
-          </style>
-        </head>
-        <body>
-          <div id="print-root"></div>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-
-    const mount = () => {
-      const el = printWindow.document.getElementById("print-root");
-      if (!el) return;
-
-      const root = createRoot(el);
-      root.render(<SocioCard socio={targetSocio} />);
-
-      setTimeout(() => {
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
-      }, 400);
-    };
-
-    if (printWindow.document.readyState === "complete") {
-      mount();
-    } else {
-      printWindow.addEventListener("load", mount, { once: true });
-    }
-
-    // Clear print dialog state if it was used
-    if (!socio) {
-        setShowPrintDialog(false);
-        setSocioToPrint(null);
-    }
-
-
+    // Avvia la stampa nativa universale (funziona sia su Desktop che su Mobile Safari / Chrome)
+    setTimeout(() => {
+      window.print();
+    }, 150);
   };
 
   const handlePageChange = (page: number) => {
@@ -927,6 +879,10 @@ export default function ElencoClient() {
       </Dialog>
 
 
+      {/* Contenitore di stampa universale (visibile solo durante la stampa) */}
+      <div id="print-area" className="hidden print:block">
+        {socioToPrint && <SocioCard socio={socioToPrint} />}
+      </div>
     </div>
   );
 }

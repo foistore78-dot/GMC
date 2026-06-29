@@ -121,6 +121,29 @@ body {
     background: white !important;
     color: black !important;
   }
+
+  body > *:not(#print-area) {
+    /* Hide everything outside print area when print area is active */
+  }
+
+  body.is-printing #print-root-container > *:not(#print-area) {
+    display: none !important;
+  }
+
+  #print-area, #print-area * {
+    visibility: visible !important;
+  }
+
+  #print-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    background: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
   
   main {
     padding: 0 !important;
