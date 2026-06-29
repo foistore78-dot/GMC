@@ -126,6 +126,7 @@ const SocioTableRow = memo(({
   const [isSendingAdminOtp, setIsSendingAdminOtp] = useState(false);
   const [isVerifyingAdminOtp, setIsVerifyingAdminOtp] = useState(false);
   const [adminConfirmationResult, setAdminConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [hasPaperCopy, setHasPaperCopy] = useState(false);
 
   const [mounted, setMounted] = useState(false);
 
@@ -229,6 +230,8 @@ const SocioTableRow = memo(({
       toast({ title: "Numero di cellulare mancante", description: "Il socio non ha un numero di telefono valido registrato.", variant: "destructive" });
       return;
     }
+    const currentSig = getSignatureMetadata(socio);
+    setHasPaperCopy(currentSig.method === 'MANUAL_PAPER');
     setIsSendingAdminOtp(true);
     try {
       let rawPhone = String(socio.phone).replace(/\s+/g, '');
@@ -291,8 +294,16 @@ const SocioTableRow = memo(({
           notes: 'Firma Elettronica Semplice verificata via SMS OTP da pannello amministrativo'
         };
 
+        let finalNotes = socio.notes || '';
+        if (hasPaperCopy && !finalNotes.toLowerCase().includes('modulo cartaceo')) {
+          const todayStr = new Date().toLocaleDateString('it-IT');
+          const paperNote = `[NOTA ARCHIVIO ${todayStr}]: Presente anche modulo cartaceo originale firmato ed archiviato in sede.`;
+          finalNotes = finalNotes ? `${finalNotes}\n${paperNote}` : paperNote;
+        }
+
         await updateDoc(docRef, {
           signatureMetadata: updatedSig,
+          notes: finalNotes,
           updatedAt: serverTimestamp()
         });
 
@@ -1339,6 +1350,18 @@ const handleRenew = () => {
                   Reinvia SMS
                 </Button>
               </div>
+            </div>
+
+            <div className="flex items-center space-x-2 pt-3 border-t border-border/50">
+              <Checkbox 
+                id="has-paper-copy-check" 
+                checked={hasPaperCopy} 
+                onCheckedChange={(c) => setHasPaperCopy(!!c)} 
+                className="data-[state=checked]:bg-emerald-600 border-emerald-500/50"
+              />
+              <Label htmlFor="has-paper-copy-check" className="text-xs font-medium text-foreground cursor-pointer leading-tight">
+                Conserva nota: Presente anche modulo cartaceo originale in sede 📄
+              </Label>
             </div>
           </div>
 
