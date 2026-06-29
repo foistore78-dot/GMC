@@ -6,13 +6,14 @@ import AuthGuard from "../elenco/AuthGuard";
 import { useFirebase } from "@/firebase";
 import { collection, onSnapshot, query, orderBy, doc, getDoc } from "firebase/firestore";
 import type { Socio } from "@/lib/soci-data";
-import { getFullName, formatDate, parseDate, getSignatureMetadata, normalizeSocioData } from "@/lib/utils";
+import { getFullName, formatDate, parseDate, getSignatureMetadata, getStatus, normalizeSocioData } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Calendar as CalendarIcon, Users, UserCheck, ShieldCheck, TrendingUp, BarChart3, ChevronLeft, ChevronRight, Hash, FileText, Smartphone } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, Calendar as CalendarIcon, Users, UserCheck, ShieldCheck, TrendingUp, BarChart3, FileText, Smartphone, Inbox } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
 
 const MONTH_NAMES = [
@@ -22,9 +23,13 @@ const MONTH_NAMES = [
 
 export default function DashboardClient() {
   const { firestore, auth, user, isUserLoading, areServicesAvailable } = useFirebase();
-  const [members, setMembers] = useState<Socio[]>([]);
+  const [rawMembers, setRawMembers] = useState<Socio[]>([]);
+  const [rawRequests, setRawRequests] = useState<Socio[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  // View Mode: 'approvals' (Soci Effettivi) vs 'requests' (Domande Inoltrate)
+  const [dashboardMode, setDashboardMode] = useState<'approvals' | 'requests'>('approvals');
 
   const checkAdminStatus = useCallback(async () => {
     if (!user) {
@@ -57,76 +62,106 @@ export default function DashboardClient() {
 
     setIsLoading(true);
     const membersRef = collection(firestore, "members");
-    const q = query(membersRef, orderBy("lastName"));
+    const requestsRef = collection(firestore, "membership_requests");
 
-    const unsubscribe = onSnapshot(
-      q,
+    const unsubscribeMembers = onSnapshot(
+      query(membersRef, orderBy("lastName")),
       (snapshot) => {
         const list: Socio[] = [];
         snapshot.forEach((doc) => {
           list.push(normalizeSocioData({ id: doc.id, ...doc.data() }) as Socio);
         });
-        setMembers(list);
+        setRawMembers(list);
         setIsLoading(false);
       },
       (err) => {
-        console.error("Errore caricamento soci per dashboard:", err);
+        console.error("Errore caricamento soci:", err);
         setIsLoading(false);
       }
     );
 
-    return () => unsubscribe();
+    const unsubscribeRequests = onSnapshot(
+      query(requestsRef, orderBy("requestDate", "desc")),
+      (snapshot) => {
+        const list: Socio[] = [];
+        snapshot.forEach((doc) => {
+          list.push(normalizeSocioData({ id: doc.id, ...doc.data() }) as Socio);
+        });
+        setRawRequests(list);
+      },
+      (err) => console.error("Errore caricamento richieste:", err)
+    );
+
+    return () => {
+      unsubscribeMembers();
+      unsubscribeRequests();
+    };
   }, [firestore, areServicesAvailable]);
+
+  // Filter valid items depending on mode
+  // For approvals: MUST be active/expired (NOT rejected), MUST have joinDate and tessera!
+  const validItems = useMemo(() => {
+    if (dashboardMode === 'approvals') {
+      return rawMembers.filter((m) => {
+        if (!m.joinDate || !m.tessera) return false;
+        if (m.status === 'rejected') return false;
+        const status = getStatus(m, true);
+        return status === 'active' || status === 'expired';
+      });
+    } else {
+      // For requests: pending requests in membership_requests
+      return rawRequests.filter((r) => getStatus(r, false) === 'pending');
+    }
+  }, [dashboardMode, rawMembers, rawRequests]);
 
   // Available Years
   const availableYears = useMemo(() => {
     const yearsSet = new Set<string>([String(currentDate.getFullYear())]);
-    members.forEach((m) => {
-      const d = parseDate(m.joinDate || m.submittedAt);
+    validItems.forEach((item) => {
+      const dateStr = dashboardMode === 'approvals' ? (item.joinDate || item.submittedAt) : (item.requestDate || item.submittedAt);
+      const d = parseDate(dateStr);
       if (d) yearsSet.add(String(d.getFullYear()));
     });
     return Array.from(yearsSet).sort((a, b) => b.localeCompare(a));
-  }, [members, currentDate]);
+  }, [validItems, currentDate, dashboardMode]);
 
   // Compute stats for selected month & year
   const monthStats = useMemo(() => {
     const year = parseInt(selectedYear, 10);
     const month = parseInt(selectedMonth, 10) - 1; // 0-indexed
 
-    // Days in this month
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    // Group members by day
-    const dailyCounts: Record<number, { day: number; formattedDate: string; count: number; smsCount: number; paperCount: number; members: Socio[] }> = {};
+    const dailyCounts: Record<number, { day: number; formattedDate: string; count: number; smsCount: number; paperCount: number; items: Socio[] }> = {};
     for (let i = 1; i <= daysInMonth; i++) {
-      const dateObj = new Date(year, month, i);
       const formattedDate = `${String(i).padStart(2, '0')}/${selectedMonth}/${selectedYear}`;
-      dailyCounts[i] = { day: i, formattedDate, count: 0, smsCount: 0, paperCount: 0, members: [] };
+      dailyCounts[i] = { day: i, formattedDate, count: 0, smsCount: 0, paperCount: 0, items: [] };
     }
 
-    let totalMonthApprovals = 0;
+    let totalMonthCount = 0;
     let totalSmsMonth = 0;
     let totalPaperMonth = 0;
-    let todayApprovalsCount = 0;
+    let todayCount = 0;
 
     const todayStr = formatDate(new Date(), 'yyyy-MM-dd');
 
-    members.forEach((m) => {
-      const dateObj = parseDate(m.joinDate || m.submittedAt);
+    validItems.forEach((item) => {
+      const dateStr = dashboardMode === 'approvals' ? (item.joinDate || item.submittedAt) : (item.requestDate || item.submittedAt);
+      const dateObj = parseDate(dateStr);
       if (!dateObj) return;
 
       const mYear = dateObj.getFullYear();
       const mMonth = dateObj.getMonth();
       const mDay = dateObj.getDate();
 
-      const mDateStr = formatDate(dateObj, 'yyyy-MM-dd');
-      if (mDateStr === todayStr) {
-        todayApprovalsCount++;
+      const itemDateStr = formatDate(dateObj, 'yyyy-MM-dd');
+      if (itemDateStr === todayStr) {
+        todayCount++;
       }
 
       if (mYear === year && mMonth === month) {
-        totalMonthApprovals++;
-        const sig = getSignatureMetadata(m);
+        totalMonthCount++;
+        const sig = getSignatureMetadata(item);
         if (sig.method === 'SMS_OTP') {
           totalSmsMonth++;
         } else {
@@ -137,7 +172,7 @@ export default function DashboardClient() {
           dailyCounts[mDay].count++;
           if (sig.method === 'SMS_OTP') dailyCounts[mDay].smsCount++;
           else dailyCounts[mDay].paperCount++;
-          dailyCounts[mDay].members.push(m);
+          dailyCounts[mDay].items.push(item);
         }
       }
     });
@@ -145,31 +180,31 @@ export default function DashboardClient() {
     const chartData = Object.values(dailyCounts).map((d) => ({
       dayLabel: `${d.day}`,
       fullDate: d.formattedDate,
-      Approvazioni: d.count,
+      Totale: d.count,
       "SMS OTP": d.smsCount,
-      Cartaceo: d.paperCount,
+      "Cartaceo / Diretto": d.paperCount,
       rawDay: String(d.day).padStart(2, '0')
     }));
 
-    const avgDaily = (totalMonthApprovals / daysInMonth).toFixed(1);
+    const avgDaily = (totalMonthCount / daysInMonth).toFixed(1);
 
     return {
       daysInMonth,
-      totalMonthApprovals,
+      totalMonthCount,
       totalSmsMonth,
       totalPaperMonth,
-      todayApprovalsCount,
+      todayCount,
       avgDaily,
       chartData,
       dailyCounts
     };
-  }, [members, selectedYear, selectedMonth]);
+  }, [validItems, selectedYear, selectedMonth, dashboardMode]);
 
-  // Selected Day Members List
-  const selectedDayMembers = useMemo(() => {
+  // Selected Day Items List
+  const selectedDayItems = useMemo(() => {
     if (!selectedDay) return [];
     const dayNum = parseInt(selectedDay, 10);
-    return monthStats.dailyCounts[dayNum]?.members || [];
+    return monthStats.dailyCounts[dayNum]?.items || [];
   }, [selectedDay, monthStats]);
 
   return (
@@ -182,41 +217,51 @@ export default function DashboardClient() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4">
             <div>
               <h1 className="text-3xl font-headline font-bold tracking-tight text-primary flex items-center gap-3">
-                <BarChart3 className="w-8 h-8 text-primary" /> Dashboard Approvazioni
+                <BarChart3 className="w-8 h-8 text-primary" /> Dashboard Statistiche
               </h1>
               <p className="text-muted-foreground text-sm mt-1">
-                Monitoraggio e statistiche delle ammissioni soci giorno per giorno.
+                Analisi e monitoraggio delle ammissioni soci e delle domande d'iscrizione.
               </p>
             </div>
 
-            {/* Date Filters */}
-            <div className="flex flex-wrap items-center gap-3 bg-secondary/60 p-2 rounded-xl border border-border">
-              <div className="flex items-center gap-2">
-                <CalendarIcon className="w-4 h-4 text-primary ml-1" />
-                <span className="text-xs font-bold uppercase text-muted-foreground">Mese:</span>
-              </div>
-              <Select value={selectedMonth} onValueChange={(v) => { setSelectedMonth(v); setSelectedDay(null); }}>
-                <SelectTrigger className="w-[140px] h-9 text-sm font-semibold bg-background">
-                  <SelectValue placeholder="Mese" />
-                </SelectTrigger>
-                <SelectContent>
-                  {MONTH_NAMES.map((name, idx) => {
-                    const val = String(idx + 1).padStart(2, '0');
-                    return <SelectItem key={val} value={val}>{name}</SelectItem>;
-                  })}
-                </SelectContent>
-              </Select>
+            {/* Mode Switch & Date Filters */}
+            <div className="flex flex-wrap items-center gap-3">
+              <Tabs value={dashboardMode} onValueChange={(v) => { setDashboardMode(v as any); setSelectedDay(null); }}>
+                <TabsList className="bg-secondary/80">
+                  <TabsTrigger value="approvals" className="gap-2 font-bold text-xs">
+                    <UserCheck className="w-3.5 h-3.5" /> Approvazioni Soci
+                  </TabsTrigger>
+                  <TabsTrigger value="requests" className="gap-2 font-bold text-xs">
+                    <Inbox className="w-3.5 h-3.5" /> Domande Ricevute
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
 
-              <Select value={selectedYear} onValueChange={(v) => { setSelectedYear(v); setSelectedDay(null); }}>
-                <SelectTrigger className="w-[100px] h-9 text-sm font-semibold bg-background">
-                  <SelectValue placeholder="Anno" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableYears.map((y) => (
-                    <SelectItem key={y} value={y}>{y}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2 bg-secondary/60 p-2 rounded-xl border border-border">
+                <CalendarIcon className="w-4 h-4 text-primary ml-1" />
+                <Select value={selectedMonth} onValueChange={(v) => { setSelectedMonth(v); setSelectedDay(null); }}>
+                  <SelectTrigger className="w-[130px] h-8 text-xs font-semibold bg-background">
+                    <SelectValue placeholder="Mese" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTH_NAMES.map((name, idx) => {
+                      const val = String(idx + 1).padStart(2, '0');
+                      return <SelectItem key={val} value={val}>{name}</SelectItem>;
+                    })}
+                  </SelectContent>
+                </Select>
+
+                <Select value={selectedYear} onValueChange={(v) => { setSelectedYear(v); setSelectedDay(null); }}>
+                  <SelectTrigger className="w-[90px] h-8 text-xs font-semibold bg-background">
+                    <SelectValue placeholder="Anno" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.map((y) => (
+                      <SelectItem key={y} value={y}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
@@ -231,13 +276,15 @@ export default function DashboardClient() {
                 <Card className="bg-gradient-to-br from-primary/10 via-background to-background border-primary/20 shadow-sm">
                   <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                     <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                      Approvazioni Oggi
+                      {dashboardMode === 'approvals' ? 'Approvazioni Oggi' : 'Richieste Oggi'}
                     </CardTitle>
                     <UserCheck className="w-5 h-5 text-primary" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl font-black">{monthStats.todayApprovalsCount}</div>
-                    <p className="text-[11px] text-muted-foreground mt-1">Nuovi soci ammessi nella giornata odierna</p>
+                    <div className="text-3xl font-black">{monthStats.todayCount}</div>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      {dashboardMode === 'approvals' ? 'Nuovi soci ammessi oggi' : 'Nuove domande inoltrate oggi'}
+                    </p>
                   </CardContent>
                 </Card>
 
@@ -249,8 +296,8 @@ export default function DashboardClient() {
                     <TrendingUp className="w-5 h-5 text-emerald-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl font-black text-emerald-500">{monthStats.totalMonthApprovals}</div>
-                    <p className="text-[11px] text-muted-foreground mt-1">Media di ~{monthStats.avgDaily} soci al giorno</p>
+                    <div className="text-3xl font-black text-emerald-500">{monthStats.totalMonthCount}</div>
+                    <p className="text-[11px] text-muted-foreground mt-1">Media di ~{monthStats.avgDaily} al giorno</p>
                   </CardContent>
                 </Card>
 
@@ -264,9 +311,9 @@ export default function DashboardClient() {
                   <CardContent>
                     <div className="text-3xl font-black text-sky-500">{monthStats.totalSmsMonth}</div>
                     <p className="text-[11px] text-muted-foreground mt-1">
-                      {monthStats.totalMonthApprovals > 0 
-                        ? `${Math.round((monthStats.totalSmsMonth / monthStats.totalMonthApprovals) * 100)}% delle iscrizioni del mese`
-                        : "0% iscrizioni del mese"}
+                      {monthStats.totalMonthCount > 0 
+                        ? `${Math.round((monthStats.totalSmsMonth / monthStats.totalMonthCount) * 100)}% del mese`
+                        : "0% del mese"}
                     </p>
                   </CardContent>
                 </Card>
@@ -280,7 +327,7 @@ export default function DashboardClient() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-3xl font-black text-purple-500">{monthStats.totalPaperMonth}</div>
-                    <p className="text-[11px] text-muted-foreground mt-1">Modulo cartaceo o inseriti da segreteria</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">Modulo cartaceo o registrati da segreteria</p>
                   </CardContent>
                 </Card>
               </div>
@@ -291,10 +338,10 @@ export default function DashboardClient() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
                       <CardTitle className="text-lg font-bold">
-                        Andamento Giornaliero Approvazioni - {MONTH_NAMES[parseInt(selectedMonth, 10) - 1]} {selectedYear}
+                        {dashboardMode === 'approvals' ? 'Andamento Approvazioni Soci' : 'Andamento Domande Ricevute'} - {MONTH_NAMES[parseInt(selectedMonth, 10) - 1]} {selectedYear}
                       </CardTitle>
                       <CardDescription className="text-xs">
-                        Fai clic su una colonna per filtrare la lista dei soci approvati in quel giorno specifico.
+                        Clicca su una barra del grafico per vedere la lista dettagliata del giorno.
                       </CardDescription>
                     </div>
                     {selectedDay && (
@@ -318,9 +365,9 @@ export default function DashboardClient() {
                               return (
                                 <div className="bg-popover text-popover-foreground p-3 rounded-lg shadow-lg border border-border text-xs space-y-1">
                                   <div className="font-bold border-b pb-1 mb-1">{data.fullDate}</div>
-                                  <div className="text-primary font-bold">Totale Approvazioni: {data.Approvazioni}</div>
+                                  <div className="text-primary font-bold">Totale: {data.Totale}</div>
                                   <div className="text-sky-400">SMS OTP: {data["SMS OTP"]}</div>
-                                  <div className="text-purple-400">Cartaceo/Admin: {data.Cartaceo}</div>
+                                  <div className="text-purple-400">Cartaceo/Admin: {data["Cartaceo / Diretto"]}</div>
                                 </div>
                               );
                             }
@@ -328,7 +375,7 @@ export default function DashboardClient() {
                           }}
                         />
                         <Bar
-                          dataKey="Approvazioni"
+                          dataKey="Totale"
                           radius={[4, 4, 0, 0]}
                           onClick={(entry) => setSelectedDay(entry.rawDay)}
                           className="cursor-pointer hover:opacity-80 transition-opacity"
@@ -336,7 +383,7 @@ export default function DashboardClient() {
                           {monthStats.chartData.map((entry) => (
                             <Cell
                               key={`cell-${entry.dayLabel}`}
-                              fill={selectedDay === entry.rawDay ? "#10b981" : "#6366f1"}
+                              fill={selectedDay === entry.rawDay ? "#10b981" : (dashboardMode === 'approvals' ? "#6366f1" : "#eab308")}
                             />
                           ))}
                         </Bar>
@@ -354,13 +401,13 @@ export default function DashboardClient() {
                       <CardTitle className="text-lg font-bold flex items-center gap-2">
                         <Users className="w-5 h-5 text-primary" /> 
                         {selectedDay 
-                          ? `Soci Approvati il ${selectedDay}/${selectedMonth}/${selectedYear}`
-                          : `Tutti i Soci Approvati in ${MONTH_NAMES[parseInt(selectedMonth, 10) - 1]} ${selectedYear}`}
+                          ? `${dashboardMode === 'approvals' ? 'Soci Approvati' : 'Domande Ricevute'} il ${selectedDay}/${selectedMonth}/${selectedYear}`
+                          : `${dashboardMode === 'approvals' ? 'Tutti i Soci Approvati' : 'Tutte le Domande Ricevute'} in ${MONTH_NAMES[parseInt(selectedMonth, 10) - 1]} ${selectedYear}`}
                       </CardTitle>
                       <CardDescription className="text-xs">
                         {selectedDay 
-                          ? `Elenco dettagliato delle ammissioni del giorno ${selectedDay}/${selectedMonth}/${selectedYear} (${selectedDayMembers.length} soci)`
-                          : `Elenco completo delle ammissioni del mese (${monthStats.totalMonthApprovals} soci totali)`}
+                          ? `Elenco dettagliato del giorno ${selectedDay}/${selectedMonth}/${selectedYear} (${selectedDayItems.length} record)`
+                          : `Elenco completo del mese (${monthStats.totalMonthCount} record totali)`}
                       </CardDescription>
                     </div>
 
@@ -388,47 +435,54 @@ export default function DashboardClient() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {((selectedDay ? selectedDayMembers : members.filter(m => {
-                    const d = parseDate(m.joinDate || m.submittedAt);
+                  {((selectedDay ? selectedDayItems : validItems.filter(item => {
+                    const dateStr = dashboardMode === 'approvals' ? (item.joinDate || item.submittedAt) : (item.requestDate || item.submittedAt);
+                    const d = parseDate(dateStr);
                     return d && d.getFullYear() === parseInt(selectedYear, 10) && d.getMonth() === parseInt(selectedMonth, 10) - 1;
                   })).length === 0) ? (
                     <div className="text-center py-12 text-muted-foreground text-sm">
-                      Nessun socio approvato nella data selezionata.
+                      Nessun record trovato per la data selezionata.
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow className="text-xs uppercase tracking-wider">
-                            <TableHead className="w-28">N. Tessera</TableHead>
-                            <TableHead>Socio</TableHead>
-                            <TableHead className="hidden md:table-cell">Data & Ora Ammissione</TableHead>
+                            <TableHead className="w-28">{dashboardMode === 'approvals' ? 'N. Tessera' : 'Stato'}</TableHead>
+                            <TableHead>Nominativo</TableHead>
+                            <TableHead className="hidden md:table-cell">Data & Ora</TableHead>
                             <TableHead className="hidden sm:table-cell">Contatti</TableHead>
-                            <TableHead>Firma Digitale / Modulo</TableHead>
+                            <TableHead>Firma / Modalità</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {(selectedDay ? selectedDayMembers : members.filter(m => {
-                            const d = parseDate(m.joinDate || m.submittedAt);
+                          {(selectedDay ? selectedDayItems : validItems.filter(item => {
+                            const dateStr = dashboardMode === 'approvals' ? (item.joinDate || item.submittedAt) : (item.requestDate || item.submittedAt);
+                            const d = parseDate(dateStr);
                             return d && d.getFullYear() === parseInt(selectedYear, 10) && d.getMonth() === parseInt(selectedMonth, 10) - 1;
                           })).map((socio) => {
                             const sig = getSignatureMetadata(socio);
-                            const dateObj = parseDate(socio.joinDate || socio.submittedAt);
+                            const dateStr = dashboardMode === 'approvals' ? (socio.joinDate || socio.submittedAt) : (socio.requestDate || socio.submittedAt);
+                            const dateObj = parseDate(dateStr);
                             const timeStr = dateObj ? dateObj.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : '';
 
                             return (
                               <TableRow key={socio.id} className="text-sm">
                                 <TableCell className="font-mono font-bold text-primary">
-                                  {socio.tessera || 'In attesa'}
+                                  {dashboardMode === 'approvals' ? (socio.tessera || '-') : (
+                                    <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30 text-[10px]">
+                                      IN ATTESA
+                                    </Badge>
+                                  )}
                                 </TableCell>
                                 <TableCell className="font-semibold">
                                   <div>{getFullName(socio)}</div>
                                   <div className="text-[11px] text-muted-foreground font-normal md:hidden">
-                                    {formatDate(socio.joinDate)} {timeStr}
+                                    {formatDate(dateStr)} {timeStr}
                                   </div>
                                 </TableCell>
                                 <TableCell className="hidden md:table-cell text-xs">
-                                  <div className="font-medium">{formatDate(socio.joinDate)}</div>
+                                  <div className="font-medium">{formatDate(dateStr)}</div>
                                   <div className="text-muted-foreground text-[11px]">{timeStr ? `ore ${timeStr}` : ''}</div>
                                 </TableCell>
                                 <TableCell className="hidden sm:table-cell text-xs text-muted-foreground">
