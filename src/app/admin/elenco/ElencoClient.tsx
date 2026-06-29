@@ -462,8 +462,22 @@ export default function ElencoClient() {
     const originalTitle = document.title;
     const cleanLastName = (targetSocio.lastName || "").trim();
     const cleanFirstName = (targetSocio.firstName || "").trim();
-    const tesseraStr = targetSocio.tessera ? ` N. ${targetSocio.tessera}` : "";
-    const pdfTitle = `${cleanLastName} ${cleanFirstName}${tesseraStr}`.trim() || "Scheda Socio";
+    const nameStr = `${cleanLastName} ${cleanFirstName}`.trim();
+
+    const isMember = activeTab !== 'requests';
+    const status = getStatus(targetSocio, isMember);
+
+    let numStr = "N/A";
+    if (status === 'active' && targetSocio.tessera) {
+      numStr = targetSocio.tessera.replace(/^GMC-/i, '').trim();
+    } else if (status === 'expired' && targetSocio.tessera) {
+      const cleanTessera = targetSocio.tessera.replace(/^GMC-/i, '').trim();
+      numStr = `${cleanTessera}_T-S`;
+    } else {
+      numStr = "N/A";
+    }
+
+    const pdfTitle = `${nameStr} n. ${numStr}`.trim() || "Scheda Socio";
 
     document.title = pdfTitle;
 
