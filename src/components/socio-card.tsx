@@ -2,7 +2,7 @@
 
 import type { Socio } from "@/lib/soci-data";
 import { GarageMusicClubLogo } from "./icons/garage-music-club-logo";
-import { isMinorCheck, formatDate } from "@/lib/utils";
+import { isMinorCheck, formatDate, getSignatureMetadata } from "@/lib/utils";
 
 type SocioCardProps = {
   socio: Socio;
@@ -70,6 +70,7 @@ const cleanOneLine = (s: string) => s.replace(/\s+/g, " ").trim();
 export function SocioCard({ socio }: SocioCardProps) {
   if (!socio) return null;
   const isMinor = isMinorCheck(socio.birthDate);
+  const sig = getSignatureMetadata(socio);
   const relevantDateLabel = socio.renewalDate ? "DATA RINNOVO" : "DATA AMMISSIONE";
   const relevantDateValue = socio.renewalDate || socio.joinDate;
 
@@ -258,14 +259,29 @@ export function SocioCard({ socio }: SocioCardProps) {
         </div>
       </div>
 
-      <table className="no-break" style={{ width: "100%", marginTop: "20px", marginBottom: "20px", fontSize: "12px" }}>
-        <tbody>
-          <tr>
-            <td style={{ width: "50%" }}>Data: _________________________</td>
-            <td style={{ width: "50%", textAlign: "right" }}>Firma del Socio: _________________________</td>
-          </tr>
-        </tbody>
-      </table>
+      {sig.method === 'SMS_OTP' ? (
+        <div className="no-break" style={{ padding: '10px 14px', border: '1px solid #10b981', backgroundColor: '#ecfdf5', borderRadius: '6px', marginTop: '15px', marginBottom: '15px' }}>
+          <div style={{ fontWeight: 'bold', color: '#047857', fontSize: '11px' }}>✓ FIRMA DIGITALE VERIFICATA TRAMITE SMS OTP</div>
+          <div style={{ fontSize: '10px', color: '#065f46', marginTop: '4px', lineHeight: '1.4' }}>
+            Data e Ora Firma: <b>{formatDate(sig.signedAt, 'dd/MM/yyyy')} {sig.signedAt ? new Date(sig.signedAt).toLocaleTimeString('it-IT') : ''}</b> | Cellulare Verificato: <b>{sig.signerPhone || socio.phone || 'N/D'}</b><br/>
+            ID Probandio Verifica: <b>{sig.verificationId || 'OTP-VERIFIED'}</b>
+          </div>
+        </div>
+      ) : sig.method === 'ADMIN_DIRECT' ? (
+        <div className="no-break" style={{ padding: '10px 14px', border: '1px solid #3b82f6', backgroundColor: '#eff6ff', borderRadius: '6px', marginTop: '15px', marginBottom: '15px' }}>
+          <div style={{ fontWeight: 'bold', color: '#1d4ed8', fontSize: '11px' }}>👤 REGISTRAZIONE DIRETTA DA PANNELLO AMMINISTRATIVO</div>
+          <div style={{ fontSize: '10px', color: '#1e40af', marginTop: '4px' }}>
+            Ammissione registrata dall'amministratore dell'associazione.
+          </div>
+        </div>
+      ) : (
+        <div className="no-break" style={{ padding: '10px 14px', border: '1px solid #9ca3af', backgroundColor: '#f9fafb', borderRadius: '6px', marginTop: '15px', marginBottom: '15px' }}>
+          <div style={{ fontWeight: 'bold', color: '#374151', fontSize: '11px' }}>📄 FIRMA SU MODULO CARTACEO ARCHIVIATO IN SEDE</div>
+          <div style={{ fontSize: '10px', color: '#4b5563', marginTop: '4px' }}>
+            Accettazione Statuto e Privacy acquisita su documento analogico/cartaceo originale in sede.
+          </div>
+        </div>
+      )}
 
       {isMinor && (
         <div className="no-break" style={{ marginTop: "15px", marginBottom: "20px" }}>

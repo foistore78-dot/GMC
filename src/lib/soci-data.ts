@@ -1,3 +1,11 @@
+export type SignatureMetadata = {
+  signedAt?: string;
+  signerPhone?: string;
+  method: 'SMS_OTP' | 'MANUAL_PAPER' | 'ADMIN_DIRECT';
+  verificationId?: string;
+  notes?: string;
+};
+
 export type Socio = {
   id: string;
   gender: 'male' | 'female';
@@ -30,6 +38,7 @@ export type Socio = {
   qualifica?: string[];
   tessera?: string;
   submittedAt?: string;
+  signatureMetadata?: SignatureMetadata;
 };
 
 export const QUALIFICHE = ["FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;

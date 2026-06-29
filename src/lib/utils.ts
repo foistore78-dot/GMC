@@ -2,6 +2,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { differenceInYears } from 'date-fns';
+import type { Socio, SignatureMetadata } from "./soci-data";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -238,4 +239,15 @@ export const getNextMemberNumberForYear = (allMembers: any[], year: number): num
     }
     
     return nextNum;
+};
+
+export const getSignatureMetadata = (socio: Socio | any): SignatureMetadata => {
+  if (socio?.signatureMetadata) {
+    return socio.signatureMetadata;
+  }
+  return {
+    method: 'MANUAL_PAPER',
+    signedAt: socio?.joinDate || socio?.submittedAt || socio?.requestDate || '',
+    notes: 'Socio registrato con modulo cartaceo / storico'
+  };
 };

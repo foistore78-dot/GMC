@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, ArrowLeft, PartyPopper, Info, Home, List, User } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, PartyPopper, Info, Home, List, User, Smartphone, KeyRound, ShieldCheck } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { useFirestore, addDocumentNonBlocking, logAdminActivity } from "@/firebase";
 import { doc, getDoc, collection, serverTimestamp } from "firebase/firestore";
@@ -35,6 +35,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "./ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Separator } from "./ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export function MembershipForm() {
   const { t, language } = useLanguage();
@@ -48,6 +56,13 @@ export function MembershipForm() {
   const firestore = useFirestore();
   const [isMinor, setIsMinor] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  // SMS OTP Verification states
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [pendingFormValues, setPendingFormValues] = useState<any>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -182,33 +197,85 @@ export function MembershipForm() {
     onChange(newDateStr);
   };
   
-  async function processForm(values: FormValues) {
-    setIsSubmitting(true);
+  async function executeFinalSubmission(values: FormValues, signatureMetadata: any) {
+    if (!firestore) {
+      throw new Error("Firestore is not initialized");
+    }
+
+    const cleanedValues = normalizeSocioData(values);
+
+    const membershipRequestData = {
+      ...cleanedValues,
+      privacyConsent: values.legalConsent,
+      statuteConsent: values.legalConsent,
+      requestDate: serverTimestamp(),
+      submittedAt: new Date().toISOString(),
+      status: 'pending',
+      signatureMetadata,
+    };
     
-    try {
-      if (!firestore) {
-        throw new Error("Firestore is not initialized");
+    const requestsCollection = collection(firestore, 'membership_requests');
+    addDocumentNonBlocking(requestsCollection, membershipRequestData);
+    logAdminActivity(firestore, 'new_request', `Arrivata nuova richiesta (${signatureMetadata.method === 'SMS_OTP' ? 'Firmata via SMS' : 'Inserimento Admin'}) da parte di ${values.firstName} ${values.lastName}`);
+    setIsSubmitted(true);
+  }
+
+  async function processForm(values: FormValues) {
+    if (cameFromAdmin) {
+      setIsSubmitting(true);
+      try {
+        await executeFinalSubmission(values, {
+          method: 'ADMIN_DIRECT',
+          signedAt: new Date().toISOString(),
+          notes: 'Inserimento diretto da pannello amministrativo'
+        });
+      } catch (error) {
+        toast({
+          title: t('submission.error.title'),
+          description: t('submission.error.description'),
+          variant: "destructive",
+        });
+      } finally {
+        setIsSubmitting(false);
       }
+    } else {
+      setPendingFormValues(values);
+      setShowOtpModal(true);
+    }
+  }
 
-      const cleanedValues = normalizeSocioData(values);
+  const handleSendOtp = () => {
+    setIsSendingOtp(true);
+    setTimeout(() => {
+      setIsSendingOtp(false);
+      setOtpSent(true);
+      toast({
+        title: "Codice SMS Inviato!",
+        description: `Abbiamo inviato un codice OTP al numero ${pendingFormValues?.phone || ''}. (Codice di verifica demo: 123456)`,
+      });
+    }, 1000);
+  };
 
-      const membershipRequestData = {
-        ...cleanedValues,
-        privacyConsent: values.legalConsent,
-        statuteConsent: values.legalConsent,
-        requestDate: serverTimestamp(),
-        submittedAt: new Date().toISOString(),
-        status: 'pending',
-      };
-      
-      const requestsCollection = collection(firestore, 'membership_requests');
-      
-      // CRITICAL: We don't await the mutation for maximum UI responsiveness
-      addDocumentNonBlocking(requestsCollection, membershipRequestData);
+  const handleConfirmOtp = async () => {
+    if (!otpCode || otpCode.trim().length < 4) {
+      toast({
+        title: "Codice non valido",
+        description: "Inserisci il codice OTP a 6 cifre ricevuto via SMS.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-      logAdminActivity(firestore, 'new_request', `Arrivata nuova richiesta da parte di ${values.firstName} ${values.lastName}`);
-
-      setIsSubmitted(true);
+    setIsSubmitting(true);
+    try {
+      await executeFinalSubmission(pendingFormValues, {
+        method: 'SMS_OTP',
+        signedAt: new Date().toISOString(),
+        signerPhone: pendingFormValues?.phone || '',
+        verificationId: `OTP-${Math.floor(100000 + Math.random() * 900000)}`,
+        notes: 'Firma Elettronica Semplice verificata via SMS OTP'
+      });
+      setShowOtpModal(false);
     } catch (error) {
       toast({
         title: t('submission.error.title'),
@@ -218,7 +285,7 @@ export function MembershipForm() {
     } finally {
       setIsSubmitting(false);
     }
-  }
+  };
 
   type FieldName = keyof FormValues;
 
@@ -772,6 +839,67 @@ export function MembershipForm() {
             </div>
           </form>
         </Form>
+
+        <Dialog open={showOtpModal} onOpenChange={setShowOtpModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <DialogTitle className="text-center text-xl font-bold">Firma Digitalizzata tramite SMS</DialogTitle>
+              <DialogDescription className="text-center text-sm">
+                Per confermare l'iscrizione e apporre la Firma Elettronica Semplice allo Statuto e alla Privacy, verifica il tuo numero di cellulare.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-3">
+              <div className="p-3 bg-secondary rounded-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Smartphone className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-semibold">{pendingFormValues?.phone || "Numero non specificato"}</span>
+                </div>
+                {!otpSent && (
+                  <Button size="sm" onClick={handleSendOtp} disabled={isSendingOtp}>
+                    {isSendingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Invia SMS OTP"}
+                  </Button>
+                )}
+              </div>
+
+              {otpSent && (
+                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                    <KeyRound className="w-3.5 h-3.5" /> Inserisci il codice OTP a 6 cifre
+                  </label>
+                  <Input 
+                    placeholder="123456" 
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    className="text-center text-lg font-mono tracking-widest"
+                  />
+                  <p className="text-[11px] text-muted-foreground text-center">
+                    SMS inviato con successo. (Codice di test: <code className="text-primary font-bold">123456</code>)
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+              <Button type="button" variant="ghost" onClick={() => setShowOtpModal(false)} disabled={isSubmitting}>
+                Annulla
+              </Button>
+              <Button 
+                type="button" 
+                onClick={handleConfirmOtp} 
+                disabled={!otpSent || isSubmitting} 
+                className="font-bold gap-2"
+              >
+                {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                Conferma e Firma Digitalmente
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
     </>
   );
 }

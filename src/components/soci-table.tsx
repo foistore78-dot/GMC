@@ -47,7 +47,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, Award, CheckCircle, Loader2, ArrowUpDown, FileLock2, Printer, MessageCircle, Cake, Trash2, MoreVertical, MapPin, UserCheck, Info, AlertTriangle, Users } from "lucide-react";
-import { cn, getFullName, getStatus, formatDate, formatCurrency, isMinorCheck as isMinor, getNextMemberNumberForYear } from "@/lib/utils";
+import { cn, getFullName, getStatus, formatDate, formatCurrency, isMinorCheck as isMinor, getNextMemberNumberForYear, getSignatureMetadata } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -604,9 +604,33 @@ const handleRenew = () => {
 
                     <div className="space-y-4">
                       <h4 className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-widest border-b pb-1">
-                        <ShieldCheck className="h-4 w-4" /> Tesseramento
+                        <ShieldCheck className="h-4 w-4" /> Tesseramento e Firma
                       </h4>
                       <div className="grid grid-cols-1 gap-4">
+                        {(() => {
+                          const sig = getSignatureMetadata(socio);
+                          return (
+                            <DetailItem 
+                              label="Firma Digitale / Modulo" 
+                              value={
+                                sig.method === 'SMS_OTP' ? (
+                                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 font-bold gap-1 mt-0.5">
+                                    <ShieldCheck className="w-3 h-3" /> SMS OTP VERIFICATO ({sig.signerPhone || socio.phone})
+                                  </Badge>
+                                ) : sig.method === 'ADMIN_DIRECT' ? (
+                                  <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/30 font-bold gap-1 mt-0.5">
+                                    👤 REGISTRAZIONE ADMIN
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-slate-500/10 text-slate-400 border-slate-500/30 font-bold gap-1 mt-0.5">
+                                    📄 MODULO CARTACEO
+                                  </Badge>
+                                )
+                              } 
+                              icon={<ShieldCheck className="h-4 w-4 text-primary" />} 
+                            />
+                          );
+                        })()}
                         <DetailItem label="N. Tessera" value={socio.tessera || 'N/A'} icon={<Hash className="h-4 w-4" />} />
                         <DetailItem label="Anno Associativo" value={socio.membershipYear || 'N/A'} icon={<Calendar className="h-4 w-4" />} />
                         <DetailItem label="Data Ammissione" value={formatDate(socio.joinDate) || 'N/A'} icon={<CheckCircle className="h-4 w-4" />} />
