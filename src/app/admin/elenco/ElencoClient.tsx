@@ -310,10 +310,12 @@ export default function ElencoClient() {
             snapshot.docChanges().forEach(change => {
                 if (change.type === "added" || change.type === "modified") {
                     const newSocio = normalizeSocioData({ id: change.doc.id, ...change.doc.data() }) as Socio;
+                    if (!isInitialLoad.current && !seenRequestIds.current.has(change.doc.id)) {
                         toast({
                           title: "Nuova Richiesta!",
                           description: `${getFullName(newSocio)} ha appena inviato una domanda di adesione.`,
                         });
+                    }
                     newMap.set(change.doc.id, newSocio);
                 } else if (change.type === "removed") {
                     newMap.delete(change.doc.id);
