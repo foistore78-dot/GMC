@@ -551,10 +551,11 @@ export default function DashboardClient() {
                 </CardContent>
               </Card>
             </>
-            </div>
-          </AuthGuard>
-        )}
-      </main>
-    </div>
+          )}
+        </div>
+      </AuthGuard>
+    )}
+  </main>
+</div>
   );
 }
