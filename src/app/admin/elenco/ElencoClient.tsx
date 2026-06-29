@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, useDeferredValue, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { createRoot } from "react-dom/client";
+import { createPortal } from "react-dom";
 import { collection, onSnapshot, doc, writeBatch, query, limit, orderBy, startAfter, QueryDocumentSnapshot, where, getDocs, serverTimestamp, deleteField, getDoc } from "firebase/firestore";
 import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, X, Trash2, Info, Bell, UserCheck, Printer, Minimize2, Maximize2, MessageCircle, Award, Euro } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -880,9 +880,12 @@ export default function ElencoClient() {
 
 
       {/* Contenitore di stampa universale (visibile solo durante la stampa) */}
-      <div id="print-area" className="hidden print:block">
-        {socioToPrint && <SocioCard socio={socioToPrint} />}
-      </div>
+      {typeof document !== "undefined" && createPortal(
+        <div id="print-area" className="hidden print:block">
+          {socioToPrint && <SocioCard socio={socioToPrint} />}
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
