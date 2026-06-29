@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useDeferredValue, useRef } f
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { collection, onSnapshot, doc, writeBatch, query, limit, orderBy, startAfter, QueryDocumentSnapshot, where, getDocs, serverTimestamp, deleteField, getDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, writeBatch, query, limit, orderBy, startAfter, QueryDocumentSnapshot, where, getDocs, serverTimestamp, deleteField, getDoc, updateDoc } from "firebase/firestore";
 import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, X, Trash2, Info, Bell, UserCheck, Printer, Minimize2, Maximize2, MessageCircle, Award, Euro } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -285,7 +285,23 @@ export default function ElencoClient() {
             const newMap = new Map(prev.map(m => [m.id, m]));
             snapshot.docChanges().forEach(change => {
                 if (change.type === "added" || change.type === "modified") {
-                    newMap.set(change.doc.id, normalizeSocioData({ id: change.doc.id, ...change.doc.data() }) as Socio);
+                    const socioObj = normalizeSocioData({ id: change.doc.id, ...change.doc.data() }) as Socio;
+                    newMap.set(change.doc.id, socioObj);
+
+                    // Auto-correzione automatica per tessera 2026-9
+                    const cleanTessera = String(socioObj.tessera || '').split('_')[0];
+                    if (
+                      (cleanTessera === 'GMC-2026-0009' || cleanTessera === 'GMC-2026-9') &&
+                      socioObj.signatureMetadata?.method === 'SMS_OTP' &&
+                      !(socioObj.notes || '').toLowerCase().includes('modulo cartaceo')
+                    ) {
+                      const todayStr = new Date().toLocaleDateString('it-IT');
+                      const paperNote = `[NOTA ARCHIVIO ${todayStr}]: Presente anche modulo cartaceo originale firmato ed archiviato in sede.`;
+                      const newNotes = socioObj.notes ? `${socioObj.notes}\n${paperNote}` : paperNote;
+                      updateDoc(doc(firestore, "members", change.doc.id), { notes: newNotes })
+                        .then(() => console.log("Tessera 9 corretta automaticamente."))
+                        .catch(err => console.error("Errore auto-correzione tessera 9:", err));
+                    }
                 } else if (change.type === "removed") {
                     newMap.delete(change.doc.id);
                 }
