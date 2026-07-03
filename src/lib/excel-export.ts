@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import { type Socio } from './soci-data';
-import { formatDate, normalizeSocioData, getStatus } from '@/lib/utils';
+import { formatDate, normalizeSocioData, getStatus, getSignatureMetadata } from '@/lib/utils';
 
 const statusTranslations: Record<string, string> = {
   active: 'Attivo',
@@ -23,6 +23,19 @@ function extractTesseraNumber(tessera: string | undefined): number {
   const lastPart = parts[parts.length - 1].replace(/\D/g, '');
   const num = parseInt(lastPart, 10);
   return isNaN(num) ? 999999 : num;
+}
+
+function formatSignatureForExcel(socio: Socio): string {
+  const sig = getSignatureMetadata(socio);
+  if (sig.method === 'SMS_OTP') {
+    const formattedDate = sig.signedAt ? formatDate(sig.signedAt, 'dd/MM/yyyy HH:mm') : '';
+    return `Firma OTP - Tel: ${sig.signerPhone || ''} - Data: ${formattedDate} - ID: ${sig.verificationId || ''}`;
+  } else if (sig.method === 'MANUAL_PAPER') {
+    return 'Modulo cartaceo';
+  } else if (sig.method === 'ADMIN_DIRECT') {
+    return 'Registrazione Admin';
+  }
+  return 'Nessuna firma';
 }
 
 function formatSocioRow(item: any) {
@@ -61,6 +74,7 @@ function formatSocioRow(item: any) {
     row['Data Scadenza'] = fmtDate(s.expirationDate);
     row['Quota Versata (€)'] = s.membershipFee || 0;
     row['Qualifiche'] = Array.isArray(s.qualifica) ? s.qualifica.join(', ') : (s.qualifica || '');
+    row['Firma'] = formatSignatureForExcel(s);
     row['Note'] = cleanString(s.notes);
     row['Nome Tutore'] = cleanString(s.guardianFirstName);
     row['Cognome Tutore'] = cleanString(s.guardianLastName);
@@ -109,7 +123,7 @@ export async function exportToExcel(soci: Socio[], richieste: any[]) {
       const cleanedData = sheet.data.map(({ _finalStatus, _tesseraNum, ...rest }) => rest);
       let ws;
       if (cleanedData.length === 0) {
-        const headers = ["Anno Associativo", "TIPO", "N. Tessera", "Cognome", "Nome", "Genere", "Data di Nascita", "Luogo di Nascita", "Codice Fiscale", "Indirizzo", "Città", "Provincia", "CAP", "Email", "Telefono", "Consenso WhatsApp", "Consenso Privacy", "Data Richiesta", "Data Ammissione", "Data Rinnovo", "Data Scadenza", "Quota Versata (€)", "Qualifiche", "Note", "Nome Tutore", "Cognome Tutore", "Data Nascita Tutore"];
+        const headers = ["Anno Associativo", "TIPO", "N. Tessera", "Cognome", "Nome", "Genere", "Data di Nascita", "Luogo di Nascita", "Codice Fiscale", "Indirizzo", "Città", "Provincia", "CAP", "Email", "Telefono", "Consenso WhatsApp", "Consenso Privacy", "Data Richiesta", "Data Ammissione", "Data Rinnovo", "Data Scadenza", "Quota Versata (€)", "Qualifiche", "Firma", "Note", "Nome Tutore", "Cognome Tutore", "Data Nascita Tutore"];
         ws = XLSX.utils.aoa_to_sheet([headers]);
       } else {
         ws = XLSX.utils.json_to_sheet(cleanedData);

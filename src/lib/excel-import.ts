@@ -28,6 +28,54 @@ const parseExcelDate = (excelDate: string | number | undefined): string | undefi
     return undefined;
 };
 
+const parseSignatureFromExcel = (val: any): any => {
+    if (!val) return undefined;
+    const str = String(val).trim();
+    const strLower = str.toLowerCase();
+    
+    if (strLower.includes('otp')) {
+        const phoneMatch = str.match(/Tel:\s*([^\s-]+)/i);
+        const dateMatch = str.match(/Data:\s*([^\s-]+(?:\s+[^\s-]+)?)/i);
+        const idMatch = str.match(/ID:\s*([^\s-]+)/i);
+        
+        let signedAt: string | undefined = undefined;
+        if (dateMatch && dateMatch[1]) {
+            const dateStr = dateMatch[1].trim();
+            const parts = dateStr.match(/(\d+)/g);
+            if (parts && parts.length >= 5) {
+                const day = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10);
+                const year = parseInt(parts[2], 10);
+                const hour = parseInt(parts[3], 10);
+                const min = parseInt(parts[4], 10);
+                signedAt = new Date(Date.UTC(year, month - 1, day, hour, min)).toISOString();
+            } else {
+                const parsed = new Date(dateStr);
+                if (!isNaN(parsed.getTime())) signedAt = parsed.toISOString();
+            }
+        }
+        
+        return {
+            method: 'SMS_OTP',
+            signerPhone: phoneMatch ? phoneMatch[1].trim() : '',
+            signedAt: signedAt || new Date().toISOString(),
+            verificationId: idMatch ? idMatch[1].trim() : 'OTP-IMPORTED',
+            notes: 'Firma Elettronica Semplice verificata via SMS OTP da pannello amministrativo (Importata da Excel)'
+        };
+    } else if (strLower.includes('cartaceo') || strLower.includes('cartacea')) {
+        return {
+            method: 'MANUAL_PAPER',
+            notes: 'Socio registrato con modulo cartaceo / storico'
+        };
+    } else if (strLower.includes('admin')) {
+        return {
+            method: 'ADMIN_DIRECT',
+            notes: 'Registrato da amministratore'
+        };
+    }
+    return undefined;
+};
+
 type PartialSocioWithStatus = Partial<Socio> & { statusForImport: 'active' | 'pending' | 'expired' | 'rejected' };
 
 const excelRowToSocio = (row: any): PartialSocioWithStatus => {
@@ -65,6 +113,9 @@ const excelRowToSocio = (row: any): PartialSocioWithStatus => {
         }
     }
 
+    const signatureVal = getVal('Firma');
+    const signatureMetadata = parseSignatureFromExcel(signatureVal);
+
     const socio: Partial<Socio> = {
         tessera: getVal('N. Tessera') ? String(getVal('N. Tessera')) : undefined,
         lastName: getVal('Cognome'),
@@ -88,6 +139,7 @@ const excelRowToSocio = (row: any): PartialSocioWithStatus => {
         expirationDate: expirationDateStr,
         membershipFee: typeof getVal('Quota Versata (€)') === 'number' ? getVal('Quota Versata (€)') : 0,
         qualifica: getVal('Qualifiche') ? String(getVal('Qualifiche')).split(',').map((q: string) => q.trim().toUpperCase()) : [],
+        signatureMetadata: signatureMetadata || undefined,
         notes: getVal('Note'),
         guardianFirstName: getVal('Nome Tutore') || getVal('Tutore')?.split(' ')[0] || undefined,
         guardianLastName: getVal('Cognome Tutore') || getVal('Tutore')?.split(' ').slice(1).join(' ') || undefined,

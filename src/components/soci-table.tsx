@@ -146,6 +146,14 @@ const SocioTableRow = memo(({
   const [newPhoneInput, setNewPhoneInput] = useState("");
   const [isSavingPhone, setIsSavingPhone] = useState(false);
 
+  // Dialog: firma mancante all'approvazione/rinnovo
+  const [showMissingSignatureWarning, setShowMissingSignatureWarning] = useState(false);
+  const [pendingActionAfterOtp, setPendingActionAfterOtp] = useState<'approve' | 'renew' | null>(null);
+
+  // Stato temporaneo per la firma appena verificata
+  const [verifiedSignatureLocal, setVerifiedSignatureLocal] = useState<any>(null);
+  const [verifiedNotesLocal, setVerifiedNotesLocal] = useState<string | null>(null);
+
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -173,12 +181,16 @@ const SocioTableRow = memo(({
     setIsApproving(false);
     setApprovedSocioData(null);
     setOverrideDuplicateCheck(false);
+    setVerifiedSignatureLocal(null);
+    setVerifiedNotesLocal(null);
   }, []);
   
   const resetRenewDialog = useCallback(() => {
       setShowRenewDialog(false);
       setIsRenewing(false);
       setRenewedSocioData(null);
+      setVerifiedSignatureLocal(null);
+      setVerifiedNotesLocal(null);
   }, []);
 
   const handleApproveDialogChange = (isOpen: boolean) => {
@@ -291,7 +303,7 @@ const SocioTableRow = memo(({
     }
     // 2. Controlla se esiste già una firma
     const currentSig = getSignatureMetadata(socio);
-    if (currentSig.method && currentSig.method !== 'NONE') {
+    if (currentSig.method && (currentSig.method as string) !== 'NONE') {
       if (currentSig.method === 'MANUAL_PAPER') {
         // Modulo cartaceo presente: non avvisare, tieni entrambe le firme
         setHasPaperCopy(true);
@@ -321,19 +333,24 @@ const SocioTableRow = memo(({
       await updateDoc(docRef, { phone: trimmed, updatedAt: serverTimestamp() });
       toast({ title: "Numero salvato", description: `Il numero ${trimmed} è stato aggiunto alla scheda del socio.` });
       setShowAddPhoneDialog(false);
-      // Controlla se c'è già una firma
-      const currentSig = getSignatureMetadata(socio);
-      if (currentSig.method && currentSig.method !== 'NONE') {
-        if (currentSig.method === 'MANUAL_PAPER') {
-          // Modulo cartaceo: tieni entrambe, procedi direttamente
-          setHasPaperCopy(true);
-          await doSendOtp(trimmed);
-        } else {
-          // Altra firma digitale: chiedi conferma sovrascrittura
-          setShowSignatureExistsDialog(true);
-        }
-      } else {
+      
+      if (pendingActionAfterOtp) {
         await doSendOtp(trimmed);
+      } else {
+        // Controlla se c'è già una firma
+        const currentSig = getSignatureMetadata(socio);
+        if (currentSig.method && (currentSig.method as string) !== 'NONE') {
+          if (currentSig.method === 'MANUAL_PAPER') {
+            // Modulo cartaceo: tieni entrambe, procedi direttamente
+            setHasPaperCopy(true);
+            await doSendOtp(trimmed);
+          } else {
+            // Altra firma digitale: chiedi conferma sovrascrittura
+            setShowSignatureExistsDialog(true);
+          }
+        } else {
+          await doSendOtp(trimmed);
+        }
       }
     } catch (err: any) {
       toast({ title: "Errore salvataggio", description: "Impossibile salvare il numero di telefono.", variant: "destructive" });
@@ -360,41 +377,103 @@ const SocioTableRow = memo(({
         }
       }
 
-      if (firestore) {
-        const collectionName = activeTab === 'requests' ? 'membership_requests' : 'members';
-        const docRef = doc(firestore, collectionName, socio.id);
-        const updatedSig = {
-          method: 'SMS_OTP',
-          signedAt: new Date().toISOString(),
-          signerPhone: socio.phone || '',
-          verificationId: verificationId,
-          notes: 'Firma Elettronica Semplice verificata via SMS OTP da pannello amministrativo'
-        };
+      const updatedSig = {
+        method: 'SMS_OTP',
+        signedAt: new Date().toISOString(),
+        signerPhone: socio.phone || newPhoneInput.trim() || '',
+        verificationId: verificationId,
+        notes: 'Firma Elettronica Semplice verificata via SMS OTP da pannello amministrativo'
+      };
 
-        let finalNotes = socio.notes || '';
-        if (hasPaperCopy && !finalNotes.toLowerCase().includes('modulo cartaceo')) {
-          const todayStr = new Date().toLocaleDateString('it-IT');
-          const paperNote = `[NOTA ARCHIVIO ${todayStr}]: Presente anche modulo cartaceo originale firmato ed archiviato in sede.`;
-          finalNotes = finalNotes ? `${finalNotes}\n${paperNote}` : paperNote;
+      let finalNotes = socio.notes || '';
+      if (hasPaperCopy && !finalNotes.toLowerCase().includes('modulo cartaceo')) {
+        const todayStr = new Date().toLocaleDateString('it-IT');
+        const paperNote = `[NOTA ARCHIVIO ${todayStr}]: Presente anche modulo cartaceo originale firmato ed archiviato in sede.`;
+        finalNotes = finalNotes ? `${finalNotes}\n${paperNote}` : paperNote;
+      }
+
+      if (pendingActionAfterOtp === 'approve') {
+        if (firestore) {
+          const docRef = doc(firestore, 'membership_requests', socio.id);
+          await updateDoc(docRef, {
+            signatureMetadata: updatedSig,
+            notes: finalNotes,
+            updatedAt: serverTimestamp()
+          });
         }
-
-        await updateDoc(docRef, {
-          signatureMetadata: updatedSig,
-          notes: finalNotes,
-          updatedAt: serverTimestamp()
-        });
-
-        toast({
-          title: "Firma Digitalizzata Verificata!",
-          description: `Il socio ${getFullName(socio)} ora risulta con Firma SMS OTP verificata.`,
-        });
+        setVerifiedSignatureLocal(updatedSig);
+        setVerifiedNotesLocal(finalNotes);
+        setPendingActionAfterOtp(null);
         setShowAdminOtpModal(false);
-        onSocioUpdate(activeTab === 'requests' ? 'requests' : 'active');
+        setShowApproveDialog(true);
+      } else if (pendingActionAfterOtp === 'renew') {
+        if (firestore) {
+          const docRef = doc(firestore, 'members', socio.id);
+          await updateDoc(docRef, {
+            signatureMetadata: updatedSig,
+            notes: finalNotes,
+            updatedAt: serverTimestamp()
+          });
+        }
+        setVerifiedSignatureLocal(updatedSig);
+        setVerifiedNotesLocal(finalNotes);
+        setPendingActionAfterOtp(null);
+        setShowAdminOtpModal(false);
+        setShowRenewDialog(true);
+      } else {
+        if (firestore) {
+          const collectionName = activeTab === 'requests' ? 'membership_requests' : 'members';
+          const docRef = doc(firestore, collectionName, socio.id);
+          await updateDoc(docRef, {
+            signatureMetadata: updatedSig,
+            notes: finalNotes,
+            updatedAt: serverTimestamp()
+          });
+
+          toast({
+            title: "Firma Digitalizzata Verificata!",
+            description: `Il socio ${getFullName(socio)} ora risulta con Firma SMS OTP verificata.`,
+          });
+          setShowAdminOtpModal(false);
+          onSocioUpdate(activeTab === 'requests' ? 'requests' : 'active');
+        }
       }
     } catch (error: any) {
       toast({ title: "Errore verifica", description: "Impossibile verificare il codice OTP.", variant: "destructive" });
     } finally {
       setIsVerifyingAdminOtp(false);
+    }
+  };
+
+  const handleProceedWithOtp = async () => {
+    setShowMissingSignatureWarning(false);
+    if (!socio.phone) {
+      setNewPhoneInput("");
+      setShowAddPhoneDialog(true);
+    } else {
+      await doSendOtp();
+    }
+  };
+
+  const handleStartApprovalFlow = () => {
+    const currentSig = getSignatureMetadata(socio);
+    if (currentSig.method === 'SMS_OTP') {
+      setShowApproveDialog(true);
+    } else {
+      setPendingActionAfterOtp('approve');
+      setHasPaperCopy(currentSig.method === 'MANUAL_PAPER' || !!socio.notes?.toLowerCase().includes('cartaceo'));
+      setShowMissingSignatureWarning(true);
+    }
+  };
+
+  const handleStartRenewalFlow = () => {
+    const currentSig = getSignatureMetadata(socio);
+    if (currentSig.method === 'SMS_OTP') {
+      setShowRenewDialog(true);
+    } else {
+      setPendingActionAfterOtp('renew');
+      setHasPaperCopy(currentSig.method === 'MANUAL_PAPER' || !!socio.notes?.toLowerCase().includes('cartaceo'));
+      setShowMissingSignatureWarning(true);
     }
   };
   
@@ -537,7 +616,7 @@ const SocioTableRow = memo(({
     }
   }, [showRenewDialog, allMembers, socioIsMinor, socio.qualifica]);
 
-  const handleApprove = async () => {
+  const handleApprove = async (verifiedSignature?: any, verifiedNotes?: string) => {
     if (!firestore || isApproving || !approveFeePaid) return;
 
     setIsApproving(true);
@@ -563,8 +642,14 @@ const SocioTableRow = memo(({
             membershipFee: approveMembershipFee,
             qualifica: approveQualifiche,
             requestDate: socio.requestDate || new Date().toISOString(),
-            notes: socio.notes || '', 
+            notes: verifiedNotesLocal !== null ? verifiedNotesLocal : (verifiedNotes !== undefined ? verifiedNotes : (socio.notes || '')), 
         };
+
+        if (verifiedSignatureLocal) {
+            newMemberData.signatureMetadata = verifiedSignatureLocal;
+        } else if (verifiedSignature) {
+            newMemberData.signatureMetadata = verifiedSignature;
+        }
 
         const safeMemberData = Object.fromEntries(
             Object.entries(newMemberData).filter(([_, v]) => v !== undefined)
@@ -599,51 +684,59 @@ const SocioTableRow = memo(({
     }
   };
   
-const handleRenew = () => {
-    if (!firestore || isRenewing || !renewFeePaid) return;
-    setIsRenewing(true);
+  const handleRenew = (verifiedSignature?: any, verifiedNotes?: string) => {
+      if (!firestore || isRenewing || !renewFeePaid) return;
+      setIsRenewing(true);
 
-    const memberDocRef = doc(firestore, 'members', socio.id);
-    const renewalDateISO = new Date().toISOString();
-    const newTessera = `GMC-${renewalYear}-${renewMemberNumber}`;
-    const oldNotes = socio.notes || '';
-    
-    const renewalNote = `--- RINNOVO ${formatDate(renewalDateISO)} ---\nAnno: ${renewalYear}. Tessera precedente anno ${socio.membershipYear || 'N/A'}: ${socio.tessera || 'N/A'}. Quota versata: ${formatCurrency(renewalFee)}.`;
-    
-    const newNotes = `${renewalNote}\n\n${oldNotes}`.trim();
+      const memberDocRef = doc(firestore, 'members', socio.id);
+      const renewalDateISO = new Date().toISOString();
+      const newTessera = `GMC-${renewalYear}-${renewMemberNumber}`;
+      const oldNotes = socio.notes || '';
+      
+      const renewalNote = `--- RINNOVO ${formatDate(renewalDateISO)} ---\nAnno: ${renewalYear}. Tessera precedente anno ${socio.membershipYear || 'N/A'}: ${socio.tessera || 'N/A'}. Quota versata: ${formatCurrency(renewalFee)}.`;
+      
+      const newNotes = verifiedNotesLocal !== null 
+          ? `${renewalNote}\n\n${verifiedNotesLocal}`.trim() 
+          : (verifiedNotes !== undefined ? `${renewalNote}\n\n${verifiedNotes}`.trim() : `${renewalNote}\n\n${oldNotes}`.trim());
 
-    const updatedData = {
-        renewalDate: renewalDateISO,
-        expirationDate: new Date(parseInt(renewalYear, 10), 11, 31).toISOString(),
-        membershipYear: renewalYear,
-        membershipFee: renewalFee,
-        qualifica: renewQualifiche,
-        tessera: newTessera,
-        notes: newNotes,
-    };
+      const updatedData: any = {
+          renewalDate: renewalDateISO,
+          expirationDate: new Date(parseInt(renewalYear, 10), 11, 31).toISOString(),
+          membershipYear: renewalYear,
+          membershipFee: renewalFee,
+          qualifica: renewQualifiche,
+          tessera: newTessera,
+          notes: newNotes,
+      };
 
-    const batch = writeBatch(firestore);
-    batch.update(memberDocRef, updatedData);
-    
-    batch.commit().then(() => {
-        const newlyRenewedSocio = { ...socio, ...updatedData };
-        
-        logAdminActivity(firestore, 'renew', `Rinnovato tesseramento per ${getFullName(socio)}. Nuovo numero tessera ${newTessera} (Anno ${renewalYear})`);
+      if (verifiedSignatureLocal) {
+          updatedData.signatureMetadata = verifiedSignatureLocal;
+      } else if (verifiedSignature) {
+          updatedData.signatureMetadata = verifiedSignature;
+      }
 
-        toast({
-            title: 'Rinnovo Effettuato!',
-            description: `Il tesseramento di ${getFullName(socio)} è stato rinnovato. Nuova tessera: ${newTessera}.`,
-        });
-        setRenewedSocioData(newlyRenewedSocio);
-    }).catch((error) => {
-        toast({
-            title: 'Errore di Rinnovo',
-            description: `Impossibile rinnovare ${getFullName(socio)}. Dettagli: ${(error as Error).message}`,
-            variant: 'destructive',
-        });
-        setIsRenewing(false);
-    });
-};
+      const batch = writeBatch(firestore);
+      batch.update(memberDocRef, updatedData);
+      
+      batch.commit().then(() => {
+          const newlyRenewedSocio = { ...socio, ...updatedData };
+          
+          logAdminActivity(firestore, 'renew', `Rinnovato tesseramento per ${getFullName(socio)}. Nuovo numero tessera ${newTessera} (Anno ${renewalYear})`);
+
+          toast({
+              title: 'Rinnovo Effettuato!',
+              description: `Il tesseramento di ${getFullName(socio)} è stato rinnovato. Nuova tessera: ${newTessera}.`,
+          });
+          setRenewedSocioData(newlyRenewedSocio);
+      }).catch((error) => {
+          toast({
+              title: 'Errore di Rinnovo',
+              description: `Impossibile rinnovare ${getFullName(socio)}. Dettagli: ${(error as Error).message}`,
+              variant: 'destructive',
+          });
+          setIsRenewing(false);
+      });
+  };
 
   const handleQualificaChange = (qualifica: string, checked: boolean, stateSetter: Dispatch<SetStateAction<string[]>>) => {
     stateSetter(prev => 
@@ -939,12 +1032,15 @@ const handleRenew = () => {
             <div className="flex items-center justify-end">
                 {activeTab === 'requests' && (
                     <Dialog open={showApproveDialog} onOpenChange={handleApproveDialogChange}>
-                        <DialogTrigger asChild>
-                        <Button variant="ghost" size="sm" className="text-green-500 hover:text-green-500 hover:bg-green-500/10 h-8">
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-green-500 hover:text-green-500 hover:bg-green-500/10 h-8"
+                            onClick={handleStartApprovalFlow}
+                        >
                             <CheckCircle className="h-4 w-4 sm:mr-2" />
                             <span className="hidden sm:inline">Approva</span>
                         </Button>
-                        </DialogTrigger>
                         <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
                             <DialogHeader>
                                 <DialogTitle className="sr-only">Approva Socio</DialogTitle>
@@ -1068,7 +1164,7 @@ const handleRenew = () => {
                             </div>
                             <DialogFooter className="flex flex-row gap-2 pt-2 px-1">
                                 <Button variant="ghost" onClick={() => handleApproveDialogChange(false)} className="flex-1 font-bold uppercase text-[10px] tracking-widest h-11 border border-border/50">Annulla</Button>
-                                <Button onClick={handleApprove} disabled={isApproving || !approveFeePaid || (!!potentialDuplicate && !overrideDuplicateCheck)} className="flex-1 px-4 font-bold uppercase text-[10px] tracking-widest h-11 shadow-md">
+                                <Button onClick={() => handleApprove()} disabled={isApproving || !approveFeePaid || (!!potentialDuplicate && !overrideDuplicateCheck)} className="flex-1 px-4 font-bold uppercase text-[10px] tracking-widest h-11 shadow-md">
                                     {isApproving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     CONFERMA E SALVA
                                 </Button>
@@ -1078,12 +1174,15 @@ const handleRenew = () => {
                 )}
                 {activeTab === 'expired' && (
                      <Dialog open={showRenewDialog} onOpenChange={handleRenewDialogChange}>
-                        <DialogTrigger asChild>
-                            <Button variant="ghost" size="sm" className="text-orange-500 hover:text-orange-500 hover:bg-orange-500/10 h-8">
-                                <RefreshCw className="h-4 w-4 sm:mr-2" />
-                                <span className="hidden sm:inline">Rinnova</span>
-                            </Button>
-                        </DialogTrigger>
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-orange-500 hover:text-orange-500 hover:bg-orange-500/10 h-8"
+                            onClick={handleStartRenewalFlow}
+                        >
+                            <RefreshCw className="h-4 w-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Rinnova</span>
+                        </Button>
                         <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
                             <DialogHeader>
                                 <DialogTitle className="sr-only">Rinnova Tesseramento</DialogTitle>
@@ -1168,7 +1267,7 @@ const handleRenew = () => {
                             </div>
                             <DialogFooter className="flex flex-row gap-2 pt-2 px-1">
                                 <Button variant="ghost" onClick={() => handleRenewDialogChange(false)} className="flex-1 font-bold uppercase text-[10px] tracking-widest h-11 border border-border/50">Annulla</Button>
-                                <Button onClick={handleRenew} disabled={isRenewing || !renewFeePaid} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 uppercase text-[10px] tracking-widest h-11 shadow-md">
+                                <Button onClick={() => handleRenew()} disabled={isRenewing || !renewFeePaid} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 uppercase text-[10px] tracking-widest h-11 shadow-md">
                                     {isRenewing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     CONFERMA RINNOVO
                                 </Button>
@@ -1566,6 +1665,32 @@ const handleRenew = () => {
       </Dialog>
 
       {/* Vecchio flow di eliminazione rimosso */}
+
+      {/* Dialog: Avviso Firma Digitale Mancante */}
+      <AlertDialog open={showMissingSignatureWarning} onOpenChange={setShowMissingSignatureWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Firma Digitale Mancante
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Questo socio non ha ancora la firma digitale <strong>SMS OTP</strong>.
+              {pendingActionAfterOtp === 'renew' && " Per il rinnovo è necessario raccogliere la firma OTP (il modulo cartaceo originario verrà conservato nello storico)."}
+              <br /><br />
+              Cliccando su procedi, verrà avviata in automatico la richiesta OTP SMS per questo socio.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="ghost" onClick={() => { setShowMissingSignatureWarning(false); setPendingActionAfterOtp(null); }}>
+              Annulla
+            </Button>
+            <Button onClick={handleProceedWithOtp} className="gap-2">
+              Procedi con OTP
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 });

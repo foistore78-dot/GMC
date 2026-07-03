@@ -177,12 +177,38 @@ export default function EditSocioForm({ socio, allMembers = [], onClose, isFromM
         updatedAt: serverTimestamp(),
       };
       
-      // Preserve original date object/timestamp to avoid breaking queries
-      // Only attach if it exists, otherwise fallback or remove to avoid undefined errors
-      if (socio.requestDate !== undefined) {
-        updateData.requestDate = socio.requestDate;
-      } else if (values.requestDate === undefined) {
-        delete updateData.requestDate;
+      // Handle requestDate updates, preserving the original data type (Timestamp/Date vs String) to avoid breaking queries
+      const originalRequestDateStr = formatDate(socio.requestDate, 'yyyy-MM-dd');
+      const newRequestDateStr = values.requestDate || "";
+
+      if (newRequestDateStr !== originalRequestDateStr) {
+        if (!newRequestDateStr) {
+          updateData.requestDate = null;
+        } else {
+          // If original was a Firestore Timestamp or JS Date, keep it as Date (Firestore saves as Timestamp)
+          const reqDateAny = socio.requestDate as any;
+          const isTimestamp = reqDateAny && (
+            typeof reqDateAny.toDate === 'function' || 
+            reqDateAny.seconds !== undefined || 
+            reqDateAny instanceof Date
+          );
+          if (isTimestamp) {
+            updateData.requestDate = new Date(newRequestDateStr);
+          } else {
+            // Check if original was ISO string or fallback to ISO string (consistent with excel import)
+            const wasISO = typeof socio.requestDate === 'string' && socio.requestDate.includes('T');
+            if (wasISO || !socio.requestDate) {
+              updateData.requestDate = new Date(newRequestDateStr).toISOString();
+            } else {
+              updateData.requestDate = newRequestDateStr;
+            }
+          }
+        }
+      } else {
+        // If not changed, preserve the original object (e.g., Firestore Timestamp)
+        if (socio.requestDate !== undefined) {
+          updateData.requestDate = socio.requestDate;
+        }
       }
 
       // Final safety check: remove any undefined values before sending to Firestore

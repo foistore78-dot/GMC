@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { GarageMusicClubLogo } from "./icons/garage-music-club-logo";
 import { Button } from "./ui/button";
 import { Sheet, SheetTrigger, SheetContent, SheetTitle } from "./ui/sheet";
-import { Menu, Home, List, LogOut, Settings, UserCircle, Loader2, BarChart3 } from "lucide-react";
+import { Menu, Home, List, LogOut, Settings, UserCircle, Loader2, BarChart3, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
@@ -67,6 +67,9 @@ export function Header({ onLogout }: HeaderProps) {
                 <Button asChild variant="ghost" className={cn("hover:bg-primary/10 hover:text-primary", pathname === '/admin/elenco' && "bg-primary/10 text-primary")}>
                   <Link href="/admin/elenco"><List className="mr-2 h-4 w-4" /> Soci</Link>
                 </Button>
+                <Button asChild variant="ghost" className={cn("hover:bg-primary/10 hover:text-primary", pathname === '/admin/segreteria' && "bg-primary/10 text-primary")}>
+                  <Link href="/admin/segreteria"><Printer className="mr-2 h-4 w-4" /> Segreteria</Link>
+                </Button>
                 <Button asChild variant="ghost" className={cn("hover:bg-primary/10 hover:text-primary", pathname === '/admin/dashboard' && "bg-primary/10 text-primary")}>
                   <Link href="/admin/dashboard"><BarChart3 className="mr-2 h-4 w-4" /> Dashboard</Link>
                 </Button>
@@ -113,6 +116,8 @@ export function Header({ onLogout }: HeaderProps) {
                     </Button>
                     {isAdminPage && (
                       <>
+                        <NavLink href="/admin/elenco" icon={List}>Soci</NavLink>
+                        <NavLink href="/admin/segreteria" icon={Printer}>Segreteria</NavLink>
                         <NavLink href="/admin/dashboard" icon={BarChart3}>Dashboard</NavLink>
                         <NavLink href="/admin/settings" icon={Settings}>Opzioni</NavLink>
                         {onLogout && (

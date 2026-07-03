@@ -198,9 +198,9 @@ export default function SettingsPageClient() {
 
         dups.forEach(dup => {
           const dj = parseDate(dup.joinDate); const oj = parseDate(oldestJoin);
-          if (dj && (!oj || dj < oj)) oldestJoin = dup.joinDate;
+          if (dj && (!oj || dj < oj)) oldestJoin = dup.joinDate || '';
           const dr = parseDate(dup.requestDate); const or2 = parseDate(oldestReq);
-          if (dr && (!or2 || dr < or2)) oldestReq = dup.requestDate;
+          if (dr && (!or2 || dr < or2)) oldestReq = dup.requestDate || '';
           const dupNotes = dup.notes ? `\nNote precedenti: ${dup.notes}` : '';
           const info = `[UNIONE DUPLICATO ${todayStr}]: Unita scheda ID ${dup.id}, tessera ${dup.tessera || 'N/D'} (Anno ${dup.membershipYear || 'N/D'}), iscritto il ${formatDate(dup.joinDate) || 'N/D'}.${dupNotes}`;
           notes = `${notes}\n\n${info}`.trim();
