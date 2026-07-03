@@ -58,11 +58,22 @@ export default function SettingsPageClient() {
         setIsCheckingAdmin(false);
         return;
     }
+    
+    const sessionKey = `gmc_is_admin_${user.uid}`;
+    const cached = typeof window !== 'undefined' ? sessionStorage.getItem(sessionKey) : null;
+    if (cached !== null) {
+        setIsAdmin(cached === 'true');
+        setIsCheckingAdmin(false);
+        return;
+    }
+
     if (firestore) {
         try {
             const adminRef = doc(firestore, "roles_admin", user.uid);
             const adminSnap = await getDoc(adminRef);
-            setIsAdmin(adminSnap.exists());
+            const hasRole = adminSnap.exists();
+            setIsAdmin(hasRole);
+            if (typeof window !== 'undefined') sessionStorage.setItem(sessionKey, String(hasRole));
         } catch (e) {
             setIsAdmin(false);
         }
@@ -72,7 +83,18 @@ export default function SettingsPageClient() {
   }, [user, firestore]);
 
   useEffect(() => {
-    if (!isUserLoading) checkAdminStatus();
+    if (!isUserLoading) {
+      if (user) {
+        const sessionKey = `gmc_is_admin_${user.uid}`;
+        const cached = typeof window !== 'undefined' ? sessionStorage.getItem(sessionKey) : null;
+        if (cached !== null) {
+          setIsAdmin(cached === 'true');
+          setIsCheckingAdmin(false);
+          return;
+        }
+      }
+      checkAdminStatus();
+    }
   }, [user, isUserLoading, checkAdminStatus]);
 
   useEffect(() => {

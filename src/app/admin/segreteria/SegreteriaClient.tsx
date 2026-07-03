@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { 
@@ -201,8 +202,28 @@ export default function SegreteriaClient() {
             size: landscape;
             margin: 0.8cm;
           }
-          body {
-            background-color: white !important;
+          html, body {
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            background: white !important;
+            color: black !important;
+          }
+          body > *:not(#print-area) {
+            display: none !important;
+          }
+          #print-area {
+            display: block !important;
+            position: relative !important;
+            float: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
             color: black !important;
           }
           header, footer, nav, button, .print\\:hidden, [role="button"], .no-print {
@@ -487,85 +508,87 @@ export default function SegreteriaClient() {
         </Card>
       </div>
 
-      {/* VISTA SPECIFICA DI STAMPA CARTACEA (Nascosta a schermo, visibile in stampa) */}
-      <div className="hidden print:block print-full-width text-black bg-white">
-        {/* Intestazione Formale Associazione */}
-        <div className="border-b border-black pb-4 mb-4 text-center">
-          <h2 className="text-base font-bold tracking-wider uppercase m-0">
-            Associazione Culturale "Garage Music Club"
-          </h2>
-          <p className="text-[10px] m-1 italic">
-            Sede Legale: Via XXIV Udine n. 43, 34072 Gradisca d’Isonzo (GO) — E-mail: garage.music.club2024@gmail.com
-          </p>
-          <div className="mt-4">
-            <h1 className="text-lg font-bold tracking-widest uppercase m-0">
-              LIBRO DEI SOCI — ALLEGATO VERBALE DI AMMISSIONE
-            </h1>
-            <p className="text-[10px] m-1">
-              Elenco dei soci attivi con data di ammissione/rinnovo compresa tra il <strong>{displayDate(startDate)}</strong> e il <strong>{displayDate(endDate)}</strong>
+      {/* VISTA SPECIFICA DI STAMPA CARTACEA (Rendering tramite portal per conformità a globals.css) */}
+      {typeof document !== "undefined" && createPortal(
+        <div id="print-area" className="hidden print:block print-full-width text-black bg-white">
+          {/* Intestazione Formale Associazione */}
+          <div className="border-b border-black pb-4 mb-4 text-center">
+            <h2 className="text-base font-bold tracking-wider uppercase m-0">
+              Associazione Culturale "Garage Music Club"
+            </h2>
+            <p className="text-[10px] m-1 italic">
+              Sede Legale: Via XXIV Udine n. 43, 34072 Gradisca d’Isonzo (GO) — E-mail: garage.music.club2024@gmail.com
             </p>
-          </div>
-        </div>
-
-        {/* Tabella di Stampa */}
-        <table>
-          <thead>
-            <tr>
-              <th style={{ width: '4%' }}>Anno</th>
-              <th style={{ width: '6%' }}>N. Tessera</th>
-              <th style={{ width: '16%' }}>Cognome e Nome</th>
-              <th style={{ width: '14%' }}>Nato/a il / a</th>
-              <th style={{ width: '12%' }}>Codice Fiscale</th>
-              <th style={{ width: '18%' }}>Residenza</th>
-              <th style={{ width: '12%' }}>Firma</th>
-              <th style={{ width: '10%' }}>Tutore (Minore)</th>
-              <th style={{ width: '5%' }}>Stato</th>
-              <th style={{ width: '5%' }}>Quota</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredAndSortedMembers.map((socio) => {
-              const isMinor = isMinorCheck(socio.birthDate);
-              const isRenewal = socio.renewalDate && socio.renewalDate !== socio.joinDate;
-              const tessNum = extractTesseraNumber(socio.tessera);
-              const tutorName = isMinor && (socio.guardianLastName || socio.guardianFirstName)
-                ? `${socio.guardianLastName || ''} ${socio.guardianFirstName || ''}`.trim()
-                : "";
-
-              return (
-                <tr key={socio.id}>
-                  <td>{socio.membershipYear}</td>
-                  <td style={{ fontWeight: 'bold' }}>{tessNum === 999999 ? "" : tessNum}</td>
-                  <td style={{ fontWeight: 'bold' }}>{getFullName(socio)}</td>
-                  <td>{displayDate(socio.birthDate)} a {socio.birthPlace}</td>
-                  <td style={{ fontFamily: 'monospace', textTransform: 'uppercase' }}>{socio.fiscalCode}</td>
-                  <td>{socio.address}, {socio.postalCode} {socio.city} ({socio.province})</td>
-                  <td>{getSignatureLabel(socio)}</td>
-                  <td>{tutorName || (isMinor ? "Minorenne" : "")}</td>
-                  <td>{isRenewal ? "RINNOVO" : "NUOVO"}</td>
-                  <td>{formatCurrency(socio.membershipFee)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {/* Sezione Statistiche e Firme in Stampa */}
-        <div className="mt-8 grid grid-cols-2 gap-8 text-[10px]">
-          <div className="space-y-1">
-            <p className="m-0"><strong>Riepilogo Registro:</strong></p>
-            <p className="m-0">Totale soci attivi estratti: {stats.totalCount} (di cui Nuovi: {stats.newMembers}, Rinnovi: {stats.renewedMembers})</p>
-            <p className="m-0">Totale quote associative riscosse: {formatCurrency(stats.totalFees)}</p>
-            <p className="m-0">Data di esportazione/stampa: {new Date().toLocaleDateString('it-IT')} {new Date().toLocaleTimeString('it-IT')}</p>
-          </div>
-          <div className="flex flex-col items-end justify-end pt-8">
-            <div className="text-center w-64 border-t border-black pt-2">
-              <p className="m-0 font-bold">Il Presidente dell'Associazione</p>
-              <p className="m-0 text-[8px] text-gray-500 italic mt-6">(firma leggibile)</p>
+            <div className="mt-4">
+              <h1 className="text-lg font-bold tracking-widest uppercase m-0">
+                LIBRO DEI SOCI — ALLEGATO VERBALE DI AMMISSIONE
+              </h1>
+              <p className="text-[10px] m-1">
+                Elenco dei soci attivi con data di ammissione/rinnovo compresa tra il <strong>{displayDate(startDate)}</strong> e il <strong>{displayDate(endDate)}</strong>
+              </p>
             </div>
           </div>
-        </div>
-      </div>
+
+          {/* Tabella di Stampa */}
+          <table>
+            <thead>
+              <tr>
+                <th style={{ width: '4%' }}>Anno</th>
+                <th style={{ width: '6%' }}>N. Tessera</th>
+                <th style={{ width: '16%' }}>Cognome e Nome</th>
+                <th style={{ width: '14%' }}>Nato/a il / a</th>
+                <th style={{ width: '12%' }}>Codice Fiscale</th>
+                <th style={{ width: '18%' }}>Residenza</th>
+                <th style={{ width: '12%' }}>Firma</th>
+                <th style={{ width: '10%' }}>Tutore (Minore)</th>
+                <th style={{ width: '5%' }}>Stato</th>
+                <th style={{ width: '5%' }}>Quota</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAndSortedMembers.map((socio) => {
+                const isMinor = isMinorCheck(socio.birthDate);
+                const isRenewal = socio.renewalDate && socio.renewalDate !== socio.joinDate;
+                const tessNum = extractTesseraNumber(socio.tessera);
+                const tutorName = isMinor && (socio.guardianLastName || socio.guardianFirstName)
+                  ? `${socio.guardianLastName || ''} ${socio.guardianFirstName || ''}`.trim()
+                  : "";
+
+                return (
+                  <tr key={socio.id}>
+                    <td>{socio.membershipYear}</td>
+                    <td style={{ fontWeight: 'bold' }}>{tessNum === 999999 ? "" : tessNum}</td>
+                    <td style={{ fontWeight: 'bold' }}>{getFullName(socio)}</td>
+                    <td>{displayDate(socio.birthDate)} a {socio.birthPlace}</td>
+                    <td style={{ fontFamily: 'monospace', textTransform: 'uppercase' }}>{socio.fiscalCode}</td>
+                    <td>{socio.address}, {socio.postalCode} {socio.city} ({socio.province})</td>
+                    <td>{getSignatureLabel(socio)}</td>
+                    <td>{tutorName || (isMinor ? "Minorenne" : "")}</td>
+                    <td>{isRenewal ? "RINNOVO" : "NUOVO"}</td>
+                    <td>{formatCurrency(socio.membershipFee)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {/* Sezione Statistiche e Firme in Stampa */}
+          <div className="mt-8 grid grid-cols-2 gap-8 text-[10px]">
+            <div className="space-y-1">
+              <p className="m-0"><strong>Riepilogo Registro:</strong></p>
+              <p className="m-0">Totale soci attivi estratti: {stats.totalCount} (di cui Nuovi: {stats.newMembers}, Rinnovi: {stats.renewedMembers})</p>
+              <p className="m-0">Totale quote associative riscosse: {formatCurrency(stats.totalFees)}</p>
+            </div>
+            <div className="flex flex-col items-end justify-end pt-8">
+              <div className="text-center w-64 border-t border-black pt-2">
+                <p className="m-0 font-bold">Il Presidente dell'Associazione</p>
+                <p className="m-0 text-[8px] text-gray-500 italic mt-6">(firma leggibile)</p>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

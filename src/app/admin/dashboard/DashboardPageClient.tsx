@@ -24,6 +24,14 @@ export default function DashboardPageClient() {
       return;
     }
     
+    const sessionKey = `gmc_is_admin_${user.uid}`;
+    const cached = typeof window !== 'undefined' ? sessionStorage.getItem(sessionKey) : null;
+    if (cached !== null) {
+      setIsAdmin(cached === 'true');
+      setIsCheckingAdmin(false);
+      return;
+    }
+
     setIsCheckingAdmin(true);
 
     const adminEmail = "garage.music.club2024@gmail.com";
@@ -31,6 +39,7 @@ export default function DashboardPageClient() {
     
     if (emailMatch) {
       setIsAdmin(true);
+      if (typeof window !== 'undefined') sessionStorage.setItem(sessionKey, 'true');
       setIsCheckingAdmin(false);
       return;
     }
@@ -39,7 +48,9 @@ export default function DashboardPageClient() {
       try {
         const adminRef = doc(firestore, "roles_admin", user.uid);
         const adminSnap = await getDoc(adminRef);
-        setIsAdmin(adminSnap.exists());
+        const hasRole = adminSnap.exists();
+        setIsAdmin(hasRole);
+        if (typeof window !== 'undefined') sessionStorage.setItem(sessionKey, String(hasRole));
       } catch (e) {
         console.error("Errore verifica admin roles:", e);
         setIsAdmin(false);
@@ -52,6 +63,15 @@ export default function DashboardPageClient() {
 
   useEffect(() => {
     if (!isUserLoading) {
+      if (user) {
+        const sessionKey = `gmc_is_admin_${user.uid}`;
+        const cached = typeof window !== 'undefined' ? sessionStorage.getItem(sessionKey) : null;
+        if (cached !== null) {
+          setIsAdmin(cached === 'true');
+          setIsCheckingAdmin(false);
+          return;
+        }
+      }
       checkAdminStatus();
     }
   }, [user, isUserLoading, checkAdminStatus]);
