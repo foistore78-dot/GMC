@@ -56,6 +56,9 @@ import { useFirestore, useAuth, deleteDocumentNonBlocking, logAdminActivity } fr
 import { doc, writeBatch, getDoc, deleteDoc, deleteField, updateDoc, serverTimestamp } from "firebase/firestore";
 import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from "firebase/auth";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { initializeApp, getApps } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { firebaseConfig } from "@/firebase/config";
 
 const DetailItem = memo(({ icon, label, value, className }: { icon?: React.ReactNode, label: string, value?: string | number | null | React.ReactNode, className?: string }) => {
   if (!value && typeof value !== 'number' && typeof value !== 'object') return null;
@@ -71,6 +74,12 @@ const DetailItem = memo(({ icon, label, value, className }: { icon?: React.React
 });
 
 DetailItem.displayName = "DetailItem";
+
+const getSecondaryAuth = () => {
+  if (typeof window === 'undefined') return null;
+  const secondaryApp = getApps().find(app => app.name === 'phone-verifier') || initializeApp(firebaseConfig, 'phone-verifier');
+  return getAuth(secondaryApp);
+};
 
 const SocioTableRow = memo(({ 
   socio,
@@ -99,6 +108,7 @@ const SocioTableRow = memo(({
   const [approveQualifiche, setApproveQualifiche] = useState<string[]>([]);
   const [approveFeePaid, setApproveFeePaid] = useState(false);
   const [approvedSocioData, setApprovedSocioData] = useState<Socio | null>(null);
+  const [overrideDuplicateCheck, setOverrideDuplicateCheck] = useState(false);
 
   const [isRenewing, setIsRenewing] = useState(false);
   const [showRenewDialog, setShowRenewDialog] = useState(false);
@@ -128,6 +138,14 @@ const SocioTableRow = memo(({
   const [adminConfirmationResult, setAdminConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [hasPaperCopy, setHasPaperCopy] = useState(false);
 
+  // Dialog: firma già esistente
+  const [showSignatureExistsDialog, setShowSignatureExistsDialog] = useState(false);
+
+  // Dialog: numero di telefono mancante
+  const [showAddPhoneDialog, setShowAddPhoneDialog] = useState(false);
+  const [newPhoneInput, setNewPhoneInput] = useState("");
+  const [isSavingPhone, setIsSavingPhone] = useState(false);
+
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -154,6 +172,7 @@ const SocioTableRow = memo(({
     setShowApproveDialog(false);
     setIsApproving(false);
     setApprovedSocioData(null);
+    setOverrideDuplicateCheck(false);
   }, []);
   
   const resetRenewDialog = useCallback(() => {
@@ -225,27 +244,25 @@ const SocioTableRow = memo(({
     }
   };
 
-  const handleSendAdminOtp = async () => {
-    if (!socio.phone) {
-      toast({ title: "Numero di cellulare mancante", description: "Il socio non ha un numero di telefono valido registrato.", variant: "destructive" });
-      return;
-    }
+  // Esegue davvero l'invio OTP, chiamata dopo eventuali conferme
+  const doSendOtp = async (phoneOverride?: string) => {
     const currentSig = getSignatureMetadata(socio);
     setHasPaperCopy(currentSig.method === 'MANUAL_PAPER');
     setIsSendingAdminOtp(true);
     try {
-      let rawPhone = String(socio.phone).replace(/\s+/g, '');
-      let phone = rawPhone.startsWith('+') ? rawPhone : `+39${rawPhone.replace(/^0+/, '')}`;
+      const phoneRaw = phoneOverride || String(socio.phone || '').replace(/\s+/g, '');
+      const phone = phoneRaw.startsWith('+') ? phoneRaw : `+39${phoneRaw.replace(/^0+/, '')}`;
 
-      if (auth) {
-        let recaptcha = (window as any).adminRecaptchaVerifier;
+      const secAuth = getSecondaryAuth();
+      if (secAuth) {
+        let recaptcha = (window as any).adminRecaptchaVerifierSec;
         if (!recaptcha) {
-          recaptcha = new RecaptchaVerifier(auth, 'admin-recaptcha-container', {
+          recaptcha = new RecaptchaVerifier(secAuth, 'admin-recaptcha-container', {
             size: 'invisible'
           });
-          (window as any).adminRecaptchaVerifier = recaptcha;
+          (window as any).adminRecaptchaVerifierSec = recaptcha;
         }
-        const result = await signInWithPhoneNumber(auth, phone, recaptcha);
+        const result = await signInWithPhoneNumber(secAuth, phone, recaptcha);
         setAdminConfirmationResult(result);
       }
       setShowAdminOtpModal(true);
@@ -258,10 +275,70 @@ const SocioTableRow = memo(({
       setShowAdminOtpModal(true);
       toast({
         title: "Invio SMS Avviato",
-        description: `Richiesta SMS inviata al numero ${socio.phone}. Chiedi il codice al socio.`,
+        description: `Richiesta SMS inviata al numero ${socio.phone || newPhoneInput}. Chiedi il codice al socio.`,
       });
     } finally {
       setIsSendingAdminOtp(false);
+    }
+  };
+
+  const handleSendAdminOtp = async () => {
+    // 1. Controlla se manca il numero di telefono
+    if (!socio.phone) {
+      setNewPhoneInput("");
+      setShowAddPhoneDialog(true);
+      return;
+    }
+    // 2. Controlla se esiste già una firma
+    const currentSig = getSignatureMetadata(socio);
+    if (currentSig.method && currentSig.method !== 'NONE') {
+      if (currentSig.method === 'MANUAL_PAPER') {
+        // Modulo cartaceo presente: non avvisare, tieni entrambe le firme
+        setHasPaperCopy(true);
+        await doSendOtp();
+      } else {
+        // Altra firma digitale: chiedi conferma sovrascrittura
+        setShowSignatureExistsDialog(true);
+      }
+      return;
+    }
+    // 3. Tutto ok, procedi con l'OTP
+    await doSendOtp();
+  };
+
+  // Salva il telefono inserito e procede con l'OTP
+  const handleSavePhoneAndSendOtp = async () => {
+    const trimmed = newPhoneInput.trim();
+    if (!trimmed || trimmed.length < 6) {
+      toast({ title: "Numero non valido", description: "Inserisci un numero di telefono valido.", variant: "destructive" });
+      return;
+    }
+    if (!firestore) return;
+    setIsSavingPhone(true);
+    try {
+      const collectionName = activeTab === 'requests' ? 'membership_requests' : 'members';
+      const docRef = doc(firestore, collectionName, socio.id);
+      await updateDoc(docRef, { phone: trimmed, updatedAt: serverTimestamp() });
+      toast({ title: "Numero salvato", description: `Il numero ${trimmed} è stato aggiunto alla scheda del socio.` });
+      setShowAddPhoneDialog(false);
+      // Controlla se c'è già una firma
+      const currentSig = getSignatureMetadata(socio);
+      if (currentSig.method && currentSig.method !== 'NONE') {
+        if (currentSig.method === 'MANUAL_PAPER') {
+          // Modulo cartaceo: tieni entrambe, procedi direttamente
+          setHasPaperCopy(true);
+          await doSendOtp(trimmed);
+        } else {
+          // Altra firma digitale: chiedi conferma sovrascrittura
+          setShowSignatureExistsDialog(true);
+        }
+      } else {
+        await doSendOtp(trimmed);
+      }
+    } catch (err: any) {
+      toast({ title: "Errore salvataggio", description: "Impossibile salvare il numero di telefono.", variant: "destructive" });
+    } finally {
+      setIsSavingPhone(false);
     }
   };
 
@@ -775,8 +852,7 @@ const handleRenew = () => {
                   </div>
 
                   <div className="flex flex-wrap justify-end gap-2 mt-6 border-t pt-4">
-                    {getSignatureMetadata(socio).method !== 'SMS_OTP' && (
-                      <Button 
+                    <Button 
                         variant="outline" 
                         onClick={handleSendAdminOtp} 
                         disabled={isSendingAdminOtp}
@@ -785,7 +861,7 @@ const handleRenew = () => {
                         {isSendingAdminOtp ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />}
                         Richiedi Firma SMS
                       </Button>
-                    )}
+
                     <Button variant="outline" onClick={() => onPrint(socio)} className="gap-2">
                       <Printer className="h-4 w-4" /> Stampa Scheda
                     </Button>
@@ -891,13 +967,42 @@ const handleRenew = () => {
                                 </div>
 
                                 {potentialDuplicate && (
-                                  <Alert variant="destructive" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/30 py-2">
-                                    <AlertTriangle className="h-4 w-4" />
-                                    <AlertTitle className="text-xs">Possibile Duplicato!</AlertTitle>
-                                    <AlertDescription className="text-[10px] leading-tight">
-                                      Un socio già presente: {potentialDuplicate.tessera || 'N/A'}.
-                                    </AlertDescription>
-                                  </Alert>
+                                  <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 space-y-3 animate-in fade-in duration-300">
+                                    <div className="flex items-start gap-2.5">
+                                      <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="text-xs font-black text-destructive uppercase tracking-wide">
+                                          Socio Già Presente a Sistema!
+                                        </h4>
+                                        <p className="text-xs text-foreground/90 mt-1 leading-relaxed">
+                                          Questo utente risulta già registrato con la tessera <b>{potentialDuplicate.tessera || 'N/D'}</b> ed ha lo stato:{' '}
+                                          <span className="font-bold uppercase text-[10px] px-1.5 py-0.5 rounded bg-muted border border-border">
+                                            {(() => {
+                                              const dupStatus = getStatus(potentialDuplicate, true);
+                                              if (dupStatus === 'active') return 'Attivo (In Regola)';
+                                              if (dupStatus === 'expired') return 'Scaduto / Sospeso';
+                                              return 'Respinto';
+                                            })()}
+                                          </span>.
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                                          ⚠️ <b>Per evitare duplicati:</b> non approvare questa richiesta. Chiudi questa finestra, cerca il socio esistente e clicca su <b>Rinnova</b> nella sua scheda. Dopodiché, elimina questa richiesta duplicata.
+                                        </p>
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center space-x-2 border-t border-destructive/20 pt-3 mt-1">
+                                      <Checkbox 
+                                        id="override-duplicate-check" 
+                                        checked={overrideDuplicateCheck} 
+                                        onCheckedChange={(checked) => setOverrideDuplicateCheck(!!checked)} 
+                                        className="data-[state=checked]:bg-destructive data-[state=checked]:border-destructive border-border w-4 h-4 shrink-0"
+                                      />
+                                      <label htmlFor="override-duplicate-check" className="text-[10px] font-bold text-destructive leading-tight cursor-pointer select-none uppercase tracking-wide">
+                                        Confermo che si tratta di un caso di omonimia reale e voglio creare un nuovo socio separato
+                                      </label>
+                                    </div>
+                                  </div>
                                 )}
 
                                 {/* Qualifiche Section - Fixed Margins */}
@@ -963,7 +1068,7 @@ const handleRenew = () => {
                             </div>
                             <DialogFooter className="flex flex-row gap-2 pt-2 px-1">
                                 <Button variant="ghost" onClick={() => handleApproveDialogChange(false)} className="flex-1 font-bold uppercase text-[10px] tracking-widest h-11 border border-border/50">Annulla</Button>
-                                <Button onClick={handleApprove} disabled={isApproving || !approveFeePaid} className="flex-1 px-4 font-bold uppercase text-[10px] tracking-widest h-11 shadow-md">
+                                <Button onClick={handleApprove} disabled={isApproving || !approveFeePaid || (!!potentialDuplicate && !overrideDuplicateCheck)} className="flex-1 px-4 font-bold uppercase text-[10px] tracking-widest h-11 shadow-md">
                                     {isApproving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     CONFERMA E SALVA
                                 </Button>
@@ -1314,6 +1419,75 @@ const handleRenew = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog: Firma già esistente */}
+      <AlertDialog open={showSignatureExistsDialog} onOpenChange={setShowSignatureExistsDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Firma già presente
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-1">
+              Il socio <strong>{getFullName(socio)}</strong> ha già una firma registrata nel sistema
+              ({getSignatureMetadata(socio).method === 'SMS_OTP' ? 'SMS OTP' : getSignatureMetadata(socio).method === 'MANUAL_PAPER' ? 'Modulo cartaceo' : getSignatureMetadata(socio).method}).
+              <br />
+              Procedendo invierai un nuovo SMS al socio e la firma attuale verrà <strong>sovrascritta</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => { setShowSignatureExistsDialog(false); await doSendOtp(); }}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              Sì, sovrascrivi firma
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog: Numero di telefono mancante */}
+      <Dialog open={showAddPhoneDialog} onOpenChange={setShowAddPhoneDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Phone className="h-5 w-5 text-primary" />
+              Numero di telefono mancante
+            </DialogTitle>
+            <DialogDescription>
+              Il socio <strong>{getFullName(socio)}</strong> non ha un numero di cellulare registrato. Inseriscilo adesso per poter inviare l'SMS OTP.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="new-phone-input" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Numero di Cellulare
+            </Label>
+            <Input
+              id="new-phone-input"
+              placeholder="+39 333 1234567"
+              value={newPhoneInput}
+              onChange={(e) => setNewPhoneInput(e.target.value)}
+              autoFocus
+              type="tel"
+            />
+            <p className="text-xs text-muted-foreground">Il numero verrà salvato sulla scheda del socio.</p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setShowAddPhoneDialog(false)} disabled={isSavingPhone}>
+              Annulla
+            </Button>
+            <Button
+              onClick={handleSavePhoneAndSendOtp}
+              disabled={isSavingPhone || !newPhoneInput.trim()}
+              className="gap-2"
+            >
+              {isSavingPhone && <Loader2 className="w-4 h-4 animate-spin" />}
+              Salva e Invia OTP
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog per Invio e Verifica Firma SMS OTP da Admin */}
       <Dialog open={showAdminOtpModal} onOpenChange={setShowAdminOtpModal}>

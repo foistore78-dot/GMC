@@ -44,6 +44,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export function MembershipForm() {
   const { t, language } = useLanguage();
@@ -68,6 +78,7 @@ export function MembershipForm() {
   const [pendingFormValues, setPendingFormValues] = useState<any>(null);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [editablePhone, setEditablePhone] = useState("");
+  const [showConfirmProblemModal, setShowConfirmProblemModal] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -1025,10 +1036,10 @@ export function MembershipForm() {
               </Button>
             </DialogFooter>
 
-            <div className="pt-2 text-center border-t border-border/40 mt-1">
+             <div className="pt-2 text-center border-t border-border/40 mt-1">
               <button 
                 type="button" 
-                onClick={handleProblemSignal} 
+                onClick={() => setShowConfirmProblemModal(true)} 
                 disabled={isSubmitting}
                 className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors underline font-normal focus:outline-none"
               >
@@ -1037,6 +1048,32 @@ export function MembershipForm() {
             </div>
           </DialogContent>
         </Dialog>
+
+        <AlertDialog open={showConfirmProblemModal} onOpenChange={setShowConfirmProblemModal}>
+          <AlertDialogContent className="border border-amber-500/20 shadow-lg bg-background">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2 text-amber-500 font-bold">
+                <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" /> Inviare la richiesta senza firma?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-foreground/80 leading-relaxed text-sm">
+                Hai selezionato l'opzione per inviare la tua richiesta segnalando un problema con la firma SMS.
+                <br /><br />
+                Procedendo, la richiesta verrà registrata <b>senza firma digitale</b>. Sarà necessario recarsi fisicamente in sede o alla cassa per firmare il modulo cartaceo e completare l'ammissione al club.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2 pt-2">
+              <AlertDialogCancel onClick={() => setShowConfirmProblemModal(false)} className="rounded-full font-semibold">
+                Torna Indietro
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={async () => {
+                setShowConfirmProblemModal(false);
+                await handleProblemSignal();
+              }} className="bg-amber-600 hover:bg-amber-700 text-white rounded-full font-bold">
+                Procedi ed Invia
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
     </>
   );
 }

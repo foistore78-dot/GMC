@@ -9,6 +9,7 @@ import DashboardClient from "./DashboardClient";
 import { useFirebase } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
+import { BuildFooter } from "@/components/build-footer";
 
 export default function DashboardPageClient() {
   const router = useRouter();
@@ -80,6 +81,7 @@ export default function DashboardPageClient() {
           </AuthGuard>
         )}
       </main>
+      <BuildFooter />
     </div>
   );
 }

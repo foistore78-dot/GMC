@@ -41,8 +41,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 import type { Socio } from "@/lib/soci-data";
-import { normalizeSocioData, getFullName, parseDate, getStatus, toTitleCase, isOlderThanDays, getNextMemberNumberForYear } from "@/lib/utils";
-import { useFirestore, errorEmitter, FirestorePermissionError, useFirebase, useMemoFirebase } from "@/firebase";
+import { normalizeSocioData, getFullName, parseDate, getStatus, toTitleCase, isOlderThanDays, getNextMemberNumberForYear, formatDate } from "@/lib/utils";
+import { useFirestore, errorEmitter, FirestorePermissionError, useFirebase, useMemoFirebase, logAdminActivity } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { exportToExcel } from "@/lib/excel-export";
 import { Label } from "@/components/ui/label";
@@ -51,6 +51,7 @@ import { QUALIFICHE } from "@/lib/soci-data";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { useCollection } from "@/firebase";
+import { BuildFooter } from "@/components/build-footer";
 
 const ITEMS_PER_PAGE = 50;
 const SECURITY_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_SECURITY_PASSWORD || "1978";
@@ -258,22 +259,12 @@ export default function ElencoClient() {
     setIsRequestsLoading(true);
     setError(null);
 
-    // Costruiamo la query in base al filtro
-    let membersBaseQuery;
-    
-    if (deferredFilter.length >= 2) {
-        const searchStr = toTitleCase(deferredFilter);
-        membersBaseQuery = query(
-            collection(firestore, "members"),
-            where("lastName", ">=", searchStr),
-            where("lastName", "<=", searchStr + "\uf8ff")
-        );
-    } else {
-        membersBaseQuery = query(
-            collection(firestore, "members"),
-            orderBy("lastName")
-        );
-    }
+    // Carichiamo sempre l'elenco completo dei soci per garantire che i calcoli del prossimo numero di tessera,
+    // i conteggi dei tab e i filtri di ricerca siano sempre completi, corretti e privi di anomalie (es. duplicazione tessera 1).
+    const membersBaseQuery = query(
+        collection(firestore, "members"),
+        orderBy("lastName")
+    );
     
     // Per le richieste carichiamo tutto (solitamente sono poche)
     const requestsRef = collection(firestore, "membership_requests");
@@ -928,6 +919,7 @@ export default function ElencoClient() {
         </div>,
         document.body
       )}
+      <BuildFooter />
     </div>
   );
 }

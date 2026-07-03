@@ -9,12 +9,15 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useFirebase } from "@/firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs, writeBatch } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Settings as SettingsIcon, Save, Link as LinkIcon, AlertCircle, FileUp, Lock } from "lucide-react";
+import { Loader2, Settings as SettingsIcon, Save, Link as LinkIcon, AlertCircle, FileUp, Lock, Users, RefreshCw } from "lucide-react";
 import AuthGuard from "../elenco/AuthGuard";
 import { signOut } from "firebase/auth";
 import { importFromExcel, type ImportResult } from "@/lib/excel-import";
+import { BuildFooter } from "@/components/build-footer";
+import { getStatus, parseDate, formatDate } from "@/lib/utils";
+import type { Socio } from "@/lib/soci-data";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +49,8 @@ export default function SettingsPageClient() {
 
   const [isSecurityDialogOpen, setIsSecurityDialogOpen] = useState(false);
   const [securityPasswordInput, setSecurityPasswordInput] = useState("");
+  const [pendingSecurityAction, setPendingSecurityAction] = useState<'import' | 'merge-duplicates' | null>(null);
+  const [isMergingDuplicates, setIsMergingDuplicates] = useState(false);
 
   const checkAdminStatus = useCallback(async () => {
     if (!user) {
@@ -118,6 +123,13 @@ export default function SettingsPageClient() {
   };
 
   const initiateImport = () => {
+    setPendingSecurityAction('import');
+    setSecurityPasswordInput("");
+    setIsSecurityDialogOpen(true);
+  };
+
+  const initiateMergeDuplicates = () => {
+    setPendingSecurityAction('merge-duplicates');
     setSecurityPasswordInput("");
     setIsSecurityDialogOpen(true);
   };
@@ -125,13 +137,94 @@ export default function SettingsPageClient() {
   const verifySecurityPassword = () => {
     if (securityPasswordInput === SECURITY_PASSWORD) {
       setIsSecurityDialogOpen(false);
-      importFileRef.current?.click();
+      const action = pendingSecurityAction;
+      setPendingSecurityAction(null);
+      if (action === 'import') {
+        importFileRef.current?.click();
+      } else if (action === 'merge-duplicates') {
+        handleMergeDuplicates();
+      }
     } else {
       toast({
         title: "Password Errata",
         description: "La password di sicurezza inserita non è corretta.",
         variant: "destructive"
       });
+    }
+  };
+
+  const handleMergeDuplicates = async () => {
+    if (!firestore) return;
+    setIsMergingDuplicates(true);
+    try {
+      const snap = await getDocs(collection(firestore, "members"));
+      const allMembers: Socio[] = snap.docs.map(d => ({ id: d.id, ...d.data() } as Socio));
+
+      const groups = new Map<string, Socio[]>();
+      allMembers.forEach(socio => {
+        const key = `${(socio.firstName || '').toLowerCase().trim()}_${(socio.lastName || '').toLowerCase().trim()}_${socio.birthDate || ''}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(socio);
+      });
+
+      const duplicateGroups = Array.from(groups.values()).filter(g => g.length > 1);
+
+      if (duplicateGroups.length === 0) {
+        toast({ title: "Nessun duplicato", description: "Tutti i soci hanno combinazioni univoche di nome, cognome e data di nascita." });
+        return;
+      }
+
+      const batch = writeBatch(firestore);
+      let mergeCount = 0;
+      const todayStr = new Date().toLocaleDateString('it-IT');
+
+      duplicateGroups.forEach(group => {
+        const sorted = [...group].sort((a, b) => {
+          const sA = getStatus(a, true); const sB = getStatus(b, true);
+          if (sA === 'active' && sB !== 'active') return -1;
+          if (sB === 'active' && sA !== 'active') return 1;
+          const yA = parseInt(a.membershipYear || '0', 10);
+          const yB = parseInt(b.membershipYear || '0', 10);
+          if (yA !== yB) return yB - yA;
+          const safe = (v: any) => { const p = parseDate(v); return p ? p.getTime() : 0; };
+          return safe(b.joinDate || b.submittedAt) - safe(a.joinDate || a.submittedAt);
+        });
+
+        const main = sorted[0];
+        const dups = sorted.slice(1);
+        let oldestJoin = main.joinDate || '';
+        let oldestReq = main.requestDate || '';
+        let notes = main.notes || '';
+
+        dups.forEach(dup => {
+          const dj = parseDate(dup.joinDate); const oj = parseDate(oldestJoin);
+          if (dj && (!oj || dj < oj)) oldestJoin = dup.joinDate;
+          const dr = parseDate(dup.requestDate); const or2 = parseDate(oldestReq);
+          if (dr && (!or2 || dr < or2)) oldestReq = dup.requestDate;
+          const dupNotes = dup.notes ? `\nNote precedenti: ${dup.notes}` : '';
+          const info = `[UNIONE DUPLICATO ${todayStr}]: Unita scheda ID ${dup.id}, tessera ${dup.tessera || 'N/D'} (Anno ${dup.membershipYear || 'N/D'}), iscritto il ${formatDate(dup.joinDate) || 'N/D'}.${dupNotes}`;
+          notes = `${notes}\n\n${info}`.trim();
+          batch.delete(doc(firestore!, "members", dup.id));
+        });
+
+        const upd: any = { notes };
+        if (!main.renewalDate && main.joinDate) upd.renewalDate = main.joinDate;
+        if (oldestJoin && oldestJoin !== main.joinDate) upd.joinDate = oldestJoin;
+        if (oldestReq && oldestReq !== main.requestDate) upd.requestDate = oldestReq;
+        batch.update(doc(firestore!, "members", main.id), upd);
+        mergeCount += dups.length;
+      });
+
+      await batch.commit();
+      toast({
+        title: "Unione Completata!",
+        description: `Uniti con successo ${mergeCount} soci duplicati.`
+      });
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: "Errore durante l'unione", description: e.message, variant: "destructive" });
+    } finally {
+      setIsMergingDuplicates(false);
     }
   };
 
@@ -252,6 +345,43 @@ export default function SettingsPageClient() {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Card Manutenzione Database */}
+            <Card className="border-amber-500/20 bg-background/50 backdrop-blur-sm shadow-xl">
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <Users className="w-5 h-5 text-amber-500" />
+                  Manutenzione Database
+                </CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  Strumenti avanzati per la pulizia e l'integrità dei dati dei soci.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <RefreshCw className="w-5 h-5 shrink-0 text-amber-500 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-sm">Sana Soci Doppi</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Cerca e unisce automaticamente i soci duplicati (stesso nome, cognome e data di nascita).
+                        I dati storici vengono conservati nelle note del socio attivo.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={initiateMergeDuplicates}
+                    disabled={isMergingDuplicates}
+                    variant="outline"
+                    className="w-full border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+                  >
+                    {isMergingDuplicates ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                    {isMergingDuplicates ? "Unione in corso..." : "Esegui Sana Soci Doppi"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
           </div>
         </AuthGuard>
         )}
@@ -287,6 +417,7 @@ export default function SettingsPageClient() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <BuildFooter />
     </div>
   );
 }
