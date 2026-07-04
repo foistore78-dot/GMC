@@ -277,6 +277,9 @@ const SocioTableRow = memo(({
     
     const phoneRaw = phoneOverride || String(socio.phone || '').replace(/\s+/g, '');
     let phone = phoneRaw;
+    if (phone.startsWith('00')) {
+      phone = `+${phone.slice(2)}`;
+    }
     if (!phone.startsWith('+')) {
       if (phone.startsWith('39') && phone.length >= 10) {
         phone = `+${phone}`;
@@ -1059,6 +1062,33 @@ const SocioTableRow = memo(({
                          </Tooltip>
                        </TooltipProvider>
                      )}
+                     {activeTab === 'active' && (() => {
+                        const actionDate = socio.renewalDate || socio.joinDate;
+                        const hasOtp = getSignatureMetadata(socio).method === 'SMS_OTP';
+                        const isAfterJuly2026 = actionDate && new Date(actionDate).getTime() >= new Date('2026-07-01T00:00:00Z').getTime();
+                        if (isAfterJuly2026 && !hasOtp) {
+                          return (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="text-yellow-500 cursor-help inline-flex items-center" onClick={(e) => e.stopPropagation()}>
+                                    <AlertTriangle className="h-4 w-4 animate-pulse text-yellow-500" />
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs bg-black/90 border border-yellow-500/30 text-foreground p-3 rounded-lg shadow-xl">
+                                  <p className="font-bold text-xs text-yellow-500 uppercase tracking-wider flex items-center gap-1">
+                                    <AlertTriangle className="h-3.5 w-3.5" /> Firma OTP Mancante
+                                  </p>
+                                  <p className="text-xs italic mt-1 leading-relaxed text-foreground/90">
+                                    Questo socio è stato ammesso o rinnovato a partire dal 1° Luglio 2026 senza firma elettronica SMS OTP.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          );
+                        }
+                        return null;
+                      })()}
                     {isRenewedMember && (
                       <Badge variant="outline" className="text-[9px] py-0 px-1 bg-indigo-400/10 text-indigo-300 border-indigo-400/30 font-bold tracking-tight uppercase">
                         Rinnovo

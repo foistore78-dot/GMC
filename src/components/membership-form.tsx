@@ -273,6 +273,9 @@ export function MembershipForm() {
     try {
       let rawPhone = String(pendingFormValues.phone).replace(/\s+/g, '');
       let phone = rawPhone;
+      if (phone.startsWith('00')) {
+        phone = `+${phone.slice(2)}`;
+      }
       if (!phone.startsWith('+')) {
         if (phone.startsWith('39') && phone.length >= 10) {
           phone = `+${phone}`;
