@@ -47,7 +47,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, Award, CheckCircle, Loader2, ArrowUpDown, FileLock2, Printer, MessageCircle, Cake, Trash2, MoreVertical, MapPin, UserCheck, Info, AlertTriangle, Users, Smartphone, KeyRound, RotateCcw } from "lucide-react";
-import { cn, getFullName, getStatus, formatDate, formatCurrency, isMinorCheck as isMinor, getNextMemberNumberForYear, getSignatureMetadata } from "@/lib/utils";
+import { cn, getFullName, getStatus, formatDate, parseDate, formatCurrency, isMinorCheck as isMinor, getNextMemberNumberForYear, getSignatureMetadata } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -1076,32 +1076,33 @@ const SocioTableRow = memo(({
                        </TooltipProvider>
                      )}
                      {activeTab === 'active' && (() => {
-                        const actionDate = socio.renewalDate || socio.joinDate;
-                        const hasOtp = getSignatureMetadata(socio).method === 'SMS_OTP';
-                        const isAfterJuly2026 = actionDate && new Date(actionDate).getTime() >= new Date('2026-07-01T00:00:00Z').getTime();
-                        if (isAfterJuly2026 && !hasOtp) {
-                          return (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="text-yellow-500 cursor-help inline-flex items-center" onClick={(e) => e.stopPropagation()}>
-                                    <AlertTriangle className="h-4 w-4 animate-pulse text-yellow-500" />
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-xs bg-black/90 border border-yellow-500/30 text-foreground p-3 rounded-lg shadow-xl">
-                                  <p className="font-bold text-xs text-yellow-500 uppercase tracking-wider flex items-center gap-1">
-                                    <AlertTriangle className="h-3.5 w-3.5" /> Firma OTP Mancante
-                                  </p>
-                                  <p className="text-xs italic mt-1 leading-relaxed text-foreground/90">
-                                    Questo socio è stato ammesso o rinnovato a partire dal 1° Luglio 2026 senza firma elettronica SMS OTP.
-                                  </p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          );
-                        }
-                        return null;
-                      })()}
+                         const actionDate = socio.renewalDate || socio.joinDate;
+                         const hasOtp = getSignatureMetadata(socio).method === 'SMS_OTP';
+                         const parsedDate = parseDate(actionDate);
+                         const isAfterJuly2026 = parsedDate && parsedDate.getTime() >= new Date('2026-07-01T00:00:00Z').getTime();
+                         if (isAfterJuly2026 && !hasOtp) {
+                           return (
+                             <TooltipProvider>
+                               <Tooltip>
+                                 <TooltipTrigger asChild>
+                                   <span className="text-yellow-500 cursor-help inline-flex items-center" onClick={(e) => e.stopPropagation()}>
+                                     <AlertTriangle className="h-4 w-4 animate-pulse text-yellow-500" />
+                                   </span>
+                                 </TooltipTrigger>
+                                 <TooltipContent className="max-w-xs bg-black/90 border border-yellow-500/30 text-foreground p-3 rounded-lg shadow-xl">
+                                   <p className="font-bold text-xs text-yellow-500 uppercase tracking-wider flex items-center gap-1">
+                                     <AlertTriangle className="h-3.5 w-3.5" /> Firma OTP Mancante
+                                   </p>
+                                   <p className="text-xs italic mt-1 leading-relaxed text-foreground/90">
+                                     Questo socio è stato ammesso o rinnovato a partire dal 1° Luglio 2026 senza firma elettronica SMS OTP.
+                                   </p>
+                                 </TooltipContent>
+                               </Tooltip>
+                             </TooltipProvider>
+                           );
+                         }
+                         return null;
+                       })()}
                     {isRenewedMember && (
                       <Badge variant="outline" className="text-[9px] py-0 px-1 bg-indigo-400/10 text-indigo-300 border-indigo-400/30 font-bold tracking-tight uppercase">
                         Rinnovo
