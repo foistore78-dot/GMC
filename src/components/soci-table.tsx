@@ -1163,12 +1163,17 @@ const SocioTableRow = memo(({
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className="text-yellow-500 cursor-help inline-flex items-center" onClick={(e) => e.stopPropagation()}>
-                                <AlertTriangle className="h-4 w-4" />
+                              <span className="text-orange-400 cursor-help inline-flex items-center hover:text-orange-500 transition-colors" onClick={(e) => e.stopPropagation()}>
+                                <Printer className="h-4 w-4" />
                               </span>
                             </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Da stampare e far firmare al tutore</p>
+                            <TooltipContent className="bg-black/90 border border-orange-500/30 text-foreground p-3 rounded-lg shadow-xl">
+                              <p className="font-bold text-xs text-orange-400 uppercase tracking-wider flex items-center gap-1">
+                                <Printer className="h-3.5 w-3.5" /> Modulo Tutore Da Stampare
+                              </p>
+                              <p className="text-xs italic mt-1 leading-relaxed text-foreground/90">
+                                Questo socio è minorenne. Manca la consegna del modulo cartaceo firmato dal genitore/tutore.
+                              </p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
