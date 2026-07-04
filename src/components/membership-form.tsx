@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, ArrowLeft, PartyPopper, Info, Home, List, User, Smartphone, KeyRound, ShieldCheck, RotateCcw, AlertTriangle } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, PartyPopper, Info, Home, List, User, Smartphone, KeyRound, ShieldCheck, RotateCcw, AlertTriangle, X } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { useFirestore, useAuth, addDocumentNonBlocking, logAdminActivity } from "@/firebase";
 import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from "firebase/auth";
@@ -975,110 +975,120 @@ export function MembershipForm() {
           </form>
         </Form>
 
-        <Dialog open={showOtpModal} onOpenChange={setShowOtpModal}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <DialogTitle className="text-center text-xl font-bold">Firma Digitalizzata tramite SMS</DialogTitle>
-              <DialogDescription className="text-center text-sm">
-                Per confermare l'iscrizione e apporre la Firma Elettronica Semplice allo Statuto e alla Privacy, verifica il tuo numero di cellulare.
-              </DialogDescription>
-            </DialogHeader>
+        {showOtpModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/85 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="relative w-full max-w-md border border-border bg-background p-6 rounded-2xl shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 text-left">
+              <button 
+                type="button"
+                onClick={() => setShowOtpModal(false)}
+                disabled={isSubmitting}
+                className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none"
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </button>
 
-            <div className="space-y-4 py-3">
-              <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                  <Smartphone className="w-3.5 h-3.5" /> Numero di cellulare
-                </label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={editablePhone}
-                    onChange={(e) => setEditablePhone(e.target.value)}
-                    disabled={otpSent}
-                    placeholder="+39 340 1234567"
-                    className="font-semibold"
-                  />
-                  {!otpSent ? (
-                    <Button size="sm" onClick={() => { setPendingFormValues((v: any) => ({ ...v, phone: editablePhone })); handleSendOtp(); }} disabled={isSendingOtp || !editablePhone}>
-                      {isSendingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Invia OTP"}
-                    </Button>
-                  ) : (
-                    <Button size="sm" variant="outline" onClick={() => { setOtpSent(false); setOtpCode(""); setConfirmationResult(null); }} disabled={isSubmitting}>
-                      Cambia
-                    </Button>
+              <div className="text-center">
+                <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-bold">Firma Digitalizzata tramite SMS</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Per confermare l'iscrizione e apporre la Firma Elettronica Semplice allo Statuto e alla Privacy, verifica il tuo numero di cellulare.
+                </p>
+              </div>
+
+              <div className="space-y-4 py-3">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                    <Smartphone className="w-3.5 h-3.5" /> Numero di cellulare
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={editablePhone}
+                      onChange={(e) => setEditablePhone(e.target.value)}
+                      disabled={otpSent}
+                      placeholder="+39 340 1234567"
+                      className="font-semibold"
+                    />
+                    {!otpSent ? (
+                      <Button type="button" size="sm" onClick={() => { setPendingFormValues((v: any) => ({ ...v, phone: editablePhone })); handleSendOtp(); }} disabled={isSendingOtp || !editablePhone}>
+                        {isSendingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Invia OTP"}
+                      </Button>
+                    ) : (
+                      <Button type="button" size="sm" variant="outline" onClick={() => { setOtpSent(false); setOtpCode(""); setConfirmationResult(null); }} disabled={isSubmitting}>
+                        Cambia
+                      </Button>
+                    )}
+                  </div>
+                  {otpSent && (
+                    <p className="text-[11px] text-amber-500">
+                      ⚠️ Numero errato? Clicca su <b>Cambia</b> per modificarlo e reinviare l'SMS.
+                    </p>
                   )}
                 </div>
+
                 {otpSent && (
-                  <p className="text-[11px] text-amber-500">
-                    ⚠️ Numero errato? Clicca su <b>Cambia</b> per modificarlo e reinviare l'SMS.
-                  </p>
+                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                      <KeyRound className="w-3.5 h-3.5" /> Codice OTP ricevuto via SMS
+                    </label>
+                    <Input 
+                      placeholder="123456" 
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value)}
+                      className="text-center text-lg font-mono tracking-widest"
+                      autoFocus
+                    />
+                    <div className="flex justify-between items-center pt-1 gap-2">
+                      <p className="text-[11px] text-muted-foreground">
+                        Inserisci il codice a 6 cifre per completare la firma.
+                      </p>
+                      <Button 
+                        type="button" 
+                        variant="link" 
+                        size="sm" 
+                        onClick={handleSendOtp} 
+                        disabled={isSendingOtp}
+                        className="text-xs h-auto p-0 text-primary hover:underline flex items-center gap-1 shrink-0 font-semibold"
+                      >
+                        {isSendingOtp ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+                        Rinvia SMS
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
 
-              {otpSent && (
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                    <KeyRound className="w-3.5 h-3.5" /> Codice OTP ricevuto via SMS
-                  </label>
-                  <Input 
-                    placeholder="123456" 
-                    maxLength={6}
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
-                    className="text-center text-lg font-mono tracking-widest"
-                    autoFocus
-                  />
-                  <div className="flex justify-between items-center pt-1 gap-2">
-                    <p className="text-[11px] text-muted-foreground">
-                      Inserisci il codice a 6 cifre per completare la firma.
-                    </p>
-                    <Button 
-                      type="button" 
-                      variant="link" 
-                      size="sm" 
-                      onClick={handleSendOtp} 
-                      disabled={isSendingOtp}
-                      className="text-xs h-auto p-0 text-primary hover:underline flex items-center gap-1 shrink-0 font-semibold"
-                    >
-                      {isSendingOtp ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
-                      Rinvia SMS
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
+                <Button type="button" variant="ghost" onClick={() => setShowOtpModal(false)} disabled={isSubmitting}>
+                  Annulla
+                </Button>
+                <Button 
+                  type="button" 
+                  onClick={handleConfirmOtp} 
+                  disabled={!otpSent || isSubmitting} 
+                  className="font-bold gap-2"
+                >
+                  {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Conferma e Firma Digitalmente
+                </Button>
+              </div>
+
+              <div className="pt-2 text-center border-t border-border/40 mt-1">
+                <button 
+                  type="button" 
+                  onClick={() => setShowConfirmProblemModal(true)} 
+                  disabled={isSubmitting}
+                  className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors underline font-normal focus:outline-none"
+                >
+                  Se hai problemi con la richiesta clicca qui
+                </button>
+              </div>
             </div>
-
-            <div id="recaptcha-container"></div>
-
-            <DialogFooter className="flex flex-col sm:flex-row gap-2">
-              <Button type="button" variant="ghost" onClick={() => setShowOtpModal(false)} disabled={isSubmitting}>
-                Annulla
-              </Button>
-              <Button 
-                type="button" 
-                onClick={handleConfirmOtp} 
-                disabled={!otpSent || isSubmitting} 
-                className="font-bold gap-2"
-              >
-                {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                Conferma e Firma Digitalmente
-              </Button>
-            </DialogFooter>
-
-             <div className="pt-2 text-center border-t border-border/40 mt-1">
-              <button 
-                type="button" 
-                onClick={() => setShowConfirmProblemModal(true)} 
-                disabled={isSubmitting}
-                className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors underline font-normal focus:outline-none"
-              >
-                Se hai problemi con la richiesta clicca qui
-              </button>
-            </div>
-          </DialogContent>
-        </Dialog>
+          </div>
+        )}
 
         <Dialog open={showConfirmProblemModal} onOpenChange={(open) => { setShowConfirmProblemModal(open); if(!open) setProblemDescription(""); }}>
           <DialogContent className="border border-amber-500/20 shadow-lg bg-background sm:max-w-md" closeText="CHIUDI" aria-describedby={undefined}>
@@ -1117,6 +1127,9 @@ export function MembershipForm() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Container invisibile per il Recaptcha di Firebase Auth (esterno ai dialog per evitare problemi di unmount/remount) */}
+        <div id="recaptcha-container" className="hidden"></div>
     </>
   );
 }
