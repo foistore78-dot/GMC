@@ -278,6 +278,12 @@ export function MembershipForm() {
           phone = `+${phone}`;
         } else if (phone.startsWith('386') && phone.length >= 9) {
           phone = `+${phone}`;
+        } else if (phone.startsWith('43') && phone.length >= 9) {
+          phone = `+${phone}`;
+        } else if (phone.startsWith('41') && phone.length >= 9) {
+          phone = `+${phone}`;
+        } else if (phone.startsWith('44') && phone.length >= 10) {
+          phone = `+${phone}`;
         } else {
           phone = `+39${phone.replace(/^0+/, '')}`;
         }
