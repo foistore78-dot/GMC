@@ -200,10 +200,7 @@ export default function ElencoClient() {
 
   const [activeTab, setActiveTab] = useState(initialTab);
   const [sortConfig, setSortConfig] = useState<SortConfig>(() => {
-    if (initialTab === "requests") {
-      return { key: "contextualDate", direction: "descending" };
-    }
-    return { key: "tessera", direction: "descending" };
+    return { key: "contextualDate", direction: "descending" };
   });
   
   const [filter, setFilter] = useState(initialFilter);
@@ -423,11 +420,7 @@ export default function ElencoClient() {
   const handleTabChange = (tab: string) => {
     if (tab === 'active' || tab === 'expired' || tab === 'requests' || tab === 'rejected') {
         setActiveTab(tab as 'active' | 'expired' | 'requests' | 'rejected');
-        if (tab === 'requests') {
-            setSortConfig({ key: 'contextualDate', direction: 'descending' });
-        } else {
-            setSortConfig({ key: 'tessera', direction: 'descending' });
-        }
+        setSortConfig({ key: 'contextualDate', direction: 'descending' });
     }
     setCurrentPage(1);
   };
@@ -440,14 +433,7 @@ export default function ElencoClient() {
       // Se l'argomento è una stringa (un tab), cambiamo tab e forziamo il reset dell'ordinamento
       if (typeof arg === "string") {
           setActiveTab(arg as 'active' | 'expired' | 'requests' | 'rejected');
-          
-          // RESET FORZATO: Assicura che l'ordinamento sia quello di default per il tab
-          // Questo risolve il problema del "secondo test" dove l'ordine poteva rimanere sporco
-          if (arg === 'requests') {
-              setSortConfig({ key: 'contextualDate', direction: 'descending' });
-          } else {
-              setSortConfig({ key: 'tessera', direction: 'descending' });
-          }
+          setSortConfig({ key: 'contextualDate', direction: 'descending' });
           setCurrentPage(1);
       }
     },
