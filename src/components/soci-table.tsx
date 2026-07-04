@@ -440,6 +440,16 @@ const SocioTableRow = memo(({
       };
 
       let finalNotes = socio.notes || '';
+      // Rimuove eventuali note storiche relative a problemi/richieste d'aiuto segnalate in precedenza
+      finalNotes = finalNotes
+        .split('\n')
+        .filter(line => 
+          !line.includes('[PROBLEMA SEGNALATO]') && 
+          !line.includes('Inviato tramite segnalazione problema')
+        )
+        .join('\n')
+        .trim();
+
       if (hasPaperCopy && !finalNotes.toLowerCase().includes('modulo cartaceo')) {
         const todayStr = new Date().toLocaleDateString('it-IT');
         const paperNote = `[NOTA ARCHIVIO ${todayStr}]: Presente anche modulo cartaceo originale firmato ed archiviato in sede.`;
@@ -452,6 +462,7 @@ const SocioTableRow = memo(({
           await updateDoc(docRef, {
             signatureMetadata: updatedSig,
             notes: finalNotes,
+            helpRequested: deleteField(),
             updatedAt: serverTimestamp()
           });
         }
@@ -466,6 +477,7 @@ const SocioTableRow = memo(({
           await updateDoc(docRef, {
             signatureMetadata: updatedSig,
             notes: finalNotes,
+            helpRequested: deleteField(),
             updatedAt: serverTimestamp()
           });
         }
@@ -481,6 +493,7 @@ const SocioTableRow = memo(({
           await updateDoc(docRef, {
             signatureMetadata: updatedSig,
             notes: finalNotes,
+            helpRequested: deleteField(),
             updatedAt: serverTimestamp()
           });
 
@@ -683,7 +696,7 @@ const SocioTableRow = memo(({
         const requestDocRef = doc(firestore, "membership_requests", socio.id);
         const memberDocRef = doc(firestore, "members", socio.id);
 
-        const { status, ...restOfSocio } = socio;
+        const { status, helpRequested, ...restOfSocio } = socio;
         
         const newMemberData: any = {
             ...restOfSocio,
