@@ -276,7 +276,16 @@ const SocioTableRow = memo(({
     setHasPaperCopy(currentSig.method === 'MANUAL_PAPER');
     
     const phoneRaw = phoneOverride || String(socio.phone || '').replace(/\s+/g, '');
-    const phone = phoneRaw.startsWith('+') ? phoneRaw : `+39${phoneRaw.replace(/^0+/, '')}`;
+    let phone = phoneRaw;
+    if (!phone.startsWith('+')) {
+      if (phone.startsWith('39') && phone.length >= 10) {
+        phone = `+${phone}`;
+      } else if (phone.startsWith('386') && phone.length >= 9) {
+        phone = `+${phone}`;
+      } else {
+        phone = `+39${phone.replace(/^0+/, '')}`;
+      }
+    }
     
     setPhoneForOtp(phone);
     setShowSendOtpConfirmDialog(true);
@@ -289,12 +298,13 @@ const SocioTableRow = memo(({
     try {
       const secAuth = getSecondaryAuth();
       if (secAuth) {
-        let recaptcha = (window as any).adminRecaptchaVerifierSec;
+        const containerId = `admin-recaptcha-container-${socio.id}`;
+        let recaptcha = (window as any)[`adminRecaptchaVerifierSec_${socio.id}`];
         if (!recaptcha) {
-          recaptcha = new RecaptchaVerifier(secAuth, 'admin-recaptcha-container', {
+          recaptcha = new RecaptchaVerifier(secAuth, containerId, {
             size: 'invisible'
           });
-          (window as any).adminRecaptchaVerifierSec = recaptcha;
+          (window as any)[`adminRecaptchaVerifierSec_${socio.id}`] = recaptcha;
         }
         const result = await signInWithPhoneNumber(secAuth, phoneForOtp, recaptcha);
         setAdminConfirmationResult(result);
@@ -310,8 +320,9 @@ const SocioTableRow = memo(({
       setShowSendOtpConfirmDialog(false);
       setShowAdminOtpModal(true);
       toast({
-        title: "Invio SMS Avviato",
-        description: `Richiesta SMS inviata al numero ${phoneForOtp}. Chiedi il codice al socio.`,
+        title: "Errore invio SMS",
+        description: `Impossibile completare la richiesta. Dettagli: ${error.message || error}`,
+        variant: "destructive"
       });
     } finally {
       setIsSendingAdminOtp(false);
@@ -1785,8 +1796,6 @@ const SocioTableRow = memo(({
             </div>
           </div>
 
-          <div id="admin-recaptcha-container"></div>
-
           <DialogFooter className="flex flex-col sm:flex-row gap-2">
             <Button type="button" variant="ghost" onClick={() => setShowAdminOtpModal(false)} disabled={isVerifyingAdminOtp}>
               Annulla
@@ -1816,21 +1825,51 @@ const SocioTableRow = memo(({
             </AlertDialogTitle>
             <AlertDialogDescription>
               Questo socio non ha ancora la firma digitale <strong>SMS OTP</strong>.
-              {pendingActionAfterOtp === 'renew' && " Per il rinnovo è necessario raccogliere la firma OTP (il modulo cartaceo originario verrà conservato nello storico)."}
+              {pendingActionAfterOtp === 'renew' && " Per il rinnovo è raccomandato raccogliere la firma OTP (il modulo cartaceo originario verrà conservato nello storico)."}
+              {pendingActionAfterOtp === 'approve' && " Per l'approvazione è raccomandato raccogliere la firma OTP."}
               <br /><br />
-              Cliccando su procedi, verrà avviata in automatico la richiesta OTP SMS per questo socio.
+              Puoi scegliere di procedere con l'invio dell'SMS OTP o di continuare direttamente senza firma OTP.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <Button variant="ghost" onClick={() => { setShowMissingSignatureWarning(false); setPendingActionAfterOtp(null); }}>
+          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button variant="ghost" onClick={() => { setShowMissingSignatureWarning(false); setPendingActionAfterOtp(null); }} className="sm:order-1 mt-0">
               Annulla
             </Button>
-            <Button onClick={handleProceedWithOtp} className="gap-2">
+            {pendingActionAfterOtp === 'renew' && (
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  setShowMissingSignatureWarning(false);
+                  setPendingActionAfterOtp(null);
+                  setShowRenewDialog(true);
+                }}
+                className="border-orange-500 text-orange-500 hover:bg-orange-500/10 font-bold sm:order-2"
+              >
+                Rinnova senza OTP
+              </Button>
+            )}
+            {pendingActionAfterOtp === 'approve' && (
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  setShowMissingSignatureWarning(false);
+                  setPendingActionAfterOtp(null);
+                  setShowApproveDialog(true);
+                }}
+                className="border-emerald-500 text-emerald-500 hover:bg-emerald-500/10 font-bold sm:order-2"
+              >
+                Approva senza OTP
+              </Button>
+            )}
+            <Button onClick={handleProceedWithOtp} className="gap-2 sm:order-3">
               Procedi con OTP
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Container invisibile per il Recaptcha di Firebase Auth (univoco per ogni riga) */}
+      <div id={`admin-recaptcha-container-${socio.id}`} className="hidden"></div>
     </>
   );
 });

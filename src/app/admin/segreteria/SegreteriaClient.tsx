@@ -21,7 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { useFirebase } from "@/firebase";
-import { Socio } from "@/lib/soci-data";
+import type { Socio } from "@/lib/soci-data";
 import { 
   normalizeSocioData, 
   getFullName, 

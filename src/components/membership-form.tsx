@@ -272,7 +272,16 @@ export function MembershipForm() {
     setIsSendingOtp(true);
     try {
       let rawPhone = String(pendingFormValues.phone).replace(/\s+/g, '');
-      let phone = rawPhone.startsWith('+') ? rawPhone : `+39${rawPhone.replace(/^0+/, '')}`;
+      let phone = rawPhone;
+      if (!phone.startsWith('+')) {
+        if (phone.startsWith('39') && phone.length >= 10) {
+          phone = `+${phone}`;
+        } else if (phone.startsWith('386') && phone.length >= 9) {
+          phone = `+${phone}`;
+        } else {
+          phone = `+39${phone.replace(/^0+/, '')}`;
+        }
+      }
 
       if (auth) {
         let recaptcha = (window as any).recaptchaVerifier;
