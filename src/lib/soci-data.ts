@@ -4,6 +4,7 @@ export type SignatureMetadata = {
   method: 'SMS_OTP' | 'MANUAL_PAPER' | 'ADMIN_DIRECT';
   verificationId?: string;
   notes?: string;
+  helpRequested?: boolean;
 };
 
 export type Socio = {
@@ -31,6 +32,8 @@ export type Socio = {
   guardianFirstName?: string;
   guardianLastName?: string;
   guardianBirthDate?: string;
+  guardianPaperSigned?: boolean;
+  helpRequested?: boolean;
   membershipYear?: string;
   notes?: string;
   isVolunteer?: boolean;

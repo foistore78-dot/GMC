@@ -11,10 +11,9 @@ import { Button } from "@/components/ui/button";
 import { useFirebase } from "@/firebase";
 import { doc, getDoc, setDoc, collection, getDocs, writeBatch } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Settings as SettingsIcon, Save, Link as LinkIcon, AlertCircle, FileUp, Lock, Users, RefreshCw } from "lucide-react";
+import { Loader2, Settings as SettingsIcon, Save, Link as LinkIcon, AlertCircle, Lock, Users, RefreshCw } from "lucide-react";
 import AuthGuard from "../elenco/AuthGuard";
 import { signOut } from "firebase/auth";
-import { importFromExcel, type ImportResult } from "@/lib/excel-import";
 import { BuildFooter } from "@/components/build-footer";
 import { getStatus, parseDate, formatDate } from "@/lib/utils";
 import type { Socio } from "@/lib/soci-data";
@@ -34,13 +33,10 @@ export default function SettingsPageClient() {
   const router = useRouter();
   const { auth, user, firestore, isUserLoading } = useFirebase();
   const { toast } = useToast();
-  const importFileRef = useRef<HTMLInputElement>(null);
-  
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
-  const [isImporting, setIsImporting] = useState(false);
   
   const [config, setConfig] = useState({
     whatsAppInviteLink1: "",
@@ -49,7 +45,7 @@ export default function SettingsPageClient() {
 
   const [isSecurityDialogOpen, setIsSecurityDialogOpen] = useState(false);
   const [securityPasswordInput, setSecurityPasswordInput] = useState("");
-  const [pendingSecurityAction, setPendingSecurityAction] = useState<'import' | 'merge-duplicates' | null>(null);
+  const [pendingSecurityAction, setPendingSecurityAction] = useState<'merge-duplicates' | null>(null);
   const [isMergingDuplicates, setIsMergingDuplicates] = useState(false);
 
   const checkAdminStatus = useCallback(async () => {
@@ -144,12 +140,6 @@ export default function SettingsPageClient() {
     }
   };
 
-  const initiateImport = () => {
-    setPendingSecurityAction('import');
-    setSecurityPasswordInput("");
-    setIsSecurityDialogOpen(true);
-  };
-
   const initiateMergeDuplicates = () => {
     setPendingSecurityAction('merge-duplicates');
     setSecurityPasswordInput("");
@@ -159,13 +149,8 @@ export default function SettingsPageClient() {
   const verifySecurityPassword = () => {
     if (securityPasswordInput === SECURITY_PASSWORD) {
       setIsSecurityDialogOpen(false);
-      const action = pendingSecurityAction;
       setPendingSecurityAction(null);
-      if (action === 'import') {
-        importFileRef.current?.click();
-      } else if (action === 'merge-duplicates') {
-        handleMergeDuplicates();
-      }
+      handleMergeDuplicates();
     } else {
       toast({
         title: "Password Errata",
@@ -250,29 +235,7 @@ export default function SettingsPageClient() {
     }
   };
 
-  const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !firestore) return;
-    
-    setIsImporting(true);
-    try {
-        const result: ImportResult = await importFromExcel(file, firestore);
-        toast({
-            title: "Importazione Completata",
-            description: `${result.createdCount} nuovi soci creati. ${result.updatedTessere.length} soci aggiornati.`,
-            duration: 5000,
-        });
-    } catch(error) {
-        toast({
-            title: "Errore di Importazione",
-            description: (error as Error).message || "Si è verificato un errore sconosciuto.",
-            variant: "destructive",
-        });
-    } finally {
-        setIsImporting(false);
-        if (importFileRef.current) importFileRef.current.value = "";
-    }
-  };
+
 
   return (
     <div className="flex flex-col min-h-screen bg-secondary">
@@ -336,36 +299,6 @@ export default function SettingsPageClient() {
                   Salva Modifiche
                 </Button>
               </CardFooter>
-            </Card>
-
-            <Card className="border-primary/20 bg-background/50 backdrop-blur-sm shadow-xl">
-              <CardHeader>
-                <CardTitle className="text-xl flex items-center gap-2">
-                  <FileUp className="w-5 h-5 text-primary" />
-                  Importazione Dati
-                </CardTitle>
-                <CardDescription className="text-muted-foreground">
-                  Carica un file Excel (.xlsx) per importare o aggiornare l'elenco soci.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="p-4 bg-primary/10 rounded-lg border border-primary/20 mb-4 text-sm text-foreground">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 shrink-0 text-primary" />
-                    <p>Assicurati che il file Excel segua il formato corretto scaricato tramite la funzione "Esporta".</p>
-                  </div>
-                </div>
-                <input type="file" onChange={handleFileImport} ref={importFileRef} className="hidden" accept=".xlsx, .xls"/>
-                <Button 
-                  onClick={initiateImport} 
-                  disabled={isImporting} 
-                  variant="outline" 
-                  className="w-full border-primary/20 hover:bg-primary/10"
-                >
-                  {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
-                  {isImporting ? "Importazione in corso..." : "Seleziona file Excel"}
-                </Button>
-              </CardContent>
             </Card>
 
             {/* Card Manutenzione Database */}

@@ -138,6 +138,10 @@ const SocioTableRow = memo(({
   const [adminConfirmationResult, setAdminConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [hasPaperCopy, setHasPaperCopy] = useState(false);
 
+  // Dialog: conferma invio SMS OTP
+  const [showSendOtpConfirmDialog, setShowSendOtpConfirmDialog] = useState(false);
+  const [phoneForOtp, setPhoneForOtp] = useState("");
+
   // Dialog: firma già esistente
   const [showSignatureExistsDialog, setShowSignatureExistsDialog] = useState(false);
 
@@ -162,6 +166,16 @@ const SocioTableRow = memo(({
 
   const status = useMemo(() => getStatus(socio, activeTab !== 'requests'), [socio, activeTab]);
   const socioIsMinor = useMemo(() => isMinor(socio.birthDate), [socio.birthDate]);
+  const needsGuardianSignature = useMemo(() => {
+    if (!socioIsMinor) return false;
+    if (socio.guardianPaperSigned) return false;
+    if (socio.joinDate) {
+      const jDate = new Date(socio.joinDate);
+      const cutoffDate = new Date(2026, 6, 1); // 1 Luglio 2026 (mesi 0-indexed in JS)
+      if (jDate < cutoffDate) return false;
+    }
+    return true;
+  }, [socioIsMinor, socio.guardianPaperSigned, socio.joinDate]);
   
   // Logic to distinguish new members from renewals
   const isRenewedMember = activeTab === 'active' && !!socio.renewalDate;
@@ -256,15 +270,23 @@ const SocioTableRow = memo(({
     }
   };
 
-  // Esegue davvero l'invio OTP, chiamata dopo eventuali conferme
-  const doSendOtp = async (phoneOverride?: string) => {
+  // Prepara il flusso OTP e chiede conferma prima di inviare l'SMS
+  const initiateOtpFlow = (phoneOverride?: string) => {
     const currentSig = getSignatureMetadata(socio);
     setHasPaperCopy(currentSig.method === 'MANUAL_PAPER');
+    
+    const phoneRaw = phoneOverride || String(socio.phone || '').replace(/\s+/g, '');
+    const phone = phoneRaw.startsWith('+') ? phoneRaw : `+39${phoneRaw.replace(/^0+/, '')}`;
+    
+    setPhoneForOtp(phone);
+    setShowSendOtpConfirmDialog(true);
+  };
+
+  // Esegue l'invio reale del codice OTP via SMS
+  const sendOtpSms = async () => {
+    if (!phoneForOtp) return;
     setIsSendingAdminOtp(true);
     try {
-      const phoneRaw = phoneOverride || String(socio.phone || '').replace(/\s+/g, '');
-      const phone = phoneRaw.startsWith('+') ? phoneRaw : `+39${phoneRaw.replace(/^0+/, '')}`;
-
       const secAuth = getSecondaryAuth();
       if (secAuth) {
         let recaptcha = (window as any).adminRecaptchaVerifierSec;
@@ -274,24 +296,36 @@ const SocioTableRow = memo(({
           });
           (window as any).adminRecaptchaVerifierSec = recaptcha;
         }
-        const result = await signInWithPhoneNumber(secAuth, phone, recaptcha);
+        const result = await signInWithPhoneNumber(secAuth, phoneForOtp, recaptcha);
         setAdminConfirmationResult(result);
       }
+      setShowSendOtpConfirmDialog(false);
       setShowAdminOtpModal(true);
       toast({
         title: "SMS OTP Inviato!",
-        description: `Abbiamo inviato il codice SMS a 6 cifre al numero ${phone}.`,
+        description: `Abbiamo inviato il codice SMS a 6 cifre al numero ${phoneForOtp}.`,
       });
     } catch (error: any) {
       console.error("Errore invio OTP admin:", error);
+      setShowSendOtpConfirmDialog(false);
       setShowAdminOtpModal(true);
       toast({
         title: "Invio SMS Avviato",
-        description: `Richiesta SMS inviata al numero ${socio.phone || newPhoneInput}. Chiedi il codice al socio.`,
+        description: `Richiesta SMS inviata al numero ${phoneForOtp}. Chiedi il codice al socio.`,
       });
     } finally {
       setIsSendingAdminOtp(false);
     }
+  };
+
+  // Salta l'invio dell'SMS e apre direttamente la finestra inserimento OTP
+  const skipOtpSmsAndShowModal = () => {
+    setShowSendOtpConfirmDialog(false);
+    setShowAdminOtpModal(true);
+    toast({
+      title: "Inserimento Manuale",
+      description: "Inserisci direttamente il codice OTP del socio.",
+    });
   };
 
   const handleSendAdminOtp = async () => {
@@ -307,7 +341,7 @@ const SocioTableRow = memo(({
       if (currentSig.method === 'MANUAL_PAPER') {
         // Modulo cartaceo presente: non avvisare, tieni entrambe le firme
         setHasPaperCopy(true);
-        await doSendOtp();
+        initiateOtpFlow();
       } else {
         // Altra firma digitale: chiedi conferma sovrascrittura
         setShowSignatureExistsDialog(true);
@@ -315,7 +349,7 @@ const SocioTableRow = memo(({
       return;
     }
     // 3. Tutto ok, procedi con l'OTP
-    await doSendOtp();
+    initiateOtpFlow();
   };
 
   // Salva il telefono inserito e procede con l'OTP
@@ -335,7 +369,7 @@ const SocioTableRow = memo(({
       setShowAddPhoneDialog(false);
       
       if (pendingActionAfterOtp) {
-        await doSendOtp(trimmed);
+        initiateOtpFlow(trimmed);
       } else {
         // Controlla se c'è già una firma
         const currentSig = getSignatureMetadata(socio);
@@ -343,13 +377,13 @@ const SocioTableRow = memo(({
           if (currentSig.method === 'MANUAL_PAPER') {
             // Modulo cartaceo: tieni entrambe, procedi direttamente
             setHasPaperCopy(true);
-            await doSendOtp(trimmed);
+            initiateOtpFlow(trimmed);
           } else {
             // Altra firma digitale: chiedi conferma sovrascrittura
             setShowSignatureExistsDialog(true);
           }
         } else {
-          await doSendOtp(trimmed);
+          initiateOtpFlow(trimmed);
         }
       }
     } catch (err: any) {
@@ -451,7 +485,7 @@ const SocioTableRow = memo(({
       setNewPhoneInput("");
       setShowAddPhoneDialog(true);
     } else {
-      await doSendOtp();
+      initiateOtpFlow();
     }
   };
 
@@ -668,7 +702,7 @@ const SocioTableRow = memo(({
         });
         if (onNewApproval) {
             onNewApproval(safeMemberData as Socio);
-        } else {
+        } else if (socioIsMinor) {
             onPrint(safeMemberData as Socio);
         }
         handleApproveDialogChange(false);
@@ -904,9 +938,21 @@ const SocioTableRow = memo(({
                                     👤 REGISTRAZIONE ADMIN
                                   </Badge>
                                 ) : (
-                                  <Badge variant="outline" className="bg-slate-500/10 text-slate-400 border-slate-500/30 font-bold gap-1 mt-0.5">
-                                    📄 MODULO CARTACEO
-                                  </Badge>
+                                  <div className="flex flex-col gap-1">
+                                    <Badge variant="outline" className={cn(
+                                      "font-bold gap-1 mt-0.5",
+                                      socio.helpRequested 
+                                        ? "bg-amber-500/10 text-amber-500 border-amber-500/30 animate-pulse" 
+                                        : "bg-slate-500/10 text-slate-400 border-slate-500/30"
+                                    )}>
+                                      {socio.helpRequested ? "⚠️ RICHIESTA AIUTO / NO FIRMA" : "📄 MODULO CARTACEO"}
+                                    </Badge>
+                                    {socio.helpRequested && sig.notes && (
+                                      <span className="text-[10px] text-amber-500/80 italic font-medium max-w-[220px] leading-tight block mt-1">
+                                        {sig.notes}
+                                      </span>
+                                    )}
+                                  </div>
                                 )
                               } 
                               icon={<ShieldCheck className="h-4 w-4 text-primary" />} 
@@ -936,7 +982,18 @@ const SocioTableRow = memo(({
                         ) : 'Nessuna qualifica'} icon={<Award className="h-4 w-4" />} />
                         
                         {socioIsMinor && (
-                          <DetailItem label="Tutore Legale" value={`${socio.guardianFirstName} ${socio.guardianLastName}`} icon={<ShieldCheck className="h-4 w-4 text-yellow-500" />} />
+                          <>
+                            <DetailItem label="Tutore Legale" value={`${socio.guardianFirstName} ${socio.guardianLastName}`} icon={<ShieldCheck className="h-4 w-4 text-yellow-500" />} />
+                            <DetailItem label="Modulo Cartaceo Tutore" value={!needsGuardianSignature ? (
+                              <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30 font-bold gap-1 mt-0.5">
+                                ✓ CONSEGNATO E FIRMATO
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30 font-bold gap-1 mt-0.5 animate-pulse">
+                                ⚠️ DA COMPILARE E FIRMARE
+                              </Badge>
+                            )} icon={<AlertTriangle className={cn("h-4 w-4", !needsGuardianSignature ? "text-green-500" : "text-yellow-500")} />} />
+                          </>
                         )}
 
                         <DetailItem label="Note Amministrative" value={socio.notes || 'Nessuna nota'} icon={<StickyNote className="h-4 w-4" />} />
@@ -966,6 +1023,25 @@ const SocioTableRow = memo(({
               </Dialog>
 
                  <div className="flex items-center gap-1">
+                     {activeTab === 'requests' && socio.helpRequested && (
+                       <TooltipProvider>
+                         <Tooltip>
+                           <TooltipTrigger asChild>
+                             <span className="text-yellow-500 cursor-help inline-flex items-center" onClick={(e) => e.stopPropagation()}>
+                               <AlertTriangle className="h-4 w-4 animate-pulse" />
+                             </span>
+                           </TooltipTrigger>
+                           <TooltipContent className="max-w-xs bg-black/90 border border-yellow-500/30 text-foreground p-3 rounded-lg shadow-xl">
+                             <p className="font-bold text-xs text-yellow-500 uppercase tracking-wider flex items-center gap-1">
+                               <AlertTriangle className="h-3.5 w-3.5" /> Problema con la firma
+                             </p>
+                             <p className="text-xs italic mt-1 leading-relaxed text-foreground/90">
+                               {socio.signatureMetadata?.notes || "L'utente ha riscontrato un problema ed ha richiesto assistenza."}
+                             </p>
+                           </TooltipContent>
+                         </Tooltip>
+                       </TooltipProvider>
+                     )}
                     {isRenewedMember && (
                       <Badge variant="outline" className="text-[9px] py-0 px-1 bg-indigo-400/10 text-indigo-300 border-indigo-400/30 font-bold tracking-tight uppercase">
                         Rinnovo
@@ -1005,22 +1081,39 @@ const SocioTableRow = memo(({
                     </TooltipProvider>
                   </div>
                  {socioIsMinor && (
-                   <Dialog>
-                     <DialogTrigger asChild>
-                       <Badge onClick={(e) => { e.stopPropagation(); }} variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10">Minore</Badge>
-                     </DialogTrigger>
-                     <DialogContent aria-describedby={undefined}>
-                       <DialogTitle className="sr-only">Modifica o visualizza dati socio</DialogTitle>
-                       <DialogHeader>
-                         <DialogTitle className="flex items-center gap-2"><ShieldCheck/> Dettagli Tutore</DialogTitle>
-                       </DialogHeader>
-                       <div className="py-4">
-                         <DetailItem icon={<User />} label="Nome Tutore" value={`${socio.guardianFirstName} ${socio.guardianLastName}`} />
-                         <DetailItem icon={<Calendar />} label="Data di Nascita Tutore" value={formatDate(socio.guardianBirthDate)} />
-                       </div>
-                     </DialogContent>
-                   </Dialog>
-                 )}
+                    <div className="inline-flex items-center gap-1.5">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Badge onClick={(e) => { e.stopPropagation(); }} variant="outline" className="text-xs border-yellow-400 text-yellow-400 cursor-pointer hover:bg-yellow-500/10">Minore</Badge>
+                        </DialogTrigger>
+                        <DialogContent aria-describedby={undefined}>
+                          <DialogTitle className="sr-only">Modifica o visualizza dati socio</DialogTitle>
+                          <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2"><ShieldCheck/> Dettagli Tutore</DialogTitle>
+                          </DialogHeader>
+                          <div className="py-4 space-y-4">
+                            <DetailItem icon={<User />} label="Nome Tutore" value={`${socio.guardianFirstName} ${socio.guardianLastName}`} />
+                            <DetailItem icon={<Calendar />} label="Data di Nascita Tutore" value={formatDate(socio.guardianBirthDate)} />
+                            <DetailItem icon={<ShieldCheck className={!needsGuardianSignature ? "text-green-500" : "text-yellow-500"} />} label="Stato Modulo Cartaceo" value={!needsGuardianSignature ? "Consegnato e firmato" : "DA FIRMARE E CONSEGNARE"} />
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                      {needsGuardianSignature && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-yellow-500 cursor-help inline-flex items-center" onClick={(e) => e.stopPropagation()}>
+                                <AlertTriangle className="h-4 w-4" />
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Da stampare e far firmare al tutore</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
+                  )}
            </div>
         </TableCell>
         <TableCell className="hidden md:table-cell text-muted-foreground">
@@ -1097,6 +1190,20 @@ const SocioTableRow = memo(({
                                       <label htmlFor="override-duplicate-check" className="text-[10px] font-bold text-destructive leading-tight cursor-pointer select-none uppercase tracking-wide">
                                         Confermo che si tratta di un caso di omonimia reale e voglio creare un nuovo socio separato
                                       </label>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {needsGuardianSignature && (
+                                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-start gap-2.5 animate-in fade-in duration-300">
+                                    <AlertTriangle className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="text-xs font-black text-yellow-500 uppercase tracking-wide">
+                                        Firma Tutore Legale Mancante
+                                      </h4>
+                                      <p className="text-xs text-foreground/90 mt-1 leading-relaxed">
+                                        Questo socio è minorenne e non ha ancora consegnato il modulo cartaceo firmato dal genitore/tutore. Puoi comunque approvare la richiesta, ma ricordati di far firmare il modulo stampato.
+                                      </p>
                                     </div>
                                   </div>
                                 )}
@@ -1537,11 +1644,44 @@ const SocioTableRow = memo(({
           <AlertDialogFooter>
             <AlertDialogCancel>Annulla</AlertDialogCancel>
             <AlertDialogAction
-              onClick={async () => { setShowSignatureExistsDialog(false); await doSendOtp(); }}
+              onClick={() => { setShowSignatureExistsDialog(false); initiateOtpFlow(); }}
               className="bg-amber-600 hover:bg-amber-700 text-white"
             >
               Sì, sovrascrivi firma
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog: Conferma Invio SMS OTP */}
+      <AlertDialog open={showSendOtpConfirmDialog} onOpenChange={setShowSendOtpConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-emerald-500">
+              <Smartphone className="h-5 w-5" />
+              Inviare SMS OTP?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2 text-foreground/90">
+              Vuoi inviare l'SMS con il codice OTP per la firma elettronica al socio al numero <strong>{phoneForOtp}</strong>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel className="mt-0">Annulla</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={skipOtpSmsAndShowModal}
+              className="border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10 font-bold"
+            >
+              No, inserisci codice
+            </Button>
+            <Button
+              onClick={sendOtpSms}
+              disabled={isSendingAdminOtp}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+            >
+              {isSendingAdminOtp && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Sì, invia SMS
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

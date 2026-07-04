@@ -17,6 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowRight, ArrowLeft, PartyPopper, Info, Home, List, User, Smartphone, KeyRound, ShieldCheck, RotateCcw, AlertTriangle } from "lucide-react";
@@ -79,6 +80,7 @@ export function MembershipForm() {
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [editablePhone, setEditablePhone] = useState("");
   const [showConfirmProblemModal, setShowConfirmProblemModal] = useState(false);
+  const [problemDescription, setProblemDescription] = useState("");
 
   useEffect(() => {
     setMounted(true);
@@ -228,6 +230,7 @@ export function MembershipForm() {
       submittedAt: new Date().toISOString(),
       status: 'pending',
       signatureMetadata,
+      helpRequested: signatureMetadata.helpRequested || false,
     };
     
     const requestsCollection = collection(firestore, 'membership_requests');
@@ -346,10 +349,15 @@ export function MembershipForm() {
     if (!pendingFormValues) return;
     setIsSubmitting(true);
     try {
+      const problemNotes = problemDescription.trim()
+        ? `[PROBLEMA SEGNALATO]: ${problemDescription.trim()}`
+        : 'Inviato tramite segnalazione problema dal modulo online (Firma da acquisire in sede/cassa)';
+
       await executeFinalSubmission(pendingFormValues, {
         method: 'MANUAL_PAPER',
         signedAt: new Date().toISOString(),
-        notes: 'Inviato tramite segnalazione problema dal modulo online (Firma da acquisire in sede/cassa)'
+        notes: problemNotes,
+        helpRequested: true
       });
       setShowOtpModal(false);
       setReportedProblem(true);
@@ -1049,31 +1057,43 @@ export function MembershipForm() {
           </DialogContent>
         </Dialog>
 
-        <AlertDialog open={showConfirmProblemModal} onOpenChange={setShowConfirmProblemModal}>
-          <AlertDialogContent className="border border-amber-500/20 shadow-lg bg-background">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center gap-2 text-amber-500 font-bold">
-                <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" /> Inviare la richiesta senza firma?
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-foreground/80 leading-relaxed text-sm">
-                Hai selezionato l'opzione per inviare la tua richiesta segnalando un problema con la firma SMS.
+        <Dialog open={showConfirmProblemModal} onOpenChange={(open) => { setShowConfirmProblemModal(open); if(!open) setProblemDescription(""); }}>
+          <DialogContent className="border border-amber-500/20 shadow-lg bg-background sm:max-w-md" closeText="CHIUDI" aria-describedby={undefined}>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-amber-500 font-bold">
+                <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" /> Segnala Problema e Chiedi Aiuto
+              </DialogTitle>
+              <DialogDescription className="text-foreground/80 leading-relaxed text-sm">
+                La tua richiesta verrà registrata <b>senza firma digitale</b>. Sarà necessario recarsi fisicamente in sede per firmare il modulo cartaceo e completare l'ammissione.
                 <br /><br />
-                Procedendo, la richiesta verrà registrata <b>senza firma digitale</b>. Sarà necessario recarsi fisicamente in sede o alla cassa per firmare il modulo cartaceo e completare l'ammissione al club.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2 pt-2">
-              <AlertDialogCancel onClick={() => setShowConfirmProblemModal(false)} className="rounded-full font-semibold">
+                Descrivi brevemente il problema riscontrato (es. SMS non ricevuto, numero errato, ecc.):
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              <Textarea
+                placeholder="Scrivi qui il tipo di problema riscontrato..."
+                value={problemDescription}
+                onChange={(e) => setProblemDescription(e.target.value)}
+                className="bg-muted/50 border-amber-500/30 focus-visible:ring-amber-500 min-h-[100px] resize-none"
+              />
+            </div>
+            <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2">
+              <Button type="button" variant="ghost" onClick={() => { setShowConfirmProblemModal(false); setProblemDescription(""); }} className="rounded-full font-semibold">
                 Torna Indietro
-              </AlertDialogCancel>
-              <AlertDialogAction onClick={async () => {
-                setShowConfirmProblemModal(false);
-                await handleProblemSignal();
-              }} className="bg-amber-600 hover:bg-amber-700 text-white rounded-full font-bold">
+              </Button>
+              <Button 
+                type="button" 
+                onClick={async () => {
+                  setShowConfirmProblemModal(false);
+                  await handleProblemSignal();
+                }} 
+                className="bg-amber-600 hover:bg-amber-700 text-white rounded-full font-bold"
+              >
                 Procedi ed Invia
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
     </>
   );
 }

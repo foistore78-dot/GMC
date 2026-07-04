@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { GarageMusicClubLogo } from "./icons/garage-music-club-logo";
 import { Button } from "./ui/button";
 import { Sheet, SheetTrigger, SheetContent, SheetTitle } from "./ui/sheet";
-import { Menu, Home, List, LogOut, Settings, UserCircle, Loader2, BarChart3, Printer } from "lucide-react";
+import { Menu, Home, List, LogOut, Settings, UserCircle, Loader2, BarChart3, Printer, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
@@ -76,6 +76,9 @@ export function Header({ onLogout }: HeaderProps) {
                 <Button asChild variant="ghost" className={cn("hover:bg-primary/10 hover:text-primary", pathname === '/admin/settings' && "bg-primary/10 text-primary")}>
                   <Link href="/admin/settings"><Settings className="mr-2 h-4 w-4" /> Opzioni</Link>
                 </Button>
+                <Button asChild variant="ghost" className={cn("hover:bg-primary/10 hover:text-primary", pathname === '/admin/faq' && "bg-primary/10 text-primary")}>
+                  <Link href="/admin/faq"><HelpCircle className="mr-2 h-4 w-4" /> FAQ</Link>
+                </Button>
                 {onLogout && (
                   <Button variant="ghost" onClick={onLogout} className="hover:bg-primary/10 hover:text-primary">
                     <LogOut className="mr-2 h-4 w-4" />
@@ -120,6 +123,7 @@ export function Header({ onLogout }: HeaderProps) {
                         <NavLink href="/admin/segreteria" icon={Printer}>Segreteria</NavLink>
                         <NavLink href="/admin/dashboard" icon={BarChart3}>Dashboard</NavLink>
                         <NavLink href="/admin/settings" icon={Settings}>Opzioni</NavLink>
+                        <NavLink href="/admin/faq" icon={HelpCircle}>FAQ</NavLink>
                         {onLogout && (
                           <Button variant="ghost" onClick={() => { onLogout(); setIsOpen(false); }} className="justify-start text-base w-full hover:bg-primary/10 hover:text-primary">
                             <LogOut className="mr-2 h-4 w-4" />

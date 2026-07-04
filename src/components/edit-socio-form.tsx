@@ -27,7 +27,8 @@ import {
   formatDate, 
   getFullName, 
   toTitleCase,
-  cn
+  cn,
+  isMinorCheck
 } from "@/lib/utils";
 
 import {
@@ -101,6 +102,7 @@ const formSchema = z.object({
   guardianFirstName: z.string().optional(),
   guardianLastName: z.string().optional(),
   guardianFiscalCode: z.string().optional(),
+  guardianPaperSigned: z.boolean().optional().default(false),
 });
 
 interface EditSocioFormProps {
@@ -133,6 +135,7 @@ export default function EditSocioForm({ socio, allMembers = [], onClose, isFromM
       province: socio.province?.toUpperCase() || "",
       whatsappConsent: socio.whatsappConsent || false,
       privacyConsent: socio.privacyConsent ?? true,
+      guardianPaperSigned: socio.guardianPaperSigned || false,
       // Only the numeric part for editing, will be combined on save
       tessera: (socio.tessera && socio.tessera.includes('-')) 
         ? socio.tessera.split('-').pop() 
@@ -140,7 +143,10 @@ export default function EditSocioForm({ socio, allMembers = [], onClose, isFromM
     },
   });
 
-  const isMinor = form.watch("isMinor");
+  const birthDateValue = form.watch("birthDate");
+  const isMinor = React.useMemo(() => {
+    return birthDateValue ? isMinorCheck(birthDateValue) : false;
+  }, [birthDateValue]);
   const currentTesseraNumber = form.watch("tessera");
   const currentYear = form.watch("membershipYear");
 
@@ -537,6 +543,28 @@ export default function EditSocioForm({ socio, allMembers = [], onClose, isFromM
                         name="guardianLastName"
                         render={({ field }) => (
                           <FormItem><FormLabel>Cognome Tutore</FormLabel><FormControl><Input {...field}/></FormControl></FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="guardianPaperSigned"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center space-x-3 space-y-0 p-3 rounded-xl border bg-background mt-2 col-span-1 md:col-span-2">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                            <div className="space-y-1 leading-none">
+                              <FormLabel className="text-sm font-medium cursor-pointer">
+                                Modulo cartaceo firmato dal Tutore
+                              </FormLabel>
+                              <p className="text-[10px] text-muted-foreground">
+                                Spunta se il genitore o tutore legale ha firmato e consegnato il modulo cartaceo originario
+                              </p>
+                            </div>
+                          </FormItem>
                         )}
                       />
                     </div>
