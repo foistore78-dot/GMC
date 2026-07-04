@@ -877,9 +877,14 @@ export function MembershipForm() {
                       name="phone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>{t('steps.contact.phone')}</FormLabel>
+                          <FormLabel>{isMinor ? "Telefono Genitore / Tutore" : t('steps.contact.phone')}</FormLabel>
                           <FormControl><Input {...field} /></FormControl>
-                           <FormDescription>{t('validation.optionalField')}</FormDescription>
+                          <FormDescription>
+                            {isMinor 
+                              ? "Inserisci il numero del genitore per ricevere l'SMS di firma. Se lo stesso numero è già stato usato per un'altra iscrizione, attendi 2 minuti prima di richiedere il codice." 
+                              : t('validation.optionalField')
+                            }
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
