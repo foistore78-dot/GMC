@@ -24,6 +24,7 @@ import { Loader2, ArrowRight, ArrowLeft, PartyPopper, Info, Home, List, User, Sm
 import { useState, useMemo, useEffect } from "react";
 import { useFirestore, useAuth, addDocumentNonBlocking, logAdminActivity } from "@/firebase";
 import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from "firebase/auth";
+import { firebaseConfig } from "@/firebase/config";
 import { doc, getDoc, collection, serverTimestamp } from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -354,13 +355,34 @@ export function MembershipForm() {
     try {
       let verificationId = `OTP-${Math.floor(100000 + Math.random() * 900000)}`;
       if (confirmationResult) {
-        try {
-          const res = await confirmationResult.confirm(otpCode);
-          if (res?.user) {
-            verificationId = res.user.uid;
+        const apiKey = firebaseConfig.apiKey;
+        if (!apiKey) {
+          throw new Error("Firebase API Key is missing");
+        }
+
+        const response = await fetch(
+          `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPhoneNumber?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              sessionInfo: confirmationResult.verificationId,
+              code: otpCode,
+            }),
           }
-        } catch (confirmErr) {
-          console.warn("Verifica Firebase completata o in corso.");
+        );
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          const errMsg = errData?.error?.message || "Invalid OTP code";
+          throw new Error(errMsg);
+        }
+
+        const resData = await response.json();
+        if (resData?.localId) {
+          verificationId = resData.localId;
         }
       }
 
@@ -372,10 +394,19 @@ export function MembershipForm() {
         notes: 'Firma Elettronica Semplice verificata via SMS OTP (Firebase Auth)'
       });
       setShowOtpModal(false);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("OTP Verification Error:", error);
+      const isOtpError = error.message && (
+        error.message.includes("INVALID_CODE") || 
+        error.message.includes("session expired") || 
+        error.message.includes("code") ||
+        error.message.includes("SESSION_EXPIRED")
+      );
       toast({
-        title: t('submission.error.title'),
-        description: t('submission.error.description'),
+        title: isOtpError ? "Codice OTP errato" : t('submission.error.title'),
+        description: isOtpError 
+          ? "Il codice inserito non è corretto o è scaduto. Verifica l'SMS e riprova." 
+          : t('submission.error.description'),
         variant: "destructive",
       });
     } finally {

@@ -441,17 +441,34 @@ const SocioTableRow = memo(({
     try {
       let verificationId = `OTP-${Math.floor(100000 + Math.random() * 900000)}`;
       if (adminConfirmationResult) {
-        // Creiamo la credenziale con il verificationId dell'invio originale e il codice fornito
-        const credential = PhoneAuthProvider.credential(adminConfirmationResult.verificationId, adminOtpCode);
-        const secAuth = getSecondaryAuth();
-        if (secAuth) {
-          // Eseguiamo il sign-in sull'app secondaria per convalidare il codice senza sloggare l'amministratore dall'app principale
-          const res = await signInWithCredential(secAuth, credential);
-          if (res?.user) {
-            verificationId = res.user.uid;
-            // Scolleghiamo l'utente dall'app secondaria dopo la convalida
-            await signOut(secAuth);
+        const apiKey = firebaseConfig.apiKey;
+        if (!apiKey) {
+          throw new Error("Firebase API Key is missing");
+        }
+
+        const response = await fetch(
+          `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPhoneNumber?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              sessionInfo: adminConfirmationResult.verificationId,
+              code: adminOtpCode,
+            }),
           }
+        );
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          const errMsg = errData?.error?.message || "Invalid OTP code";
+          throw new Error(errMsg);
+        }
+
+        const resData = await response.json();
+        if (resData?.localId) {
+          verificationId = resData.localId;
         }
       }
 
