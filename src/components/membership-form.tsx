@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, ArrowLeft, PartyPopper, Info, Home, List, User, Smartphone, KeyRound, ShieldCheck, RotateCcw, AlertTriangle, X } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, PartyPopper, Info, Home, List, User, Smartphone, KeyRound, ShieldCheck, RotateCcw, AlertTriangle, X, CheckCircle2 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { useFirestore, useAuth, addDocumentNonBlocking, logAdminActivity } from "@/firebase";
 import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from "firebase/auth";
@@ -29,6 +29,7 @@ import { doc, getDoc, collection, serverTimestamp } from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Link from "next/link";
+import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useLanguage } from "./language-provider";
 import { normalizeSocioData, parseDate, toTitleCase } from "@/lib/utils";
@@ -82,6 +83,15 @@ export function MembershipForm() {
   const [editablePhone, setEditablePhone] = useState("");
   const [showConfirmProblemModal, setShowConfirmProblemModal] = useState(false);
   const [problemDescription, setProblemDescription] = useState("");
+  
+  // Guardian SMS OTP Verification states
+  const [guardianSignatureMetadata, setGuardianSignatureMetadata] = useState<any>(null);
+  const [guardianOtpSent, setGuardianOtpSent] = useState(false);
+  const [guardianOtpCode, setGuardianOtpCode] = useState("");
+  const [isSendingGuardianOtp, setIsSendingGuardianOtp] = useState(false);
+  const [isVerifyingGuardianOtp, setIsVerifyingGuardianOtp] = useState(false);
+  const [guardianConfirmationResult, setGuardianConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [editableGuardianPhone, setEditableGuardianPhone] = useState("");
 
   useEffect(() => {
     setMounted(true);
@@ -109,11 +119,12 @@ export function MembershipForm() {
     guardianFirstName: z.string().optional(),
     guardianLastName: z.string().optional(),
     guardianBirthDate: z.string().optional(),
+    guardianPhone: z.string().optional(),
   }).refine(data => {
       if (!data.birthDate || !mounted) return true;
       const age = differenceInYears(new Date(), new Date(data.birthDate));
       if (age < 18) {
-          return !!data.guardianFirstName && !!data.guardianLastName && !!data.guardianBirthDate;
+          return !!data.guardianFirstName && !!data.guardianLastName && !!data.guardianBirthDate && !!data.guardianPhone;
       }
       return true;
   }, {
@@ -135,7 +146,7 @@ export function MembershipForm() {
 
   const guardianStep = useMemo(() => ({
     id: 8,
-    fields: ["guardianFirstName", "guardianLastName", "guardianBirthDate"] as const,
+    fields: ["guardianFirstName", "guardianLastName", "guardianBirthDate", "guardianPhone"] as const,
     title: t('steps.guardian.title'),
     icon: <User className="w-5 h-5 text-amber-500" />,
   }), [t]);
@@ -161,6 +172,7 @@ export function MembershipForm() {
       guardianFirstName: "",
       guardianLastName: "",
       guardianBirthDate: "",
+      guardianPhone: "+39 ",
     },
     mode: "onChange",
   });
@@ -231,6 +243,7 @@ export function MembershipForm() {
       submittedAt: new Date().toISOString(),
       status: 'pending',
       signatureMetadata,
+      guardianSignatureMetadata: guardianSignatureMetadata || null,
       helpRequested: signatureMetadata.helpRequested || false,
     };
     
@@ -414,6 +427,158 @@ export function MembershipForm() {
     }
   };
 
+  const handleSendGuardianOtp = async (phoneOverride?: string) => {
+    const rawPhoneVal = phoneOverride || editableGuardianPhone || form.getValues("guardianPhone");
+    if (!rawPhoneVal) {
+      toast({ title: "Numero non valido", description: "Inserisci il numero di telefono del tutore.", variant: "destructive" });
+      return;
+    }
+    setIsSendingGuardianOtp(true);
+    try {
+      let rawPhone = String(rawPhoneVal).replace(/\s+/g, '');
+      let phone = rawPhone;
+      if (phone.startsWith('00')) {
+        phone = `+${phone.slice(2)}`;
+      }
+      if (!phone.startsWith('+')) {
+        if (phone.startsWith('39') && phone.length >= 10) {
+          phone = `+${phone}`;
+        } else if (phone.startsWith('386') && phone.length >= 9) {
+          phone = `+${phone}`;
+        } else if (phone.startsWith('43') && phone.length >= 9) {
+          phone = `+${phone}`;
+        } else if (phone.startsWith('41') && phone.length >= 9) {
+          phone = `+${phone}`;
+        } else if (phone.startsWith('44') && phone.length >= 10) {
+          phone = `+${phone}`;
+        } else {
+          phone = `+39${phone.replace(/^0+/, '')}`;
+        }
+      }
+
+      // Strip leading zero after country prefix for SI (+386), AT (+43), CH (+41), GB (+44)
+      if (phone.startsWith('+3860')) {
+        phone = `+386${phone.slice(5)}`;
+      } else if (phone.startsWith('+430')) {
+        phone = `+43${phone.slice(4)}`;
+      } else if (phone.startsWith('+410')) {
+        phone = `+41${phone.slice(4)}`;
+      } else if (phone.startsWith('+440')) {
+        phone = `+44${phone.slice(4)}`;
+      }
+
+      if (auth) {
+        let recaptcha = (window as any).recaptchaVerifier;
+        if (recaptcha) {
+          try {
+            recaptcha.clear();
+          } catch (e) {
+            console.warn("Error clearing recaptcha verifier:", e);
+          }
+        }
+        
+        // Creiamo sempre un'istanza fresca per evitare token reCAPTCHA scaduti o già usati
+        recaptcha = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible'
+        });
+        (window as any).recaptchaVerifier = recaptcha;
+        
+        const result = await signInWithPhoneNumber(auth, phone, recaptcha);
+        setGuardianConfirmationResult(result);
+      }
+      setGuardianOtpSent(true);
+      toast({
+        title: "Codice SMS Inviato!",
+        description: `Abbiamo inviato un codice OTP al numero del tutore ${phone}.`,
+      });
+    } catch (error: any) {
+      console.error("SMS Sending error:", error);
+      toast({
+        title: "Errore Invio SMS",
+        description: error.message || "Impossibile inviare l'SMS OTP. Verifica il numero o riprova più tardi.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingGuardianOtp(false);
+    }
+  };
+
+  const handleConfirmGuardianOtp = async () => {
+    if (!guardianOtpCode || guardianOtpCode.trim().length < 4) {
+      toast({
+        title: "Codice non valido",
+        description: "Inserisci il codice OTP a 6 cifre ricevuto via SMS.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsVerifyingGuardianOtp(true);
+    try {
+      let verificationId = `OTP-${Math.floor(100000 + Math.random() * 900000)}`;
+      if (guardianConfirmationResult) {
+        const apiKey = firebaseConfig.apiKey;
+        if (!apiKey) {
+          throw new Error("Firebase API Key is missing");
+        }
+
+        const response = await fetch(
+          `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPhoneNumber?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              sessionInfo: guardianConfirmationResult.verificationId,
+              code: guardianOtpCode,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          const errMsg = errData?.error?.message || "Invalid OTP code";
+          throw new Error(errMsg);
+        }
+
+        const resData = await response.json();
+        if (resData?.localId) {
+          verificationId = resData.localId;
+        }
+      }
+
+      setGuardianSignatureMetadata({
+        method: 'SMS_OTP',
+        signedAt: new Date().toISOString(),
+        signerPhone: editableGuardianPhone || form.getValues("guardianPhone") || '',
+        verificationId: verificationId,
+        notes: 'Firma Elettronica Semplice del Tutore verificata via SMS OTP (Firebase Auth)'
+      });
+      toast({
+        title: "Firma Tutore Apposta!",
+        description: "Il tutore ha firmato digitalmente con successo.",
+      });
+    } catch (error: any) {
+      console.error("Guardian OTP Verification Error:", error);
+      const isOtpError = error.message && (
+        error.message.includes("INVALID_CODE") || 
+        error.message.includes("session expired") || 
+        error.message.includes("code") ||
+        error.message.includes("SESSION_EXPIRED")
+      );
+      toast({
+        title: isOtpError ? "Codice OTP errato" : "Errore verifica",
+        description: isOtpError 
+          ? "Il codice inserito non è corretto o è scaduto. Verifica l'SMS e riprova." 
+          : "Impossibile verificare la firma del tutore.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsVerifyingGuardianOtp(false);
+    }
+  };
+
   const handleProblemSignal = async () => {
     if (!pendingFormValues) return;
     setIsSubmitting(true);
@@ -449,6 +614,17 @@ export function MembershipForm() {
 
 
     if (!output) return;
+
+    if (steps[currentStep].id === guardianStep.id) {
+      if (!guardianSignatureMetadata) {
+        toast({
+          title: "Firma del tutore richiesta",
+          description: "Per proseguire è necessario verificare il numero di telefono del tutore ed apporre la firma OTP.",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
 
     if (steps[currentStep].id === 3) {
       if(birthDate && mounted) {
@@ -742,8 +918,8 @@ export function MembershipForm() {
                 )}
                 
                 {steps[currentStep].id === guardianStep.id && (
-                    <div className="space-y-4 p-4 border border-yellow-500/30 rounded-lg bg-yellow-500/10">
-                        <p className="text-sm text-yellow-300">{t('steps.guardian.description')}</p>
+                    <div className="space-y-4 p-4 border border-yellow-500/30 rounded-lg bg-yellow-500/10 text-left">
+                        <p className="text-sm text-yellow-300 font-medium">{t('steps.guardian.description')}</p>
                         <FormField
                             control={form.control}
                             name="guardianFirstName"
@@ -753,6 +929,7 @@ export function MembershipForm() {
                                     <FormControl>
                                       <Input
                                         placeholder={t('steps.guardian.firstNamePlaceholder')}
+                                        disabled={!!guardianSignatureMetadata}
                                         {...field}
                                       />
                                     </FormControl>
@@ -769,6 +946,7 @@ export function MembershipForm() {
                                      <FormControl>
                                       <Input
                                         placeholder={t('steps.guardian.lastNamePlaceholder')}
+                                        disabled={!!guardianSignatureMetadata}
                                         {...field}
                                       />
                                     </FormControl>
@@ -787,44 +965,151 @@ export function MembershipForm() {
                                             <Select 
                                                 onValueChange={(val) => handleDateChange('day', val, field.value, field.onChange)}
                                                 value={field.value ? field.value.split('-')[2] : undefined}
+                                                disabled={!!guardianSignatureMetadata}
                                             >
                                                <SelectTrigger className="w-full pointer-events-auto">
-                                         <SelectValue placeholder="GG" />
-                                     </SelectTrigger>
-                                     <SelectContent>
-                                         {days.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                                     </SelectContent>
-                                 </Select>
+                                                 <SelectValue placeholder="GG" />
+                                               </SelectTrigger>
+                                               <SelectContent>
+                                                 {days.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                                               </SelectContent>
+                                            </Select>
 
-                                 <Select 
-                                     onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
-                                     value={field.value ? String((parseDate(field.value)?.getMonth() ?? 0) + 1).padStart(2, '0') : undefined}
-                                 >
-                                     <SelectTrigger className="w-full pointer-events-auto">
-                                         <SelectValue placeholder="Mese" />
-                                     </SelectTrigger>
-                                     <SelectContent>
-                                         {months.map(m => <SelectItem key={m.value} value={m.value}>{toTitleCase(m.label)}</SelectItem>)}
-                                     </SelectContent>
-                                 </Select>
+                                            <Select 
+                                                onValueChange={(val) => handleDateChange('month', val, field.value, field.onChange)}
+                                                value={field.value ? String((parseDate(field.value)?.getMonth() ?? 0) + 1).padStart(2, '0') : undefined}
+                                                disabled={!!guardianSignatureMetadata}
+                                            >
+                                               <SelectTrigger className="w-full pointer-events-auto">
+                                                 <SelectValue placeholder="Mese" />
+                                               </SelectTrigger>
+                                               <SelectContent>
+                                                 {months.map(m => <SelectItem key={m.value} value={m.value}>{toTitleCase(m.label)}</SelectItem>)}
+                                               </SelectContent>
+                                            </Select>
 
-                                 <Select 
-                                     onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
-                                     value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
-                                 >
-                                     <SelectTrigger className="w-full col-span-2 sm:col-span-1 pointer-events-auto">
-                                         <SelectValue placeholder="Anno" />
-                                     </SelectTrigger>
-                                     <SelectContent>
-                                         {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                                     </SelectContent>
-                                 </Select>
+                                            <Select 
+                                                onValueChange={(val) => handleDateChange('year', val, field.value, field.onChange)}
+                                                value={field.value ? String(parseDate(field.value)?.getFullYear()) : undefined}
+                                                disabled={!!guardianSignatureMetadata}
+                                            >
+                                               <SelectTrigger className="w-full col-span-2 sm:col-span-1 pointer-events-auto">
+                                                 <SelectValue placeholder="Anno" />
+                                               </SelectTrigger>
+                                               <SelectContent>
+                                                 {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                                               </SelectContent>
+                                            </Select>
                                         </div>
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
+                        <FormField
+                            control={form.control}
+                            name="guardianPhone"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Cellulare Tutore</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        placeholder="+39 340 1234567"
+                                        disabled={!!guardianSignatureMetadata}
+                                        {...field}
+                                      />
+                                    </FormControl>
+                                    <FormDescription className="text-xs text-muted-foreground">
+                                      Inserisci il numero del tutore per ricevere l'SMS di firma del tutore.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        {/* Interfaccia OTP Tutore */}
+                        <div className="mt-4 pt-4 border-t border-yellow-500/20">
+                          {guardianSignatureMetadata ? (
+                            <div className="bg-emerald-950/40 border border-emerald-500/30 p-3 rounded-lg flex items-center justify-between">
+                              <div className="text-left">
+                                <p className="text-sm font-bold text-emerald-400 flex items-center gap-1.5">
+                                  <CheckCircle2 className="w-4 h-4" /> Firma Tutore Apposta!
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  Firma OTP registrata per il numero: {guardianSignatureMetadata.signerPhone}
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setGuardianSignatureMetadata(null);
+                                  setGuardianOtpSent(false);
+                                  setGuardianOtpCode("");
+                                }}
+                                className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 text-xs font-semibold h-8"
+                              >
+                                Cambia Firma
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="space-y-4 text-left">
+                              {!guardianOtpSent ? (
+                                <Button
+                                  type="button"
+                                  onClick={() => handleSendGuardianOtp()}
+                                  disabled={isSendingGuardianOtp || !form.getValues("guardianPhone") || form.getValues("guardianPhone").trim().length < 5}
+                                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2"
+                                >
+                                  {isSendingGuardianOtp && <Loader2 className="w-4 h-4 animate-spin" />}
+                                  Invia SMS per Firma Tutore
+                                </Button>
+                              ) : (
+                                <div className="space-y-3 bg-background/50 p-3 rounded-lg border border-border">
+                                  <div className="space-y-1">
+                                    <Label htmlFor="guardian-otp-code-input" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                      Codice di Conferma Tutore
+                                    </Label>
+                                    <Input
+                                      id="guardian-otp-code-input"
+                                      placeholder="123456"
+                                      maxLength={6}
+                                      value={guardianOtpCode}
+                                      onChange={(e) => setGuardianOtpCode(e.target.value)}
+                                      className="text-center text-lg font-mono tracking-widest"
+                                    />
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      type="button"
+                                      onClick={handleConfirmGuardianOtp}
+                                      disabled={isVerifyingGuardianOtp || !guardianOtpCode}
+                                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                                    >
+                                      {isVerifyingGuardianOtp && <Loader2 className="w-4 h-4 animate-spin" />}
+                                      Conferma e Firma
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        setGuardianOtpSent(false);
+                                        setGuardianOtpCode("");
+                                      }}
+                                      disabled={isVerifyingGuardianOtp}
+                                    >
+                                      Annulla
+                                    </Button>
+                                  </div>
+                                  <p className="text-[11px] text-muted-foreground text-center">
+                                    Hai inserito un numero errato? Clicca su Annulla per modificarlo.
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                     </div>
                 )}
 

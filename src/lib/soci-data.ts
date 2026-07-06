@@ -32,6 +32,7 @@ export type Socio = {
   guardianFirstName?: string;
   guardianLastName?: string;
   guardianBirthDate?: string;
+  guardianPhone?: string;
   guardianPaperSigned?: boolean;
   helpRequested?: boolean;
   membershipYear?: string;
@@ -42,6 +43,7 @@ export type Socio = {
   tessera?: string;
   submittedAt?: string;
   signatureMetadata?: SignatureMetadata;
+  guardianSignatureMetadata?: SignatureMetadata;
 };
 
 export const QUALIFICHE = ["FONDATORE", "VOLONTARIO", "MUSICISTA"] as const;

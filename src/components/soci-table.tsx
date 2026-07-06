@@ -134,6 +134,8 @@ const SocioTableRow = memo(({
   const auth = useAuth();
   const [showAdminOtpModal, setShowAdminOtpModal] = useState(false);
   const [adminOtpCode, setAdminOtpCode] = useState("");
+  const [otpFlowType, setOtpFlowType] = useState<'socio' | 'tutore'>('socio');
+  const [phoneFieldToSave, setPhoneFieldToSave] = useState<'phone' | 'guardianPhone'>('phone');
   const [isSendingAdminOtp, setIsSendingAdminOtp] = useState(false);
   const [isVerifyingAdminOtp, setIsVerifyingAdminOtp] = useState(false);
   const [adminConfirmationResult, setAdminConfirmationResult] = useState<ConfirmationResult | null>(null);
@@ -401,6 +403,8 @@ const SocioTableRow = memo(({
   };
 
   const handleSendAdminOtp = async () => {
+    setOtpFlowType('socio');
+    setPhoneFieldToSave('phone');
     // 1. Controlla se manca il numero di telefono
     if (!socio.phone) {
       setNewPhoneInput("");
@@ -411,17 +415,38 @@ const SocioTableRow = memo(({
     const currentSig = getSignatureMetadata(socio);
     if (currentSig.method && (currentSig.method as string) !== 'NONE') {
       if (currentSig.method === 'MANUAL_PAPER') {
-        // Modulo cartaceo presente: non avvisare, tieni entrambe le firme
         setHasPaperCopy(true);
         initiateOtpFlow();
       } else {
-        // Altra firma digitale: chiedi conferma sovrascrittura
         setShowSignatureExistsDialog(true);
       }
       return;
     }
     // 3. Tutto ok, procedi con l'OTP
     initiateOtpFlow();
+  };
+
+  const handleSendAdminGuardianOtp = async () => {
+    setOtpFlowType('tutore');
+    setPhoneFieldToSave('guardianPhone');
+    const guardianPhone = (socio as any).guardianPhone || socio.phone;
+    if (!guardianPhone) {
+      setNewPhoneInput("");
+      setShowAddPhoneDialog(true);
+      return;
+    }
+    // Verifica se c'è già una firma del tutore
+    const currentGuardianSig = (socio as any).guardianSignatureMetadata;
+    if (currentGuardianSig?.method && (currentGuardianSig.method as string) !== 'NONE') {
+      if (currentGuardianSig.method === 'MANUAL_PAPER') {
+        setHasPaperCopy(true);
+        initiateOtpFlow(guardianPhone);
+      } else {
+        setShowSignatureExistsDialog(true);
+      }
+      return;
+    }
+    initiateOtpFlow(guardianPhone);
   };
 
   // Salva il telefono inserito e procede con l'OTP
@@ -506,12 +531,15 @@ const SocioTableRow = memo(({
         }
       }
 
+      const isGuardianFlow = otpFlowType === 'tutore';
       const updatedSig = {
         method: 'SMS_OTP',
         signedAt: new Date().toISOString(),
-        signerPhone: socio.phone || newPhoneInput.trim() || '',
+        signerPhone: phoneForOtp || (isGuardianFlow ? (socio as any).guardianPhone : socio.phone) || '',
         verificationId: verificationId,
-        notes: 'Firma Elettronica Semplice verificata via SMS OTP da pannello amministrativo'
+        notes: isGuardianFlow
+          ? 'Firma Elettronica Semplice del TUTORE verificata via SMS OTP da pannello amministrativo'
+          : 'Firma Elettronica Semplice verificata via SMS OTP da pannello amministrativo'
       };
 
       let finalNotes = socio.notes || '';
@@ -565,17 +593,27 @@ const SocioTableRow = memo(({
         if (firestore) {
           const collectionName = activeTab === 'requests' ? 'membership_requests' : 'members';
           const docRef = doc(firestore, collectionName, socio.id);
-          await updateDoc(docRef, {
-            signatureMetadata: updatedSig,
-            notes: finalNotes,
-            helpRequested: deleteField(),
-            updatedAt: serverTimestamp()
-          });
-
-          toast({
-            title: "Firma Digitalizzata Verificata!",
-            description: `Il socio ${getFullName(socio)} ora risulta con Firma SMS OTP verificata.`,
-          });
+          if (isGuardianFlow) {
+            await updateDoc(docRef, {
+              guardianSignatureMetadata: updatedSig,
+              updatedAt: serverTimestamp()
+            });
+            toast({
+              title: "Firma Tutore Verificata!",
+              description: `Firma SMS OTP del tutore di ${getFullName(socio)} registrata con successo.`,
+            });
+          } else {
+            await updateDoc(docRef, {
+              signatureMetadata: updatedSig,
+              notes: finalNotes,
+              helpRequested: deleteField(),
+              updatedAt: serverTimestamp()
+            });
+            toast({
+              title: "Firma Digitalizzata Verificata!",
+              description: `Il socio ${getFullName(socio)} ora risulta con Firma SMS OTP verificata.`,
+            });
+          }
           setShowAdminOtpModal(false);
           onSocioUpdate(activeTab === 'requests' ? 'requests' : 'active');
         }
@@ -1116,9 +1154,20 @@ const SocioTableRow = memo(({
                         disabled={isSendingAdminOtp}
                         className="gap-2 bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20 font-bold"
                       >
-                        {isSendingAdminOtp ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />}
-                        Richiedi Firma SMS
+                        {isSendingAdminOtp && otpFlowType === 'socio' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />}
+                        Richiedi Firma Socio
                       </Button>
+                    {socioIsMinor && (
+                      <Button 
+                          variant="outline" 
+                          onClick={handleSendAdminGuardianOtp} 
+                          disabled={isSendingAdminOtp}
+                          className="gap-2 bg-amber-500/10 text-amber-500 border-amber-500/30 hover:bg-amber-500/20 font-bold"
+                        >
+                          {isSendingAdminOtp && otpFlowType === 'tutore' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                          Richiedi Firma Tutore
+                        </Button>
+                    )}
 
                     <Button variant="outline" onClick={() => onPrint(socio)} className="gap-2">
                       <Printer className="h-4 w-4" /> Stampa Scheda
@@ -1947,19 +1996,24 @@ const SocioTableRow = memo(({
             </button>
 
             <div className="text-center">
-              <div className="mx-auto w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-2">
+              <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-2 ${otpFlowType === 'tutore' ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
                 <ShieldCheck className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-bold">Richiesta Firma SMS OTP</h3>
+              <h3 className="text-xl font-bold">
+                {otpFlowType === 'tutore' ? 'Firma OTP Tutore' : 'Richiesta Firma SMS OTP'}
+              </h3>
               <p className="text-sm text-muted-foreground mt-1">
-                Abbiamo inviato un codice OTP di 6 cifre al numero <strong>{socio.phone}</strong>. Chiedi il codice al socio presente in cassa ed inseriscilo qui sotto.
+                {otpFlowType === 'tutore'
+                  ? <>Abbiamo inviato un codice OTP al numero del tutore <strong>{phoneForOtp || (socio as any).guardianPhone}</strong>. Chiedi il codice al tutore ed inseriscilo qui sotto.</>
+                  : <>Abbiamo inviato un codice OTP di 6 cifre al numero <strong>{phoneForOtp || socio.phone}</strong>. Chiedi il codice al socio presente in cassa ed inseriscilo qui sotto.</>
+                }
               </p>
             </div>
 
             <div className="space-y-4 py-3">
               <div className="space-y-2">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                  <KeyRound className="w-3.5 h-3.5" /> Codice OTP Comunicato dal Socio
+                  <KeyRound className="w-3.5 h-3.5" /> {otpFlowType === 'tutore' ? 'Codice OTP Comunicato dal Tutore' : 'Codice OTP Comunicato dal Socio'}
                 </Label>
                 <Input 
                   placeholder="123456" 
