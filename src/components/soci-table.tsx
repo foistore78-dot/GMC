@@ -46,7 +46,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, Award, CheckCircle, Loader2, ArrowUpDown, FileLock2, Printer, MessageCircle, Cake, Trash2, MoreVertical, MapPin, UserCheck, Info, AlertTriangle, Users, Smartphone, KeyRound, RotateCcw } from "lucide-react";
+import { RefreshCw, Pencil, ShieldCheck, User, Calendar, Mail, Phone, Home, Hash, Euro, StickyNote, Award, CheckCircle, Loader2, ArrowUpDown, FileLock2, Printer, MessageCircle, Cake, Trash2, MoreVertical, MapPin, UserCheck, Info, AlertTriangle, Users, Smartphone, KeyRound, RotateCcw, X } from "lucide-react";
 import { cn, getFullName, getStatus, formatDate, parseDate, formatCurrency, isMinorCheck as isMinor, getNextMemberNumberForYear, getSignatureMetadata } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
@@ -295,6 +295,17 @@ const SocioTableRow = memo(({
         phone = `+39${phone.replace(/^0+/, '')}`;
       }
     }
+
+    // Strip leading zero after country prefix for SI (+386), AT (+43), CH (+41), GB (+44)
+    if (phone.startsWith('+3860')) {
+      phone = `+386${phone.slice(5)}`;
+    } else if (phone.startsWith('+430')) {
+      phone = `+43${phone.slice(4)}`;
+    } else if (phone.startsWith('+410')) {
+      phone = `+41${phone.slice(4)}`;
+    } else if (phone.startsWith('+440')) {
+      phone = `+44${phone.slice(4)}`;
+    }
     
     setPhoneForOtp(phone);
     setShowSendOtpConfirmDialog(true);
@@ -327,7 +338,6 @@ const SocioTableRow = memo(({
     } catch (error: any) {
       console.error("Errore invio OTP admin:", error);
       setShowSendOtpConfirmDialog(false);
-      setShowAdminOtpModal(true);
       toast({
         title: "Errore invio SMS",
         description: `Impossibile completare la richiesta. Dettagli: ${error.message || error}`,
@@ -1720,37 +1730,49 @@ const SocioTableRow = memo(({
       </AlertDialog>
 
       {/* Dialog: Conferma Invio SMS OTP */}
-      <AlertDialog open={showSendOtpConfirmDialog} onOpenChange={setShowSendOtpConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-emerald-500">
+      {showSendOtpConfirmDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/85 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md border border-border bg-background p-6 rounded-2xl shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 text-left">
+            <button 
+              type="button"
+              onClick={() => setShowSendOtpConfirmDialog(false)}
+              className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none"
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </button>
+            <div className="flex items-center gap-2 text-emerald-500">
               <Smartphone className="h-5 w-5" />
-              Inviare SMS OTP?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2 text-foreground/90">
+              <h3 className="text-lg font-bold">Inviare SMS OTP?</h3>
+            </div>
+            <p className="text-sm text-foreground/90 leading-relaxed">
               Vuoi inviare l'SMS con il codice OTP per la firma elettronica al socio al numero <strong>{phoneForOtp}</strong>?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogCancel className="mt-0">Annulla</AlertDialogCancel>
-            <Button
-              variant="outline"
-              onClick={skipOtpSmsAndShowModal}
-              className="border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10 font-bold"
-            >
-              No, inserisci codice
-            </Button>
-            <Button
-              onClick={sendOtpSms}
-              disabled={isSendingAdminOtp}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-            >
-              {isSendingAdminOtp && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Sì, invia SMS
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </p>
+            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" onClick={() => setShowSendOtpConfirmDialog(false)}>
+                Annulla
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={skipOtpSmsAndShowModal}
+                className="border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10 font-bold"
+              >
+                No, inserisci codice
+              </Button>
+              <Button
+                type="button"
+                onClick={sendOtpSms}
+                disabled={isSendingAdminOtp}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+              >
+                {isSendingAdminOtp && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Sì, invia SMS
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Dialog: Numero di telefono mancante */}
       <Dialog open={showAddPhoneDialog} onOpenChange={setShowAddPhoneDialog}>
@@ -1795,78 +1817,90 @@ const SocioTableRow = memo(({
       </Dialog>
 
       {/* Dialog per Invio e Verifica Firma SMS OTP da Admin */}
-      <Dialog open={showAdminOtpModal} onOpenChange={setShowAdminOtpModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <div className="mx-auto w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-2">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <DialogTitle className="text-center text-xl font-bold">Richiesta Firma SMS OTP</DialogTitle>
-            <DialogDescription className="text-center text-sm">
-              Abbiamo inviato un codice OTP di 6 cifre al numero <strong>{socio.phone}</strong>. Chiedi il codice al socio presente in cassa ed inseriscilo qui sotto.
-            </DialogDescription>
-          </DialogHeader>
+      {showAdminOtpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/85 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md border border-border bg-background p-6 rounded-2xl shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 text-left">
+            <button 
+              type="button"
+              onClick={() => setShowAdminOtpModal(false)}
+              disabled={isVerifyingAdminOtp}
+              className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none"
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </button>
 
-          <div className="space-y-4 py-3">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                <KeyRound className="w-3.5 h-3.5" /> Codice OTP Comunicato dal Socio
-              </Label>
-              <Input 
-                placeholder="123456" 
-                maxLength={6}
-                value={adminOtpCode}
-                onChange={(e) => setAdminOtpCode(e.target.value)}
-                className="text-center text-2xl font-mono tracking-widest h-12 border-emerald-500/40 focus:border-emerald-500"
-                autoFocus
-              />
-              <div className="flex justify-between items-center pt-1">
-                <p className="text-[11px] text-muted-foreground">
-                  Inserisci le 6 cifre ricevute via SMS dal socio.
-                </p>
-                <Button 
-                  type="button" 
-                  variant="link" 
-                  size="sm" 
-                  onClick={handleSendAdminOtp} 
-                  disabled={isSendingAdminOtp}
-                  className="text-xs h-auto p-0 text-emerald-600 hover:underline flex items-center gap-1 font-semibold"
-                >
-                  {isSendingAdminOtp ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
-                  Reinvia SMS
-                </Button>
+            <div className="text-center">
+              <div className="mx-auto w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-2">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold">Richiesta Firma SMS OTP</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Abbiamo inviato un codice OTP di 6 cifre al numero <strong>{socio.phone}</strong>. Chiedi il codice al socio presente in cassa ed inseriscilo qui sotto.
+              </p>
+            </div>
+
+            <div className="space-y-4 py-3">
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                  <KeyRound className="w-3.5 h-3.5" /> Codice OTP Comunicato dal Socio
+                </Label>
+                <Input 
+                  placeholder="123456" 
+                  maxLength={6}
+                  value={adminOtpCode}
+                  onChange={(e) => setAdminOtpCode(e.target.value)}
+                  className="text-center text-2xl font-mono tracking-widest h-12 border-emerald-500/40 focus:border-emerald-500"
+                  autoFocus
+                />
+                <div className="flex justify-between items-center pt-1">
+                  <p className="text-[11px] text-muted-foreground">
+                    Inserisci le 6 cifre ricevute via SMS dal socio.
+                  </p>
+                  <Button 
+                    type="button" 
+                    variant="link" 
+                    size="sm" 
+                    onClick={handleSendAdminOtp} 
+                    disabled={isSendingAdminOtp}
+                    className="text-xs h-auto p-0 text-emerald-600 hover:underline flex items-center gap-1 font-semibold"
+                  >
+                    {isSendingAdminOtp ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+                    Reinvia SMS
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 pt-3 border-t border-border/50">
+                <Checkbox 
+                  id="has-paper-copy-check" 
+                  checked={hasPaperCopy} 
+                  onCheckedChange={(c) => setHasPaperCopy(!!c)} 
+                  className="data-[state=checked]:bg-emerald-600 border-emerald-500/50"
+                />
+                <Label htmlFor="has-paper-copy-check" className="text-xs font-medium text-foreground cursor-pointer leading-tight">
+                  Conserva nota: Presente anche modulo cartaceo originale in sede 📄
+                </Label>
               </div>
             </div>
 
-            <div className="flex items-center space-x-2 pt-3 border-t border-border/50">
-              <Checkbox 
-                id="has-paper-copy-check" 
-                checked={hasPaperCopy} 
-                onCheckedChange={(c) => setHasPaperCopy(!!c)} 
-                className="data-[state=checked]:bg-emerald-600 border-emerald-500/50"
-              />
-              <Label htmlFor="has-paper-copy-check" className="text-xs font-medium text-foreground cursor-pointer leading-tight">
-                Conserva nota: Presente anche modulo cartaceo originale in sede 📄
-              </Label>
+            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" onClick={() => setShowAdminOtpModal(false)} disabled={isVerifyingAdminOtp}>
+                Annulla
+              </Button>
+              <Button 
+                type="button" 
+                onClick={handleConfirmAdminOtp} 
+                disabled={isVerifyingAdminOtp || !adminOtpCode} 
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2"
+              >
+                {isVerifyingAdminOtp && <Loader2 className="w-4 h-4 animate-spin" />}
+                Conferma e Apponi Firma SMS
+              </Button>
             </div>
           </div>
-
-          <DialogFooter className="flex flex-col sm:flex-row gap-2">
-            <Button type="button" variant="ghost" onClick={() => setShowAdminOtpModal(false)} disabled={isVerifyingAdminOtp}>
-              Annulla
-            </Button>
-            <Button 
-              type="button" 
-              onClick={handleConfirmAdminOtp} 
-              disabled={isVerifyingAdminOtp || !adminOtpCode} 
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2"
-            >
-              {isVerifyingAdminOtp && <Loader2 className="w-4 h-4 animate-spin" />}
-              Conferma e Apponi Firma SMS
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
 
       {/* Vecchio flow di eliminazione rimosso */}
 
@@ -1924,7 +1958,7 @@ const SocioTableRow = memo(({
       </AlertDialog>
 
       {/* Container invisibile per il Recaptcha di Firebase Auth (univoco per ogni riga) */}
-      <div id={`admin-recaptcha-container-${socio.id}`} className="hidden"></div>
+      <div id={`admin-recaptcha-container-${socio.id}`} className="fixed -left-[9999px] -top-[9999px] w-1 h-1 opacity-0 pointer-events-none overflow-hidden"></div>
     </>
   );
 });

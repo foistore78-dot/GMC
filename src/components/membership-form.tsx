@@ -264,14 +264,15 @@ export function MembershipForm() {
     }
   }
 
-  const handleSendOtp = async () => {
-    if (!pendingFormValues?.phone) {
+  const handleSendOtp = async (phoneOverride?: string) => {
+    const rawPhoneVal = phoneOverride || editablePhone || pendingFormValues?.phone;
+    if (!rawPhoneVal) {
       toast({ title: "Numero non valido", description: "Inserisci un numero di telefono valido.", variant: "destructive" });
       return;
     }
     setIsSendingOtp(true);
     try {
-      let rawPhone = String(pendingFormValues.phone).replace(/\s+/g, '');
+      let rawPhone = String(rawPhoneVal).replace(/\s+/g, '');
       let phone = rawPhone;
       if (phone.startsWith('00')) {
         phone = `+${phone.slice(2)}`;
@@ -292,6 +293,17 @@ export function MembershipForm() {
         }
       }
 
+      // Strip leading zero after country prefix for SI (+386), AT (+43), CH (+41), GB (+44)
+      if (phone.startsWith('+3860')) {
+        phone = `+386${phone.slice(5)}`;
+      } else if (phone.startsWith('+430')) {
+        phone = `+43${phone.slice(4)}`;
+      } else if (phone.startsWith('+410')) {
+        phone = `+41${phone.slice(4)}`;
+      } else if (phone.startsWith('+440')) {
+        phone = `+44${phone.slice(4)}`;
+      }
+
       if (auth) {
         let recaptcha = (window as any).recaptchaVerifier;
         if (!recaptcha) {
@@ -309,11 +321,11 @@ export function MembershipForm() {
         description: `Abbiamo inviato un codice OTP al numero ${phone}.`,
       });
     } catch (error: any) {
-      console.error("SMS Sending notice:", error);
-      setOtpSent(true);
+      console.error("SMS Sending error:", error);
       toast({
-        title: "Invio SMS Avviato",
-        description: `Codice inviato al numero ${pendingFormValues?.phone || ''}. Inserisci il codice per verificare.`,
+        title: "Errore Invio SMS",
+        description: error.message || "Impossibile inviare l'SMS OTP. Verifica il numero o riprova più tardi.",
+        variant: "destructive",
       });
     } finally {
       setIsSendingOtp(false);
@@ -1012,7 +1024,7 @@ export function MembershipForm() {
                       className="font-semibold"
                     />
                     {!otpSent ? (
-                      <Button type="button" size="sm" onClick={() => { setPendingFormValues((v: any) => ({ ...v, phone: editablePhone })); handleSendOtp(); }} disabled={isSendingOtp || !editablePhone}>
+                      <Button type="button" size="sm" onClick={() => { setPendingFormValues((v: any) => ({ ...v, phone: editablePhone })); handleSendOtp(editablePhone); }} disabled={isSendingOtp || !editablePhone}>
                         {isSendingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Invia OTP"}
                       </Button>
                     ) : (
@@ -1049,7 +1061,7 @@ export function MembershipForm() {
                         type="button" 
                         variant="link" 
                         size="sm" 
-                        onClick={handleSendOtp} 
+                        onClick={() => handleSendOtp()} 
                         disabled={isSendingOtp}
                         className="text-xs h-auto p-0 text-primary hover:underline flex items-center gap-1 shrink-0 font-semibold"
                       >
@@ -1129,7 +1141,7 @@ export function MembershipForm() {
         </Dialog>
 
         {/* Container invisibile per il Recaptcha di Firebase Auth (esterno ai dialog per evitare problemi di unmount/remount) */}
-        <div id="recaptcha-container" className="hidden"></div>
+        <div id="recaptcha-container" className="fixed -left-[9999px] -top-[9999px] w-1 h-1 opacity-0 pointer-events-none overflow-hidden"></div>
     </>
   );
 }
