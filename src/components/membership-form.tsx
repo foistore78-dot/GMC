@@ -1140,8 +1140,8 @@ export function MembershipForm() {
           </DialogContent>
         </Dialog>
 
-        {/* Container invisibile per il Recaptcha di Firebase Auth (esterno ai dialog per evitare problemi di unmount/remount) */}
-        <div id="recaptcha-container" className="absolute -left-[9999px] -top-[9999px] opacity-0 -z-50"></div>
+        {/* Container per il Recaptcha di Firebase Auth (esterno ai dialog per evitare problemi di unmount/remount) */}
+        <div id="recaptcha-container"></div>
     </>
   );
 }

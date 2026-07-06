@@ -2018,8 +2018,8 @@ const SocioTableRow = memo(({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Container invisibile per il Recaptcha di Firebase Auth (univoco per ogni riga) */}
-      <div id={`admin-recaptcha-container-${socio.id}`} className="absolute -left-[9999px] -top-[9999px] opacity-0 -z-50"></div>
+      {/* Container per il Recaptcha di Firebase Auth (univoco per ogni riga) */}
+      <div id={`admin-recaptcha-container-${socio.id}`}></div>
     </>
   );
 });
