@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, memo, type Dispatch, type SetStateAction } from "react";
+import { createPortal } from "react-dom";
 import type { Socio } from "@/lib/soci-data";
 import { QUALIFICHE, QUALIFICA_COLORS } from "@/lib/soci-data";
 
@@ -1761,8 +1762,8 @@ const SocioTableRow = memo(({
       </AlertDialog>
 
       {/* Dialog: Conferma Invio SMS OTP */}
-      {showSendOtpConfirmDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/85 backdrop-blur-sm animate-in fade-in duration-200">
+      {showSendOtpConfirmDialog && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-background/85 backdrop-blur-sm animate-in fade-in duration-200 pointer-events-auto">
           <div className="relative w-full max-w-md border border-border bg-background p-6 rounded-2xl shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 text-left">
             <button 
               type="button"
@@ -1802,7 +1803,8 @@ const SocioTableRow = memo(({
               </Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Dialog: Numero di telefono mancante */}
@@ -1848,8 +1850,8 @@ const SocioTableRow = memo(({
       </Dialog>
 
       {/* Dialog per Invio e Verifica Firma SMS OTP da Admin */}
-      {showAdminOtpModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/85 backdrop-blur-sm animate-in fade-in duration-200">
+      {showAdminOtpModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-background/85 backdrop-blur-sm animate-in fade-in duration-200 pointer-events-auto">
           <div className="relative w-full max-w-md border border-border bg-background p-6 rounded-2xl shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 text-left">
             <button 
               type="button"
@@ -1930,7 +1932,8 @@ const SocioTableRow = memo(({
               </Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Vecchio flow di eliminazione rimosso */}
