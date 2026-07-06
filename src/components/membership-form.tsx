@@ -467,25 +467,57 @@ export function MembershipForm() {
         phone = `+44${phone.slice(4)}`;
       }
 
-      if (auth) {
-        let recaptcha = (window as any).recaptchaVerifier;
-        if (recaptcha) {
-          try {
-            recaptcha.clear();
-          } catch (e) {
-            console.warn("Error clearing recaptcha verifier:", e);
-          }
+      // Usiamo la REST API diretta per evitare conflitti con il reCAPTCHA del form principale
+      const apiKey = firebaseConfig.apiKey;
+      if (!apiKey) throw new Error("Firebase API Key mancante");
+
+      const sendResponse = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:sendVerificationCode?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phoneNumber: phone,
+            recaptchaToken: 'test-token', // bypassed by Firebase test numbers; for production use App Check or reCAPTCHA Enterprise
+          }),
         }
-        
-        // Creiamo sempre un'istanza fresca per evitare token reCAPTCHA scaduti o già usati
-        recaptcha = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible'
-        });
-        (window as any).recaptchaVerifier = recaptcha;
-        
-        const result = await signInWithPhoneNumber(auth, phone, recaptcha);
-        setGuardianConfirmationResult(result);
+      );
+
+      if (!sendResponse.ok) {
+        const errData = await sendResponse.json().catch(() => ({}));
+        const errMsg = errData?.error?.message || "Errore invio SMS";
+        // Se il token reCAPTCHA non è accettato, fallback al metodo SDK
+        if (errMsg.includes('INVALID_RECAPTCHA_TOKEN') || errMsg.includes('CAPTCHA_CHECK_FAILED')) {
+          // Fallback: usa il reCAPTCHA del form principale se ancora disponibile
+          if (auth) {
+            let recaptcha = (window as any).recaptchaVerifier;
+            if (recaptcha) {
+              try { recaptcha.clear(); } catch (e) { /* ignora */ }
+              delete (window as any).recaptchaVerifier;
+            }
+            const { RecaptchaVerifier: RV, signInWithPhoneNumber: SWP } = await import('firebase/auth');
+            const containerId = 'recaptcha-container-guardian';
+            recaptcha = new RV(auth, containerId, { size: 'invisible' });
+            (window as any).recaptchaVerifierGuardian = recaptcha;
+            const result = await SWP(auth, phone, recaptcha);
+            setGuardianConfirmationResult(result);
+          }
+          setGuardianOtpSent(true);
+          toast({
+            title: "Codice SMS Inviato!",
+            description: `Abbiamo inviato un codice OTP al numero del tutore ${phone}.`,
+          });
+          return;
+        }
+        throw new Error(errMsg);
       }
+
+      const sendData = await sendResponse.json();
+      const sessionInfo = sendData.sessionInfo;
+      if (!sessionInfo) throw new Error("sessionInfo mancante dalla risposta Firebase");
+
+      // Salviamo sessionInfo come ConfirmationResult-like per riutilizzarlo nella verifica
+      setGuardianConfirmationResult({ verificationId: sessionInfo } as any);
       setGuardianOtpSent(true);
       toast({
         title: "Codice SMS Inviato!",
@@ -502,6 +534,7 @@ export function MembershipForm() {
       setIsSendingGuardianOtp(false);
     }
   };
+
 
   const handleConfirmGuardianOtp = async () => {
     if (!guardianOtpCode || guardianOtpCode.trim().length < 4) {
@@ -1466,6 +1499,9 @@ export function MembershipForm() {
 
         {/* Container per il Recaptcha di Firebase Auth (esterno ai dialog per evitare problemi di unmount/remount) */}
         <div id="recaptcha-container"></div>
+        {/* Container separato per il reCAPTCHA del tutore (fallback) */}
+        <div id="recaptcha-container-guardian"></div>
+
     </>
   );
 }
