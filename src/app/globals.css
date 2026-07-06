@@ -166,3 +166,13 @@ body {
     background: transparent !important;
   }
 }
+
+/* Nascondi il badge reCAPTCHA di Firebase (widget invisible) per non disturbare la UI */
+.grecaptcha-badge {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  left: -9999px !important;
+  bottom: -9999px !important;
+}

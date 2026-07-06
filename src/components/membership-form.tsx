@@ -1468,10 +1468,10 @@ export function MembershipForm() {
           </DialogContent>
         </Dialog>
 
-        {/* Container per il Recaptcha di Firebase Auth (esterno ai dialog per evitare problemi di unmount/remount) */}
-        <div id="recaptcha-container"></div>
-        {/* Container separato per il reCAPTCHA del tutore (fallback) */}
-        <div id="recaptcha-container-guardian"></div>
+        {/* Container per il Recaptcha di Firebase Auth — nascosto fuori schermo */}
+        <div id="recaptcha-container" style={{ position: 'absolute', top: '-9999px', left: '-9999px', width: 0, height: 0, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}></div>
+        {/* Container separato per il reCAPTCHA del tutore — nascosto fuori schermo */}
+        <div id="recaptcha-container-guardian" style={{ position: 'absolute', top: '-9999px', left: '-9999px', width: 0, height: 0, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}></div>
 
     </>
   );
