@@ -54,7 +54,7 @@ import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
 import { useFirestore, useAuth, deleteDocumentNonBlocking, logAdminActivity } from "@/firebase";
 import { doc, writeBatch, getDoc, deleteDoc, deleteField, updateDoc, serverTimestamp } from "firebase/firestore";
-import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from "firebase/auth";
+import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult, PhoneAuthProvider, signInWithCredential, signOut } from "firebase/auth";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
@@ -153,6 +153,7 @@ const SocioTableRow = memo(({
   // Dialog: firma mancante all'approvazione/rinnovo
   const [showMissingSignatureWarning, setShowMissingSignatureWarning] = useState(false);
   const [pendingActionAfterOtp, setPendingActionAfterOtp] = useState<'approve' | 'renew' | null>(null);
+  const [showNoOtpConfirm, setShowNoOtpConfirm] = useState(false);
 
   // Stato temporaneo per la firma appena verificata
   const [verifiedSignatureLocal, setVerifiedSignatureLocal] = useState<any>(null);
@@ -316,17 +317,17 @@ const SocioTableRow = memo(({
     if (!phoneForOtp) return;
     setIsSendingAdminOtp(true);
     try {
-      const secAuth = getSecondaryAuth();
-      if (secAuth) {
+      if (auth) {
         const containerId = `admin-recaptcha-container-${socio.id}`;
         let recaptcha = (window as any)[`adminRecaptchaVerifierSec_${socio.id}`];
         if (!recaptcha) {
-          recaptcha = new RecaptchaVerifier(secAuth, containerId, {
+          // Utilizziamo l'istanza 'auth' principale per generare il reCAPTCHA ed evitare l'errore invalid-app-credential
+          recaptcha = new RecaptchaVerifier(auth, containerId, {
             size: 'invisible'
           });
           (window as any)[`adminRecaptchaVerifierSec_${socio.id}`] = recaptcha;
         }
-        const result = await signInWithPhoneNumber(secAuth, phoneForOtp, recaptcha);
+        const result = await signInWithPhoneNumber(auth, phoneForOtp, recaptcha);
         setAdminConfirmationResult(result);
       }
       setShowSendOtpConfirmDialog(false);
@@ -433,11 +434,17 @@ const SocioTableRow = memo(({
     try {
       let verificationId = `OTP-${Math.floor(100000 + Math.random() * 900000)}`;
       if (adminConfirmationResult) {
-        try {
-          const res = await adminConfirmationResult.confirm(adminOtpCode);
-          if (res?.user) verificationId = res.user.uid;
-        } catch (confirmErr) {
-          console.warn("Verifica OTP completata o simulata.");
+        // Creiamo la credenziale con il verificationId dell'invio originale e il codice fornito
+        const credential = PhoneAuthProvider.credential(adminConfirmationResult.verificationId, adminOtpCode);
+        const secAuth = getSecondaryAuth();
+        if (secAuth) {
+          // Eseguiamo il sign-in sull'app secondaria per convalidare il codice senza sloggare l'amministratore dall'app principale
+          const res = await signInWithCredential(secAuth, credential);
+          if (res?.user) {
+            verificationId = res.user.uid;
+            // Scolleghiamo l'utente dall'app secondaria dopo la convalida
+            await signOut(secAuth);
+          }
         }
       }
 
@@ -1917,48 +1924,102 @@ const SocioTableRow = memo(({
               {pendingActionAfterOtp === 'renew' && " Per il rinnovo è raccomandato raccogliere la firma OTP (il modulo cartaceo originario verrà conservato nello storico)."}
               {pendingActionAfterOtp === 'approve' && " Per l'approvazione è raccomandato raccogliere la firma OTP."}
               <br /><br />
-              Puoi scegliere di procedere con l'invio dell'SMS OTP o di continuare direttamente senza firma OTP.
+              Si raccomanda di procedere con l'invio dell'SMS OTP per raccogliere la firma digitale.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2">
-            <Button variant="ghost" onClick={() => { setShowMissingSignatureWarning(false); setPendingActionAfterOtp(null); }} className="sm:order-1 mt-0">
-              Annulla
-            </Button>
+          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2 items-center">
             {pendingActionAfterOtp === 'renew' && (
               <Button 
-                variant="outline"
+                variant="link"
                 onClick={() => {
                   setShowMissingSignatureWarning(false);
-                  setPendingActionAfterOtp(null);
-                  setShowRenewDialog(true);
+                  setShowNoOtpConfirm(true);
                 }}
-                className="border-orange-500 text-orange-500 hover:bg-orange-500/10 font-bold sm:order-2"
+                className="text-xs text-muted-foreground/60 hover:text-orange-500 hover:underline font-normal sm:order-1 h-auto p-0 sm:mr-auto mt-0"
               >
-                Rinnova senza OTP
+                Continua senza OTP...
               </Button>
             )}
             {pendingActionAfterOtp === 'approve' && (
               <Button 
-                variant="outline"
+                variant="link"
                 onClick={() => {
                   setShowMissingSignatureWarning(false);
-                  setPendingActionAfterOtp(null);
-                  setShowApproveDialog(true);
+                  setShowNoOtpConfirm(true);
                 }}
-                className="border-emerald-500 text-emerald-500 hover:bg-emerald-500/10 font-bold sm:order-2"
+                className="text-xs text-muted-foreground/60 hover:text-emerald-600 hover:underline font-normal sm:order-1 h-auto p-0 sm:mr-auto mt-0"
               >
-                Approva senza OTP
+                Continua senza OTP...
               </Button>
             )}
-            <Button onClick={handleProceedWithOtp} className="gap-2 sm:order-3">
-              Procedi con OTP
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:justify-end">
+              <Button variant="ghost" onClick={() => { setShowMissingSignatureWarning(false); setPendingActionAfterOtp(null); }} className="sm:order-1 mt-0">
+                Annulla
+              </Button>
+              <Button onClick={handleProceedWithOtp} className="gap-2 sm:order-2">
+                Procedi con OTP
+              </Button>
+            </div>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog di Conferma per Procedere Senza OTP */}
+      <AlertDialog open={showNoOtpConfirm} onOpenChange={setShowNoOtpConfirm}>
+        <AlertDialogContent className="border border-destructive/20 shadow-xl bg-background sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive font-bold">
+              <AlertTriangle className="h-5 w-5 shrink-0 text-destructive" />
+              Conferma: Procedere SENZA Firma Digitale?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-foreground/90 leading-relaxed space-y-3">
+              <p>
+                Stai autorizzando il tesseramento del socio <strong>{getFullName(socio)}</strong> senza raccogliere la firma digitale certificata via SMS.
+              </p>
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-700 dark:text-amber-400 font-medium">
+                ⚠️ <strong>OBBLIGO DI FIRMA CARTACEA:</strong>
+                <br />
+                Procedendo, sei consapevole che <strong>DOPO</strong> l'emissione dovrai stampare la scheda del socio dal pannello e far apporre la <strong>firma autografa manualmente</strong> sul modulo cartaceo in sede per motivi legali.
+              </div>
+              <p className="text-sm">
+                Sei sicuro di voler procedere senza la firma OTP?
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2 pt-2">
+            <Button 
+              type="button"
+              variant="ghost" 
+              onClick={() => {
+                setShowNoOtpConfirm(false);
+                setShowMissingSignatureWarning(true);
+              }} 
+              className="font-semibold"
+            >
+              Annulla e Torna Indietro
+            </Button>
+            <Button 
+              type="button" 
+              onClick={() => {
+                setShowNoOtpConfirm(false);
+                if (pendingActionAfterOtp === 'renew') {
+                  setPendingActionAfterOtp(null);
+                  setShowRenewDialog(true);
+                } else if (pendingActionAfterOtp === 'approve') {
+                  setPendingActionAfterOtp(null);
+                  setShowApproveDialog(true);
+                }
+              }} 
+              className="bg-destructive hover:bg-destructive/95 text-white font-bold"
+            >
+              Sì, Procedi senza OTP
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* Container invisibile per il Recaptcha di Firebase Auth (univoco per ogni riga) */}
-      <div id={`admin-recaptcha-container-${socio.id}`} className="fixed -left-[9999px] -top-[9999px] w-1 h-1 opacity-0 pointer-events-none overflow-hidden"></div>
+      <div id={`admin-recaptcha-container-${socio.id}`} className="absolute -left-[9999px] -top-[9999px] opacity-0 -z-50"></div>
     </>
   );
 });
