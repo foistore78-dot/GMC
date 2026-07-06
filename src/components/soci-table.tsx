@@ -139,9 +139,10 @@ const SocioTableRow = memo(({
   const [adminConfirmationResult, setAdminConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [hasPaperCopy, setHasPaperCopy] = useState(false);
 
-  // Dialog: conferma invio SMS OTP
   const [showSendOtpConfirmDialog, setShowSendOtpConfirmDialog] = useState(false);
   const [phoneForOtp, setPhoneForOtp] = useState("");
+  const [isEditingPhoneConfirm, setIsEditingPhoneConfirm] = useState(false);
+  const [editPhoneConfirmInput, setEditPhoneConfirmInput] = useState("");
 
   // Dialog: firma già esistente
   const [showSignatureExistsDialog, setShowSignatureExistsDialog] = useState(false);
@@ -272,13 +273,8 @@ const SocioTableRow = memo(({
     }
   };
 
-  // Prepara il flusso OTP e chiede conferma prima di inviare l'SMS
-  const initiateOtpFlow = (phoneOverride?: string) => {
-    const currentSig = getSignatureMetadata(socio);
-    setHasPaperCopy(currentSig.method === 'MANUAL_PAPER');
-    
-    const phoneRaw = phoneOverride || String(socio.phone || '').replace(/\s+/g, '');
-    let phone = phoneRaw;
+  const normalizePhoneNumberForOtp = (rawInput: string): string => {
+    let phone = String(rawInput || '').replace(/\s+/g, '');
     if (phone.startsWith('00')) {
       phone = `+${phone.slice(2)}`;
     }
@@ -308,9 +304,46 @@ const SocioTableRow = memo(({
     } else if (phone.startsWith('+440')) {
       phone = `+44${phone.slice(4)}`;
     }
+    return phone;
+  };
+
+  // Prepara il flusso OTP e chiede conferma prima di inviare l'SMS
+  const initiateOtpFlow = (phoneOverride?: string) => {
+    const currentSig = getSignatureMetadata(socio);
+    setHasPaperCopy(currentSig.method === 'MANUAL_PAPER');
+    
+    const phoneRaw = phoneOverride || String(socio.phone || '').replace(/\s+/g, '');
+    const phone = normalizePhoneNumberForOtp(phoneRaw);
     
     setPhoneForOtp(phone);
+    setIsEditingPhoneConfirm(false);
+    setEditPhoneConfirmInput(phone);
     setShowSendOtpConfirmDialog(true);
+  };
+
+  // Salva il numero di telefono modificato direttamente dalla finestra di conferma OTP
+  const handleSaveEditedPhoneConfirm = async () => {
+    const trimmed = editPhoneConfirmInput.trim();
+    if (!trimmed || trimmed.length < 6) {
+      toast({ title: "Numero non valido", description: "Inserisci un numero di telefono valido.", variant: "destructive" });
+      return;
+    }
+    if (!firestore) return;
+    setIsSavingPhone(true);
+    try {
+      const normalized = normalizePhoneNumberForOtp(trimmed);
+      const collectionName = activeTab === 'requests' ? 'membership_requests' : 'members';
+      const docRef = doc(firestore, collectionName, socio.id);
+      await updateDoc(docRef, { phone: normalized, updatedAt: serverTimestamp() });
+      toast({ title: "Numero aggiornato", description: `Il numero del socio è stato aggiornato a ${normalized}.` });
+      
+      setPhoneForOtp(normalized);
+      setIsEditingPhoneConfirm(false);
+    } catch (err: any) {
+      toast({ title: "Errore salvataggio", description: "Impossibile aggiornare il numero di telefono.", variant: "destructive" });
+    } finally {
+      setIsSavingPhone(false);
+    }
   };
 
   // Esegue l'invio reale del codice OTP via SMS
@@ -1777,17 +1810,67 @@ const SocioTableRow = memo(({
               <Smartphone className="h-5 w-5" />
               <h3 className="text-lg font-bold">Inviare SMS OTP?</h3>
             </div>
-            <p className="text-sm text-foreground/90 leading-relaxed">
-              Vuoi inviare l'SMS con il codice OTP per la firma elettronica al socio al numero <strong>{phoneForOtp}</strong>?
-            </p>
+            {!isEditingPhoneConfirm ? (
+              <div className="space-y-3">
+                <p className="text-sm text-foreground/90 leading-relaxed">
+                  Vuoi inviare l'SMS con il codice OTP per la firma elettronica al socio al numero <strong>{phoneForOtp}</strong>?
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditPhoneConfirmInput(phoneForOtp);
+                    setIsEditingPhoneConfirm(true);
+                  }}
+                  className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold"
+                >
+                  <Pencil className="w-3 h-3" /> Modifica numero o prefisso...
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3 bg-muted/40 p-3 rounded-lg border border-border/50">
+                <Label htmlFor="edit-phone-confirm" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  Modifica Numero (inserisci prefisso es. +49)
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="edit-phone-confirm"
+                    value={editPhoneConfirmInput}
+                    onChange={(e) => setEditPhoneConfirmInput(e.target.value)}
+                    placeholder="+39 340 1234567"
+                    className="font-mono text-sm h-9"
+                    autoFocus
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleSaveEditedPhoneConfirm}
+                    disabled={isSavingPhone}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 px-3"
+                  >
+                    {isSavingPhone ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Salva"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsEditingPhoneConfirm(false)}
+                    disabled={isSavingPhone}
+                    className="h-9 px-3"
+                  >
+                    Annulla
+                  </Button>
+                </div>
+              </div>
+            )}
             <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
-              <Button type="button" variant="ghost" onClick={() => setShowSendOtpConfirmDialog(false)}>
+              <Button type="button" variant="ghost" onClick={() => setShowSendOtpConfirmDialog(false)} disabled={isEditingPhoneConfirm}>
                 Annulla
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 onClick={skipOtpSmsAndShowModal}
+                disabled={isEditingPhoneConfirm}
                 className="border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10 font-bold"
               >
                 No, inserisci codice
@@ -1795,7 +1878,7 @@ const SocioTableRow = memo(({
               <Button
                 type="button"
                 onClick={sendOtpSms}
-                disabled={isSendingAdminOtp}
+                disabled={isSendingAdminOtp || isEditingPhoneConfirm}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
               >
                 {isSendingAdminOtp && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
