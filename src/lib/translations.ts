@@ -22,6 +22,8 @@ export const translations = {
     join: {
       title: "Unisciti al Club",
       subtitle: "Pronto a fare un po' di rumore? Compila il modulo di iscrizione qui sotto. Esaminiamo tutte le candidature e ti risponderemo presto.",
+      maintenanceTitle: "Tesseramento in Standby",
+      maintenanceSubtitle: "Il modulo di tesseramento online è temporaneamente disattivato per lavori di manutenzione ordinaria. Ti invitiamo a riprovare più tardi. Ci scusiamo per il disagio!",
     },
     fee: {
       title: "Quota Associativa",
@@ -152,6 +154,8 @@ export const translations = {
     join: {
       title: "Join the Club",
       subtitle: "Ready to make some noise? Fill out the application form below. We review all applications and will get back to you soon.",
+      maintenanceTitle: "Registration in Standby",
+      maintenanceSubtitle: "The online registration form is temporarily disabled for routine maintenance. Please try again later. We apologize for the inconvenience!",
     },
     fee: {
       title: "Membership Fee",
@@ -282,6 +286,8 @@ export const translations = {
     join: {
       title: "Pridruži se Klubu",
       subtitle: "Ste pripravljeni na hrup? Izpolnite spodnji prijavni obrazec. Pregledamo vse prijave in se vam kmalu oglasimo.",
+      maintenanceTitle: "Registracija v pripravljenosti",
+      maintenanceSubtitle: "Spletni obrazec za registracijo je začasno onemogočen zaradi rednega vzdrževanja. Prosimo, poskusite znova pozneje. Opravičujemo se za nevšečnosti!",
     },
     fee: {
       title: "Članarina",

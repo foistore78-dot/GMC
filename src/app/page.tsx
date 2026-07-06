@@ -11,11 +11,37 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { LanguageSelector } from "@/components/language-selector";
 import { useLanguage } from "@/components/language-provider";
-import { Suspense } from "react";
+import { Suspense, useState, useEffect } from "react";
+import { useFirestore } from "@/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function Home() {
   const heroImage = PlaceHolderImages.find((img) => img.id === "hero-concert");
   const { t } = useLanguage();
+  const firestore = useFirestore();
+  const [isMaintenance, setIsMaintenance] = useState(false);
+  const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(true);
+
+  useEffect(() => {
+    if (!firestore) return;
+    const checkMaintenance = async () => {
+      try {
+        const docRef = doc(firestore, "settings", "general");
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data && data.maintenanceMode === true) {
+            setIsMaintenance(true);
+          }
+        }
+      } catch (e) {
+        console.error("Error checking maintenance mode:", e);
+      } finally {
+        setIsCheckingMaintenance(false);
+      }
+    };
+    checkMaintenance();
+  }, [firestore]);
 
   const features = [
     {
@@ -102,9 +128,30 @@ export default function Home() {
               <div className="absolute -inset-1 bg-gradient-to-r from-primary/30 to-accent/30 rounded-3xl blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
               <Card className="relative bg-black/40 backdrop-blur-2xl border-white/10 shadow-2xl rounded-3xl overflow-hidden">
                 <CardContent className="p-6 md:p-8">
-                  <Suspense fallback={<div className="flex items-center justify-center p-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>}>
-                    <MembershipForm />
-                  </Suspense>
+                  {isCheckingMaintenance ? (
+                    <div className="flex items-center justify-center p-12">
+                      <Loader2 className="animate-spin h-8 w-8 text-primary" />
+                    </div>
+                  ) : isMaintenance ? (
+                    <div className="text-center py-8 px-4 space-y-4">
+                      <div className="mx-auto w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 mb-4 animate-bounce">
+                        <Speaker className="w-8 h-8 text-amber-500" />
+                      </div>
+                      <h3 className="font-headline text-3xl text-amber-500 uppercase tracking-wide">
+                        {t('join.maintenanceTitle')}
+                      </h3>
+                      <p className="text-sm md:text-base text-foreground/90 leading-relaxed max-w-lg mx-auto">
+                        {t('join.maintenanceSubtitle')}
+                      </p>
+                      <div className="text-xs text-muted-foreground pt-4 border-t border-white/5">
+                        Garage Music Club — Staff di Direzione
+                      </div>
+                    </div>
+                  ) : (
+                    <Suspense fallback={<div className="flex items-center justify-center p-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>}>
+                      <MembershipForm />
+                    </Suspense>
+                  )}
                 </CardContent>
               </Card>
             </div>

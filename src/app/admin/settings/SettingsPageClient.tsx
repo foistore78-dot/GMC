@@ -40,12 +40,13 @@ export default function SettingsPageClient() {
   
   const [config, setConfig] = useState({
     whatsAppInviteLink1: "",
-    whatsAppInviteLink2: ""
+    whatsAppInviteLink2: "",
+    maintenanceMode: false
   });
 
   const [isSecurityDialogOpen, setIsSecurityDialogOpen] = useState(false);
   const [securityPasswordInput, setSecurityPasswordInput] = useState("");
-  const [pendingSecurityAction, setPendingSecurityAction] = useState<'merge-duplicates' | null>(null);
+  const [pendingSecurityAction, setPendingSecurityAction] = useState<'merge-duplicates' | 'toggle-maintenance' | null>(null);
   const [isMergingDuplicates, setIsMergingDuplicates] = useState(false);
 
   const checkAdminStatus = useCallback(async () => {
@@ -146,11 +147,45 @@ export default function SettingsPageClient() {
     setIsSecurityDialogOpen(true);
   };
 
+  const handleToggleMaintenanceClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setPendingSecurityAction('toggle-maintenance');
+    setSecurityPasswordInput("");
+    setIsSecurityDialogOpen(true);
+  };
+
   const verifySecurityPassword = () => {
     if (securityPasswordInput === SECURITY_PASSWORD) {
       setIsSecurityDialogOpen(false);
+      const action = pendingSecurityAction;
       setPendingSecurityAction(null);
-      handleMergeDuplicates();
+      if (action === 'merge-duplicates') {
+        handleMergeDuplicates();
+      } else if (action === 'toggle-maintenance') {
+        const newMaintenanceVal = !config.maintenanceMode;
+        setConfig(prev => {
+          const updated = { ...prev, maintenanceMode: newMaintenanceVal };
+          if (firestore) {
+            setDoc(doc(firestore, "settings", "general"), updated, { merge: true })
+              .then(() => {
+                toast({
+                  title: newMaintenanceVal ? "Sito in Standby 🚧" : "Sito Attivo ✅",
+                  description: newMaintenanceVal 
+                    ? "Il modulo di tesseramento pubblico è stato messo in standby per manutenzione." 
+                    : "Il modulo di tesseramento pubblico è ora attivo e accessibile.",
+                });
+              })
+              .catch(() => {
+                toast({
+                  title: "Errore",
+                  description: "Impossibile aggiornare lo stato di standby.",
+                  variant: "destructive"
+                });
+              });
+          }
+          return updated;
+        });
+      }
     } else {
       toast({
         title: "Password Errata",
@@ -299,6 +334,51 @@ export default function SettingsPageClient() {
                   Salva Modifiche
                 </Button>
               </CardFooter>
+            </Card>
+
+            {/* Card Standby per Lavori */}
+            <Card className="border-amber-500/20 bg-background/50 backdrop-blur-sm shadow-xl">
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-500" />
+                  Standby per Lavori (Manutenzione)
+                </CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  Metti in standby il modulo di tesseramento pubblico per lavori di manutenzione o modifiche temporanee.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-lg border border-border/50 bg-secondary/20">
+                  <div className="space-y-0.5 mr-4">
+                    <Label className="text-sm font-bold text-foreground">
+                      Stato del Tesseramento Online
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {config.maintenanceMode 
+                        ? "🚧 Attualmente disattivato (in manutenzione)" 
+                        : "✅ Attualmente attivo e aperto al pubblico"}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant={config.maintenanceMode ? "destructive" : "outline"}
+                    onClick={handleToggleMaintenanceClick}
+                    className="font-bold gap-2 shrink-0"
+                  >
+                    {config.maintenanceMode ? (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        Disattiva Standby
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-4 h-4" />
+                        Attiva Standby
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
             </Card>
 
             {/* Card Manutenzione Database */}
