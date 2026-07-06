@@ -320,13 +320,20 @@ const SocioTableRow = memo(({
       if (auth) {
         const containerId = `admin-recaptcha-container-${socio.id}`;
         let recaptcha = (window as any)[`adminRecaptchaVerifierSec_${socio.id}`];
-        if (!recaptcha) {
-          // Utilizziamo l'istanza 'auth' principale per generare il reCAPTCHA ed evitare l'errore invalid-app-credential
-          recaptcha = new RecaptchaVerifier(auth, containerId, {
-            size: 'invisible'
-          });
-          (window as any)[`adminRecaptchaVerifierSec_${socio.id}`] = recaptcha;
+        if (recaptcha) {
+          try {
+            recaptcha.clear();
+          } catch (e) {
+            console.warn("Error clearing recaptcha verifier:", e);
+          }
         }
+        
+        // Creiamo sempre un'istanza fresca per evitare token reCAPTCHA scaduti o già usati
+        recaptcha = new RecaptchaVerifier(auth, containerId, {
+          size: 'invisible'
+        });
+        (window as any)[`adminRecaptchaVerifierSec_${socio.id}`] = recaptcha;
+        
         const result = await signInWithPhoneNumber(auth, phoneForOtp, recaptcha);
         setAdminConfirmationResult(result);
       }

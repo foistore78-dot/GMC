@@ -306,12 +306,20 @@ export function MembershipForm() {
 
       if (auth) {
         let recaptcha = (window as any).recaptchaVerifier;
-        if (!recaptcha) {
-          recaptcha = new RecaptchaVerifier(auth, 'recaptcha-container', {
-            size: 'invisible'
-          });
-          (window as any).recaptchaVerifier = recaptcha;
+        if (recaptcha) {
+          try {
+            recaptcha.clear();
+          } catch (e) {
+            console.warn("Error clearing recaptcha verifier:", e);
+          }
         }
+        
+        // Creiamo sempre un'istanza fresca per evitare token reCAPTCHA scaduti o già usati
+        recaptcha = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible'
+        });
+        (window as any).recaptchaVerifier = recaptcha;
+        
         const result = await signInWithPhoneNumber(auth, phone, recaptcha);
         setConfirmationResult(result);
       }
