@@ -61,6 +61,15 @@ import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { firebaseConfig } from "@/firebase/config";
 
+// Safari/iOS blocca i cookie di terze parti (ITP) rendendo il reCAPTCHA invisibile non funzionante.
+// In quel caso usiamo il reCAPTCHA visibile (size: 'normal') che non dipende da cookie.
+const isSafariBrowser = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const ua = window.navigator.userAgent;
+  return /iP(hone|od|ad)/.test(ua) || (/Safari/.test(ua) && !/Chrome/.test(ua) && !/CriOS/.test(ua) && !/FxiOS/.test(ua));
+};
+
+
 const DetailItem = memo(({ icon, label, value, className }: { icon?: React.ReactNode, label: string, value?: string | number | null | React.ReactNode, className?: string }) => {
   if (!value && typeof value !== 'number' && typeof value !== 'object') return null;
   return (
@@ -383,7 +392,7 @@ const SocioTableRow = memo(({
         
         // Creiamo sempre un'istanza fresca per evitare token reCAPTCHA scaduti o già usati
         recaptcha = new RecaptchaVerifier(auth, containerId, {
-          size: 'invisible'
+          size: isSafariBrowser() ? 'normal' : 'invisible',
         });
         (window as any)[`adminRecaptchaVerifierSec_${socio.id}`] = recaptcha;
         

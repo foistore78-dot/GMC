@@ -65,6 +65,14 @@ const getSecondaryAuth = () => {
   return getAuth(secondaryApp);
 };
 
+// Safari/iOS blocca i cookie di terze parti (ITP) rendendo il reCAPTCHA invisibile non funzionante.
+// In quel caso usiamo il reCAPTCHA visibile (size: 'normal') che non dipende da cookie.
+const isSafariBrowser = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const ua = window.navigator.userAgent;
+  return /iP(hone|od|ad)/.test(ua) || (/Safari/.test(ua) && !/Chrome/.test(ua) && !/CriOS/.test(ua) && !/FxiOS/.test(ua));
+};
+
 export function MembershipForm() {
   const { t, language } = useLanguage();
   const searchParams = useSearchParams();
@@ -79,6 +87,7 @@ export function MembershipForm() {
   const auth = useAuth();
   const [isMinor, setIsMinor] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isSafari, setIsSafari] = useState(false);
 
   // SMS OTP Verification states
   const [showOtpModal, setShowOtpModal] = useState(false);
@@ -122,6 +131,7 @@ export function MembershipForm() {
 
   useEffect(() => {
     setMounted(true);
+    setIsSafari(isSafariBrowser());
   }, []);
 
   const cameFromAdmin = searchParams.get('from') === 'admin';
@@ -364,7 +374,7 @@ export function MembershipForm() {
         
         // Creiamo sempre un'istanza fresca per evitare token reCAPTCHA scaduti o già usati
         recaptcha = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible'
+          size: isSafariBrowser() ? 'normal' : 'invisible',
         });
         (window as any).recaptchaVerifier = recaptcha;
         
@@ -518,7 +528,7 @@ export function MembershipForm() {
         }
 
         recaptcha = new RecaptchaVerifier(activeAuth, 'recaptcha-container-guardian', {
-          size: 'invisible'
+          size: isSafariBrowser() ? 'normal' : 'invisible',
         });
         (window as any).recaptchaVerifierGuardian = recaptcha;
 
@@ -1550,10 +1560,22 @@ export function MembershipForm() {
           </DialogContent>
         </Dialog>
 
-        {/* Container per il Recaptcha di Firebase Auth — posizionato fuori schermo per evitare interferenze visive */}
-        <div id="recaptcha-container" style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}></div>
-        {/* Container separato per il reCAPTCHA del tutore — posizionato fuori schermo per evitare interferenze visive */}
-        <div id="recaptcha-container-guardian" style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}></div>
+        {/* Container per il Recaptcha di Firebase Auth — visibile su Safari/iOS, fuori schermo altrove */}
+        <div
+          id="recaptcha-container"
+          style={isSafari
+            ? { display: 'flex', justifyContent: 'center', padding: '8px 0' }
+            : { position: 'absolute', top: '-9999px', left: '-9999px' }
+          }
+        ></div>
+        {/* Container separato per il reCAPTCHA del tutore — visibile su Safari/iOS, fuori schermo altrove */}
+        <div
+          id="recaptcha-container-guardian"
+          style={isSafari
+            ? { display: 'flex', justifyContent: 'center', padding: '8px 0' }
+            : { position: 'absolute', top: '-9999px', left: '-9999px' }
+          }
+        ></div>
 
     </>
   );
