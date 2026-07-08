@@ -338,7 +338,7 @@ export function MembershipForm() {
       if (!phone.startsWith('+')) {
         if (phone.startsWith('39') && phone.length >= 10) {
           phone = `+${phone}`;
-        } else if (phone.startsWith('386') && phone.length >= 9) {
+        } else if (phone.startsWith('386') && phone.length >= 11) {
           phone = `+${phone}`;
         } else if (phone.startsWith('43') && phone.length >= 9) {
           phone = `+${phone}`;
@@ -346,6 +346,9 @@ export function MembershipForm() {
           phone = `+${phone}`;
         } else if (phone.startsWith('44') && phone.length >= 10) {
           phone = `+${phone}`;
+        } else if ((phone.startsWith('06') || phone.startsWith('07') || phone.startsWith('04') || phone.startsWith('03') || phone.startsWith('05')) && phone.length === 9) {
+          // Numero locale sloveno (es. 041 123 456 = 9 cifre con 0 iniziale)
+          phone = `+386${phone.slice(1)}`;
         } else {
           phone = `+39${phone.replace(/^0+/, '')}`;
         }
@@ -489,7 +492,7 @@ export function MembershipForm() {
       if (!phone.startsWith('+')) {
         if (phone.startsWith('39') && phone.length >= 10) {
           phone = `+${phone}`;
-        } else if (phone.startsWith('386') && phone.length >= 9) {
+        } else if (phone.startsWith('386') && phone.length >= 11) {
           phone = `+${phone}`;
         } else if (phone.startsWith('43') && phone.length >= 9) {
           phone = `+${phone}`;
@@ -497,6 +500,9 @@ export function MembershipForm() {
           phone = `+${phone}`;
         } else if (phone.startsWith('44') && phone.length >= 10) {
           phone = `+${phone}`;
+        } else if ((phone.startsWith('06') || phone.startsWith('07') || phone.startsWith('04') || phone.startsWith('03') || phone.startsWith('05')) && phone.length === 9) {
+          // Numero locale sloveno (es. 041 123 456 = 9 cifre con 0 iniziale)
+          phone = `+386${phone.slice(1)}`;
         } else {
           phone = `+39${phone.replace(/^0+/, '')}`;
         }
