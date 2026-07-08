@@ -634,48 +634,50 @@ export default function ElencoClient() {
           </h1>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-            <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleFullExport} 
-                disabled={isDataLoading || isExporting}
-            >
-                {isExporting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                    <FileDown className="mr-2 h-4 w-4" />
-                )}
-                {isExporting ? "Esportazione..." : "Esporta"}
-            </Button>
-            <Button asChild size="sm" className="bg-primary hover:bg-primary/90">
-                <Link href="/?from=admin#apply">
-                <UserPlus className="mr-2 h-4 w-4" />
-                Nuova Iscrizione
-                </Link>
-            </Button>
-        </div>
-        {/* Pulsanti condivisione link iscrizione */}
-        <div className="flex items-center justify-end gap-2 mt-1.5 pr-0.5">
-          <span className="text-[10px] text-muted-foreground/50 font-medium tracking-wide">Condividi link iscrizione:</span>
-          <a
-            href={`https://wa.me/?text=${encodeURIComponent('Iscriviti al Garage Music Club! Compila il modulo qui: https://studio-9577324505-15044.web.app/#apply')}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-green-500/15 hover:bg-green-500/25 text-green-400 hover:text-green-300 border border-green-500/20 transition-all"
-            title="Condividi su WhatsApp"
-          >
-            <MessageCircle className="h-3 w-3" />
-            WhatsApp
-          </a>
-          <a
-            href={`sms:?body=${encodeURIComponent('Iscriviti al Garage Music Club! Compila il modulo qui: https://studio-9577324505-15044.web.app/#apply')}`}
-            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 hover:text-blue-300 border border-blue-500/20 transition-all"
-            title="Condividi via SMS"
-          >
-            <Share2 className="h-3 w-3" />
-            SMS
-          </a>
+        <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+                <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleFullExport} 
+                    disabled={isDataLoading || isExporting}
+                >
+                    {isExporting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                        <FileDown className="mr-2 h-4 w-4" />
+                    )}
+                    {isExporting ? "Esportazione..." : "Esporta"}
+                </Button>
+                <Button asChild size="sm" className="bg-primary hover:bg-primary/90">
+                    <Link href="/?from=admin#apply">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Nuova Iscrizione
+                    </Link>
+                </Button>
+            </div>
+            {/* Pulsanti condivisione link iscrizione */}
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              <span className="text-[10px] text-muted-foreground/50 font-medium tracking-wide">Condividi link iscrizione:</span>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent('Iscriviti al Garage Music Club! Compila il modulo qui: https://studio-9577324505-15044.web.app/#apply')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-green-500/15 hover:bg-green-500/25 text-green-400 hover:text-green-300 border border-green-500/20 transition-all"
+                title="Condividi su WhatsApp"
+              >
+                <MessageCircle className="h-3 w-3" />
+                WhatsApp
+              </a>
+              <a
+                href={`sms:?body=${encodeURIComponent('Iscriviti al Garage Music Club! Compila il modulo qui: https://studio-9577324505-15044.web.app/#apply')}`}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 hover:text-blue-300 border border-blue-500/20 transition-all"
+                title="Condividi via SMS"
+              >
+                <Share2 className="h-3 w-3" />
+                SMS
+              </a>
+            </div>
         </div>
       </div>
       
