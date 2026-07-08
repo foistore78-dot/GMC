@@ -284,10 +284,10 @@ export function SocioCard({ socio }: SocioCardProps) {
           )}
         </>
       ) : sig.method === 'ADMIN_DIRECT' ? (
-        <div className="no-break" style={{ padding: '8px 12px', border: '1px solid #3b82f6', backgroundColor: '#eff6ff', borderRadius: '6px', marginTop: '8px', marginBottom: '8px' }}>
-          <div style={{ fontWeight: 'bold', color: '#1d4ed8', fontSize: '11px' }}>👤 REGISTRAZIONE DIRETTA DA PANNELLO AMMINISTRATIVO</div>
-          <div style={{ fontSize: '10px', color: '#1e40af', marginTop: '3px' }}>
-            Ammissione registrata dall'amministratore dell'associazione.
+        <div className="no-break" style={{ padding: '8px 12px', border: '1px solid #ef4444', backgroundColor: '#fef2f2', borderRadius: '6px', marginTop: '8px', marginBottom: '8px' }}>
+          <div style={{ fontWeight: 'bold', color: '#dc2626', fontSize: '11px' }}>⚠️ FIRMA DIGITALE MANCANTE</div>
+          <div style={{ fontSize: '10px', color: '#991b1b', marginTop: '3px' }}>
+            Registrazione inserita direttamente da pannello amministrativo. Firma digitale non ancora acquisita.
           </div>
         </div>
       ) : (

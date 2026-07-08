@@ -159,6 +159,17 @@ const SocioTableRow = memo(({
   const [pendingActionAfterOtp, setPendingActionAfterOtp] = useState<'approve' | 'renew' | null>(null);
   const [showNoOtpConfirm, setShowNoOtpConfirm] = useState(false);
 
+  // Cooldown state for admin SMS OTP requests (prevent frequent clicks)
+  const [adminOtpCooldown, setAdminOtpCooldown] = useState(0);
+
+  useEffect(() => {
+    if (adminOtpCooldown <= 0) return;
+    const timer = setTimeout(() => {
+      setAdminOtpCooldown((prev) => prev - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [adminOtpCooldown]);
+
   // Stato temporaneo per la firma appena verificata
   const [verifiedSignatureLocal, setVerifiedSignatureLocal] = useState<any>(null);
   const [verifiedNotesLocal, setVerifiedNotesLocal] = useState<string | null>(null);
@@ -342,8 +353,8 @@ const SocioTableRow = memo(({
       const normalized = normalizePhoneNumberForOtp(trimmed);
       const collectionName = activeTab === 'requests' ? 'membership_requests' : 'members';
       const docRef = doc(firestore, collectionName, socio.id);
-      await updateDoc(docRef, { phone: normalized, updatedAt: serverTimestamp() });
-      toast({ title: "Numero aggiornato", description: `Il numero del socio è stato aggiornato a ${normalized}.` });
+      await updateDoc(docRef, { [phoneFieldToSave]: normalized, updatedAt: serverTimestamp() });
+      toast({ title: "Numero aggiornato", description: `Il numero è stato aggiornato a ${normalized}.` });
       
       setPhoneForOtp(normalized);
       setIsEditingPhoneConfirm(false);
@@ -381,6 +392,7 @@ const SocioTableRow = memo(({
       }
       setShowSendOtpConfirmDialog(false);
       setShowAdminOtpModal(true);
+      setAdminOtpCooldown(30); // Start 30s cooldown
       toast({
         title: "SMS OTP Inviato!",
         description: `Abbiamo inviato il codice SMS a 6 cifre al numero ${phoneForOtp}.`,
@@ -467,8 +479,8 @@ const SocioTableRow = memo(({
     try {
       const collectionName = activeTab === 'requests' ? 'membership_requests' : 'members';
       const docRef = doc(firestore, collectionName, socio.id);
-      await updateDoc(docRef, { phone: trimmed, updatedAt: serverTimestamp() });
-      toast({ title: "Numero salvato", description: `Il numero ${trimmed} è stato aggiunto alla scheda del socio.` });
+      await updateDoc(docRef, { [phoneFieldToSave]: trimmed, updatedAt: serverTimestamp() });
+      toast({ title: "Numero salvato", description: `Il numero ${trimmed} è stato aggiunto alla scheda.` });
       setShowAddPhoneDialog(false);
       
       if (pendingActionAfterOtp) {
@@ -504,7 +516,8 @@ const SocioTableRow = memo(({
 
     setIsVerifyingAdminOtp(true);
     try {
-      let verificationId = `OTP-${Math.floor(100000 + Math.random() * 900000)}`;
+      const actualCode = adminOtpCode.trim();
+      let verificationId = `OTP-${actualCode}`;
       if (adminConfirmationResult) {
         const apiKey = firebaseConfig.apiKey;
         if (!apiKey) {
@@ -520,7 +533,7 @@ const SocioTableRow = memo(({
             },
             body: JSON.stringify({
               sessionInfo: adminConfirmationResult.verificationId,
-              code: adminOtpCode,
+              code: actualCode,
             }),
           }
         );
@@ -533,13 +546,15 @@ const SocioTableRow = memo(({
 
         const resData = await response.json();
         if (resData?.localId) {
-          verificationId = resData.localId;
+          verificationId = `OTP-${actualCode} (FB: ${resData.localId})`;
         }
+      } else {
+        verificationId = `OTP-${actualCode} (Manuale)`;
       }
 
       const isGuardianFlow = otpFlowType === 'tutore';
       const updatedSig = {
-        method: 'SMS_OTP',
+        method: 'SMS_OTP' as const,
         signedAt: new Date().toISOString(),
         signerPhone: phoneForOtp || (isGuardianFlow ? (socio as any).guardianPhone : socio.phone) || '',
         verificationId: verificationId,
@@ -568,12 +583,20 @@ const SocioTableRow = memo(({
       if (pendingActionAfterOtp === 'approve') {
         if (firestore) {
           const docRef = doc(firestore, 'membership_requests', socio.id);
-          await updateDoc(docRef, {
+          const updateFields: any = {
             signatureMetadata: updatedSig,
             notes: finalNotes,
             helpRequested: deleteField(),
             updatedAt: serverTimestamp()
-          });
+          };
+          if (updatedSig.signerPhone) {
+            if (isGuardianFlow) {
+              updateFields.guardianPhone = updatedSig.signerPhone;
+            } else {
+              updateFields.phone = updatedSig.signerPhone;
+            }
+          }
+          await updateDoc(docRef, updateFields);
         }
         setVerifiedSignatureLocal(updatedSig);
         setVerifiedNotesLocal(finalNotes);
@@ -583,12 +606,20 @@ const SocioTableRow = memo(({
       } else if (pendingActionAfterOtp === 'renew') {
         if (firestore) {
           const docRef = doc(firestore, 'members', socio.id);
-          await updateDoc(docRef, {
+          const updateFields: any = {
             signatureMetadata: updatedSig,
             notes: finalNotes,
             helpRequested: deleteField(),
             updatedAt: serverTimestamp()
-          });
+          };
+          if (updatedSig.signerPhone) {
+            if (isGuardianFlow) {
+              updateFields.guardianPhone = updatedSig.signerPhone;
+            } else {
+              updateFields.phone = updatedSig.signerPhone;
+            }
+          }
+          await updateDoc(docRef, updateFields);
         }
         setVerifiedSignatureLocal(updatedSig);
         setVerifiedNotesLocal(finalNotes);
@@ -602,6 +633,7 @@ const SocioTableRow = memo(({
           if (isGuardianFlow) {
             await updateDoc(docRef, {
               guardianSignatureMetadata: updatedSig,
+              guardianPhone: updatedSig.signerPhone || deleteField(),
               updatedAt: serverTimestamp()
             });
             toast({
@@ -613,6 +645,7 @@ const SocioTableRow = memo(({
               signatureMetadata: updatedSig,
               notes: finalNotes,
               helpRequested: deleteField(),
+              phone: updatedSig.signerPhone || deleteField(),
               updatedAt: serverTimestamp()
             });
             toast({
@@ -833,8 +866,22 @@ const SocioTableRow = memo(({
 
         if (verifiedSignatureLocal) {
             newMemberData.signatureMetadata = verifiedSignatureLocal;
+            if (verifiedSignatureLocal.signerPhone) {
+                if (otpFlowType === 'tutore') {
+                    newMemberData.guardianPhone = verifiedSignatureLocal.signerPhone;
+                } else {
+                    newMemberData.phone = verifiedSignatureLocal.signerPhone;
+                }
+            }
         } else if (verifiedSignature) {
             newMemberData.signatureMetadata = verifiedSignature;
+            if (verifiedSignature.signerPhone) {
+                if (otpFlowType === 'tutore') {
+                    newMemberData.guardianPhone = verifiedSignature.signerPhone;
+                } else {
+                    newMemberData.phone = verifiedSignature.signerPhone;
+                }
+            }
         }
 
         const safeMemberData = Object.fromEntries(
@@ -897,8 +944,22 @@ const SocioTableRow = memo(({
 
       if (verifiedSignatureLocal) {
           updatedData.signatureMetadata = verifiedSignatureLocal;
+          if (verifiedSignatureLocal.signerPhone) {
+              if (otpFlowType === 'tutore') {
+                  updatedData.guardianPhone = verifiedSignatureLocal.signerPhone;
+              } else {
+                  updatedData.phone = verifiedSignatureLocal.signerPhone;
+              }
+          }
       } else if (verifiedSignature) {
           updatedData.signatureMetadata = verifiedSignature;
+          if (verifiedSignature.signerPhone) {
+              if (otpFlowType === 'tutore') {
+                  updatedData.guardianPhone = verifiedSignature.signerPhone;
+              } else {
+                  updatedData.phone = verifiedSignature.signerPhone;
+              }
+          }
       }
 
       const batch = writeBatch(firestore);
@@ -1086,8 +1147,8 @@ const SocioTableRow = memo(({
                                     )}
                                   </div>
                                 ) : sig.method === 'ADMIN_DIRECT' ? (
-                                  <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/30 font-bold gap-1 mt-0.5">
-                                    👤 REGISTRAZIONE ADMIN
+                                  <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 font-bold gap-1 mt-0.5">
+                                    ⚠️ FIRMA MANCANTE
                                   </Badge>
                                 ) : (
                                   <div className="flex flex-col gap-1">
@@ -1933,11 +1994,16 @@ const SocioTableRow = memo(({
               <Button
                 type="button"
                 onClick={sendOtpSms}
-                disabled={isSendingAdminOtp || isEditingPhoneConfirm}
+                disabled={isSendingAdminOtp || isEditingPhoneConfirm || adminOtpCooldown > 0}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
               >
-                {isSendingAdminOtp && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Sì, invia SMS
+                {isSendingAdminOtp ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : adminOtpCooldown > 0 ? (
+                  `Attendi (${adminOtpCooldown}s)`
+                ) : (
+                  "Sì, invia SMS"
+                )}
               </Button>
             </div>
           </div>
@@ -2038,11 +2104,15 @@ const SocioTableRow = memo(({
                     variant="link" 
                     size="sm" 
                     onClick={handleSendAdminOtp} 
-                    disabled={isSendingAdminOtp}
+                    disabled={isSendingAdminOtp || adminOtpCooldown > 0}
                     className="text-xs h-auto p-0 text-emerald-600 hover:underline flex items-center gap-1 font-semibold"
                   >
-                    {isSendingAdminOtp ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
-                    Reinvia SMS
+                    {isSendingAdminOtp ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <RotateCcw className="w-3 h-3" />
+                    )}
+                    {adminOtpCooldown > 0 ? `Attendi (${adminOtpCooldown}s)` : "Reinvia SMS"}
                   </Button>
                 </div>
               </div>
@@ -2188,8 +2258,8 @@ const SocioTableRow = memo(({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Container per il Recaptcha di Firebase Auth (univoco per ogni riga) */}
-      <div id={`admin-recaptcha-container-${socio.id}`}></div>
+      {/* Container per il Recaptcha di Firebase Auth (univoco per ogni riga) — posizionato fuori schermo per evitare interferenze di layout o tabelle */}
+      <div id={`admin-recaptcha-container-${socio.id}`} style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}></div>
     </>
   );
 });

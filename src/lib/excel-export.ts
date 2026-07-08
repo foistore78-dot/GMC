@@ -33,7 +33,7 @@ function formatSignatureForExcel(socio: Socio): string {
   } else if (sig.method === 'MANUAL_PAPER') {
     return 'Modulo cartaceo';
   } else if (sig.method === 'ADMIN_DIRECT') {
-    return 'Registrazione Admin';
+    return 'Firma mancante';
   }
   return 'Nessuna firma';
 }

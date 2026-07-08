@@ -466,8 +466,8 @@ export default function DashboardClient() {
                                   <ShieldCheck className="w-3 h-3" /> SMS OTP ({sig.signerPhone || socio.phone})
                                 </Badge>
                               ) : sig.method === 'ADMIN_DIRECT' ? (
-                                <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/30 text-[10px] font-bold gap-1">
-                                  👤 REGISTRAZIONE ADMIN
+                                <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-[10px] font-bold gap-1">
+                                  ⚠️ FIRMA MANCANTE
                                 </Badge>
                               ) : (
                                 <Badge variant="outline" className="bg-slate-500/10 text-slate-400 border-slate-500/30 text-[10px] font-bold gap-1">

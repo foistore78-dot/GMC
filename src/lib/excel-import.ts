@@ -67,10 +67,10 @@ const parseSignatureFromExcel = (val: any): any => {
             method: 'MANUAL_PAPER',
             notes: 'Socio registrato con modulo cartaceo / storico'
         };
-    } else if (strLower.includes('admin')) {
+    } else if (strLower.includes('admin') || strLower.includes('mancante')) {
         return {
             method: 'ADMIN_DIRECT',
-            notes: 'Registrato da amministratore'
+            notes: 'Registrato da amministratore (Firma mancante)'
         };
     }
     return undefined;

@@ -23,7 +23,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowRight, ArrowLeft, PartyPopper, Info, Home, List, User, Smartphone, KeyRound, ShieldCheck, RotateCcw, AlertTriangle, X, CheckCircle2 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { useFirestore, useAuth, addDocumentNonBlocking, logAdminActivity } from "@/firebase";
-import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from "firebase/auth";
+import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult, getAuth } from "firebase/auth";
+import { initializeApp, getApps } from "firebase/app";
 import { firebaseConfig } from "@/firebase/config";
 import { doc, getDoc, collection, serverTimestamp } from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
@@ -57,6 +58,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+const getSecondaryAuth = () => {
+  if (typeof window === 'undefined') return null;
+  const secondaryApp = getApps().find(app => app.name === 'phone-verifier') || initializeApp(firebaseConfig, 'phone-verifier');
+  return getAuth(secondaryApp);
+};
 
 export function MembershipForm() {
   const { t, language } = useLanguage();
@@ -92,6 +99,26 @@ export function MembershipForm() {
   const [isVerifyingGuardianOtp, setIsVerifyingGuardianOtp] = useState(false);
   const [guardianConfirmationResult, setGuardianConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [editableGuardianPhone, setEditableGuardianPhone] = useState("");
+
+  // Cooldown states for SMS OTP requests (prevent frequent clicks)
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const [guardianOtpCooldown, setGuardianOtpCooldown] = useState(0);
+
+  useEffect(() => {
+    if (otpCooldown <= 0) return;
+    const timer = setTimeout(() => {
+      setOtpCooldown((prev) => prev - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [otpCooldown]);
+
+  useEffect(() => {
+    if (guardianOtpCooldown <= 0) return;
+    const timer = setTimeout(() => {
+      setGuardianOtpCooldown((prev) => prev - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [guardianOtpCooldown]);
 
   useEffect(() => {
     setMounted(true);
@@ -345,6 +372,7 @@ export function MembershipForm() {
         setConfirmationResult(result);
       }
       setOtpSent(true);
+      setOtpCooldown(30); // Start 30s cooldown
       toast({
         title: "Codice SMS Inviato!",
         description: `Abbiamo inviato un codice OTP al numero ${phone}.`,
@@ -373,7 +401,8 @@ export function MembershipForm() {
 
     setIsSubmitting(true);
     try {
-      let verificationId = `OTP-${Math.floor(100000 + Math.random() * 900000)}`;
+      const actualCode = otpCode.trim();
+      let verificationId = `OTP-${actualCode}`;
       if (confirmationResult) {
         const apiKey = firebaseConfig.apiKey;
         if (!apiKey) {
@@ -389,7 +418,7 @@ export function MembershipForm() {
             },
             body: JSON.stringify({
               sessionInfo: confirmationResult.verificationId,
-              code: otpCode,
+              code: actualCode,
             }),
           }
         );
@@ -402,7 +431,7 @@ export function MembershipForm() {
 
         const resData = await response.json();
         if (resData?.localId) {
-          verificationId = resData.localId;
+          verificationId = `OTP-${actualCode} (FB: ${resData.localId})`;
         }
       }
 
@@ -474,7 +503,8 @@ export function MembershipForm() {
         phone = `+44${phone.slice(4)}`;
       }
 
-      if (auth) {
+      const activeAuth = cameFromAdmin ? (getSecondaryAuth() || auth) : auth;
+      if (activeAuth) {
         // Usiamo un container SEPARATO dal flusso principale per evitare
         // l'errore "reCAPTCHA has already been rendered in this element"
         let recaptcha = (window as any).recaptchaVerifierGuardian;
@@ -487,15 +517,16 @@ export function MembershipForm() {
           delete (window as any).recaptchaVerifierGuardian;
         }
 
-        recaptcha = new RecaptchaVerifier(auth, 'recaptcha-container-guardian', {
+        recaptcha = new RecaptchaVerifier(activeAuth, 'recaptcha-container-guardian', {
           size: 'invisible'
         });
         (window as any).recaptchaVerifierGuardian = recaptcha;
 
-        const result = await signInWithPhoneNumber(auth, phone, recaptcha);
+        const result = await signInWithPhoneNumber(activeAuth, phone, recaptcha);
         setGuardianConfirmationResult(result);
       }
       setGuardianOtpSent(true);
+      setGuardianOtpCooldown(30); // Start 30s cooldown
       toast({
         title: "Codice SMS Inviato!",
         description: `Abbiamo inviato un codice OTP al numero del tutore ${phone}.`,
@@ -526,7 +557,8 @@ export function MembershipForm() {
 
     setIsVerifyingGuardianOtp(true);
     try {
-      let verificationId = `OTP-${Math.floor(100000 + Math.random() * 900000)}`;
+      const actualCode = guardianOtpCode.trim();
+      let verificationId = `OTP-${actualCode}`;
       if (guardianConfirmationResult) {
         const apiKey = firebaseConfig.apiKey;
         if (!apiKey) {
@@ -542,7 +574,7 @@ export function MembershipForm() {
             },
             body: JSON.stringify({
               sessionInfo: guardianConfirmationResult.verificationId,
-              code: guardianOtpCode,
+              code: actualCode,
             }),
           }
         );
@@ -555,7 +587,7 @@ export function MembershipForm() {
 
         const resData = await response.json();
         if (resData?.localId) {
-          verificationId = resData.localId;
+          verificationId = `OTP-${actualCode} (FB: ${resData.localId})`;
         }
       }
 
@@ -1033,10 +1065,13 @@ export function MembershipForm() {
                             <div className="bg-emerald-950/40 border border-emerald-500/30 p-3 rounded-lg flex items-center justify-between">
                               <div className="text-left">
                                 <p className="text-sm font-bold text-emerald-400 flex items-center gap-1.5">
-                                  <CheckCircle2 className="w-4 h-4" /> Firma Tutore Apposta!
+                                  <CheckCircle2 className="w-4 h-4" /> {guardianSignatureMetadata.method === 'MANUAL_PAPER' ? 'Firma Cartacea Tutore Impostata!' : 'Firma Tutore Apposta!'}
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-0.5">
-                                  Firma OTP registrata per il numero: {guardianSignatureMetadata.signerPhone}
+                                  {guardianSignatureMetadata.method === 'MANUAL_PAPER' 
+                                    ? 'Firma cartacea da archiviare in sede'
+                                    : `Firma OTP registrata per il numero: ${guardianSignatureMetadata.signerPhone}`
+                                  }
                                 </p>
                               </div>
                               <Button
@@ -1060,12 +1095,39 @@ export function MembershipForm() {
                                   <Button
                                     type="button"
                                     onClick={() => handleSendGuardianOtp()}
-                                    disabled={isSendingGuardianOtp || !form.getValues("guardianPhone") || form.getValues("guardianPhone").trim().length < 5}
+                                    disabled={isSendingGuardianOtp || !form.getValues("guardianPhone") || form.getValues("guardianPhone").trim().length < 5 || guardianOtpCooldown > 0}
                                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2"
                                   >
-                                    {isSendingGuardianOtp && <Loader2 className="w-4 h-4 animate-spin" />}
-                                    Invia SMS per Firma Tutore
+                                    {isSendingGuardianOtp ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : guardianOtpCooldown > 0 ? (
+                                      `Attendi (${guardianOtpCooldown}s)`
+                                    ) : (
+                                      "Invia SMS per Firma Tutore"
+                                    )}
                                   </Button>
+
+                                  {cameFromAdmin && (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setGuardianSignatureMetadata({
+                                          method: 'MANUAL_PAPER',
+                                          signedAt: new Date().toISOString(),
+                                          notes: 'Firma cartacea del Tutore (inserimento da admin)'
+                                        });
+                                        toast({
+                                          title: "Firma Cartacea Tutore Impostata",
+                                          description: "Firma cartacea impostata con successo. Ora puoi procedere."
+                                        });
+                                      }}
+                                      className="w-full border-amber-500 text-amber-500 hover:bg-amber-500/10 font-bold"
+                                    >
+                                      Procedi con Firma Cartacea (Senza SMS)
+                                    </Button>
+                                  )}
+
                                   <div className="flex items-center gap-2">
                                     <div className="flex-1 h-px bg-border/50" />
                                     <span className="text-[10px] text-muted-foreground uppercase tracking-widest">oppure</span>
@@ -1362,8 +1424,14 @@ export function MembershipForm() {
                       className="font-semibold"
                     />
                     {!otpSent ? (
-                      <Button type="button" size="sm" onClick={() => { setPendingFormValues((v: any) => ({ ...v, phone: editablePhone })); handleSendOtp(editablePhone); }} disabled={isSendingOtp || !editablePhone}>
-                        {isSendingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Invia OTP"}
+                      <Button type="button" size="sm" onClick={() => { setPendingFormValues((v: any) => ({ ...v, phone: editablePhone })); handleSendOtp(editablePhone); }} disabled={isSendingOtp || !editablePhone || otpCooldown > 0}>
+                        {isSendingOtp ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : otpCooldown > 0 ? (
+                          `Attendi (${otpCooldown}s)`
+                        ) : (
+                          "Invia OTP"
+                        )}
                       </Button>
                     ) : (
                       <Button type="button" size="sm" variant="outline" onClick={() => { setOtpSent(false); setOtpCode(""); setConfirmationResult(null); }} disabled={isSubmitting}>
@@ -1400,11 +1468,15 @@ export function MembershipForm() {
                         variant="link" 
                         size="sm" 
                         onClick={() => handleSendOtp()} 
-                        disabled={isSendingOtp}
+                        disabled={isSendingOtp || otpCooldown > 0}
                         className="text-xs h-auto p-0 text-primary hover:underline flex items-center gap-1 shrink-0 font-semibold"
                       >
-                        {isSendingOtp ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
-                        Rinvia SMS
+                        {isSendingOtp ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <RotateCcw className="w-3 h-3" />
+                        )}
+                        {otpCooldown > 0 ? `Attendi (${otpCooldown}s)` : "Rinvia SMS"}
                       </Button>
                     </div>
                   </div>
@@ -1478,10 +1550,10 @@ export function MembershipForm() {
           </DialogContent>
         </Dialog>
 
-        {/* Container per il Recaptcha di Firebase Auth — nascosto fuori schermo */}
-        <div id="recaptcha-container" style={{ position: 'absolute', top: '-9999px', left: '-9999px', width: 0, height: 0, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}></div>
-        {/* Container separato per il reCAPTCHA del tutore — nascosto fuori schermo */}
-        <div id="recaptcha-container-guardian" style={{ position: 'absolute', top: '-9999px', left: '-9999px', width: 0, height: 0, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}></div>
+        {/* Container per il Recaptcha di Firebase Auth — posizionato fuori schermo per evitare interferenze visive */}
+        <div id="recaptcha-container" style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}></div>
+        {/* Container separato per il reCAPTCHA del tutore — posizionato fuori schermo per evitare interferenze visive */}
+        <div id="recaptcha-container-guardian" style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}></div>
 
     </>
   );
