@@ -179,8 +179,14 @@ const SocioTableRow = memo(({
       const cutoffDate = new Date(2026, 6, 1); // 1 Luglio 2026 (mesi 0-indexed in JS)
       if (jDate < cutoffDate) return false;
     }
+    // Se ci sono sia la firma OTP del socio che del tutore, nessun modulo cartaceo necessario
+    const socioSig = getSignatureMetadata(socio);
+    const guardianSig = (socio as any).guardianSignatureMetadata;
+    const bothOtpSigned = socioSig.method === 'SMS_OTP' && guardianSig?.method === 'SMS_OTP';
+    if (bothOtpSigned) return false;
     return true;
-  }, [socioIsMinor, socio.guardianPaperSigned, socio.joinDate]);
+  }, [socioIsMinor, socio.guardianPaperSigned, socio.joinDate, socio]);
+
   
   // Logic to distinguish new members from renewals
   const isRenewedMember = activeTab === 'active' && !!socio.renewalDate;

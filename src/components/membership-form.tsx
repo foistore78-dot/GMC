@@ -235,6 +235,12 @@ export function MembershipForm() {
 
     const cleanedValues = normalizeSocioData(values);
 
+    // Se il socio è minorenne e manca la firma OTP del tutore, segnaliamo che serve il modulo cartaceo del tutore
+    const age = values.birthDate ? differenceInYears(new Date(), new Date(values.birthDate)) : 99;
+    const isMinorMember = age < 18;
+    const bothOtpSigned = isMinorMember && guardianSignatureMetadata?.method === 'SMS_OTP' && signatureMetadata.method === 'SMS_OTP';
+    const guardianPaperRequired = isMinorMember && !guardianSignatureMetadata;
+
     const membershipRequestData = {
       ...cleanedValues,
       privacyConsent: values.legalConsent,
@@ -244,12 +250,13 @@ export function MembershipForm() {
       status: 'pending',
       signatureMetadata,
       guardianSignatureMetadata: guardianSignatureMetadata || null,
+      guardianPaperRequired: guardianPaperRequired || false,
       helpRequested: signatureMetadata.helpRequested || false,
     };
     
     const requestsCollection = collection(firestore, 'membership_requests');
     addDocumentNonBlocking(requestsCollection, membershipRequestData);
-    logAdminActivity(firestore, 'new_request', `Arrivata nuova richiesta (${signatureMetadata.method === 'SMS_OTP' ? 'Firmata via SMS' : 'Inserimento Admin'}) da parte di ${values.firstName} ${values.lastName}`);
+    logAdminActivity(firestore, 'new_request', `Arrivata nuova richiesta (${signatureMetadata.method === 'SMS_OTP' ? 'Firmata via SMS' : 'Inserimento Admin'}) da parte di ${values.firstName} ${values.lastName}${guardianPaperRequired ? ' - FIRMA TUTORE DA ACQUISIRE' : bothOtpSigned ? ' - Doppia firma OTP' : ''}`);
     setIsSubmitted(true);
   }
 
@@ -618,17 +625,6 @@ export function MembershipForm() {
 
 
     if (!output) return;
-
-    if (steps[currentStep].id === guardianStep.id) {
-      if (!guardianSignatureMetadata) {
-        toast({
-          title: "Firma del tutore richiesta",
-          description: "Per proseguire è necessario verificare il numero di telefono del tutore ed apporre la firma OTP.",
-          variant: "destructive"
-        });
-        return;
-      }
-    }
 
     if (steps[currentStep].id === 3) {
       if(birthDate && mounted) {
@@ -1060,15 +1056,29 @@ export function MembershipForm() {
                           ) : (
                             <div className="space-y-4 text-left">
                               {!guardianOtpSent ? (
-                                <Button
-                                  type="button"
-                                  onClick={() => handleSendGuardianOtp()}
-                                  disabled={isSendingGuardianOtp || !form.getValues("guardianPhone") || form.getValues("guardianPhone").trim().length < 5}
-                                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2"
-                                >
-                                  {isSendingGuardianOtp && <Loader2 className="w-4 h-4 animate-spin" />}
-                                  Invia SMS per Firma Tutore
-                                </Button>
+                                <div className="space-y-3">
+                                  <Button
+                                    type="button"
+                                    onClick={() => handleSendGuardianOtp()}
+                                    disabled={isSendingGuardianOtp || !form.getValues("guardianPhone") || form.getValues("guardianPhone").trim().length < 5}
+                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2"
+                                  >
+                                    {isSendingGuardianOtp && <Loader2 className="w-4 h-4 animate-spin" />}
+                                    Invia SMS per Firma Tutore
+                                  </Button>
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 h-px bg-border/50" />
+                                    <span className="text-[10px] text-muted-foreground uppercase tracking-widest">oppure</span>
+                                    <div className="flex-1 h-px bg-border/50" />
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={nextStep}
+                                    className="w-full text-center text-xs text-amber-400/70 hover:text-amber-400 transition-colors underline underline-offset-2 focus:outline-none"
+                                  >
+                                    Salta firma tutore (il modulo cartaceo sarà necessario in sede)
+                                  </button>
+                                </div>
                               ) : (
                                 <div className="space-y-3 bg-background/50 p-3 rounded-lg border border-border">
                                   <div className="space-y-1">
