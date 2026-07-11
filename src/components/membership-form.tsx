@@ -73,6 +73,33 @@ const isSafariBrowser = (): boolean => {
   return /iP(hone|od|ad)/.test(ua) || (/Safari/.test(ua) && !/Chrome/.test(ua) && !/CriOS/.test(ua) && !/FxiOS/.test(ua));
 };
 
+const parsePhone = (value: string | undefined | null) => {
+  const val = value || "";
+  const cleaned = val.trim();
+  const prefixes = ["+39", "+386", "+43", "+41", "+44"];
+  for (const prefix of prefixes) {
+    if (cleaned.startsWith(prefix)) {
+      return {
+        prefix,
+        number: cleaned.slice(prefix.length).trim()
+      };
+    }
+  }
+  for (const prefix of prefixes) {
+    const rawDigits = prefix.replace('+', '');
+    if (cleaned.startsWith(`00${rawDigits}`)) {
+      return {
+        prefix,
+        number: cleaned.slice(rawDigits.length + 2).trim()
+      };
+    }
+  }
+  return {
+    prefix: "+39",
+    number: cleaned
+  };
+};
+
 export function MembershipForm() {
   const { t, language } = useLanguage();
   const searchParams = useSearchParams();
@@ -161,7 +188,8 @@ export function MembershipForm() {
       if (!data.birthDate || !mounted) return true;
       const age = differenceInYears(new Date(), new Date(data.birthDate));
       if (age < 18) {
-          return !!data.guardianFirstName && !!data.guardianLastName && !!data.guardianBirthDate && !!data.guardianPhone;
+          const { number } = parsePhone(data.guardianPhone);
+          return !!data.guardianFirstName && !!data.guardianLastName && !!data.guardianBirthDate && number.trim().length > 4;
       }
       return true;
   }, {
@@ -219,7 +247,8 @@ export function MembershipForm() {
 
   // Determiniamo se è stato inserito un numero di telefono reale (oltre il prefisso)
   const isPhoneEntered = useMemo(() => {
-    return phoneValue && phoneValue.trim().length > 4;
+    const { number } = parsePhone(phoneValue);
+    return number.trim().length > 4;
   }, [phoneValue]);
 
   // Se il telefono viene rimosso, togliamo automaticamente il consenso WhatsApp
@@ -1057,22 +1086,56 @@ export function MembershipForm() {
                         <FormField
                             control={form.control}
                             name="guardianPhone"
-                            render={({ field }) => (
+                            render={({ field }) => {
+                              const { prefix, number } = parsePhone(field.value);
+                              
+                              const handlePrefixChange = (newPrefix: string) => {
+                                field.onChange(`${newPrefix} ${number}`);
+                              };
+                              
+                              const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                                const newNumber = e.target.value;
+                                field.onChange(`${prefix} ${newNumber}`);
+                              };
+
+                              return (
                                 <FormItem>
                                     <FormLabel>Cellulare Tutore</FormLabel>
                                     <FormControl>
-                                      <Input
-                                        placeholder="+39 340 1234567"
-                                        disabled={!!guardianSignatureMetadata}
-                                        {...field}
-                                      />
+                                      <div className="flex gap-2">
+                                        <Select 
+                                          value={prefix} 
+                                          onValueChange={handlePrefixChange}
+                                          disabled={!!guardianSignatureMetadata}
+                                        >
+                                          <SelectTrigger className="w-[110px] bg-background border-border shrink-0">
+                                            <SelectValue placeholder="Prefisso" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="+39">🇮🇹 +39</SelectItem>
+                                            <SelectItem value="+386">🇸🇮 +386</SelectItem>
+                                            <SelectItem value="+43">🇦🇹 +43</SelectItem>
+                                            <SelectItem value="+41">🇨🇭 +41</SelectItem>
+                                            <SelectItem value="+44">🇬🇧 +44</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                        <Input
+                                          type="tel"
+                                          placeholder="340 1234567"
+                                          disabled={!!guardianSignatureMetadata}
+                                          value={number}
+                                          onChange={handleNumberChange}
+                                          className="flex-1 bg-background border-border"
+                                        />
+                                      </div>
                                     </FormControl>
                                     <FormDescription className="text-xs text-muted-foreground">
                                       Inserisci il numero del tutore per ricevere l'SMS di firma del tutore.
                                     </FormDescription>
                                     <FormMessage />
                                 </FormItem>
-                            )}
+                              );
+                            }}
                         />
 
                         {/* Interfaccia OTP Tutore */}
@@ -1303,19 +1366,54 @@ export function MembershipForm() {
                     <FormField
                       control={form.control}
                       name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{isMinor ? "Telefono Genitore / Tutore" : t('steps.contact.phone')}</FormLabel>
-                          <FormControl><Input {...field} /></FormControl>
-                          <FormDescription>
-                            {isMinor 
-                              ? "Inserisci il numero del genitore per ricevere l'SMS di firma. Se lo stesso numero è già stato usato per un'altra iscrizione, attendi 2 minuti prima di richiedere il codice." 
-                              : t('validation.optionalField')
-                            }
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                      render={({ field }) => {
+                        const { prefix, number } = parsePhone(field.value);
+                        
+                        const handlePrefixChange = (newPrefix: string) => {
+                          field.onChange(`${newPrefix} ${number}`);
+                        };
+                        
+                        const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                          const newNumber = e.target.value;
+                          field.onChange(`${prefix} ${newNumber}`);
+                        };
+
+                        return (
+                          <FormItem>
+                            <FormLabel>{isMinor ? "Telefono Genitore / Tutore" : t('steps.contact.phone')}</FormLabel>
+                            <FormControl>
+                              <div className="flex gap-2">
+                                <Select value={prefix} onValueChange={handlePrefixChange}>
+                                  <SelectTrigger className="w-[110px] bg-background border-border shrink-0">
+                                    <SelectValue placeholder="Prefisso" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="+39">🇮🇹 +39</SelectItem>
+                                    <SelectItem value="+386">🇸🇮 +386</SelectItem>
+                                    <SelectItem value="+43">🇦🇹 +43</SelectItem>
+                                    <SelectItem value="+41">🇨🇭 +41</SelectItem>
+                                    <SelectItem value="+44">🇬🇧 +44</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Input 
+                                  type="tel"
+                                  placeholder="340 1234567" 
+                                  value={number} 
+                                  onChange={handleNumberChange}
+                                  className="flex-1 bg-background border-border"
+                                />
+                              </div>
+                            </FormControl>
+                            <FormDescription>
+                              {isMinor 
+                                ? "Inserisci il numero del genitore per ricevere l'SMS di firma. Se lo stesso numero è già stato usato per un'altra iscrizione, attendi 2 minuti prima di richiedere il codice." 
+                                : t('validation.optionalField')
+                              }
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
                     />
                      <FormField
                       control={form.control}
@@ -1431,29 +1529,62 @@ export function MembershipForm() {
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
                     <Smartphone className="w-3.5 h-3.5" /> Numero di cellulare
                   </label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={editablePhone}
-                      onChange={(e) => setEditablePhone(e.target.value)}
-                      disabled={otpSent}
-                      placeholder="+39 340 1234567"
-                      className="font-semibold"
-                    />
-                    {!otpSent ? (
-                      <Button type="button" size="sm" onClick={() => { setPendingFormValues((v: any) => ({ ...v, phone: editablePhone })); handleSendOtp(editablePhone); }} disabled={isSendingOtp || !editablePhone || otpCooldown > 0}>
-                        {isSendingOtp ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : otpCooldown > 0 ? (
-                          `Attendi (${otpCooldown}s)`
-                        ) : (
-                          "Invia OTP"
-                        )}
-                      </Button>
-                    ) : (
-                      <Button type="button" size="sm" variant="outline" onClick={() => { setOtpSent(false); setOtpCode(""); setConfirmationResult(null); }} disabled={isSubmitting}>
-                        Cambia
-                      </Button>
-                    )}
+                  <div className="flex gap-2 items-center w-full">
+                    {(() => {
+                      const { prefix, number } = parsePhone(editablePhone);
+                      
+                      const handlePrefixChange = (newPrefix: string) => {
+                        setEditablePhone(`${newPrefix} ${number}`);
+                      };
+                      
+                      const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                        const newNumber = e.target.value;
+                        setEditablePhone(`${prefix} ${newNumber}`);
+                      };
+
+                      const hasNumber = number.trim().length > 4;
+
+                      return (
+                        <>
+                          <div className="flex gap-2 flex-1">
+                            <Select value={prefix} onValueChange={handlePrefixChange} disabled={otpSent}>
+                              <SelectTrigger className="w-[110px] bg-background border-border shrink-0">
+                                <SelectValue placeholder="Prefisso" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="+39">🇮🇹 +39</SelectItem>
+                                <SelectItem value="+386">🇸🇮 +386</SelectItem>
+                                <SelectItem value="+43">🇦🇹 +43</SelectItem>
+                                <SelectItem value="+41">🇨🇭 +41</SelectItem>
+                                <SelectItem value="+44">🇬🇧 +44</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              value={number}
+                              onChange={handleNumberChange}
+                              disabled={otpSent}
+                              placeholder="340 1234567"
+                              className="font-semibold flex-1"
+                            />
+                          </div>
+                          {!otpSent ? (
+                            <Button type="button" size="sm" onClick={() => { setPendingFormValues((v: any) => ({ ...v, phone: editablePhone })); handleSendOtp(editablePhone); }} disabled={isSendingOtp || !hasNumber || otpCooldown > 0}>
+                              {isSendingOtp ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : otpCooldown > 0 ? (
+                                `Attendi (${otpCooldown}s)`
+                              ) : (
+                                "Invia OTP"
+                              )}
+                            </Button>
+                          ) : (
+                            <Button type="button" size="sm" variant="outline" onClick={() => { setOtpSent(false); setOtpCode(""); setConfirmationResult(null); }} disabled={isSubmitting}>
+                              Cambia
+                            </Button>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                   {otpSent && (
                     <p className="text-[11px] text-amber-500">

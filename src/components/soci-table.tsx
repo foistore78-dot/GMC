@@ -69,6 +69,33 @@ const isSafariBrowser = (): boolean => {
   return /iP(hone|od|ad)/.test(ua) || (/Safari/.test(ua) && !/Chrome/.test(ua) && !/CriOS/.test(ua) && !/FxiOS/.test(ua));
 };
 
+const parsePhone = (value: string | undefined | null) => {
+  const val = value || "";
+  const cleaned = val.trim();
+  const prefixes = ["+39", "+386", "+43", "+41", "+44"];
+  for (const prefix of prefixes) {
+    if (cleaned.startsWith(prefix)) {
+      return {
+        prefix,
+        number: cleaned.slice(prefix.length).trim()
+      };
+    }
+  }
+  for (const prefix of prefixes) {
+    const rawDigits = prefix.replace('+', '');
+    if (cleaned.startsWith(`00${rawDigits}`)) {
+      return {
+        prefix,
+        number: cleaned.slice(rawDigits.length + 2).trim()
+      };
+    }
+  }
+  return {
+    prefix: "+39",
+    number: cleaned
+  };
+};
+
 
 const DetailItem = memo(({ icon, label, value, className }: { icon?: React.ReactNode, label: string, value?: string | number | null | React.ReactNode, className?: string }) => {
   if (!value && typeof value !== 'number' && typeof value !== 'object') return null;
@@ -2039,14 +2066,43 @@ const SocioTableRow = memo(({
             <Label htmlFor="new-phone-input" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Numero di Cellulare
             </Label>
-            <Input
-              id="new-phone-input"
-              placeholder="+39 333 1234567"
-              value={newPhoneInput}
-              onChange={(e) => setNewPhoneInput(e.target.value)}
-              autoFocus
-              type="tel"
-            />
+            {(() => {
+              const { prefix, number } = parsePhone(newPhoneInput);
+              
+              const handlePrefixChange = (newPrefix: string) => {
+                setNewPhoneInput(`${newPrefix} ${number}`);
+              };
+              
+              const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                setNewPhoneInput(`${prefix} ${e.target.value}`);
+              };
+
+              return (
+                <div className="flex gap-2">
+                  <Select value={prefix} onValueChange={handlePrefixChange}>
+                    <SelectTrigger className="w-[110px] bg-background border-border shrink-0">
+                      <SelectValue placeholder="Prefisso" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="+39">🇮🇹 +39</SelectItem>
+                      <SelectItem value="+386">🇸🇮 +386</SelectItem>
+                      <SelectItem value="+43">🇦🇹 +43</SelectItem>
+                      <SelectItem value="+41">🇨🇭 +41</SelectItem>
+                      <SelectItem value="+44">🇬🇧 +44</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id="new-phone-input"
+                    placeholder="333 1234567"
+                    value={number}
+                    onChange={handleNumberChange}
+                    autoFocus
+                    type="tel"
+                    className="flex-1"
+                  />
+                </div>
+              );
+            })()}
             <p className="text-xs text-muted-foreground">Il numero verrà salvato sulla scheda del socio.</p>
           </div>
           <DialogFooter className="gap-2">
@@ -2055,7 +2111,7 @@ const SocioTableRow = memo(({
             </Button>
             <Button
               onClick={handleSavePhoneAndSendOtp}
-              disabled={isSavingPhone || !newPhoneInput.trim()}
+              disabled={isSavingPhone || parsePhone(newPhoneInput).number.trim().length < 5}
               className="gap-2"
             >
               {isSavingPhone && <Loader2 className="w-4 h-4 animate-spin" />}
