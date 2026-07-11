@@ -1111,7 +1111,7 @@ export function MembershipForm() {
                                   <Button
                                     type="button"
                                     onClick={() => handleSendGuardianOtp()}
-                                    disabled={isSendingGuardianOtp || !form.getValues("guardianPhone") || form.getValues("guardianPhone").trim().length < 5 || guardianOtpCooldown > 0}
+                                    disabled={isSendingGuardianOtp || !form.getValues("guardianPhone") || (form.getValues("guardianPhone") || "").trim().length < 5 || guardianOtpCooldown > 0}
                                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2"
                                   >
                                     {isSendingGuardianOtp ? (
@@ -1570,7 +1570,24 @@ export function MembershipForm() {
         <div
           id="recaptcha-container"
           style={isSafari
-            ? { display: 'flex', justifyContent: 'center', padding: '8px 0' }
+            ? (isSendingOtp
+                ? {
+                    position: 'fixed',
+                    bottom: '20px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 99999,
+                    backgroundColor: 'hsl(var(--background))',
+                    border: '1px solid hsl(var(--border))',
+                    padding: '12px',
+                    borderRadius: '12px',
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }
+                : { position: 'absolute', top: '-9999px', left: '-9999px' }
+              )
             : { position: 'absolute', top: '-9999px', left: '-9999px' }
           }
         ></div>
@@ -1578,7 +1595,24 @@ export function MembershipForm() {
         <div
           id="recaptcha-container-guardian"
           style={isSafari
-            ? { display: 'flex', justifyContent: 'center', padding: '8px 0' }
+            ? (isSendingGuardianOtp
+                ? {
+                    position: 'fixed',
+                    bottom: '20px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 99999,
+                    backgroundColor: 'hsl(var(--background))',
+                    border: '1px solid hsl(var(--border))',
+                    padding: '12px',
+                    borderRadius: '12px',
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }
+                : { position: 'absolute', top: '-9999px', left: '-9999px' }
+              )
             : { position: 'absolute', top: '-9999px', left: '-9999px' }
           }
         ></div>

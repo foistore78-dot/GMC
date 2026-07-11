@@ -116,6 +116,9 @@ const excelRowToSocio = (row: any): PartialSocioWithStatus => {
     const signatureVal = getVal('Firma');
     const signatureMetadata = parseSignatureFromExcel(signatureVal);
 
+    const guardianSignatureVal = getVal('Firma Tutore') || getVal('Firma del Tutore') || getVal('FirmaTutore');
+    const guardianSignatureMetadata = parseSignatureFromExcel(guardianSignatureVal);
+
     const socio: Partial<Socio> = {
         tessera: getVal('N. Tessera') ? String(getVal('N. Tessera')) : undefined,
         lastName: getVal('Cognome'),
@@ -144,6 +147,8 @@ const excelRowToSocio = (row: any): PartialSocioWithStatus => {
         guardianFirstName: getVal('Nome Tutore') || getVal('Tutore')?.split(' ')[0] || undefined,
         guardianLastName: getVal('Cognome Tutore') || getVal('Tutore')?.split(' ').slice(1).join(' ') || undefined,
         guardianBirthDate: parseExcelDate(getVal('Data Nascita Tutore')),
+        guardianSignatureMetadata: guardianSignatureMetadata || undefined,
+        guardianPaperSigned: guardianSignatureMetadata?.method === 'MANUAL_PAPER' ? true : undefined,
     };
     
     Object.keys(socio).forEach(key => (socio as any)[key] === undefined && delete (socio as any)[key]);

@@ -2271,7 +2271,30 @@ const SocioTableRow = memo(({
       </AlertDialog>
 
       {/* Container per il Recaptcha di Firebase Auth (univoco per ogni riga) — posizionato fuori schermo per evitare interferenze di layout o tabelle */}
-      <div id={`admin-recaptcha-container-${socio.id}`} style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}></div>
+      <div 
+        id={`admin-recaptcha-container-${socio.id}`} 
+        style={isSafariBrowser()
+          ? (isSendingAdminOtp 
+              ? {
+                  position: 'fixed',
+                  bottom: '20px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  zIndex: 99999,
+                  backgroundColor: 'hsl(var(--background))',
+                  border: '1px solid hsl(var(--border))',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }
+              : { position: 'absolute', top: '-9999px', left: '-9999px' }
+            )
+          : { position: 'absolute', top: '-9999px', left: '-9999px' }
+        }
+      ></div>
     </>
   );
 });
