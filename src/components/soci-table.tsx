@@ -73,7 +73,7 @@ const isSafariBrowser = (): boolean => {
 const parsePhone = (value: string | undefined | null) => {
   const val = value || "";
   const cleaned = val.trim();
-  const prefixes = ["+39", "+386", "+43", "+41", "+44"];
+  const prefixes = ["+39", "+386", "+43", "+41", "+44", "+33", "+387", "+385", "+355", "+34", "+49"];
   for (const prefix of prefixes) {
     if (cleaned.startsWith(prefix)) {
       return {
@@ -345,6 +345,18 @@ const SocioTableRow = memo(({
         phone = `+${phone}`;
       } else if (phone.startsWith('44') && phone.length >= 10) {
         phone = `+${phone}`;
+      } else if (phone.startsWith('33') && phone.length >= 10) {
+        phone = `+${phone}`;
+      } else if (phone.startsWith('387') && phone.length >= 10) {
+        phone = `+${phone}`;
+      } else if (phone.startsWith('385') && phone.length >= 10) {
+        phone = `+${phone}`;
+      } else if (phone.startsWith('355') && phone.length >= 10) {
+        phone = `+${phone}`;
+      } else if (phone.startsWith('34') && phone.length >= 10) {
+        phone = `+${phone}`;
+      } else if (phone.startsWith('49') && phone.length >= 11) {
+        phone = `+${phone}`;
       } else if ((phone.startsWith('06') || phone.startsWith('07') || phone.startsWith('04') || phone.startsWith('03') || phone.startsWith('05')) && phone.length === 9) {
         // Numero locale sloveno (es. 041 123 456 = 9 cifre con 0 iniziale)
         phone = `+386${phone.slice(1)}`;
@@ -353,15 +365,13 @@ const SocioTableRow = memo(({
       }
     }
 
-    // Strip leading zero after country prefix for SI (+386), AT (+43), CH (+41), GB (+44)
-    if (phone.startsWith('+3860')) {
-      phone = `+386${phone.slice(5)}`;
-    } else if (phone.startsWith('+430')) {
-      phone = `+43${phone.slice(4)}`;
-    } else if (phone.startsWith('+410')) {
-      phone = `+41${phone.slice(4)}`;
-    } else if (phone.startsWith('+440')) {
-      phone = `+44${phone.slice(4)}`;
+    // Strip leading zero after country prefix for international numbers
+    const nonItalyPrefixes = ["+386", "+43", "+41", "+44", "+33", "+387", "+385", "+355", "+34", "+49"];
+    for (const pref of nonItalyPrefixes) {
+      if (phone.startsWith(`${pref}0`)) {
+        phone = `${pref}${phone.slice(pref.length + 1)}`;
+        break;
+      }
     }
     return phone;
   };
@@ -2090,6 +2100,12 @@ const SocioTableRow = memo(({
                       <SelectItem value="+43">🇦🇹 +43</SelectItem>
                       <SelectItem value="+41">🇨🇭 +41</SelectItem>
                       <SelectItem value="+44">🇬🇧 +44</SelectItem>
+                      <SelectItem value="+33">🇫🇷 +33</SelectItem>
+                      <SelectItem value="+387">🇧🇦 +387</SelectItem>
+                      <SelectItem value="+385">🇭🇷 +385</SelectItem>
+                      <SelectItem value="+355">🇦🇱 +355</SelectItem>
+                      <SelectItem value="+34">🇪🇸 +34</SelectItem>
+                      <SelectItem value="+49">🇩🇪 +49</SelectItem>
                     </SelectContent>
                   </Select>
                   <Input
