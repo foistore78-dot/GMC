@@ -1245,6 +1245,29 @@ export function MembershipForm() {
                                   >
                                     Salta firma tutore (il modulo cartaceo sarà necessario in sede)
                                   </button>
+
+                                  {/* Container per il Recaptcha del tutore — visibile su Safari/iOS, fuori schermo altrove */}
+                                  <div
+                                    id="recaptcha-container-guardian"
+                                    className="mt-3 flex justify-center"
+                                    style={isSafari
+                                      ? (isSendingGuardianOtp
+                                          ? {
+                                              backgroundColor: 'hsl(var(--background))',
+                                              border: '1px solid hsl(var(--border))',
+                                              padding: '12px',
+                                              borderRadius: '12px',
+                                              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                                              display: 'flex',
+                                              justifyContent: 'center',
+                                              alignItems: 'center',
+                                              width: '100%'
+                                            }
+                                          : { position: 'absolute', top: '-9999px', left: '-9999px' }
+                                        )
+                                      : { position: 'absolute', top: '-9999px', left: '-9999px' }
+                                    }
+                                  ></div>
                                 </div>
                               ) : (
                                 <div className="space-y-3 bg-background/50 p-3 rounded-lg border border-border">
@@ -1629,6 +1652,28 @@ export function MembershipForm() {
                       ⚠️ Numero errato? Clicca su <b>Cambia</b> per modificarlo e reinviare l'SMS.
                     </p>
                   )}
+                  {/* Container per il Recaptcha di Firebase Auth — visibile su Safari/iOS, fuori schermo altrove */}
+                  <div
+                    id="recaptcha-container"
+                    className="mt-3 flex justify-center"
+                    style={isSafari
+                      ? (isSendingOtp
+                          ? {
+                              backgroundColor: 'hsl(var(--background))',
+                              border: '1px solid hsl(var(--border))',
+                              padding: '12px',
+                              borderRadius: '12px',
+                              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                              display: 'flex',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              width: '100%'
+                            }
+                          : { position: 'absolute', top: '-9999px', left: '-9999px' }
+                        )
+                      : { position: 'absolute', top: '-9999px', left: '-9999px' }
+                    }
+                  ></div>
                 </div>
 
                 {otpSent && (
@@ -1734,58 +1779,6 @@ export function MembershipForm() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-
-        {/* Container per il Recaptcha di Firebase Auth — visibile su Safari/iOS, fuori schermo altrove */}
-        <div
-          id="recaptcha-container"
-          style={isSafari
-            ? (isSendingOtp
-                ? {
-                    position: 'fixed',
-                    bottom: '20px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    zIndex: 99999,
-                    backgroundColor: 'hsl(var(--background))',
-                    border: '1px solid hsl(var(--border))',
-                    padding: '12px',
-                    borderRadius: '12px',
-                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center'
-                  }
-                : { position: 'absolute', top: '-9999px', left: '-9999px' }
-              )
-            : { position: 'absolute', top: '-9999px', left: '-9999px' }
-          }
-        ></div>
-        {/* Container separato per il reCAPTCHA del tutore — visibile su Safari/iOS, fuori schermo altrove */}
-        <div
-          id="recaptcha-container-guardian"
-          style={isSafari
-            ? (isSendingGuardianOtp
-                ? {
-                    position: 'fixed',
-                    bottom: '20px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    zIndex: 99999,
-                    backgroundColor: 'hsl(var(--background))',
-                    border: '1px solid hsl(var(--border))',
-                    padding: '12px',
-                    borderRadius: '12px',
-                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center'
-                  }
-                : { position: 'absolute', top: '-9999px', left: '-9999px' }
-              )
-            : { position: 'absolute', top: '-9999px', left: '-9999px' }
-          }
-        ></div>
-
     </>
   );
 }
