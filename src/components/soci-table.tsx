@@ -53,6 +53,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { useFirestore, useAuth, deleteDocumentNonBlocking, logAdminActivity } from "@/firebase";
 import { doc, writeBatch, getDoc, deleteDoc, deleteField, updateDoc, serverTimestamp } from "firebase/firestore";
 import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult, PhoneAuthProvider, signInWithCredential, signOut } from "firebase/auth";
