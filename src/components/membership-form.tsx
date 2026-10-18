@@ -158,7 +158,33 @@ export function MembershipForm() {
 
   useEffect(() => {
     setMounted(true);
-    setIsSafari(isSafariBrowser());
+    const safari = isSafariBrowser();
+    setIsSafari(safari);
+
+    // Su Safari/iOS pre-renderizziamo i RecaptchaVerifier al mount del componente.
+    // Questo è necessario perché Safari richiede che il widget sia già pronto
+    // nel DOM prima che signInWithPhoneNumber venga chiamato, altrimenti si blocca.
+    if (safari && auth) {
+      // Pre-render verifier principale
+      try {
+        const rv = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'normal' });
+        rv.render().catch((e: any) => console.warn('recaptcha pre-render error:', e));
+        (window as any).recaptchaVerifier = rv;
+      } catch (e) {
+        console.warn('Could not pre-render recaptcha:', e);
+      }
+
+      // Pre-render verifier tutore (usa auth secondario se disponibile)
+      try {
+        const activeAuth = getSecondaryAuth() || auth;
+        const rvG = new RecaptchaVerifier(activeAuth, 'recaptcha-container-guardian', { size: 'normal' });
+        rvG.render().catch((e: any) => console.warn('guardian recaptcha pre-render error:', e));
+        (window as any).recaptchaVerifierGuardian = rvG;
+      } catch (e) {
+        console.warn('Could not pre-render guardian recaptcha:', e);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const cameFromAdmin = searchParams.get('from') === 'admin';
@@ -405,23 +431,33 @@ export function MembershipForm() {
       }
 
       if (auth) {
+        const onSafari = isSafariBrowser();
         let recaptcha = (window as any).recaptchaVerifier;
-        if (recaptcha) {
-          try {
-            recaptcha.clear();
-          } catch (e) {
-            console.warn("Error clearing recaptcha verifier:", e);
+
+        if (onSafari) {
+          // Su Safari riutilizziamo il verifier pre-renderizzato al mount.
+          // Se per qualche motivo non esiste (es. primo render fallito), lo creiamo ora.
+          if (!recaptcha) {
+            recaptcha = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'normal' });
+            await recaptcha.render();
+            (window as any).recaptchaVerifier = recaptcha;
           }
+        } else {
+          // Su non-Safari: ricrea sempre un'istanza fresca (invisible, nessun blocco cookie)
+          if (recaptcha) {
+            try { recaptcha.clear(); } catch (e) { console.warn("Error clearing recaptcha:", e); }
+          }
+          recaptcha = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
+          (window as any).recaptchaVerifier = recaptcha;
         }
-        
-        // Creiamo sempre un'istanza fresca per evitare token reCAPTCHA scaduti o già usati
-        recaptcha = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: isSafariBrowser() ? 'normal' : 'invisible',
-        });
-        (window as any).recaptchaVerifier = recaptcha;
-        
+
         const result = await signInWithPhoneNumber(auth, phone, recaptcha);
         setConfirmationResult(result);
+
+        // Dopo l'uso, invalidiamo il verifier Safari così verrà ricreato al prossimo tentativo
+        if (onSafari) {
+          delete (window as any).recaptchaVerifier;
+        }
       }
       setOtpSent(true);
       setOtpCooldown(30); // Start 30s cooldown
@@ -570,25 +606,33 @@ export function MembershipForm() {
 
       const activeAuth = cameFromAdmin ? (getSecondaryAuth() || auth) : auth;
       if (activeAuth) {
-        // Usiamo un container SEPARATO dal flusso principale per evitare
-        // l'errore "reCAPTCHA has already been rendered in this element"
+        const onSafari = isSafariBrowser();
         let recaptcha = (window as any).recaptchaVerifierGuardian;
-        if (recaptcha) {
-          try {
-            recaptcha.clear();
-          } catch (e) {
-            console.warn("Error clearing guardian recaptcha:", e);
-          }
-          delete (window as any).recaptchaVerifierGuardian;
-        }
 
-        recaptcha = new RecaptchaVerifier(activeAuth, 'recaptcha-container-guardian', {
-          size: isSafariBrowser() ? 'normal' : 'invisible',
-        });
-        (window as any).recaptchaVerifierGuardian = recaptcha;
+        if (onSafari) {
+          // Su Safari riutilizziamo il verifier tutore pre-renderizzato al mount.
+          if (!recaptcha) {
+            recaptcha = new RecaptchaVerifier(activeAuth, 'recaptcha-container-guardian', { size: 'normal' });
+            await recaptcha.render();
+            (window as any).recaptchaVerifierGuardian = recaptcha;
+          }
+        } else {
+          // Su non-Safari: ricrea sempre un'istanza fresca
+          if (recaptcha) {
+            try { recaptcha.clear(); } catch (e) { console.warn("Error clearing guardian recaptcha:", e); }
+            delete (window as any).recaptchaVerifierGuardian;
+          }
+          recaptcha = new RecaptchaVerifier(activeAuth, 'recaptcha-container-guardian', { size: 'invisible' });
+          (window as any).recaptchaVerifierGuardian = recaptcha;
+        }
 
         const result = await signInWithPhoneNumber(activeAuth, phone, recaptcha);
         setGuardianConfirmationResult(result);
+
+        // Dopo l'uso, invalidiamo il verifier Safari così verrà ricreato al prossimo tentativo
+        if (onSafari) {
+          delete (window as any).recaptchaVerifierGuardian;
+        }
       }
       setGuardianOtpSent(true);
       setGuardianOtpCooldown(30); // Start 30s cooldown
@@ -1246,27 +1290,11 @@ export function MembershipForm() {
                                     Salta firma tutore (il modulo cartaceo sarà necessario in sede)
                                   </button>
 
-                                  {/* Container per il Recaptcha del tutore — visibile su Safari/iOS, fuori schermo altrove */}
+                                  {/* Container per il Recaptcha del tutore — sempre fuori schermo.
+                                      Su Safari/iOS il widget viene pre-renderizzato al mount, non al click. */}
                                   <div
                                     id="recaptcha-container-guardian"
-                                    className="mt-3 flex justify-center"
-                                    style={isSafari
-                                      ? (isSendingGuardianOtp
-                                          ? {
-                                              backgroundColor: 'hsl(var(--background))',
-                                              border: '1px solid hsl(var(--border))',
-                                              padding: '12px',
-                                              borderRadius: '12px',
-                                              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-                                              display: 'flex',
-                                              justifyContent: 'center',
-                                              alignItems: 'center',
-                                              width: '100%'
-                                            }
-                                          : { position: 'absolute', top: '-9999px', left: '-9999px' }
-                                        )
-                                      : { position: 'absolute', top: '-9999px', left: '-9999px' }
-                                    }
+                                    style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}
                                   ></div>
                                 </div>
                               ) : (
@@ -1652,27 +1680,11 @@ export function MembershipForm() {
                       ⚠️ Numero errato? Clicca su <b>Cambia</b> per modificarlo e reinviare l'SMS.
                     </p>
                   )}
-                  {/* Container per il Recaptcha di Firebase Auth — visibile su Safari/iOS, fuori schermo altrove */}
+                  {/* Container per il Recaptcha di Firebase Auth — sempre fuori schermo.
+                      Su Safari/iOS il widget viene pre-renderizzato al mount, non al click. */}
                   <div
                     id="recaptcha-container"
-                    className="mt-3 flex justify-center"
-                    style={isSafari
-                      ? (isSendingOtp
-                          ? {
-                              backgroundColor: 'hsl(var(--background))',
-                              border: '1px solid hsl(var(--border))',
-                              padding: '12px',
-                              borderRadius: '12px',
-                              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-                              display: 'flex',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                              width: '100%'
-                            }
-                          : { position: 'absolute', top: '-9999px', left: '-9999px' }
-                        )
-                      : { position: 'absolute', top: '-9999px', left: '-9999px' }
-                    }
+                    style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}
                   ></div>
                 </div>
 
