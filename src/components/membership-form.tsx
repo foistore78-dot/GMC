@@ -67,10 +67,15 @@ const getSecondaryAuth = () => {
 
 // Safari/iOS blocca i cookie di terze parti (ITP) rendendo il reCAPTCHA invisibile non funzionante.
 // In quel caso usiamo il reCAPTCHA visibile (size: 'normal') che non dipende da cookie.
+// NOTA: copriamo TUTTI i browser su iPhone/iPad, incluse WebView in-app (es. link da app social),
+// dove il UA potrebbe non contenere 'Safari' ma sempre 'iP(hone|od|ad)'.
 const isSafariBrowser = (): boolean => {
   if (typeof window === 'undefined') return false;
   const ua = window.navigator.userAgent;
-  return /iP(hone|od|ad)/.test(ua) || (/Safari/.test(ua) && !/Chrome/.test(ua) && !/CriOS/.test(ua) && !/FxiOS/.test(ua));
+  // Qualsiasi browser su iOS/iPadOS (iPhone, iPod, iPad) — include Safari, Chrome iOS, WebView in-app
+  if (/iP(hone|od|ad)/.test(ua)) return true;
+  // Safari su macOS (non Chrome, non Firefox)
+  return /Safari/.test(ua) && !/Chrome/.test(ua) && !/CriOS/.test(ua) && !/FxiOS/.test(ua);
 };
 
 const parsePhone = (value: string | undefined | null) => {
@@ -435,13 +440,15 @@ export function MembershipForm() {
         let recaptcha = (window as any).recaptchaVerifier;
 
         if (onSafari) {
-          // Su Safari riutilizziamo il verifier pre-renderizzato al mount.
-          // Se per qualche motivo non esiste (es. primo render fallito), lo creiamo ora.
+          // Su Safari/iOS riutilizziamo il verifier 'normal' pre-renderizzato al mount.
+          // Se non esiste (primo render fallito o verifier corrotto), lo ricreiamo.
           if (!recaptcha) {
             recaptcha = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'normal' });
             await recaptcha.render();
             (window as any).recaptchaVerifier = recaptcha;
           }
+          // NON cancelliamo il verifier dopo l'uso: lo manteniamo per i retry successivi.
+          // (Safari richiede che il widget sia già nel DOM e non può essere ricreato on-the-fly)
         } else {
           // Su non-Safari: ricrea sempre un'istanza fresca (invisible, nessun blocco cookie)
           if (recaptcha) {
@@ -451,13 +458,13 @@ export function MembershipForm() {
           (window as any).recaptchaVerifier = recaptcha;
         }
 
-        const result = await signInWithPhoneNumber(auth, phone, recaptcha);
+        // Timeout di sicurezza: se signInWithPhoneNumber non risponde entro 25s sblocchiamo l'UI
+        const signInPromise = signInWithPhoneNumber(auth, phone, recaptcha);
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('TIMEOUT: Il server non risponde. Riprova o controlla la connessione.')), 25000)
+        );
+        const result = await Promise.race([signInPromise, timeoutPromise]);
         setConfirmationResult(result);
-
-        // Dopo l'uso, invalidiamo il verifier Safari così verrà ricreato al prossimo tentativo
-        if (onSafari) {
-          delete (window as any).recaptchaVerifier;
-        }
       }
       setOtpSent(true);
       setOtpCooldown(30); // Start 30s cooldown
@@ -610,12 +617,13 @@ export function MembershipForm() {
         let recaptcha = (window as any).recaptchaVerifierGuardian;
 
         if (onSafari) {
-          // Su Safari riutilizziamo il verifier tutore pre-renderizzato al mount.
+          // Su Safari/iOS riutilizziamo il verifier tutore 'normal' pre-renderizzato al mount.
           if (!recaptcha) {
             recaptcha = new RecaptchaVerifier(activeAuth, 'recaptcha-container-guardian', { size: 'normal' });
             await recaptcha.render();
             (window as any).recaptchaVerifierGuardian = recaptcha;
           }
+          // NON cancelliamo il verifier dopo l'uso: lo manteniamo per i retry successivi.
         } else {
           // Su non-Safari: ricrea sempre un'istanza fresca
           if (recaptcha) {
@@ -626,13 +634,13 @@ export function MembershipForm() {
           (window as any).recaptchaVerifierGuardian = recaptcha;
         }
 
-        const result = await signInWithPhoneNumber(activeAuth, phone, recaptcha);
+        // Timeout di sicurezza: se signInWithPhoneNumber non risponde entro 25s sblocchiamo l'UI
+        const signInPromise = signInWithPhoneNumber(activeAuth, phone, recaptcha);
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('TIMEOUT: Il server non risponde. Riprova o controlla la connessione.')), 25000)
+        );
+        const result = await Promise.race([signInPromise, timeoutPromise]);
         setGuardianConfirmationResult(result);
-
-        // Dopo l'uso, invalidiamo il verifier Safari così verrà ricreato al prossimo tentativo
-        if (onSafari) {
-          delete (window as any).recaptchaVerifierGuardian;
-        }
       }
       setGuardianOtpSent(true);
       setGuardianOtpCooldown(30); // Start 30s cooldown
@@ -1591,7 +1599,7 @@ export function MembershipForm() {
                 type="button"
                 onClick={() => setShowOtpModal(false)}
                 disabled={isSubmitting}
-                className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none"
+                className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none disabled:opacity-30"
               >
                 <X className="h-4 w-4" />
                 <span className="sr-only">Close</span>
@@ -1726,6 +1734,7 @@ export function MembershipForm() {
               </div>
 
               <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
+                {/* Annulla: disabilitato solo durante la verifica finale (isSubmitting), MAI durante isSendingOtp */}
                 <Button type="button" variant="ghost" onClick={() => setShowOtpModal(false)} disabled={isSubmitting}>
                   Annulla
                 </Button>
