@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { collection, onSnapshot, doc, writeBatch, query, limit, orderBy, startAfter, QueryDocumentSnapshot, where, getDocs, serverTimestamp, deleteField, getDoc, updateDoc } from "firebase/firestore";
-import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, X, Trash2, Info, Bell, UserCheck, Printer, Minimize2, Maximize2, MessageCircle, Award, Euro, Share2 } from "lucide-react";
+import { Filter, Loader2, UserPlus, Users, ChevronLeft, ArrowRight, FileDown, AlertTriangle, RefreshCw, X, Trash2, Info, Bell, UserCheck, Printer, Minimize2, Maximize2, MessageCircle, Award, Euro, Share2, Share, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { SociTable, type SortConfig } from "@/components/soci-table";
@@ -191,6 +191,77 @@ export default function ElencoClient() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const { firestore, areServicesAvailable } = useFirebase();
+
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [canShare, setCanShare] = useState(false);
+
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      setCanShare(true);
+    }
+  }, []);
+
+  const getApplyUrl = () => {
+    if (typeof window !== 'undefined' && window.location.origin) {
+      return `${window.location.origin}/#apply`;
+    }
+    return 'https://studio-9577324505-15044.web.app/#apply';
+  };
+
+  const shareMessage = `Iscriviti al Garage Music Club! Compila il modulo qui: ${getApplyUrl()}`;
+
+  const handleShareWhatsApp = () => {
+    const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const encodedText = encodeURIComponent(shareMessage);
+    if (isMobile) {
+      window.location.href = `whatsapp://send?text=${encodedText}`;
+    } else {
+      window.open(`https://api.whatsapp.com/send?text=${encodedText}`, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(getApplyUrl());
+      } else {
+        const input = document.createElement('textarea');
+        input.value = getApplyUrl();
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+      }
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+      toast({
+        title: "Link Copiato!",
+        description: "Il link per l'iscrizione è stato copiato negli appunti.",
+      });
+    } catch (e) {
+      toast({
+        title: "Errore",
+        description: "Impossibile copiare il link.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleNativeShare = async () => {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: "Garage Music Club - Iscrizione",
+          text: "Iscriviti al Garage Music Club! Compila il modulo qui:",
+          url: getApplyUrl(),
+        });
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error("Error sharing:", err);
+        }
+      }
+    }
+  };
 
   const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
 
@@ -634,8 +705,8 @@ export default function ElencoClient() {
           </h1>
         </div>
 
-        <div className="flex flex-col items-end gap-2">
-            <div className="flex items-center gap-2 flex-wrap justify-end">
+        <div className="flex flex-col sm:items-end gap-2.5 w-full sm:w-auto">
+            <div className="flex items-center gap-2 flex-wrap sm:justify-end">
                 <Button 
                     variant="outline" 
                     size="sm" 
@@ -657,26 +728,49 @@ export default function ElencoClient() {
                 </Button>
             </div>
             {/* Pulsanti condivisione link iscrizione */}
-            <div className="flex items-center gap-2 flex-wrap justify-end">
-              <span className="text-[10px] text-muted-foreground/50 font-medium tracking-wide">Condividi link iscrizione:</span>
-              <a
-                href={`https://wa.me/?text=${encodeURIComponent('Iscriviti al Garage Music Club! Compila il modulo qui: https://studio-9577324505-15044.web.app/#apply')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-green-500/15 hover:bg-green-500/25 text-green-400 hover:text-green-300 border border-green-500/20 transition-all"
-                title="Condividi su WhatsApp"
-              >
-                <MessageCircle className="h-3 w-3" />
-                WhatsApp
-              </a>
-              <a
-                href={`sms:?body=${encodeURIComponent('Iscriviti al Garage Music Club! Compila il modulo qui: https://studio-9577324505-15044.web.app/#apply')}`}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 hover:text-blue-300 border border-blue-500/20 transition-all"
-                title="Condividi via SMS"
-              >
-                <Share2 className="h-3 w-3" />
-                SMS
-              </a>
+            <div className="flex items-center gap-2 flex-wrap sm:justify-end bg-secondary/30 sm:bg-transparent p-2 sm:p-0 rounded-xl border sm:border-0 border-border/40 w-full sm:w-auto">
+              <span className="text-[11px] sm:text-[10px] text-muted-foreground/70 sm:text-muted-foreground/50 font-medium tracking-wide">
+                Condividi link iscrizione:
+              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleShareWhatsApp}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 transition-all cursor-pointer active:scale-95"
+                  title="Condividi su WhatsApp"
+                >
+                  <MessageCircle className="h-3 w-3" />
+                  WhatsApp
+                </button>
+                <a
+                  href={`sms:?body=${encodeURIComponent(shareMessage)}`}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 hover:text-blue-300 border border-blue-500/20 transition-all cursor-pointer active:scale-95"
+                  title="Condividi via SMS"
+                >
+                  <Share2 className="h-3 w-3" />
+                  SMS
+                </a>
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/50 transition-all cursor-pointer active:scale-95"
+                  title="Copia link negli appunti"
+                >
+                  {copiedLink ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                  {copiedLink ? "Copiato!" : "Copia"}
+                </button>
+                {canShare && (
+                  <button
+                    type="button"
+                    onClick={handleNativeShare}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-purple-500/15 hover:bg-purple-500/25 text-purple-400 hover:text-purple-300 border border-purple-500/30 transition-all cursor-pointer active:scale-95"
+                    title="Condividi con altre app"
+                  >
+                    <Share className="h-3 w-3" />
+                    Altro
+                  </button>
+                )}
+              </div>
             </div>
         </div>
       </div>
