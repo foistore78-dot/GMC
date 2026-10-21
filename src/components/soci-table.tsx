@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, memo, type Dispatch, type SetStateAction } from "react";
@@ -59,11 +58,9 @@ import { doc, writeBatch, getDoc, deleteDoc, deleteField, updateDoc, serverTimes
 import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult, PhoneAuthProvider, signInWithCredential, signOut } from "firebase/auth";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, initializeAuth, inMemoryPersistence } from "firebase/auth";
 import { firebaseConfig } from "@/firebase/config";
 
-// Safari/iOS blocca i cookie di terze parti (ITP) rendendo il reCAPTCHA invisibile non funzionante.
-// In quel caso usiamo il reCAPTCHA visibile (size: 'normal') che non dipende da cookie.
 const isSafariBrowser = (): boolean => {
   if (typeof window === 'undefined') return false;
   const ua = window.navigator.userAgent;
@@ -115,8 +112,16 @@ DetailItem.displayName = "DetailItem";
 
 const getSecondaryAuth = () => {
   if (typeof window === 'undefined') return null;
-  const secondaryApp = getApps().find(app => app.name === 'phone-verifier') || initializeApp(firebaseConfig, 'phone-verifier');
-  return getAuth(secondaryApp);
+  const existing = getApps().find(app => app.name === 'phone-verifier');
+  if (existing) {
+    try {
+      return getAuth(existing);
+    } catch {
+      return initializeAuth(existing, { persistence: inMemoryPersistence });
+    }
+  }
+  const secondaryApp = initializeApp(firebaseConfig, 'phone-verifier');
+  return initializeAuth(secondaryApp, { persistence: inMemoryPersistence });
 };
 
 const SocioTableRow = memo(({ 
@@ -183,20 +188,16 @@ const SocioTableRow = memo(({
   const [isEditingPhoneConfirm, setIsEditingPhoneConfirm] = useState(false);
   const [editPhoneConfirmInput, setEditPhoneConfirmInput] = useState("");
 
-  // Dialog: firma già esistente
   const [showSignatureExistsDialog, setShowSignatureExistsDialog] = useState(false);
 
-  // Dialog: numero di telefono mancante
   const [showAddPhoneDialog, setShowAddPhoneDialog] = useState(false);
   const [newPhoneInput, setNewPhoneInput] = useState("");
   const [isSavingPhone, setIsSavingPhone] = useState(false);
 
-  // Dialog: firma mancante all'approvazione/rinnovo
   const [showMissingSignatureWarning, setShowMissingSignatureWarning] = useState(false);
   const [pendingActionAfterOtp, setPendingActionAfterOtp] = useState<'approve' | 'renew' | null>(null);
   const [showNoOtpConfirm, setShowNoOtpConfirm] = useState(false);
 
-  // Cooldown state for admin SMS OTP requests (prevent frequent clicks)
   const [adminOtpCooldown, setAdminOtpCooldown] = useState(0);
 
   useEffect(() => {
@@ -207,7 +208,6 @@ const SocioTableRow = memo(({
     return () => clearTimeout(timer);
   }, [adminOtpCooldown]);
 
-  // Stato temporaneo per la firma appena verificata
   const [verifiedSignatureLocal, setVerifiedSignatureLocal] = useState<any>(null);
   const [verifiedNotesLocal, setVerifiedNotesLocal] = useState<string | null>(null);
 
@@ -224,10 +224,9 @@ const SocioTableRow = memo(({
     if (socio.guardianPaperSigned) return false;
     if (socio.joinDate) {
       const jDate = new Date(socio.joinDate);
-      const cutoffDate = new Date(2026, 6, 1); // 1 Luglio 2026 (mesi 0-indexed in JS)
+      const cutoffDate = new Date(2026, 6, 1);
       if (jDate < cutoffDate) return false;
     }
-    // Se ci sono sia la firma OTP del socio che del tutore, nessun modulo cartaceo necessario
     const socioSig = getSignatureMetadata(socio);
     const guardianSig = (socio as any).guardianSignatureMetadata;
     const bothOtpSigned = socioSig.method === 'SMS_OTP' && guardianSig?.method === 'SMS_OTP';
@@ -235,8 +234,6 @@ const SocioTableRow = memo(({
     return true;
   }, [socioIsMinor, socio.guardianPaperSigned, socio.joinDate, socio]);
 
-  
-  // Logic to distinguish new members from renewals
   const isRenewedMember = activeTab === 'active' && !!socio.renewalDate;
   const isNewMember = activeTab === 'active' && !socio.renewalDate && !!socio.joinDate;
 
@@ -294,7 +291,6 @@ const SocioTableRow = memo(({
         const memberDocRef = doc(firestore, "members", socio.id);
         const requestDocRef = doc(firestore, "membership_requests", socio.id);
         
-        // Rimuoviamo dati di tesseramento e riportiamo allo stato di richiesta
         const { status, tessera, joinDate, renewalDate, expirationDate, membershipYear, membershipFee, ...restOfSocio } = socio;
         
         const restoredRequestData = {
@@ -358,14 +354,12 @@ const SocioTableRow = memo(({
       } else if (phone.startsWith('49') && phone.length >= 11) {
         phone = `+${phone}`;
       } else if ((phone.startsWith('06') || phone.startsWith('07') || phone.startsWith('04') || phone.startsWith('03') || phone.startsWith('05')) && phone.length === 9) {
-        // Numero locale sloveno (es. 041 123 456 = 9 cifre con 0 iniziale)
         phone = `+386${phone.slice(1)}`;
       } else {
         phone = `+39${phone.replace(/^0+/, '')}`;
       }
     }
 
-    // Strip leading zero after country prefix for international numbers
     const nonItalyPrefixes = ["+386", "+43", "+41", "+44", "+33", "+387", "+385", "+355", "+34", "+49"];
     for (const pref of nonItalyPrefixes) {
       if (phone.startsWith(`${pref}0`)) {
@@ -376,7 +370,6 @@ const SocioTableRow = memo(({
     return phone;
   };
 
-  // Prepara il flusso OTP e chiede conferma prima di inviare l'SMS
   const initiateOtpFlow = (phoneOverride?: string) => {
     const currentSig = getSignatureMetadata(socio);
     setHasPaperCopy(currentSig.method === 'MANUAL_PAPER');
@@ -390,7 +383,6 @@ const SocioTableRow = memo(({
     setShowSendOtpConfirmDialog(true);
   };
 
-  // Salva il numero di telefono modificato direttamente dalla finestra di conferma OTP
   const handleSaveEditedPhoneConfirm = async () => {
     const trimmed = editPhoneConfirmInput.trim();
     if (!trimmed || trimmed.length < 6) {
@@ -415,44 +407,69 @@ const SocioTableRow = memo(({
     }
   };
 
-  // Esegue l'invio reale del codice OTP via SMS
   const sendOtpSms = async () => {
     if (!phoneForOtp) return;
     setIsSendingAdminOtp(true);
     try {
-      if (auth) {
-        const containerId = `admin-recaptcha-container-${socio.id}`;
-        let recaptcha = (window as any)[`adminRecaptchaVerifierSec_${socio.id}`];
-        if (recaptcha) {
-          try {
-            recaptcha.clear();
-          } catch (e) {
-            console.warn("Error clearing recaptcha verifier:", e);
-          }
-        }
-        
-        // Creiamo sempre un'istanza fresca per evitare token reCAPTCHA scaduti o già usati
-        recaptcha = new RecaptchaVerifier(auth, containerId, {
-          size: isSafariBrowser() ? 'normal' : 'invisible',
-        });
-        (window as any)[`adminRecaptchaVerifierSec_${socio.id}`] = recaptcha;
-        
-        const result = await signInWithPhoneNumber(auth, phoneForOtp, recaptcha);
-        setAdminConfirmationResult(result);
+      const verifierAuth = getSecondaryAuth();
+      if (!verifierAuth) {
+        throw new Error("Auth non disponibile");
       }
+
+      const containerId = `admin-recaptcha-container-${socio.id}`;
+
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+      await new Promise((resolve) => setTimeout(resolve, 80));
+
+      const container = document.getElementById(containerId);
+      if (!container) {
+        throw new Error("Container reCAPTCHA non trovato");
+      }
+
+      let recaptcha = (window as any)[`adminRecaptchaVerifierSec_${socio.id}`];
+      if (recaptcha) {
+        try {
+          recaptcha.clear();
+        } catch (e) {
+          console.warn("Error clearing recaptcha verifier:", e);
+        }
+      }
+      container.innerHTML = "";
+
+      if (isSafariBrowser()) {
+        const rect = container.getBoundingClientRect();
+        if (rect.width < 40) {
+          await new Promise((resolve) => setTimeout(resolve, 150));
+        }
+      }
+
+      recaptcha = new RecaptchaVerifier(verifierAuth, containerId, {
+        size: isSafariBrowser() ? 'normal' : 'invisible',
+      });
+      (window as any)[`adminRecaptchaVerifierSec_${socio.id}`] = recaptcha;
+
+      if (isSafariBrowser()) {
+        await recaptcha.render();
+      }
+
+      const result = await signInWithPhoneNumber(verifierAuth, phoneForOtp, recaptcha);
+      setAdminConfirmationResult(result);
+
       setShowSendOtpConfirmDialog(false);
       setShowAdminOtpModal(true);
-      setAdminOtpCooldown(30); // Start 30s cooldown
+      setAdminOtpCooldown(30);
       toast({
         title: "SMS OTP Inviato!",
         description: `Abbiamo inviato il codice SMS a 6 cifre al numero ${phoneForOtp}.`,
       });
     } catch (error: any) {
       console.error("Errore invio OTP admin:", error);
-      setShowSendOtpConfirmDialog(false);
+      const code = error?.code ? ` (${error.code})` : "";
       toast({
         title: "Errore invio SMS",
-        description: `Impossibile completare la richiesta. Dettagli: ${error.message || error}`,
+        description: `Impossibile completare la richiesta${code}. Dettagli: ${error.message || error}`,
         variant: "destructive"
       });
     } finally {
@@ -460,7 +477,6 @@ const SocioTableRow = memo(({
     }
   };
 
-  // Salta l'invio dell'SMS e apre direttamente la finestra inserimento OTP
   const skipOtpSmsAndShowModal = () => {
     setShowSendOtpConfirmDialog(false);
     setShowAdminOtpModal(true);
@@ -473,13 +489,11 @@ const SocioTableRow = memo(({
   const handleSendAdminOtp = async () => {
     setOtpFlowType('socio');
     setPhoneFieldToSave('phone');
-    // 1. Controlla se manca il numero di telefono
     if (!socio.phone) {
       setNewPhoneInput("");
       setShowAddPhoneDialog(true);
       return;
     }
-    // 2. Controlla se esiste già una firma
     const currentSig = getSignatureMetadata(socio);
     if (currentSig.method && (currentSig.method as string) !== 'NONE') {
       if (currentSig.method === 'MANUAL_PAPER') {
@@ -490,7 +504,6 @@ const SocioTableRow = memo(({
       }
       return;
     }
-    // 3. Tutto ok, procedi con l'OTP
     initiateOtpFlow();
   };
 
@@ -503,7 +516,6 @@ const SocioTableRow = memo(({
       setShowAddPhoneDialog(true);
       return;
     }
-    // Verifica se c'è già una firma del tutore
     const currentGuardianSig = (socio as any).guardianSignatureMetadata;
     if (currentGuardianSig?.method && (currentGuardianSig.method as string) !== 'NONE') {
       if (currentGuardianSig.method === 'MANUAL_PAPER') {
@@ -517,7 +529,6 @@ const SocioTableRow = memo(({
     initiateOtpFlow(guardianPhone);
   };
 
-  // Salva il telefono inserito e procede con l'OTP
   const handleSavePhoneAndSendOtp = async () => {
     const trimmed = newPhoneInput.trim();
     if (!trimmed || trimmed.length < 6) {
@@ -536,15 +547,12 @@ const SocioTableRow = memo(({
       if (pendingActionAfterOtp) {
         initiateOtpFlow(trimmed);
       } else {
-        // Controlla se c'è già una firma
         const currentSig = getSignatureMetadata(socio);
         if (currentSig.method && (currentSig.method as string) !== 'NONE') {
           if (currentSig.method === 'MANUAL_PAPER') {
-            // Modulo cartaceo: tieni entrambe, procedi direttamente
             setHasPaperCopy(true);
             initiateOtpFlow(trimmed);
           } else {
-            // Altra firma digitale: chiedi conferma sovrascrittura
             setShowSignatureExistsDialog(true);
           }
         } else {
@@ -614,7 +622,6 @@ const SocioTableRow = memo(({
       };
 
       let finalNotes = socio.notes || '';
-      // Rimuove eventuali note storiche relative a problemi/richieste d'aiuto segnalate in precedenza
       finalNotes = finalNotes
         .split('\n')
         .filter(line => 
@@ -767,7 +774,6 @@ const SocioTableRow = memo(({
         const oldStatus = getStatus(socioToReject, activeTab !== 'requests');
         const oldNotes = socioToReject.notes || '';
         
-        // Raccolta dati vecchi per le note
         const oldTessera = socioToReject.tessera || 'Nessuna';
         const oldRequestDate = socioToReject.requestDate ? new Date(socioToReject.requestDate).toLocaleDateString('it-IT') : 'N/A';
         const oldJoinDate = socioToReject.joinDate ? new Date(socioToReject.joinDate).toLocaleDateString('it-IT') : 'N/A';
@@ -784,27 +790,24 @@ const SocioTableRow = memo(({
         const memberDocRef = doc(firestore, "members", socioToReject.id);
         const requestDocRef = doc(firestore, "membership_requests", socioToReject.id);
         
-        // Pulizia totale dei dati di tesseramento come richiesto
         const { status, tessera, joinDate, renewalDate, expirationDate, membershipYear, membershipFee, requestDate, ...restOfSocio } = socioToReject;
         
         const rejectedSocioData: any = {
             ...restOfSocio,
             status: 'rejected' as const,
             notes: newNotes,
-            membershipFee: 0, // Torna a zero
-            // I campi data/tessera vengono esplicitamente omessi o messi a null
+            membershipFee: 0,
             tessera: null,
             joinDate: null,
             renewalDate: null,
             expirationDate: null,
             membershipYear: null,
             requestDate: null,
-            qualifica: [] // Puliamo anche le qualifiche
+            qualifica: []
         };
 
         batch.set(memberDocRef, rejectedSocioData);
         
-        // Se era una richiesta, la eliminiamo dalla collezione requests
         if (activeTab === 'requests') {
             batch.delete(requestDocRef);
         }
@@ -836,7 +839,6 @@ const SocioTableRow = memo(({
     if (!firestore || isDeleting) return;
     setIsDeleting(true);
     try {
-      // Usiamo 'members' perché i respinti sono salvati lì (con status: rejected)
       await deleteDoc(doc(firestore, "members", socio.id));
       
       logAdminActivity(firestore, 'delete', `${getFullName(socio)} è stato eliminato definitivamente dal sistema.`);
@@ -857,8 +859,6 @@ const SocioTableRow = memo(({
       setShowDeleteConfirm2(false);
     }
   };
-
-
 
   useEffect(() => {
     if (showApproveDialog) {
@@ -1114,8 +1114,8 @@ const SocioTableRow = memo(({
       <TableRow className={cn(
         "text-xs sm:text-sm transition-all duration-300", 
         status === 'expired' && 'bg-yellow-500/10 hover:bg-yellow-500/20',
-        isRenewedMember && 'bg-indigo-500/10 hover:bg-indigo-500/20', // Rinnovo (Indaco)
-        isNewMember && 'bg-emerald-500/10 hover:bg-emerald-500/20'     // Nuovo (Smeraldo)
+        isRenewedMember && 'bg-indigo-500/10 hover:bg-indigo-500/20',
+        isNewMember && 'bg-emerald-500/10 hover:bg-emerald-500/20'
       )}>
         {activeTab !== 'requests' && (
           <TableCell className="font-mono hidden sm:table-cell">
@@ -1446,7 +1446,6 @@ const SocioTableRow = memo(({
                                 <DialogTitle className="sr-only">Approva Socio</DialogTitle>
                             </DialogHeader>
                             <div className="flex flex-col gap-4 py-4 min-w-0 overflow-hidden">
-                                {/* Premium Identity Card - Fixed Width Overshoot */}
                                 <div className="w-full bg-primary/5 border border-primary/20 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500 overflow-hidden">
                                     <div className="text-center sm:text-left space-y-1 flex-1 min-w-0 overflow-hidden">
                                         <p className="text-[10px] uppercase font-black tracking-[0.3em] text-primary/60 truncate">Approvazione Socio</p>
@@ -1515,7 +1514,6 @@ const SocioTableRow = memo(({
                                   </div>
                                 )}
 
-                                {/* Qualifiche Section - Fixed Margins */}
                                 <div className="w-full space-y-4 bg-muted/20 p-4 rounded-xl border border-border/50 overflow-hidden">
                                     <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground/80 flex items-center gap-2 px-1">
                                         <Award className="h-3 w-3" /> Qualifiche del Socio
@@ -1537,7 +1535,6 @@ const SocioTableRow = memo(({
                                     </div>
                                 </div>
 
-                                {/* Quota Section - Fixed Margins */}
                                 <div className="w-full space-y-4 bg-primary/5 p-4 rounded-xl border border-primary/10 overflow-hidden">
                                     <Label className="font-black text-[10px] uppercase tracking-widest text-primary/70 flex items-center gap-2 px-1">
                                         <Euro className="h-3 w-3" /> Quota Associativa
@@ -1602,7 +1599,6 @@ const SocioTableRow = memo(({
                                 <DialogTitle className="sr-only">Rinnova Tesseramento</DialogTitle>
                             </DialogHeader>
                             <div className="flex flex-col gap-4 py-4 min-w-0 overflow-hidden">
-                                {/* Premium Identity Card - Fixed Width Overshoot */}
                                 <div className="w-full bg-orange-500/5 border border-orange-500/20 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500 overflow-hidden">
                                     <div className="text-center sm:text-left space-y-1 flex-1 min-w-0 overflow-hidden">
                                         <p className="text-[10px] uppercase font-black tracking-[0.3em] text-orange-600/60 truncate">Rinnovo Tesseramento</p>
@@ -1618,7 +1614,6 @@ const SocioTableRow = memo(({
                                     </div>
                                 </div>
 
-                                {/* Qualifiche Section - Fixed Margins */}
                                 <div className="w-full space-y-4 bg-muted/20 p-4 rounded-xl border border-border/50 overflow-hidden">
                                     <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground/80 flex items-center gap-2 px-1">
                                         <Award className="h-3 w-3" /> Qualifiche per il Rinnovo
@@ -1640,7 +1635,6 @@ const SocioTableRow = memo(({
                                     </div>
                                 </div>
 
-                                {/* Quota Section - Fixed Margins */}
                                 <div className="w-full space-y-4 bg-orange-500/5 p-4 rounded-xl border border-orange-500/10 overflow-hidden">
                                     <Label className="font-black text-[10px] uppercase tracking-widest text-orange-600/70 flex items-center gap-2 px-1">
                                         <Euro className="h-3 w-3" /> Quota Rinnovo
@@ -1869,7 +1863,6 @@ const SocioTableRow = memo(({
         </DialogContent>
       </Dialog>
 
-      {/* Dialog di Eliminazione Definitiva - STEP 1 */}
       <Dialog open={showDeleteConfirm1} onOpenChange={setShowDeleteConfirm1}>
         <DialogContent aria-describedby={undefined}>
           <DialogHeader>
@@ -1894,7 +1887,7 @@ const SocioTableRow = memo(({
               variant="destructive" 
               onClick={() => {
                 setShowDeleteConfirm1(false);
-                setTimeout(() => setShowDeleteConfirm2(true), 300); // Piccolo delay per stacco visivo
+                setTimeout(() => setShowDeleteConfirm2(true), 300);
               }}
             >
               Ho capito, procedi
@@ -1903,7 +1896,6 @@ const SocioTableRow = memo(({
         </DialogContent>
       </Dialog>
 
-      {/* AlertDialog di Eliminazione Definitiva - STEP 2 (CONFERMA FINALE) */}
       <AlertDialog open={showDeleteConfirm2} onOpenChange={setShowDeleteConfirm2}>
         <AlertDialogContent className="border-2 border-destructive">
           <AlertDialogHeader>
@@ -1933,7 +1925,6 @@ const SocioTableRow = memo(({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Dialog: Firma già esistente */}
       <AlertDialog open={showSignatureExistsDialog} onOpenChange={setShowSignatureExistsDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1960,7 +1951,6 @@ const SocioTableRow = memo(({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Dialog: Conferma Invio SMS OTP */}
       {showSendOtpConfirmDialog && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-background/85 backdrop-blur-sm animate-in fade-in duration-200 pointer-events-auto">
           <div className="relative w-full max-w-md border border-border bg-background p-6 rounded-2xl shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 text-left">
@@ -2061,7 +2051,6 @@ const SocioTableRow = memo(({
         document.body
       )}
 
-      {/* Dialog: Numero di telefono mancante */}
       <Dialog open={showAddPhoneDialog} onOpenChange={setShowAddPhoneDialog}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
@@ -2138,7 +2127,6 @@ const SocioTableRow = memo(({
         </DialogContent>
       </Dialog>
 
-      {/* Dialog per Invio e Verifica Firma SMS OTP da Admin */}
       {showAdminOtpModal && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-background/85 backdrop-blur-sm animate-in fade-in duration-200 pointer-events-auto">
           <div className="relative w-full max-w-md border border-border bg-background p-6 rounded-2xl shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 text-left">
@@ -2234,9 +2222,6 @@ const SocioTableRow = memo(({
         document.body
       )}
 
-      {/* Vecchio flow di eliminazione rimosso */}
-
-      {/* Dialog: Avviso Firma Digitale Mancante */}
       <AlertDialog open={showMissingSignatureWarning} onOpenChange={setShowMissingSignatureWarning}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -2289,7 +2274,6 @@ const SocioTableRow = memo(({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Dialog di Conferma per Procedere Senza OTP */}
       <AlertDialog open={showNoOtpConfirm} onOpenChange={setShowNoOtpConfirm}>
         <AlertDialogContent className="border border-destructive/20 shadow-xl bg-background sm:max-w-md">
           <AlertDialogHeader>
@@ -2343,31 +2327,39 @@ const SocioTableRow = memo(({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Container per il Recaptcha di Firebase Auth (univoco per ogni riga) — posizionato fuori schermo per evitare interferenze di layout o tabelle */}
-      <div 
-        id={`admin-recaptcha-container-${socio.id}`} 
-        style={isSafariBrowser()
-          ? (isSendingAdminOtp 
-              ? {
-                  position: 'fixed',
-                  bottom: '20px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  zIndex: 99999,
-                  backgroundColor: 'hsl(var(--background))',
-                  border: '1px solid hsl(var(--border))',
-                  padding: '12px',
-                  borderRadius: '12px',
-                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center'
-                }
-              : { position: 'absolute', top: '-9999px', left: '-9999px' }
-            )
-          : { position: 'absolute', top: '-9999px', left: '-9999px' }
-        }
-      ></div>
+      {mounted && createPortal(
+        <div
+          id={`admin-recaptcha-container-${socio.id}`}
+          style={isSafariBrowser() && isSendingAdminOtp
+            ? {
+                position: 'fixed',
+                bottom: '16px',
+                left: '16px',
+                right: '16px',
+                zIndex: 100000,
+                backgroundColor: 'hsl(var(--background))',
+                border: '1px solid hsl(var(--border))',
+                padding: '12px',
+                borderRadius: '12px',
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }
+            : {
+                position: 'fixed',
+                left: 0,
+                bottom: 0,
+                width: '1px',
+                height: '1px',
+                overflow: 'hidden',
+                opacity: 0,
+                pointerEvents: 'none'
+              }
+          }
+        />,
+        document.body
+      )}
     </>
   );
 });
