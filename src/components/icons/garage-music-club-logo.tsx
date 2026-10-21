@@ -3,33 +3,28 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   className?: string;
-  size?: number; // default 60
+  size?: number;
 };
 
-export function GarageMusicClubLogo({ className, size = 60 }: Props) {
+export function GarageMusicClubLogo({ className, size }: Props) {
+  const pixelSize = size || 60;
   return (
     <span
-      className={cn(className)}
-      style={{
-        display: "inline-block",
-        width: `${size}px`,
-        height: `${size}px`,
-        overflow: "hidden",
-        verticalAlign: "middle",
-      }}
+      className={cn(
+        "relative shrink-0 inline-flex items-center justify-center overflow-hidden",
+        !className && !size && "w-[60px] h-[60px]",
+        className
+      )}
+      style={size ? { width: `${size}px`, height: `${size}px` } : undefined}
     >
       <Image
-        src="https://i.imgur.com/Pp0tSQj.png"
+        src="/logo.png"
         alt="Garage Music Club Logo"
-        width={size}
-        height={size}
-        style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "contain",
-          display: "block",
-        }}
+        width={pixelSize}
+        height={pixelSize}
+        className="w-full h-full object-contain"
         priority
+        unoptimized
       />
     </span>
   );

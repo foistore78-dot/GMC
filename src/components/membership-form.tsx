@@ -163,33 +163,20 @@ export function MembershipForm() {
 
   useEffect(() => {
     setMounted(true);
-    const safari = isSafariBrowser();
-    setIsSafari(safari);
-
-    // Su Safari/iOS pre-renderizziamo i RecaptchaVerifier al mount del componente.
-    // Questo è necessario perché Safari richiede che il widget sia già pronto
-    // nel DOM prima che signInWithPhoneNumber venga chiamato, altrimenti si blocca.
-    if (safari && auth) {
-      // Pre-render verifier principale
-      try {
-        const rv = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'normal' });
-        rv.render().catch((e: any) => console.warn('recaptcha pre-render error:', e));
-        (window as any).recaptchaVerifier = rv;
-      } catch (e) {
-        console.warn('Could not pre-render recaptcha:', e);
+    setIsSafari(isSafariBrowser());
+    
+    return () => {
+      if (typeof window !== 'undefined') {
+        try {
+          (window as any).recaptchaVerifier?.clear();
+          delete (window as any).recaptchaVerifier;
+        } catch (e) {}
+        try {
+          (window as any).recaptchaVerifierGuardian?.clear();
+          delete (window as any).recaptchaVerifierGuardian;
+        } catch (e) {}
       }
-
-      // Pre-render verifier tutore (usa auth secondario se disponibile)
-      try {
-        const activeAuth = getSecondaryAuth() || auth;
-        const rvG = new RecaptchaVerifier(activeAuth, 'recaptcha-container-guardian', { size: 'normal' });
-        rvG.render().catch((e: any) => console.warn('guardian recaptcha pre-render error:', e));
-        (window as any).recaptchaVerifierGuardian = rvG;
-      } catch (e) {
-        console.warn('Could not pre-render guardian recaptcha:', e);
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    };
   }, []);
 
   const cameFromAdmin = searchParams.get('from') === 'admin';
@@ -436,32 +423,28 @@ export function MembershipForm() {
       }
 
       if (auth) {
-        const onSafari = isSafariBrowser();
-        let recaptcha = (window as any).recaptchaVerifier;
-
-        if (onSafari) {
-          // Su Safari/iOS riutilizziamo il verifier 'normal' pre-renderizzato al mount.
-          // Se non esiste (primo render fallito o verifier corrotto), lo ricreiamo.
-          if (!recaptcha) {
-            recaptcha = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'normal' });
-            await recaptcha.render();
-            (window as any).recaptchaVerifier = recaptcha;
+        if ((window as any).recaptchaVerifier) {
+          try {
+            (window as any).recaptchaVerifier.clear();
+          } catch (e) {
+            console.warn("Error clearing recaptcha:", e);
           }
-          // NON cancelliamo il verifier dopo l'uso: lo manteniamo per i retry successivi.
-          // (Safari richiede che il widget sia già nel DOM e non può essere ricreato on-the-fly)
-        } else {
-          // Su non-Safari: ricrea sempre un'istanza fresca (invisible, nessun blocco cookie)
-          if (recaptcha) {
-            try { recaptcha.clear(); } catch (e) { console.warn("Error clearing recaptcha:", e); }
-          }
-          recaptcha = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
-          (window as any).recaptchaVerifier = recaptcha;
+          delete (window as any).recaptchaVerifier;
         }
+
+        const recaptcha = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible',
+          callback: () => {},
+          'expired-callback': () => {
+            console.warn("reCAPTCHA expired");
+          }
+        });
+        (window as any).recaptchaVerifier = recaptcha;
 
         // Timeout di sicurezza: se signInWithPhoneNumber non risponde entro 25s sblocchiamo l'UI
         const signInPromise = signInWithPhoneNumber(auth, phone, recaptcha);
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('TIMEOUT: Il server non risponde. Riprova o controlla la connessione.')), 25000)
+          setTimeout(() => reject(new Error('Il server non ha risposto in tempo. Verifica il numero di telefono e la connessione.')), 25000)
         );
         const result = await Promise.race([signInPromise, timeoutPromise]);
         setConfirmationResult(result);
@@ -613,31 +596,28 @@ export function MembershipForm() {
 
       const activeAuth = cameFromAdmin ? (getSecondaryAuth() || auth) : auth;
       if (activeAuth) {
-        const onSafari = isSafariBrowser();
-        let recaptcha = (window as any).recaptchaVerifierGuardian;
-
-        if (onSafari) {
-          // Su Safari/iOS riutilizziamo il verifier tutore 'normal' pre-renderizzato al mount.
-          if (!recaptcha) {
-            recaptcha = new RecaptchaVerifier(activeAuth, 'recaptcha-container-guardian', { size: 'normal' });
-            await recaptcha.render();
-            (window as any).recaptchaVerifierGuardian = recaptcha;
+        if ((window as any).recaptchaVerifierGuardian) {
+          try {
+            (window as any).recaptchaVerifierGuardian.clear();
+          } catch (e) {
+            console.warn("Error clearing guardian recaptcha:", e);
           }
-          // NON cancelliamo il verifier dopo l'uso: lo manteniamo per i retry successivi.
-        } else {
-          // Su non-Safari: ricrea sempre un'istanza fresca
-          if (recaptcha) {
-            try { recaptcha.clear(); } catch (e) { console.warn("Error clearing guardian recaptcha:", e); }
-            delete (window as any).recaptchaVerifierGuardian;
-          }
-          recaptcha = new RecaptchaVerifier(activeAuth, 'recaptcha-container-guardian', { size: 'invisible' });
-          (window as any).recaptchaVerifierGuardian = recaptcha;
+          delete (window as any).recaptchaVerifierGuardian;
         }
+
+        const recaptcha = new RecaptchaVerifier(activeAuth, 'recaptcha-container-guardian', {
+          size: 'invisible',
+          callback: () => {},
+          'expired-callback': () => {
+            console.warn("Guardian reCAPTCHA expired");
+          }
+        });
+        (window as any).recaptchaVerifierGuardian = recaptcha;
 
         // Timeout di sicurezza: se signInWithPhoneNumber non risponde entro 25s sblocchiamo l'UI
         const signInPromise = signInWithPhoneNumber(activeAuth, phone, recaptcha);
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('TIMEOUT: Il server non risponde. Riprova o controlla la connessione.')), 25000)
+          setTimeout(() => reject(new Error('Il server non ha risposto in tempo. Verifica il numero di telefono del tutore.')), 25000)
         );
         const result = await Promise.race([signInPromise, timeoutPromise]);
         setGuardianConfirmationResult(result);
@@ -1174,13 +1154,13 @@ export function MembershipForm() {
                                 <FormItem>
                                     <FormLabel>Cellulare Tutore</FormLabel>
                                     <FormControl>
-                                      <div className="flex gap-2">
+                                      <div className="flex gap-2 w-full min-w-0">
                                         <Select 
                                           value={prefix} 
                                           onValueChange={handlePrefixChange}
                                           disabled={!!guardianSignatureMetadata}
                                         >
-                                          <SelectTrigger className="w-[110px] bg-background border-border shrink-0">
+                                          <SelectTrigger className="w-[105px] sm:w-[110px] bg-background border-border shrink-0">
                                             <SelectValue placeholder="Prefisso" />
                                           </SelectTrigger>
                                           <SelectContent>
@@ -1199,11 +1179,12 @@ export function MembershipForm() {
                                         </Select>
                                         <Input
                                           type="tel"
+                                          inputMode="tel"
                                           placeholder="340 1234567"
                                           disabled={!!guardianSignatureMetadata}
                                           value={number}
                                           onChange={handleNumberChange}
-                                          className="flex-1 bg-background border-border"
+                                          className="flex-1 min-w-0 bg-background border-border text-base sm:text-sm"
                                         />
                                       </div>
                                     </FormControl>
@@ -1298,12 +1279,6 @@ export function MembershipForm() {
                                     Salta firma tutore (il modulo cartaceo sarà necessario in sede)
                                   </button>
 
-                                  {/* Container per il Recaptcha del tutore — sempre fuori schermo.
-                                      Su Safari/iOS il widget viene pre-renderizzato al mount, non al click. */}
-                                  <div
-                                    id="recaptcha-container-guardian"
-                                    style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}
-                                  ></div>
                                 </div>
                               ) : (
                                 <div className="space-y-3 bg-background/50 p-3 rounded-lg border border-border">
@@ -1467,9 +1442,9 @@ export function MembershipForm() {
                           <FormItem>
                             <FormLabel>{isMinor ? "Telefono Genitore / Tutore" : t('steps.contact.phone')}</FormLabel>
                             <FormControl>
-                              <div className="flex gap-2">
+                              <div className="flex gap-2 w-full min-w-0">
                                 <Select value={prefix} onValueChange={handlePrefixChange}>
-                                  <SelectTrigger className="w-[110px] bg-background border-border shrink-0">
+                                  <SelectTrigger className="w-[105px] sm:w-[110px] bg-background border-border shrink-0">
                                     <SelectValue placeholder="Prefisso" />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -1488,10 +1463,11 @@ export function MembershipForm() {
                                 </Select>
                                 <Input 
                                   type="tel"
+                                  inputMode="tel"
                                   placeholder="340 1234567" 
                                   value={number} 
                                   onChange={handleNumberChange}
-                                  className="flex-1 bg-background border-border"
+                                  className="flex-1 min-w-0 bg-background border-border text-base sm:text-sm"
                                 />
                               </div>
                             </FormControl>
@@ -1593,132 +1569,161 @@ export function MembershipForm() {
         </Form>
 
         {showOtpModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/85 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="relative w-full max-w-md border border-border bg-background p-6 rounded-2xl shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 text-left">
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto overscroll-contain"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !isSubmitting) setShowOtpModal(false);
+            }}
+          >
+            <div className="relative w-full max-w-md my-auto max-h-[90vh] overflow-y-auto border border-border bg-card p-5 sm:p-6 rounded-2xl shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 text-left overscroll-contain">
               <button 
                 type="button"
                 onClick={() => setShowOtpModal(false)}
                 disabled={isSubmitting}
-                className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none disabled:opacity-30"
+                className="absolute right-3 top-3 p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors focus:outline-none disabled:opacity-30"
+                aria-label="Chiudi finestra"
               >
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close</span>
+                <X className="h-5 w-5" />
               </button>
 
-              <div className="text-center">
-                <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2">
+              <div className="text-center pt-1">
+                <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2 shadow-[0_0_15px_rgba(var(--primary),0.2)]">
                   <ShieldCheck className="w-6 h-6" />
                 </div>
-                <h3 className="text-xl font-bold">Firma Digitalizzata tramite SMS</h3>
-                <p className="text-sm text-muted-foreground mt-1">
+                <h3 className="text-lg sm:text-xl font-bold tracking-tight">Firma Digitale tramite SMS</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
                   Per confermare l'iscrizione e apporre la Firma Elettronica Semplice allo Statuto e alla Privacy, verifica il tuo numero di cellulare.
                 </p>
               </div>
 
-              <div className="space-y-4 py-3">
+              <div className="space-y-3 py-2">
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                    <Smartphone className="w-3.5 h-3.5" /> Numero di cellulare
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Smartphone className="w-4 h-4 text-primary" /> Cellulare per la firma SMS
                   </label>
-                  <div className="flex gap-2 items-center w-full">
-                    {(() => {
-                      const { prefix, number } = parsePhone(editablePhone);
-                      
-                      const handlePrefixChange = (newPrefix: string) => {
-                        setEditablePhone(`${newPrefix} ${number}`);
-                      };
-                      
-                      const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-                        const newNumber = e.target.value;
-                        setEditablePhone(`${prefix} ${newNumber}`);
-                      };
+                  {(() => {
+                    const { prefix, number } = parsePhone(editablePhone);
+                    
+                    const handlePrefixChange = (newPrefix: string) => {
+                      setEditablePhone(`${newPrefix} ${number}`);
+                    };
+                    
+                    const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                      const newNumber = e.target.value;
+                      setEditablePhone(`${prefix} ${newNumber}`);
+                    };
 
-                      const hasNumber = number.trim().length > 4;
+                    const hasNumber = number.trim().length > 4;
 
-                      return (
-                        <>
-                          <div className="flex gap-2 flex-1">
-                            <Select value={prefix} onValueChange={handlePrefixChange} disabled={otpSent}>
-                              <SelectTrigger className="w-[110px] bg-background border-border shrink-0">
-                                <SelectValue placeholder="Prefisso" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="+39">🇮🇹 +39</SelectItem>
-                                <SelectItem value="+386">🇸🇮 +386</SelectItem>
-                                <SelectItem value="+43">🇦🇹 +43</SelectItem>
-                                <SelectItem value="+41">🇨🇭 +41</SelectItem>
-                                <SelectItem value="+44">🇬🇧 +44</SelectItem>
-                                <SelectItem value="+33">🇫🇷 +33</SelectItem>
-                                <SelectItem value="+387">🇧🇦 +387</SelectItem>
-                                <SelectItem value="+385">🇭🇷 +385</SelectItem>
-                                <SelectItem value="+355">🇦🇱 +355</SelectItem>
-                                <SelectItem value="+34">🇪🇸 +34</SelectItem>
-                                <SelectItem value="+49">🇩🇪 +49</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Input
-                              value={number}
-                              onChange={handleNumberChange}
-                              disabled={otpSent}
-                              placeholder="340 1234567"
-                              className="font-semibold flex-1"
-                            />
+                    return (
+                      <div className="space-y-2">
+                        {/* Riga 1: Prefisso + Input Numero (ocupa tutta la larghezza con min-w-0) */}
+                        <div className="flex gap-2 w-full min-w-0">
+                          <Select value={prefix} onValueChange={handlePrefixChange} disabled={otpSent || isSubmitting}>
+                            <SelectTrigger className="w-[105px] sm:w-[115px] bg-background border-border shrink-0 font-medium">
+                              <SelectValue placeholder="Prefisso" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="+39">🇮🇹 +39</SelectItem>
+                              <SelectItem value="+386">🇸🇮 +386</SelectItem>
+                              <SelectItem value="+43">🇦🇹 +43</SelectItem>
+                              <SelectItem value="+41">🇨🇭 +41</SelectItem>
+                              <SelectItem value="+44">🇬🇧 +44</SelectItem>
+                              <SelectItem value="+33">🇫🇷 +33</SelectItem>
+                              <SelectItem value="+387">🇧🇦 +387</SelectItem>
+                              <SelectItem value="+385">🇭🇷 +385</SelectItem>
+                              <SelectItem value="+355">🇦🇱 +355</SelectItem>
+                              <SelectItem value="+34">🇪🇸 +34</SelectItem>
+                              <SelectItem value="+49">🇩🇪 +49</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            type="tel"
+                            inputMode="tel"
+                            autoComplete="tel"
+                            value={number}
+                            onChange={handleNumberChange}
+                            disabled={otpSent || isSubmitting}
+                            placeholder="340 1234567"
+                            className="font-semibold flex-1 min-w-0 bg-background border-border text-base sm:text-sm"
+                          />
+                        </div>
+
+                        {/* Riga 2: Pulsante invio o stato inviato */}
+                        {!otpSent ? (
+                          <Button 
+                            type="button" 
+                            className="w-full font-bold gap-2 py-5" 
+                            onClick={() => { 
+                              setPendingFormValues((v: any) => ({ ...v, phone: editablePhone })); 
+                              handleSendOtp(editablePhone); 
+                            }} 
+                            disabled={isSendingOtp || !hasNumber || otpCooldown > 0}
+                          >
+                            {isSendingOtp ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Invio codice SMS in corso...
+                              </>
+                            ) : otpCooldown > 0 ? (
+                              `Attendi per reinviare (${otpCooldown}s)`
+                            ) : (
+                              <>
+                                <Smartphone className="w-4 h-4" />
+                                Invia Codice SMS (OTP)
+                              </>
+                            )}
+                          </Button>
+                        ) : (
+                          <div className="flex items-center justify-between gap-2 bg-primary/10 border border-primary/20 px-3 py-2 rounded-lg text-xs">
+                            <span className="flex items-center gap-1.5 text-foreground truncate min-w-0">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                              <span className="truncate">SMS inviato a: <strong className="font-mono">{editablePhone}</strong></span>
+                            </span>
+                            <Button 
+                              type="button" 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={() => { setOtpSent(false); setOtpCode(""); setConfirmationResult(null); }} 
+                              disabled={isSubmitting}
+                              className="text-primary hover:text-primary/80 hover:bg-primary/10 text-xs h-7 px-2 shrink-0 font-semibold"
+                            >
+                              Modifica
+                            </Button>
                           </div>
-                          {!otpSent ? (
-                            <Button type="button" size="sm" onClick={() => { setPendingFormValues((v: any) => ({ ...v, phone: editablePhone })); handleSendOtp(editablePhone); }} disabled={isSendingOtp || !hasNumber || otpCooldown > 0}>
-                              {isSendingOtp ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : otpCooldown > 0 ? (
-                                `Attendi (${otpCooldown}s)`
-                              ) : (
-                                "Invia OTP"
-                              )}
-                            </Button>
-                          ) : (
-                            <Button type="button" size="sm" variant="outline" onClick={() => { setOtpSent(false); setOtpCode(""); setConfirmationResult(null); }} disabled={isSubmitting}>
-                              Cambia
-                            </Button>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                  {otpSent && (
-                    <p className="text-[11px] text-amber-500">
-                      ⚠️ Numero errato? Clicca su <b>Cambia</b> per modificarlo e reinviare l'SMS.
-                    </p>
-                  )}
-                  {/* Container per il Recaptcha di Firebase Auth — sempre fuori schermo.
-                      Su Safari/iOS il widget viene pre-renderizzato al mount, non al click. */}
-                  <div
-                    id="recaptcha-container"
-                    style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}
-                  ></div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {otpSent && (
-                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                      <KeyRound className="w-3.5 h-3.5" /> Codice OTP ricevuto via SMS
+                  <div className="space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-300 pt-2 border-t border-border/50">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <KeyRound className="w-4 h-4 text-primary" /> Codice a 6 cifre ricevuto via SMS
                     </label>
                     <Input 
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      autoComplete="one-time-code"
                       placeholder="123456" 
                       maxLength={6}
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value)}
-                      className="text-center text-lg font-mono tracking-widest"
+                      className="text-center text-xl font-mono tracking-[0.25em] font-bold py-5 bg-background border-border"
                       autoFocus
                     />
-                    <div className="flex justify-between items-center pt-1 gap-2">
+                    <div className="flex justify-between items-center pt-0.5 gap-2">
                       <p className="text-[11px] text-muted-foreground">
-                        Inserisci il codice a 6 cifre per completare la firma.
+                        Inserisci il codice ricevuto per completare la firma.
                       </p>
                       <Button 
                         type="button" 
                         variant="link" 
                         size="sm" 
                         onClick={() => handleSendOtp()} 
-                        disabled={isSendingOtp || otpCooldown > 0}
+                        disabled={isSendingOtp || otpCooldown > 0 || isSubmitting}
                         className="text-xs h-auto p-0 text-primary hover:underline flex items-center gap-1 shrink-0 font-semibold"
                       >
                         {isSendingOtp ? (
@@ -1733,30 +1738,35 @@ export function MembershipForm() {
                 )}
               </div>
 
-              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
-                {/* Annulla: disabilitato solo durante la verifica finale (isSubmitting), MAI durante isSendingOtp */}
-                <Button type="button" variant="ghost" onClick={() => setShowOtpModal(false)} disabled={isSubmitting}>
-                  Annulla
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-3 border-t border-border/50">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowOtpModal(false)} 
+                  disabled={isSubmitting}
+                  className="w-full sm:w-auto"
+                >
+                  Torna al Modulo
                 </Button>
                 <Button 
                   type="button" 
                   onClick={handleConfirmOtp} 
-                  disabled={!otpSent || isSubmitting} 
-                  className="font-bold gap-2"
+                  disabled={!otpSent || isSubmitting || otpCode.trim().length < 4} 
+                  className="w-full sm:w-auto font-bold gap-2 py-5 sm:py-2"
                 >
                   {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Conferma e Firma Digitalmente
+                  Conferma e Firma Richiesta
                 </Button>
               </div>
 
-              <div className="pt-2 text-center border-t border-border/40 mt-1">
+              <div className="pt-2 text-center">
                 <button 
                   type="button" 
                   onClick={() => setShowConfirmProblemModal(true)} 
                   disabled={isSubmitting}
-                  className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors underline font-normal focus:outline-none"
+                  className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors underline font-normal focus:outline-none"
                 >
-                  Se hai problemi con la richiesta clicca qui
+                  Non ricevi l'SMS o hai problemi? Clicca qui per firmare in sede
                 </button>
               </div>
             </div>
@@ -1800,6 +1810,18 @@ export function MembershipForm() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Container per reCAPTCHA di Firebase Auth (sempre presenti nel DOM per evitare crash al render/mount e con pointer-events: none per non bloccare lo schermo) */}
+        <div
+          id="recaptcha-container"
+          style={{ position: 'fixed', bottom: 0, left: 0, width: 0, height: 0, opacity: 0, pointerEvents: 'none', zIndex: -1 }}
+          aria-hidden="true"
+        />
+        <div
+          id="recaptcha-container-guardian"
+          style={{ position: 'fixed', bottom: 0, left: 0, width: 0, height: 0, opacity: 0, pointerEvents: 'none', zIndex: -1 }}
+          aria-hidden="true"
+        />
     </>
   );
 }
