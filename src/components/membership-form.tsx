@@ -1232,7 +1232,7 @@ export function MembershipForm() {
                                 <div className="space-y-3">
                                   <Button
                                     type="button"
-                                    onClick={() => handleSendGuardianOtp()}
+                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleSendGuardianOtp(); }}
                                     disabled={isSendingGuardianOtp || !form.getValues("guardianPhone") || (form.getValues("guardianPhone") || "").trim().length < 5 || guardianOtpCooldown > 0}
                                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2"
                                   >
@@ -1572,14 +1572,21 @@ export function MembershipForm() {
           <div 
             className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto overscroll-contain"
             onClick={(e) => {
-              if (e.target === e.currentTarget && !isSubmitting) setShowOtpModal(false);
+              if (e.target === e.currentTarget && !isSubmitting && !isSendingOtp) setShowOtpModal(false);
             }}
           >
-            <div className="relative w-full max-w-md my-auto max-h-[90vh] overflow-y-auto border border-border bg-card p-5 sm:p-6 rounded-2xl shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 text-left overscroll-contain">
+            <div 
+              className="relative w-full max-w-md my-auto max-h-[90vh] overflow-y-auto border border-border bg-card p-5 sm:p-6 rounded-2xl shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 text-left overscroll-contain"
+              onClick={(e) => e.stopPropagation()}
+            >
               <button 
                 type="button"
-                onClick={() => setShowOtpModal(false)}
-                disabled={isSubmitting}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowOtpModal(false);
+                }}
+                disabled={isSubmitting || isSendingOtp}
                 className="absolute right-3 top-3 p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors focus:outline-none disabled:opacity-30"
                 aria-label="Chiudi finestra"
               >
@@ -1654,7 +1661,9 @@ export function MembershipForm() {
                           <Button 
                             type="button" 
                             className="w-full font-bold gap-2 py-5" 
-                            onClick={() => { 
+                            onClick={(e) => { 
+                              e.preventDefault();
+                              e.stopPropagation();
                               setPendingFormValues((v: any) => ({ ...v, phone: editablePhone })); 
                               handleSendOtp(editablePhone); 
                             }} 
@@ -1684,8 +1693,14 @@ export function MembershipForm() {
                               type="button" 
                               size="sm" 
                               variant="ghost" 
-                              onClick={() => { setOtpSent(false); setOtpCode(""); setConfirmationResult(null); }} 
-                              disabled={isSubmitting}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setOtpSent(false);
+                                setOtpCode("");
+                                setConfirmationResult(null);
+                              }} 
+                              disabled={isSubmitting || isSendingOtp}
                               className="text-primary hover:text-primary/80 hover:bg-primary/10 text-xs h-7 px-2 shrink-0 font-semibold"
                             >
                               Modifica
@@ -1722,7 +1737,11 @@ export function MembershipForm() {
                         type="button" 
                         variant="link" 
                         size="sm" 
-                        onClick={() => handleSendOtp()} 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleSendOtp();
+                        }} 
                         disabled={isSendingOtp || otpCooldown > 0 || isSubmitting}
                         className="text-xs h-auto p-0 text-primary hover:underline flex items-center gap-1 shrink-0 font-semibold"
                       >
@@ -1742,15 +1761,23 @@ export function MembershipForm() {
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={() => setShowOtpModal(false)} 
-                  disabled={isSubmitting}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowOtpModal(false);
+                  }} 
+                  disabled={isSubmitting || isSendingOtp}
                   className="w-full sm:w-auto"
                 >
                   Torna al Modulo
                 </Button>
                 <Button 
                   type="button" 
-                  onClick={handleConfirmOtp} 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleConfirmOtp();
+                  }} 
                   disabled={!otpSent || isSubmitting || otpCode.trim().length < 4} 
                   className="w-full sm:w-auto font-bold gap-2 py-5 sm:py-2"
                 >
@@ -1762,8 +1789,12 @@ export function MembershipForm() {
               <div className="pt-2 text-center">
                 <button 
                   type="button" 
-                  onClick={() => setShowConfirmProblemModal(true)} 
-                  disabled={isSubmitting}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowConfirmProblemModal(true);
+                  }} 
+                  disabled={isSubmitting || isSendingOtp}
                   className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors underline font-normal focus:outline-none"
                 >
                   Non ricevi l'SMS o hai problemi? Clicca qui per firmare in sede
@@ -1814,13 +1845,11 @@ export function MembershipForm() {
         {/* Container per reCAPTCHA di Firebase Auth */}
         <div
           id="recaptcha-container"
-          style={{ position: 'fixed', bottom: 0, left: 0, width: 0, height: 0, opacity: 0, zIndex: 99999 }}
-          aria-hidden="true"
+          style={{ position: 'fixed', bottom: 0, left: 0, zIndex: 99999 }}
         />
         <div
           id="recaptcha-container-guardian"
-          style={{ position: 'fixed', bottom: 0, left: 0, width: 0, height: 0, opacity: 0, zIndex: 99999 }}
-          aria-hidden="true"
+          style={{ position: 'fixed', bottom: 0, left: 0, zIndex: 99999 }}
         />
     </>
   );

@@ -2335,12 +2335,8 @@ const SocioTableRow = memo(({
             position: 'fixed',
             bottom: 0,
             left: 0,
-            width: 0,
-            height: 0,
-            opacity: 0,
             zIndex: 99999
           }}
-          aria-hidden="true"
         />,
         document.body
       )}
