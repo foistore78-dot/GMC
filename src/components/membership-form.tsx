@@ -126,6 +126,7 @@ export function MembershipForm() {
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
   const [pendingFormValues, setPendingFormValues] = useState<any>(null);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [editablePhone, setEditablePhone] = useState("");
@@ -137,6 +138,7 @@ export function MembershipForm() {
   const [guardianOtpSent, setGuardianOtpSent] = useState(false);
   const [guardianOtpCode, setGuardianOtpCode] = useState("");
   const [isSendingGuardianOtp, setIsSendingGuardianOtp] = useState(false);
+  const [guardianOtpError, setGuardianOtpError] = useState<string | null>(null);
   const [isVerifyingGuardianOtp, setIsVerifyingGuardianOtp] = useState(false);
   const [guardianConfirmationResult, setGuardianConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [editableGuardianPhone, setEditableGuardianPhone] = useState("");
@@ -376,6 +378,7 @@ export function MembershipForm() {
       return;
     }
     setIsSendingOtp(true);
+    setOtpError(null);
     try {
       let rawPhone = String(rawPhoneVal).replace(/\s+/g, '');
       let phone = rawPhone;
@@ -432,6 +435,11 @@ export function MembershipForm() {
           delete (window as any).recaptchaVerifier;
         }
 
+        const container = document.getElementById('recaptcha-container');
+        if (container) {
+          container.innerHTML = '';
+        }
+
         const recaptcha = new RecaptchaVerifier(auth, 'recaptcha-container', {
           size: 'invisible',
           callback: () => {},
@@ -440,6 +448,7 @@ export function MembershipForm() {
           }
         });
         (window as any).recaptchaVerifier = recaptcha;
+        await recaptcha.render();
 
         // Timeout di sicurezza: se signInWithPhoneNumber non risponde entro 25s sblocchiamo l'UI
         const signInPromise = signInWithPhoneNumber(auth, phone, recaptcha);
@@ -457,9 +466,11 @@ export function MembershipForm() {
       });
     } catch (error: any) {
       console.error("SMS Sending error:", error);
+      const errorMsg = error?.message || error?.code || "Impossibile inviare l'SMS OTP. Verifica il numero o riprova più tardi.";
+      setOtpError(errorMsg);
       toast({
         title: "Errore Invio SMS",
-        description: error.message || "Impossibile inviare l'SMS OTP. Verifica il numero o riprova più tardi.",
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
@@ -605,6 +616,11 @@ export function MembershipForm() {
           delete (window as any).recaptchaVerifierGuardian;
         }
 
+        const container = document.getElementById('recaptcha-container-guardian');
+        if (container) {
+          container.innerHTML = '';
+        }
+
         const recaptcha = new RecaptchaVerifier(activeAuth, 'recaptcha-container-guardian', {
           size: 'invisible',
           callback: () => {},
@@ -613,6 +629,7 @@ export function MembershipForm() {
           }
         });
         (window as any).recaptchaVerifierGuardian = recaptcha;
+        await recaptcha.render();
 
         // Timeout di sicurezza: se signInWithPhoneNumber non risponde entro 25s sblocchiamo l'UI
         const signInPromise = signInWithPhoneNumber(activeAuth, phone, recaptcha);
@@ -1704,6 +1721,31 @@ export function MembershipForm() {
                               className="text-primary hover:text-primary/80 hover:bg-primary/10 text-xs h-7 px-2 shrink-0 font-semibold"
                             >
                               Modifica
+                            </Button>
+                          </div>
+                        )}
+
+                        {otpError && (
+                          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-xs space-y-2 animate-in fade-in">
+                            <div className="flex items-start gap-2">
+                              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-destructive" />
+                              <div className="space-y-0.5">
+                                <p className="font-bold text-destructive">Avviso invio SMS:</p>
+                                <p className="font-mono text-[11px] opacity-90 break-all">{otpError}</p>
+                              </div>
+                            </div>
+                            <Button 
+                              type="button" 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setOtpSent(true);
+                              }}
+                              className="w-full text-xs font-bold border-destructive/30 hover:bg-destructive/10 text-foreground h-8"
+                            >
+                              Inserisci codice ricevuto manualmente
                             </Button>
                           </div>
                         )}
