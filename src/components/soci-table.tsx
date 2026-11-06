@@ -417,12 +417,6 @@ const SocioTableRow = memo(({
       }
 
       const containerId = `admin-recaptcha-container-${socio.id}`;
-
-      await new Promise<void>((resolve) => {
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-      });
-      await new Promise((resolve) => setTimeout(resolve, 80));
-
       const container = document.getElementById(containerId);
       if (!container) {
         throw new Error("Container reCAPTCHA non trovato");
@@ -435,26 +429,24 @@ const SocioTableRow = memo(({
         } catch (e) {
           console.warn("Error clearing recaptcha verifier:", e);
         }
+        delete (window as any)[`adminRecaptchaVerifierSec_${socio.id}`];
       }
       container.innerHTML = "";
 
-      if (isSafariBrowser()) {
-        const rect = container.getBoundingClientRect();
-        if (rect.width < 40) {
-          await new Promise((resolve) => setTimeout(resolve, 150));
-        }
-      }
-
       recaptcha = new RecaptchaVerifier(verifierAuth, containerId, {
-        size: isSafariBrowser() ? 'normal' : 'invisible',
+        size: 'invisible',
+        callback: () => {},
+        'expired-callback': () => {
+          console.warn("reCAPTCHA scaduto");
+        }
       });
       (window as any)[`adminRecaptchaVerifierSec_${socio.id}`] = recaptcha;
 
-      if (isSafariBrowser()) {
-        await recaptcha.render();
-      }
-
-      const result = await signInWithPhoneNumber(verifierAuth, phoneForOtp, recaptcha);
+      const signInPromise = signInWithPhoneNumber(verifierAuth, phoneForOtp, recaptcha);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Il server non ha risposto in tempo. Verifica il numero o inserisci il codice manualmente.')), 20000)
+      );
+      const result = await Promise.race([signInPromise, timeoutPromise]);
       setAdminConfirmationResult(result);
 
       setShowSendOtpConfirmDialog(false);
@@ -469,9 +461,12 @@ const SocioTableRow = memo(({
       const code = error?.code ? ` (${error.code})` : "";
       toast({
         title: "Errore invio SMS",
-        description: `Impossibile completare la richiesta${code}. Dettagli: ${error.message || error}`,
+        description: `Impossibile completare l'invio SMS${code}. Puoi inserire il codice manualmente. Dettagli: ${error.message || error}`,
         variant: "destructive"
       });
+      // Mostra comunque la modale per consentire l'inserimento manuale del codice
+      setShowSendOtpConfirmDialog(false);
+      setShowAdminOtpModal(true);
     } finally {
       setIsSendingAdminOtp(false);
     }
@@ -1266,8 +1261,9 @@ const SocioTableRow = memo(({
 
                   <div className="flex flex-wrap justify-end gap-2 mt-6 border-t pt-4">
                     <Button 
+                        type="button"
                         variant="outline" 
-                        onClick={handleSendAdminOtp} 
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleSendAdminOtp(); }} 
                         disabled={isSendingAdminOtp}
                         className="gap-2 bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20 font-bold"
                       >
@@ -1276,8 +1272,9 @@ const SocioTableRow = memo(({
                       </Button>
                     {socioIsMinor && (
                       <Button 
+                          type="button"
                           variant="outline" 
-                          onClick={handleSendAdminGuardianOtp} 
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleSendAdminGuardianOtp(); }} 
                           disabled={isSendingAdminOtp}
                           className="gap-2 bg-amber-500/10 text-amber-500 border-amber-500/30 hover:bg-amber-500/20 font-bold"
                         >
@@ -1286,10 +1283,10 @@ const SocioTableRow = memo(({
                         </Button>
                     )}
 
-                    <Button variant="outline" onClick={() => onPrint(socio)} className="gap-2">
+                    <Button type="button" variant="outline" onClick={() => onPrint(socio)} className="gap-2">
                       <Printer className="h-4 w-4" /> Stampa Scheda
                     </Button>
-                    <Button onClick={() => onEdit(socio)} className="gap-2">
+                    <Button type="button" onClick={() => onEdit(socio)} className="gap-2">
                       <Pencil className="h-4 w-4" /> Modifica Dati
                     </Button>
                   </div>
@@ -2033,7 +2030,7 @@ const SocioTableRow = memo(({
               </Button>
               <Button
                 type="button"
-                onClick={sendOtpSms}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); sendOtpSms(); }}
                 disabled={isSendingAdminOtp || isEditingPhoneConfirm || adminOtpCooldown > 0}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
               >
@@ -2266,7 +2263,11 @@ const SocioTableRow = memo(({
               <Button variant="ghost" onClick={() => { setShowMissingSignatureWarning(false); setPendingActionAfterOtp(null); }} className="sm:order-1 mt-0">
                 Annulla
               </Button>
-              <Button onClick={handleProceedWithOtp} className="gap-2 sm:order-2">
+              <Button 
+                type="button" 
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleProceedWithOtp(); }} 
+                className="gap-2 sm:order-2"
+              >
                 Procedi con OTP
               </Button>
             </div>
@@ -2330,33 +2331,16 @@ const SocioTableRow = memo(({
       {mounted && createPortal(
         <div
           id={`admin-recaptcha-container-${socio.id}`}
-          style={isSafariBrowser() && isSendingAdminOtp
-            ? {
-                position: 'fixed',
-                bottom: '16px',
-                left: '16px',
-                right: '16px',
-                zIndex: 100000,
-                backgroundColor: 'hsl(var(--background))',
-                border: '1px solid hsl(var(--border))',
-                padding: '12px',
-                borderRadius: '12px',
-                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center'
-              }
-            : {
-                position: 'fixed',
-                left: 0,
-                bottom: 0,
-                width: '1px',
-                height: '1px',
-                overflow: 'hidden',
-                opacity: 0,
-                pointerEvents: 'none'
-              }
-          }
+          style={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            width: 0,
+            height: 0,
+            opacity: 0,
+            zIndex: 99999
+          }}
+          aria-hidden="true"
         />,
         document.body
       )}

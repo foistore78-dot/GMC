@@ -1811,15 +1811,15 @@ export function MembershipForm() {
           </DialogContent>
         </Dialog>
 
-        {/* Container per reCAPTCHA di Firebase Auth (sempre presenti nel DOM per evitare crash al render/mount e con pointer-events: none per non bloccare lo schermo) */}
+        {/* Container per reCAPTCHA di Firebase Auth */}
         <div
           id="recaptcha-container"
-          style={{ position: 'fixed', bottom: 0, left: 0, width: 0, height: 0, opacity: 0, pointerEvents: 'none', zIndex: -1 }}
+          style={{ position: 'fixed', bottom: 0, left: 0, width: 0, height: 0, opacity: 0, zIndex: 99999 }}
           aria-hidden="true"
         />
         <div
           id="recaptcha-container-guardian"
-          style={{ position: 'fixed', bottom: 0, left: 0, width: 0, height: 0, opacity: 0, pointerEvents: 'none', zIndex: -1 }}
+          style={{ position: 'fixed', bottom: 0, left: 0, width: 0, height: 0, opacity: 0, zIndex: 99999 }}
           aria-hidden="true"
         />
     </>
