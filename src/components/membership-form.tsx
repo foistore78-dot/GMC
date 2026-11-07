@@ -1588,13 +1588,13 @@ export function MembershipForm() {
         {showOtpModal && (
           <div 
             className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto overscroll-contain"
-            onClick={(e) => {
-              if (e.target === e.currentTarget && !isSubmitting && !isSendingOtp) setShowOtpModal(false);
-            }}
           >
             <div 
               className="relative w-full max-w-md my-auto max-h-[90vh] overflow-y-auto border border-border bg-card p-5 sm:p-6 rounded-2xl shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 text-left overscroll-contain"
               onClick={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
             >
               <button 
                 type="button"
@@ -1681,6 +1681,7 @@ export function MembershipForm() {
                             onClick={(e) => { 
                               e.preventDefault();
                               e.stopPropagation();
+                              if (isSendingOtp || !hasNumber || otpCooldown > 0) return;
                               setPendingFormValues((v: any) => ({ ...v, phone: editablePhone })); 
                               handleSendOtp(editablePhone); 
                             }} 
@@ -1802,30 +1803,32 @@ export function MembershipForm() {
               <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-3 border-t border-border/50">
                 <Button 
                   type="button" 
-                  variant="outline" 
+                  variant="ghost" 
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     setShowOtpModal(false);
                   }} 
                   disabled={isSubmitting || isSendingOtp}
-                  className="w-full sm:w-auto"
+                  className="w-full sm:w-auto text-muted-foreground hover:text-foreground"
                 >
                   Torna al Modulo
                 </Button>
-                <Button 
-                  type="button" 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleConfirmOtp();
-                  }} 
-                  disabled={!otpSent || isSubmitting || otpCode.trim().length < 4} 
-                  className="w-full sm:w-auto font-bold gap-2 py-5 sm:py-2"
-                >
-                  {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Conferma e Firma Richiesta
-                </Button>
+                {otpSent && (
+                  <Button 
+                    type="button" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleConfirmOtp();
+                    }} 
+                    disabled={isSubmitting || otpCode.trim().length < 4} 
+                    className="w-full sm:w-auto font-bold gap-2 py-5 sm:py-2"
+                  >
+                    {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Conferma e Firma Richiesta
+                  </Button>
+                )}
               </div>
 
               <div className="pt-2 text-center">
