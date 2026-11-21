@@ -181,6 +181,59 @@ export function MembershipForm() {
     };
   }, []);
 
+  // Inizializzazione reCAPTCHA quando si apre la modale OTP (con modalità 'normal' visibile per iPhone/Safari)
+  useEffect(() => {
+    if (!showOtpModal || !auth) return;
+
+    let isMounted = true;
+    const isApple = isSafariBrowser();
+
+    const timer = setTimeout(() => {
+      if (!isMounted) return;
+      const container = document.getElementById('recaptcha-container');
+      if (!container) return;
+
+      try {
+        if ((window as any).recaptchaVerifier) {
+          try {
+            (window as any).recaptchaVerifier.clear();
+          } catch (e) {}
+          delete (window as any).recaptchaVerifier;
+        }
+        container.innerHTML = '';
+
+        const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: isApple ? 'normal' : 'invisible',
+          callback: () => {
+            setOtpError(null);
+          },
+          'expired-callback': () => {
+            console.warn("reCAPTCHA expired");
+          }
+        });
+
+        verifier.render().catch((err: any) => {
+          console.warn("reCAPTCHA render error:", err);
+        });
+
+        (window as any).recaptchaVerifier = verifier;
+      } catch (err) {
+        console.error("Error setting up recaptcha in modal:", err);
+      }
+    }, 150);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+      if (typeof window !== 'undefined') {
+        try {
+          (window as any).recaptchaVerifier?.clear();
+          delete (window as any).recaptchaVerifier;
+        } catch (e) {}
+      }
+    };
+  }, [showOtpModal, auth]);
+
   const cameFromAdmin = searchParams.get('from') === 'admin';
 
   const formSchema = useMemo(() => z.object({
@@ -426,34 +479,30 @@ export function MembershipForm() {
       }
 
       if (auth) {
-        if ((window as any).recaptchaVerifier) {
-          try {
-            (window as any).recaptchaVerifier.clear();
-          } catch (e) {
-            console.warn("Error clearing recaptcha:", e);
+        let recaptcha = (window as any).recaptchaVerifier;
+        if (!recaptcha) {
+          const container = document.getElementById('recaptcha-container');
+          if (container) {
+            container.innerHTML = '';
           }
-          delete (window as any).recaptchaVerifier;
+          const isApple = isSafariBrowser();
+          recaptcha = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            size: isApple ? 'normal' : 'invisible',
+            callback: () => {
+              setOtpError(null);
+            },
+            'expired-callback': () => {
+              console.warn("reCAPTCHA expired");
+            }
+          });
+          (window as any).recaptchaVerifier = recaptcha;
+          await recaptcha.render();
         }
-
-        const container = document.getElementById('recaptcha-container');
-        if (container) {
-          container.innerHTML = '';
-        }
-
-        const recaptcha = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible',
-          callback: () => {},
-          'expired-callback': () => {
-            console.warn("reCAPTCHA expired");
-          }
-        });
-        (window as any).recaptchaVerifier = recaptcha;
-        await recaptcha.render();
 
         // Timeout di sicurezza: se signInWithPhoneNumber non risponde entro 25s sblocchiamo l'UI
         const signInPromise = signInWithPhoneNumber(auth, phone, recaptcha);
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Il server non ha risposto in tempo. Verifica il numero di telefono e la connessione.')), 25000)
+          setTimeout(() => reject(new Error('Il server non ha risposto in tempo. Se compare il riquadro "Non sono un robot", completalo e riprova.')), 25000)
         );
         const result = await Promise.race([signInPromise, timeoutPromise]);
         setConfirmationResult(result);
@@ -466,7 +515,16 @@ export function MembershipForm() {
       });
     } catch (error: any) {
       console.error("SMS Sending error:", error);
-      const errorMsg = error?.message || error?.code || "Impossibile inviare l'SMS OTP. Verifica il numero o riprova più tardi.";
+      let errorMsg = error?.message || error?.code || "Impossibile inviare l'SMS OTP. Verifica il numero o riprova più tardi.";
+      if (error?.code === 'auth/invalid-phone-number') {
+        errorMsg = "Il numero di telefono inserito non è valido. Verifica il prefisso e il numero.";
+      } else if (error?.code === 'auth/too-many-requests') {
+        errorMsg = "Troppe richieste inviate. Attendi qualche minuto prima di riprovare o usa la firma in sede.";
+      } else if (error?.code === 'auth/captcha-check-failed') {
+        errorMsg = "Verifica di sicurezza non riuscita. Spunta la casella 'Non sono un robot' sopra e riprova.";
+      } else if (error?.code === 'auth/invalid-app-credential') {
+        errorMsg = "Verifica del dispositivo non riuscita. Spunta la casella 'Non sono un robot' o richiedi la firma in sede.";
+      }
       setOtpError(errorMsg);
       toast({
         title: "Errore Invio SMS",
@@ -621,8 +679,9 @@ export function MembershipForm() {
           container.innerHTML = '';
         }
 
+        const isApple = isSafariBrowser();
         const recaptcha = new RecaptchaVerifier(activeAuth, 'recaptcha-container-guardian', {
-          size: 'invisible',
+          size: isApple ? 'normal' : 'invisible',
           callback: () => {},
           'expired-callback': () => {
             console.warn("Guardian reCAPTCHA expired");
@@ -1247,6 +1306,7 @@ export function MembershipForm() {
                             <div className="space-y-4 text-left">
                               {!guardianOtpSent ? (
                                 <div className="space-y-3">
+                                  <div id="recaptcha-container-guardian" className="flex justify-center my-2 min-h-[78px] items-center" />
                                   <Button
                                     type="button"
                                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleSendGuardianOtp(); }}
@@ -1673,6 +1733,11 @@ export function MembershipForm() {
                           />
                         </div>
 
+                        {/* Container per reCAPTCHA di Firebase Auth (visibile per iPhone/Safari) */}
+                        {!otpSent && (
+                          <div id="recaptcha-container" className="flex justify-center my-1.5 min-h-[78px] items-center" />
+                        )}
+
                         {/* Riga 2: Pulsante invio o stato inviato */}
                         {!otpSent ? (
                           <Button 
@@ -1735,19 +1800,34 @@ export function MembershipForm() {
                                 <p className="font-mono text-[11px] opacity-90 break-all">{otpError}</p>
                               </div>
                             </div>
-                            <Button 
-                              type="button" 
-                              size="sm" 
-                              variant="outline" 
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setOtpSent(true);
-                              }}
-                              className="w-full text-xs font-bold border-destructive/30 hover:bg-destructive/10 text-foreground h-8"
-                            >
-                              Inserisci codice ricevuto manualmente
-                            </Button>
+                            <div className="flex flex-col gap-1.5 pt-1">
+                              <Button 
+                                type="button" 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setOtpSent(true);
+                                }}
+                                className="w-full text-xs font-bold border-destructive/30 hover:bg-destructive/10 text-foreground h-8"
+                              >
+                                Inserisci codice ricevuto manualmente
+                              </Button>
+                              <Button 
+                                type="button" 
+                                size="sm" 
+                                variant="destructive" 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setShowConfirmProblemModal(true);
+                                }}
+                                className="w-full text-xs font-bold h-8"
+                              >
+                                Problemi con l'SMS? Procedi con firma cartacea in sede
+                              </Button>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1886,16 +1966,6 @@ export function MembershipForm() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-
-        {/* Container per reCAPTCHA di Firebase Auth */}
-        <div
-          id="recaptcha-container"
-          style={{ position: 'fixed', bottom: 0, left: 0, zIndex: 99999 }}
-        />
-        <div
-          id="recaptcha-container-guardian"
-          style={{ position: 'fixed', bottom: 0, left: 0, zIndex: 99999 }}
-        />
     </>
   );
 }
