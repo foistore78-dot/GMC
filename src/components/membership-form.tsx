@@ -212,7 +212,9 @@ export function MembershipForm() {
           }
         });
 
-        verifier.render().catch((err: any) => {
+        verifier.render().then((widgetId: any) => {
+          (window as any).recaptchaWidgetId = widgetId;
+        }).catch((err: any) => {
           console.warn("reCAPTCHA render error:", err);
         });
 
@@ -497,6 +499,22 @@ export function MembershipForm() {
           });
           (window as any).recaptchaVerifier = recaptcha;
           await recaptcha.render();
+        }
+
+        const isApple = isSafariBrowser();
+        if (isApple && typeof (window as any).grecaptcha !== 'undefined') {
+          const widgetId = (window as any).recaptchaWidgetId;
+          const resp = widgetId !== undefined ? (window as any).grecaptcha.getResponse(widgetId) : (window as any).grecaptcha.getResponse();
+          if (!resp) {
+            toast({
+              title: "Verifica richiesta",
+              description: "Per favore, tocca prima la casella 'Non sono un robot' sopra il pulsante.",
+              variant: "destructive",
+            });
+            setOtpError("Tocca prima la casella 'Non sono un robot' qui sopra per abilitare l'invio dell'SMS.");
+            setIsSendingOtp(false);
+            return;
+          }
         }
 
         // Timeout di sicurezza: se signInWithPhoneNumber non risponde entro 25s sblocchiamo l'UI
@@ -1652,9 +1670,6 @@ export function MembershipForm() {
             <div 
               className="relative w-full max-w-md my-auto max-h-[90vh] overflow-y-auto border border-border bg-card p-5 sm:p-6 rounded-2xl shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 text-left overscroll-contain"
               onClick={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-              onTouchEnd={(e) => e.stopPropagation()}
-              onPointerDown={(e) => e.stopPropagation()}
             >
               <button 
                 type="button"
@@ -1735,37 +1750,61 @@ export function MembershipForm() {
 
                         {/* Container per reCAPTCHA di Firebase Auth (visibile per iPhone/Safari) */}
                         {!otpSent && (
-                          <div id="recaptcha-container" className="flex justify-center my-1.5 min-h-[78px] items-center" />
+                          <div className="space-y-1 pt-1">
+                            <p className="text-[11px] text-muted-foreground text-center font-medium">
+                              Tocca la casella qui sotto per verificare la sicurezza:
+                            </p>
+                            <div 
+                              id="recaptcha-container" 
+                              className="flex justify-center my-1 min-h-[78px] items-center w-full"
+                              style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
+                            />
+                          </div>
                         )}
 
                         {/* Riga 2: Pulsante invio o stato inviato */}
                         {!otpSent ? (
-                          <Button 
-                            type="button" 
-                            className="w-full font-bold gap-2 py-5" 
-                            onClick={(e) => { 
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (isSendingOtp || !hasNumber || otpCooldown > 0) return;
-                              setPendingFormValues((v: any) => ({ ...v, phone: editablePhone })); 
-                              handleSendOtp(editablePhone); 
-                            }} 
-                            disabled={isSendingOtp || !hasNumber || otpCooldown > 0}
-                          >
-                            {isSendingOtp ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                Invio codice SMS in corso...
-                              </>
-                            ) : otpCooldown > 0 ? (
-                              `Attendi per reinviare (${otpCooldown}s)`
-                            ) : (
-                              <>
-                                <Smartphone className="w-4 h-4" />
-                                Invia Codice SMS (OTP)
-                              </>
-                            )}
-                          </Button>
+                          <div className="space-y-2 pt-1">
+                            <Button 
+                              type="button" 
+                              className="w-full font-bold gap-2 py-5" 
+                              onClick={(e) => { 
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (isSendingOtp || !hasNumber || otpCooldown > 0) return;
+                                setPendingFormValues((v: any) => ({ ...v, phone: editablePhone })); 
+                                handleSendOtp(editablePhone); 
+                              }} 
+                              disabled={isSendingOtp || !hasNumber || otpCooldown > 0}
+                            >
+                              {isSendingOtp ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Invio codice SMS in corso...
+                                </>
+                              ) : otpCooldown > 0 ? (
+                                `Attendi per reinviare (${otpCooldown}s)`
+                              ) : (
+                                <>
+                                  <Smartphone className="w-4 h-4" />
+                                  Invia Codice SMS (OTP)
+                                </>
+                              )}
+                            </Button>
+
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setShowConfirmProblemModal(true);
+                              }}
+                              className="w-full text-xs font-semibold text-amber-500 hover:text-amber-400 border-amber-500/30 hover:bg-amber-500/10 py-2.5 h-auto text-center whitespace-normal leading-snug"
+                            >
+                              La casella non risponde o preferisci firmare a mano? Clicca qui per firmare in sede
+                            </Button>
+                          </div>
                         ) : (
                           <div className="flex items-center justify-between gap-2 bg-primary/10 border border-primary/20 px-3 py-2 rounded-lg text-xs">
                             <span className="flex items-center gap-1.5 text-foreground truncate min-w-0">
